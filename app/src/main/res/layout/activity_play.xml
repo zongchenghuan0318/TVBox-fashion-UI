@@ -65,6 +65,7 @@
         android:textSize="@dimen/ts_22" />
 
     <TextView
+        android:id="@+id/play_ad_tip"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|right"

@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.ConsoleMessage;
@@ -86,6 +87,14 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private TextView mTimeTV;
     private TextView mPlayLoadTipTV;
     private TextView mMovieNameTV;
+    private TextView mAdTipTV;
+    /** 播放中自动收起顶部节目介绍/时间与右下角提示的倒计时 */
+    private final Runnable mHideOverlaysRunnable = new Runnable() {
+        @Override
+        public void run() {
+            setOverlaysVisible(false);
+        }
+    };
     private ImageView mPlayErrImg;
     private ProgressBar mPlayLoadingPb;
     private VodController mController;
@@ -159,9 +168,17 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mTimeTV = findViewById(R.id.system_time_tv);
         mPlayLoadTipTV = findViewById(R.id.play_load_tip);
         mMovieNameTV = findViewById(R.id.movie_name_tv);
+        mAdTipTV = findViewById(R.id.play_ad_tip);
         mPlayLoadingPb = findViewById(R.id.play_loading);
         mPlayErrImg = findViewById(R.id.play_load_error);
         mMovieNameTV.setOnClickListener(this);
+        //触摸屏幕（手机/平板）时同样重新显示，但不拦截手势
+        mVideoView.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                showOverlaysThenAutoHide();
+            }
+            return false;
+        });
         addControl();
         addProcessMng();
     }
@@ -441,6 +458,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     }
                     mVideoView.setInfo("(" + site + ")" + playTitle);
                     mVideoView.start();
+                    showOverlaysThenAutoHide();
                     mController.resetSpeed();
                     insertVod(mSourceKeyStr, mVodInfo);
                     hideTipsView();
@@ -555,6 +573,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event != null) {
+            //有按键操作时重新显示已自动收起的节目介绍/时间/右下提示，5 秒后再次收起
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                showOverlaysThenAutoHide();
+            }
             if (mController.dealKeyEvent(event)) {
                 return true;
             }
@@ -752,6 +774,24 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 mHandler.postDelayed(this, 1000);
             }
         }, 1000);
+    }
+
+    /**
+     * 顶部节目介绍、右上角时间、右下角提示：播放中显示 5 秒后自动收起，按键操作时重新显示
+     */
+    private void setOverlaysVisible(boolean visible) {
+        int vis = visible ? View.VISIBLE : View.GONE;
+        if (mMovieNameTV != null) mMovieNameTV.setVisibility(vis);
+        if (mTimeTV != null) mTimeTV.setVisibility(vis);
+        if (mAdTipTV != null) mAdTipTV.setVisibility(vis);
+    }
+
+    private void showOverlaysThenAutoHide() {
+        setOverlaysVisible(true);
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mHideOverlaysRunnable);
+            mHandler.postDelayed(mHideOverlaysRunnable, 5000);
+        }
     }
 
     private void showTipsView(String msg, boolean loading, boolean err) {
