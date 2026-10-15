@@ -1,0 +1,40 @@
+{
+  "urls": [
+    {
+      "name": "浪里小白龙 ",
+      "url": "http://39.101.135.137:8080"
+    },
+    {
+      "name": "阿尔法",
+      "url": "http://www.tvboxx.top/tv/xiong.json"
+    },
+    {
+      "name": "不好来找",
+      "url": "http://lin.ohphp.com/3/qg.json"
+    },
+    {
+      "name": "gitee仓",
+      "url": "https://gitee.com/mofanyun/niuma/raw/master/niuma.json"
+    },
+    {
+      "name": "南瓜",
+      "url": "http://120.79.4.185/"
+    },
+    {
+      "name": "那年十八岁",
+      "url": "https://gitee.com/Andyblog/tvbox/raw/main/10.json"
+    },
+    {
+      "name": "阿芬法",
+      "url": "http://www.lyyytv.cn/yt/yt.json"
+    },
+    {
+      "name": "阿修维护的接口",
+      "url": "https://tv.axiu.xyz/jh/4k/vip.json"
+    },
+    {
+      "name": "💚酷玩影视💚",
+      "url": "https://gh.con.sh/https://raw.githubusercontent.com/xnftv/xnf/main/hyxuan.json"
+    }
+  ]
+}

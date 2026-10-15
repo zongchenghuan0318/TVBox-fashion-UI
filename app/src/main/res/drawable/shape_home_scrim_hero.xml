@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 左侧压暗：保证剧名/元信息所在左列的对比度 -->
+    <item>
+        <shape>
+            <gradient
+                android:angle="0"
+                android:endColor="@android:color/transparent"
+                android:startColor="#80000000" />
+        </shape>
+    </item>
+    <!-- 底部压暗：承载剧名与底部卡片行 -->
+    <item>
+        <shape>
+            <gradient
+                android:angle="270"
+                android:centerColor="#40000000"
+                android:endColor="#CC000000"
+                android:startColor="@android:color/transparent" />
+        </shape>
+    </item>
+</layer-list>

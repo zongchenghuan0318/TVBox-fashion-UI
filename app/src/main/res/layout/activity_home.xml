@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/color_home_base">
+
+    <!-- 主页结构：配置与首页数据加载完成前由下方打开画面覆盖 -->
+    <LinearLayout
+        android:id="@+id/homeContent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+    <!-- 左侧导航栏：品牌 + 快捷入口 + 分类 -->
+    <LinearLayout
+        android:layout_width="@dimen/vs_165"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/vs_24"
+        android:paddingBottom="@dimen/vs_24">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
+            android:letterSpacing="0.04"
+            android:paddingLeft="@dimen/vs_24"
+            android:singleLine="true"
+            android:text="@string/app_name"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_24"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_4"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
+            android:letterSpacing="0.05"
+            android:paddingLeft="@dimen/vs_24"
+            android:textColor="@color/color_BBFFFFFF"
+            android:textSize="@dimen/ts_20"
+            tools:text="00:00" />
+
+        <!-- 快捷入口 -->
+        <LinearLayout
+            android:id="@+id/layout_history"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_44"
+            android:layout_marginTop="@dimen/vs_10"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginRight="@dimen/vs_12"
+            android:background="@drawable/selector_home_rail"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/vs_16">
+
+            <ImageView
+                android:layout_width="@dimen/vs_26"
+                android:layout_height="@dimen/vs_26"
+                android:alpha="0.9"
+                android:focusable="false"
+                android:src="@drawable/icon_history" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="@dimen/vs_12"
+                android:focusable="false"
+                android:text="历史"
+                android:textColor="@color/color_CCFFFFFF"
+                android:textSize="@dimen/ts_24" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_search2"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_44"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginRight="@dimen/vs_12"
+            android:background="@drawable/selector_home_rail"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/vs_16">
+
+            <ImageView
+                android:layout_width="@dimen/vs_26"
+                android:layout_height="@dimen/vs_26"
+                android:alpha="0.9"
+                android:focusable="false"
+                android:src="@drawable/icon_search" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="@dimen/vs_12"
+                android:focusable="false"
+                android:text="搜索"
+                android:textColor="@color/color_CCFFFFFF"
+                android:textSize="@dimen/ts_24" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_collect"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_44"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginRight="@dimen/vs_12"
+            android:background="@drawable/selector_home_rail"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/vs_16">
+
+            <ImageView
+                android:layout_width="@dimen/vs_26"
+                android:layout_height="@dimen/vs_26"
+                android:alpha="0.9"
+                android:focusable="false"
+                android:src="@drawable/icon_collect" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="@dimen/vs_12"
+                android:focusable="false"
+                android:text="收藏"
+                android:textColor="@color/color_CCFFFFFF"
+                android:textSize="@dimen/ts_24" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_setting"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_44"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginRight="@dimen/vs_12"
+            android:background="@drawable/selector_home_rail"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/vs_16">
+
+            <ImageView
+                android:layout_width="@dimen/vs_26"
+                android:layout_height="@dimen/vs_26"
+                android:alpha="0.9"
+                android:focusable="false"
+                android:src="@drawable/icon_setting" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="@dimen/vs_12"
+                android:focusable="false"
+                android:text="设置"
+                android:textColor="@color/color_CCFFFFFF"
+                android:textSize="@dimen/ts_24" />
+        </LinearLayout>
+
+        <!-- 分隔线：导航入口 与 内容分类 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_2"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginTop="@dimen/vs_10"
+            android:layout_marginRight="@dimen/vs_12"
+            android:background="@color/color_99FFFFFF" />
+
+        <!-- 分类 -->
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/sortRV"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/vs_6"
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12"
+            app:tv_verticalSpacingWithMargins="@dimen/vs_6" />
+
+        <com.github.tvbox.osc.ui.tv.widget.MarqueeTextView
+            android:id="@+id/caution_tv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_6"
+            android:ellipsize="marquee"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center_vertical"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:paddingLeft="@dimen/vs_16"
+            android:paddingRight="@dimen/vs_16"
+            android:singleLine="true"
+            android:text="软件和影片接口完全免费，软件有问题请联系开发者宗成焕。"
+            android:textColor="@color/color_BBFFFFFF"
+            android:textSize="@dimen/ts_16" />
+    </LinearLayout>
+
+    <!-- 右侧内容区：首页 / 分类页共用 -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager
+            android:id="@+id/viewPager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- 打开画面：配置与首页数据全部就绪后再淡出 -->
+    <FrameLayout
+        android:id="@+id/loadingView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/color_home_base"
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.08"
+                android:text="@string/app_name"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_50"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_20"
+                android:letterSpacing="0.05"
+                android:text="正在加载配置，请稍候…"
+                android:textColor="@color/color_BBFFFFFF"
+                android:textSize="@dimen/ts_24" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_10"
+                android:letterSpacing="0.05"
+                android:text="请勿轻信任何广告"
+                android:textColor="@color/color_99FFFFFF"
+                android:textSize="@dimen/ts_20" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|right"
+            android:layout_marginRight="@dimen/vs_30"
+            android:layout_marginBottom="@dimen/vs_24"
+            android:gravity="right"
+            android:lineSpacingExtra="@dimen/vs_6"
+            android:text="开发者宗成焕\n联系电话：19856352311"
+            android:textColor="@color/color_BBFFFFFF"
+            android:textSize="@dimen/ts_20" />
+    </FrameLayout>
+
+</FrameLayout>

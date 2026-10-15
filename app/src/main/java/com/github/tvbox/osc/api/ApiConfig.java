@@ -1,0 +1,781 @@
+package com.github.tvbox.osc.api;
+
+import android.app.Activity;
+import android.content.Context;
+import android.net.Uri;
+import android.text.TextUtils;
+import android.util.Base64;
+
+import com.github.catvod.crawler.Spider;
+import com.github.catvod.utils.Util;
+import com.github.tvbox.osc.base.App;
+import com.github.tvbox.osc.bean.IJKCode;
+import com.github.tvbox.osc.bean.LiveChannelGroup;
+import com.github.tvbox.osc.bean.LiveChannelItem;
+import com.github.tvbox.osc.bean.ParseBean;
+import com.github.tvbox.osc.bean.SiteBean;
+import com.github.tvbox.osc.ui.activity.UiHelper;
+import com.github.tvbox.osc.util.AdBlocker;
+import com.github.tvbox.osc.util.DefaultConfig;
+import com.github.tvbox.osc.util.HawkConfig;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.github.tvbox.osc.util.MD5;
+import com.lcstudio.commonsurport.L;
+import com.lcstudio.commonsurport.util.MyFilesManager;
+import com.lcstudio.commonsurport.util.NullUtil;
+import com.lcstudio.commonsurport.util.SPDataUtil;
+import com.lzy.okgo.OkGo;
+import com.lzy.okgo.callback.AbsCallback;
+import com.lzy.okgo.model.Response;
+import com.orhanobut.hawk.Hawk;
+import com.uisupport.update.Initer;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+public class ApiConfig {
+
+    /*
+      配置文件链接地址，可以自行更改
+     */
+    public static final String DEFAULT_URL = "https://tv.xn--yhqu5zs87a.top";
+
+    public static final String PRE_KEY_CONFIG = "pre_key_config";
+    public static String current_siteUrl= "";
+    private static ApiConfig instance = null;
+    private final LinkedHashMap<String, SiteBean> mSiteBeanMap;
+    private ParseBean mDefaultParseBean;
+    private final List<LiveChannelGroup> mLiveChannelGroupList;
+    private final List<ParseBean> mParseBeanList;
+    private List<String> mVipFlagList;
+    private List<IJKCode> mIjkCodes;
+    private String mSpider = null;
+    private final BaseLoader mBaseLoader;
+    private boolean bInit = false;
+    private String apiUrl;
+    private boolean m_bParsed = false;
+
+    public static ApiConfig getInstance() {
+        if (instance == null) {
+            synchronized (ApiConfig.class) {
+                if (instance == null) {
+                    instance = new ApiConfig();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private ApiConfig() {
+        mSiteBeanMap = new LinkedHashMap<>();
+        mLiveChannelGroupList = new ArrayList<>();
+        mParseBeanList = new ArrayList<>();
+        mBaseLoader = new BaseLoader();
+    }
+
+    public void loadSitesFile(Activity activity, LoadConfigCallback callback) {
+        L.d("loadSitesFile start");
+        Context ctx = activity.getBaseContext();
+        apiUrl = Hawk.get(HawkConfig.API_URL, "");
+        SPDataUtil spDataUtil = new SPDataUtil(ctx);
+        String configContent = spDataUtil.getStringValue(PRE_KEY_CONFIG);
+        Initer.init(activity);
+        new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                m_bParsed = false;
+                if (!NullUtil.isNull(configContent) && UiHelper.isJson(configContent)) {
+                    //测试连接有配置内容
+                    current_siteUrl = "user config";
+                    parseSiteFile(apiUrl, configContent);
+                    callback.success();
+                }  else{
+                    //对齐 v6.1.7：配置只能来自 Hawk api_url，无 assets 兜底
+                    if (NullUtil.isNull(apiUrl)) {
+                        L.w("loadSitesFile api_url 为空，无配置可加载");
+                        callback.success();
+                        return;
+                    }
+                    String siteUrl = apiUrl;
+                    String configKey = "";
+                    //单 URL 支持 "url;pk;configKey"，key 取第二段
+                    if (siteUrl.contains(";pk;")) {
+                        String[] parts = siteUrl.split(";pk;");
+                        if (parts.length >= 2) {
+                            configKey = parts[1];
+                            siteUrl = parts[0];
+                        }
+                    }
+                    if (siteUrl.contains("clan")) {
+                        siteUrl = UiHelper.clanToAddress(siteUrl);
+                    } else if (!siteUrl.contains("http")) {
+                        siteUrl = "http://" + siteUrl;
+                    }
+                    //该配置接口按 UA 分流：只有 okhttp UA 才返回 JSON 配置体，浏览器 UA 只会拿到下载页 HTML
+                    String r = getWithOkhttpUA(siteUrl);
+                    L.w("loadSitesFile 下载 len=" + r.length() + " head="
+                            + r.substring(0, Math.min(60, r.length())));
+                    //对齐 v6.1.7：配置体解码（base64 / AES）
+                    r = convert(r, configKey);
+                    if (!NullUtil.isNull(r) && UiHelper.isJson(r)) {
+                        current_siteUrl = siteUrl;
+                        parseSiteFile(siteUrl, r);
+                    } else {
+                        L.w("loadSitesFile 配置下载或解析失败 url=" + siteUrl);
+                    }
+                    callback.success();
+                }
+            }
+        }.start();
+    }
+
+    /**
+     * 对齐 v6.1.7 的配置体解码（等价 com.androidx.o0O 的 convert(String,String)）：
+     * 1) 已是 JSON 直接返回；
+     * 2) 形如 "xxxxxxxx**" 前缀的 base64 体 → 去前 10 个字符后 base64 解码；
+     * 3) 含 "2423"/"2324" 标记 → hex 解出 "$#...#$" 为 key、末 13 位为 iv，AES/CBC 解密；
+     * 4) 否则若带 configKey → AES/ECB/PKCS7 解密（key 由 configKey 补齐 16 位）。
+     */
+    private static String convert(String data, String configKey) {
+        if (NullUtil.isNull(data)) return "";
+        String origin = data;
+        try {
+            if (isJson(data)) return data;
+            Matcher matcher = Pattern.compile("[A-Za-z0]{8}\\*\\*").matcher(data);
+            if (matcher.find()) {
+                String tag = matcher.group();
+                String body = data.substring(data.indexOf(tag) + 10);
+                try {
+                    data = new String(Base64.decode(body, Base64.DEFAULT), "UTF-8");
+                    if (data.contains("2423")) {
+                        data = decode2423(data);
+                    } else if (configKey != null) {
+                        data = decodeEcb(data, configKey);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    data = body;
+                }
+            } else if (data.contains("2423")) {
+                data = decode2423(data);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            data = origin;
+        }
+        return data == null ? "" : data;
+    }
+
+    private static String decode2423(String data) throws Exception {
+        String body = data.substring(data.indexOf("2324") + 4, data.length() - 26);
+        String keyStr = new String(Util.hex2byte(data), "UTF-8").toLowerCase();
+        String key = padKey(keyStr.substring(keyStr.indexOf("$#") + 2, keyStr.indexOf("#$")));
+        String iv = padKey(keyStr.substring(keyStr.length() - 13));
+        return aesCbc(body, key, iv);
+    }
+
+    private static String decodeEcb(String data, String configKey) throws Exception {
+        if (isJson(data)) return data;
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS7Padding");
+        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(padKey(configKey).getBytes(), "AES"));
+        return new String(cipher.doFinal(Util.hex2byte(data)));
+    }
+
+    private static String aesCbc(String data, String key, String iv) {
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS7Padding");
+            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getBytes(), "AES"), new IvParameterSpec(iv.getBytes()));
+            return new String(cipher.doFinal(Util.hex2byte(data)));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * 等价 com.androidx.o00OOOOo.o0000o0：trim 后取前 16 位，不足右侧补 '0'
+     */
+    private static String padKey(String s) {
+        String key = s.trim();
+        if (key.length() > 16) return key.substring(0, 16);
+        StringBuilder sb = new StringBuilder(key);
+        while (sb.length() < 16) sb.append("0");
+        return sb.toString();
+    }
+
+    private static boolean isJson(String str) {
+        try {
+            new JSONObject(str);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 统一 UA。该点播配置接口与爬虫 jar 都按 UA 分流：请求头里含 okhttp 才返回 JSON 配置体 /
+     * 爬虫 jar，浏览器 UA 只会拿到 FongMi 下载页 HTML。而 OkGoHelper 给 OkGo 加了浏览器
+     * 公共头（accept + Chrome UA），aar 的 HttpDoRequest.doGetRequestInOkGo 不带 UA 覆盖，
+     * 所以必须自己带上 okhttp UA 请求。
+     */
+    public static final String UA_OKHTTP = "okhttp/3.12.1";
+
+    /**
+     * 用 OkGo 已配置好的 OkHttpClient 直接 GET（绕开 OkGo 的浏览器公共头），返回响应体字符串
+     */
+    public static String getWithOkhttpUA(String url) {
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .header("User-Agent", UA_OKHTTP)
+                .build();
+        try {
+            okhttp3.Response response = OkGo.getInstance().getOkHttpClient().newCall(request).execute();
+            try {
+                if (!response.isSuccessful() || response.body() == null) {
+                    L.w("getWithOkhttpUA 失败 code=" + response.code() + " url=" + url);
+                    return "";
+                }
+                return response.body().string();
+            } finally {
+                response.close();
+            }
+        } catch (Throwable th) {
+            L.w("getWithOkhttpUA 异常 " + th.getMessage() + " url=" + url);
+            return "";
+        }
+    }
+
+    /**
+     * 加载配置里的 spider jar（csp 爬虫包）
+     * <p>
+     * 原实现走 aar 的 Downloader(FileDownloader)，落盘路径取自 MyFilesManager.getLogPath()，
+     * 即公共外部存储 /storage/emulated/0/<pkg>/log/，必须先拿到 WRITE_EXTERNAL_STORAGE；
+     * 未授权时下载必然失败（IOException: Create parent directory failed），随后回退到内置
+     * assets/tvbox.jar —— 而该内置包只有 2 个条目、不含任何 csp_* 站点类，于是配置里 45 个
+     * csp_* 站点全都拿不到实现类，首页站点探测（ApiConfig.initHomeBean）无一成功，左栏只剩「首页」。
+     * <p>
+     * 现改为下载到应用私有目录 files/spider（不需要任何权限，电视端同样可用），
+     * 且所有分支都保证 callback.success() 触发一次，避免调用方链路卡住。
+     */
+    public void loadJar(Context cxt, boolean useCache, String spider, LoadConfigCallback callback) {
+        String[] urls = spider == null ? new String[0] : spider.split(";md5;");
+        final String jarUrl = urls.length > 0 ? urls[0].trim() : "";
+        final String md5 = urls.length > 1 ? urls[1].trim() : "";
+        final Context ctx = cxt.getApplicationContext();
+        L.w("loadJar url=" + jarUrl + " md5=" + md5 + " useCache=" + useCache);
+        new Thread() {
+            @Override
+            public void run() {
+                boolean ok = false;
+                try {
+                    if (!NullUtil.isNull(jarUrl)) {
+                        File jarDir = new File(ctx.getFilesDir().getAbsolutePath() + "/spider");
+                        if (jarDir.exists() || jarDir.mkdirs()) {
+                            File jarFile = new File(jarDir, "csp_" + MD5.encode(jarUrl) + ".jar");
+                            // 与原实现的 setForceReDownload(false) 一致：已下过就直接复用，不必每次启动重下
+                            if ((jarFile.exists() && jarFile.length() > 0) || downloadJar(jarUrl, jarFile)) {
+                                ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
+                                L.w("loadJar file=" + jarFile.getName() + " size=" + jarFile.length()
+                                        + " md5=" + MD5.getFileMd5(jarFile) + " success=" + ok);
+                                if (!ok) {
+                                    jarFile.delete();
+                                }
+                            }
+                        } else {
+                            L.w("loadJar 创建目录失败 " + jarDir.getAbsolutePath());
+                        }
+                    }
+                } catch (Throwable th) {
+                    L.w("loadJar 异常 " + th.getMessage());
+                }
+                if (!ok) {
+                    // 兜底：内置 assets/tvbox.jar（只有 2 个条目，不含 csp_* 站点类）
+                    MyFilesManager.copyFileFromAssets(App.getInstance(), "tvbox.jar",
+                            App.getInstance().getFilesDir().getAbsolutePath(), "csp.jar");
+                    File cspFile = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp.jar");
+                    L.w("loadJar 内置兜底 csp.jar size=" + cspFile.length()
+                            + " success=" + mBaseLoader.loadJar(cspFile.getAbsolutePath()));
+                }
+                callback.success();
+            }
+        }.start();
+    }
+
+    /**
+     * 显式带 okhttp UA 下载 jar 到目标文件；先写 .tmp 再改名，避免中断留下半截文件
+     */
+    private static boolean downloadJar(String url, File dest) {
+        File tmp = new File(dest.getAbsolutePath() + ".tmp");
+        okhttp3.Response response = null;
+        InputStream in = null;
+        FileOutputStream out = null;
+        try {
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(url)
+                    .header("User-Agent", UA_OKHTTP)
+                    .build();
+            response = OkGo.getInstance().getOkHttpClient().newCall(request).execute();
+            if (!response.isSuccessful() || response.body() == null) {
+                L.w("loadJar 下载失败 code=" + response.code() + " url=" + url);
+                return false;
+            }
+            in = response.body().byteStream();
+            out = new FileOutputStream(tmp);
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            out.flush();
+            out.close();
+            out = null;
+            in.close();
+            in = null;
+            if (tmp.length() == 0) {
+                return false;
+            }
+            if (dest.exists() && !dest.delete()) {
+                L.w("loadJar 旧文件删除失败 " + dest.getAbsolutePath());
+            }
+            boolean moved = tmp.renameTo(dest);
+            L.w("loadJar 下载完成 size=" + dest.length() + " rename=" + moved);
+            return moved;
+        } catch (Throwable th) {
+            L.w("loadJar 下载异常 " + th.getMessage());
+            return false;
+        } finally {
+            try {
+                if (out != null) out.close();
+            } catch (Exception ignored) {
+            }
+            try {
+                if (in != null) in.close();
+            } catch (Exception ignored) {
+            }
+            if (response != null) response.close();
+            if (tmp.exists()) tmp.delete();
+        }
+    }
+
+    private void parseSiteFile(String apiUrl, String jsonStr) {
+        if (NullUtil.isNull(jsonStr)) return;
+        if (m_bParsed) return;
+        L.d("parseSiteFile() start");
+        try {
+            mSiteBeanMap.clear();
+            JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
+            mSpider = DefaultConfig.safeJsonString(jsonObject, "spider", "");
+            L.d("mSpider=" + mSpider);
+            // 远端站点源
+            for (JsonElement opt : jsonObject.get("sites").getAsJsonArray()) {
+                JsonObject obj = (JsonObject) opt;
+                SiteBean bean = new SiteBean();
+                String siteKey = obj.get("key").getAsString().trim();
+                bean.setKey(siteKey);
+                if(NullUtil.isNull(siteKey)) continue;//空key不要
+                bean.setName(obj.get("name").getAsString().trim());
+                bean.setType(obj.get("type").getAsInt());
+                bean.setApi(obj.get("api").getAsString().trim());
+                bean.setSearchable(DefaultConfig.safeJsonInt(obj, "searchable", 1));
+                bean.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
+                bean.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
+                bean.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
+                bean.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
+                bean.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
+                L.d(UiHelper.getBeanStr(bean));
+                mSiteBeanMap.put(siteKey, bean);
+            }
+
+            // 需要使用vip解析的flag
+            mVipFlagList = DefaultConfig.safeJsonStringList(jsonObject, "flags");
+            // 解析地址
+            for (JsonElement opt : jsonObject.get("parses").getAsJsonArray()) {
+                JsonObject obj = (JsonObject) opt;
+                ParseBean pb = new ParseBean();
+                pb.setName(obj.get("name").getAsString().trim());
+                pb.setUrl(obj.get("url").getAsString().trim());
+                String ext = obj.has("ext") ? obj.get("ext").getAsJsonObject().toString() : "";
+                pb.setExt(ext);
+                pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
+                mParseBeanList.add(pb);
+                L.d(pb.getName() + "\t" + pb.getUrl());
+            }
+            // 获取默认解析
+            if (!NullUtil.isNull(mParseBeanList)) {
+                String defaultParse = Hawk.get(HawkConfig.DEFAULT_PARSE, "");
+                if (!TextUtils.isEmpty(defaultParse)) {
+                    for (ParseBean pb : mParseBeanList) {
+                        if (pb.getName().equals(defaultParse)) {
+                            setDefaultParse(pb);
+                        }
+                    }
+                }
+                if (mDefaultParseBean == null) {
+                    setDefaultParse(mParseBeanList.get(0));
+                }
+            }
+            // 直播源
+            mLiveChannelGroupList.clear();  //修复从后台切换重复加载频道列表
+            try {
+                String lives = jsonObject.get("lives").getAsJsonArray().toString();
+                int index = lives.indexOf("proxy://");
+                if (index != -1) {
+                    int endIndex = lives.lastIndexOf("\"");
+                    String url = lives.substring(index, endIndex);
+                    url = DefaultConfig.checkReplaceProxy(url);
+
+                    //clan
+                    String extUrl = Uri.parse(url).getQueryParameter("ext");
+                    if (extUrl != null && !extUrl.isEmpty()) {
+                        String extUrlFix = new String(Base64.decode(extUrl, Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP), "UTF-8");
+                        if (extUrlFix.startsWith("clan://")) {
+                            extUrlFix = UiHelper.clanContentFix(UiHelper.clanToAddress(apiUrl), extUrlFix);
+                            extUrlFix = Base64.encodeToString(extUrlFix.getBytes("UTF-8"), Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP);
+                            url = url.replace(extUrl, extUrlFix);
+                        }
+                    }
+                    LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
+                    liveChannelGroup.setGroupName(url);
+                    mLiveChannelGroupList.add(liveChannelGroup);
+                    L.d("live channel:" + liveChannelGroup.getGroupName());
+                } else {
+                    loadLives(jsonObject.get("lives").getAsJsonArray());
+                }
+            } catch (Throwable th) {
+               L.w(th.getMessage());
+            }
+            // 广告地址
+            JsonArray ads =  jsonObject.getAsJsonArray("ads");
+            if(null != ads) {
+                for (JsonElement host : ads) {
+                    AdBlocker.addAdHost(host.getAsString());
+                }
+            }
+            // IJK解码配置
+            boolean foundOldSelect = false;
+            String ijkCodec = Hawk.get(HawkConfig.IJK_CODEC, "");
+            mIjkCodes = new ArrayList<>();
+            // ijk 键是可选的（本点播配置就没有），缺失时不能直接 getAsJsonArray 否则 NPE
+            JsonArray ijkArr = jsonObject.getAsJsonArray("ijk");
+            for (JsonElement opt : ijkArr == null ? new JsonArray() : ijkArr) {
+                JsonObject obj = (JsonObject) opt;
+                String name = obj.get("group").getAsString();
+                LinkedHashMap<String, String> baseOpt = new LinkedHashMap<>();
+                for (JsonElement cfg : obj.get("options").getAsJsonArray()) {
+                    JsonObject cObj = (JsonObject) cfg;
+                    String key = cObj.get("category").getAsString() + "|" + cObj.get("name").getAsString();
+                    String val = cObj.get("value").getAsString();
+                    baseOpt.put(key, val);
+                }
+                IJKCode codec = new IJKCode();
+                codec.setName(name);
+                codec.setOption(baseOpt);
+                if (name.equals(ijkCodec) || TextUtils.isEmpty(ijkCodec)) {
+                    codec.selected(true);
+                    ijkCodec = name;
+                    foundOldSelect = true;
+                } else {
+                    codec.selected(false);
+                }
+                mIjkCodes.add(codec);
+                L.d("IJK name=" + codec.getName());
+            }
+            if (!foundOldSelect && mIjkCodes.size() > 0) {
+                mIjkCodes.get(0).selected(true);
+            }
+        } catch (Exception e) {
+            L.e(e);
+        }
+        m_bParsed = true;
+    }
+
+    public void loadLives(JsonArray livesArray) {
+        L.d("loadLives()");
+        mLiveChannelGroupList.clear();
+        int groupIndex = 0;
+        int channelIndex = 0;
+        int channelNum = 0;
+        for (JsonElement groupElement : livesArray) {
+            LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
+            liveChannelGroup.setLiveChannels(new ArrayList<LiveChannelItem>());
+            liveChannelGroup.setGroupIndex(groupIndex++);
+            String groupName = ((JsonObject) groupElement).get("group").getAsString().trim();
+            String[] splitGroupName = groupName.split("_", 2);
+            liveChannelGroup.setGroupName(splitGroupName[0]);
+            if (splitGroupName.length > 1) {
+                liveChannelGroup.setGroupPassword(splitGroupName[1]);
+            } else {
+                liveChannelGroup.setGroupPassword("");
+            }
+            channelIndex = 0;
+            for (JsonElement channelElement : ((JsonObject) groupElement).get("channels").getAsJsonArray()) {
+                JsonObject obj = (JsonObject) channelElement;
+                LiveChannelItem liveChannelItem = new LiveChannelItem();
+                liveChannelItem.setChannelName(obj.get("name").getAsString().trim());
+                liveChannelItem.setChannelIndex(channelIndex++);
+                liveChannelItem.setChannelNum(++channelNum);
+                ArrayList<String> urls = DefaultConfig.safeJsonStringList(obj, "urls");
+                L.d("urls="+urls);
+                ArrayList<String> sourceNames = new ArrayList<>();
+                ArrayList<String> sourceUrls = new ArrayList<>();
+                int sourceIndex = 1;
+                for (String url : urls) {
+                    L.d("url="+url);
+                    String[] splitText = url.split("\\$", 2);
+                    sourceUrls.add(splitText[0]);
+                    if (splitText.length > 1) {
+                        sourceNames.add(splitText[1]);
+                    } else {
+                        sourceNames.add("源" + Integer.toString(sourceIndex));
+                    }
+
+                    sourceIndex++;
+                }
+                liveChannelItem.setChannelSourceNames(sourceNames);
+                liveChannelItem.setChannelUrls(sourceUrls);
+                liveChannelGroup.getLiveChannels().add(liveChannelItem);
+            }
+            mLiveChannelGroupList.add(liveChannelGroup);
+            L.d("live group name:"+liveChannelGroup.getGroupName());
+        }
+    }
+
+    public String getmSpider() {
+        if (null == mSpider) return "";
+        return mSpider;
+    }
+
+    public Spider getCSP(SiteBean sourceBean) {
+        return mBaseLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt());
+    }
+
+    public Object[] proxyLocal(Map param) {
+        return mBaseLoader.proxy(param);
+    }
+
+    public JSONObject jarExt(String key, LinkedHashMap<String, String> jxs, String url) {
+        return mBaseLoader.jsonExt(key, jxs, url);
+    }
+
+    public JSONObject jarExtMix(String flag, String key, String name, LinkedHashMap<String, HashMap<String, String>> jxs, String url) {
+        return mBaseLoader.jsonExtMix(flag, key, name, jxs, url);
+    }
+
+    public interface LoadConfigCallback {
+        void success();
+    }
+
+    public interface InitHomeCallback {
+        void success();
+    }
+
+    public void setDefaultParse(ParseBean parseBean) {
+        if (this.mDefaultParseBean != null) {
+            this.mDefaultParseBean.setDefault(false);
+        }
+        this.mDefaultParseBean = parseBean;
+        Hawk.put(HawkConfig.DEFAULT_PARSE, parseBean.getName());
+        parseBean.setDefault(true);
+    }
+
+    public ParseBean getDefaultParse() {
+        return mDefaultParseBean;
+    }
+
+    public List<SiteBean> getSiteBeanList() {
+        return new ArrayList<>(mSiteBeanMap.values());
+    }
+
+    public List<ParseBean> getmParseBeanList() {
+        return mParseBeanList;
+    }
+
+    public List<String> getmVipFlagList() {
+        return mVipFlagList;
+    }
+
+    public SiteBean getHomeBean() {
+        String userKey = Hawk.get(HawkConfig.USER_HOME_API, "");
+        SiteBean userHomeBean = getSiteBean(userKey);//Map有空key，会有冲突
+        if (userHomeBean != null) {
+            //用户设置的最优先
+            L.d("  return userHomeBean; ");
+            return userHomeBean;
+        }
+
+        String homeKey = Hawk.get(HawkConfig.HOME_API, "");
+        SiteBean homeBean = getSiteBean(homeKey);
+        if (homeBean != null) {
+            //自动设置的其次
+            L.d("   return homeBean;");
+            return homeBean;
+        }
+        List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
+        if (!NullUtil.isNull(beans)) {
+            //都没有设置
+            L.d("  beans.get(0);");
+            return beans.get(0);
+        } else {
+            return new SiteBean();
+        }
+    }
+
+    public void setHomeBean(SiteBean bean) {
+        L.d("setHomeBean= "+bean.getKey() + "\t"+bean.getName());
+        Hawk.put(HawkConfig.HOME_API, bean.getKey());
+    }
+
+    public void setUserHomeBean(SiteBean bean) {
+        Hawk.put(HawkConfig.USER_HOME_API, bean.getKey());
+    }
+
+    public void initHomeBean(InitHomeCallback callback) {
+        String userHomeKey = Hawk.get(HawkConfig.USER_HOME_API, "");
+        SiteBean userHomeBean = getSiteBean(userHomeKey);
+        if (!NullUtil.isNull(userHomeKey) && null != userHomeBean) {
+            //用户设置过home，直接返回
+            L.d("initHomeBean userHomeBean callback.success() ");
+            callback.success();
+            return;
+        }
+        //已自动选定过、且是正常影视站点时沿用，避免每次启动重新抢答导致左栏分类变化
+        String homeKey = Hawk.get(HawkConfig.HOME_API, "");
+        SiteBean cachedHomeBean = getSiteBean(homeKey);
+        if (null != cachedHomeBean && cachedHomeBean.isSearchable()) {
+            L.d("initHomeBean cachedHomeBean callback.success() ");
+            callback.success();
+            return;
+        }
+        //自动设置home
+        bInit = false;
+        List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
+        if (!NullUtil.isNull(beans)) {
+            ExecutorService mExecutorService = Executors.newFixedThreadPool(3);
+            for (int i = 0; i < beans.size(); i++) {
+                L.d("initHomeBean i=" + i);
+                SiteBean bean = beans.get(i);
+                // searchable=0 的都是工具/配置类站点（我的云盘、本地文件、说明等），不适合当首页源
+                if (!bean.isSearchable()) {
+                    L.d("initHomeBean skip " + bean.getKey() + " searchable=0");
+                    continue;
+                }
+                mExecutorService.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (bInit) return;//初始过，不再继续
+                        int type = bean.getType();
+                        if (type == 3) {
+                            Spider sp = ApiConfig.getInstance().getCSP(bean);
+                            String sortJson = sp == null ? null : sp.homeContent(true);
+                            // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
+                            if (classCount(sortJson) >= 2) {
+                                if (bInit) return;//初始过，不再初始
+                                setHomeBean(bean);
+                                callback.success();
+                                mExecutorService.shutdown();
+                                bInit = true;
+                            }
+                        } else {
+                            OkGo.<String>get(bean.getApi())
+                                    .tag("_initHome")
+                                    .execute(new AbsCallback<String>() {
+                                        @Override
+                                        public String convertResponse(okhttp3.Response response) throws Throwable {
+                                            if (response.body() != null) {
+                                                return response.body().string();
+                                            } else {
+                                                L.d(" initHomeBean() 网络请求失败");
+                                                throw new IllegalStateException("网络请求失败");
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onSuccess(Response<String> response) {
+                                            String res = response.body();
+                                            L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
+                                            if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
+                                                if (bInit) return;//初始过，不再初始
+                                                OkGo.getInstance().cancelTag("_initHome");
+                                                setHomeBean(bean);
+                                                callback.success();
+                                                bInit = true;
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onError(Response<String> response) {
+                                            super.onError(response);
+                                        }
+                                    });
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * 统计站点返回的分类数量：JSON 取 "class"/"classes" 数组长度，解析失败返回 0
+     */
+    private static int classCount(String json) {
+        if (NullUtil.isNull(json)) return 0;
+        try {
+            JsonObject obj = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            JsonElement cls = obj.has("class") ? obj.get("class") : obj.get("classes");
+            if (cls != null && cls.isJsonArray()) return cls.getAsJsonArray().size();
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
+    public SiteBean getSiteBean(String key) {
+        if (!mSiteBeanMap.containsKey(key)) {
+            return null;
+        }
+        return mSiteBeanMap.get(key);
+    }
+
+    public List<LiveChannelGroup> getChannelGroupList() {
+        return mLiveChannelGroupList;
+    }
+
+    public List<IJKCode> getmIjkCodes() {
+        return mIjkCodes;
+    }
+
+    public IJKCode getCurrentIJKCode() {
+        String codeName = Hawk.get(HawkConfig.IJK_CODEC, "");
+        return getIJKCodec(codeName);
+    }
+
+    public IJKCode getIJKCodec(String name) {
+        if(NullUtil.isNull(mIjkCodes)){
+            return new IJKCode();
+        }
+        for (IJKCode code : mIjkCodes) {
+            if (code.getName().equals(name))
+                return code;
+        }
+        return mIjkCodes.get(0);
+    }
+}
