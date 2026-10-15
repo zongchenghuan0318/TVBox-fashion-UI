@@ -164,5 +164,17 @@
                     android:textSize="@dimen/ts_22" />
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/tvVerifyStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_6"
+                android:lineSpacingExtra="@dimen/vs_2"
+                android:maxLines="2"
+                android:textColor="@color/color_CC000000"
+                android:textSize="@dimen/ts_20"
+                android:visibility="gone"
+                tools:text="正在校验配置，请稍候…" />
+
         </LinearLayout>
     </LinearLayout>

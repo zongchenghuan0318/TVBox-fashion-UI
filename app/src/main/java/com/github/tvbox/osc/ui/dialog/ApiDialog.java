@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.view.View;
 import android.webkit.MimeTypeMap;
@@ -51,10 +53,26 @@ import me.jessyan.autosize.utils.AutoSizeUtils;
  * @since 2020/12/27
  */
 public class ApiDialog extends BaseDialog {
+    /** 校验中提示色 */
+    private static final int STATUS_INFO = 0xFF333333;
+    /** 校验成功提示色 */
+    private static final int STATUS_OK = 0xFF2E7D32;
+    /** 校验失败提示色 */
+    private static final int STATUS_FAIL = 0xFFD32F2F;
+
     private ImageView qrCodeImg;
     private TextView tvAddress;
+    private TextView tvVerifyStatus;
     private EditText apiEdit;
     private EditText etContent;
+    private View btnSubmit;
+    private View btnCancel;
+    private View btnTest;
+    private View btnClear;
+    private View btnFile;
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    /** 正在校验配置：期间禁止任何方式退出对话框 */
+    private boolean mVerifying = false;
     private SPDataUtil mSpDataUtil;
     private Activity mAct;
     private OnListener mListener = null;
@@ -76,6 +94,12 @@ public class ApiDialog extends BaseDialog {
         tvAddress = findViewById(R.id.tvAddress);
         apiEdit = findViewById(R.id.ed_input);
         etContent = findViewById(R.id.et_content);
+        tvVerifyStatus = findViewById(R.id.tvVerifyStatus);
+        btnSubmit = findViewById(R.id.inputSubmit);
+        btnCancel = findViewById(R.id.storagePermission);
+        btnTest = findViewById(R.id.tv_test_http);
+        btnClear = findViewById(R.id.tv_clear);
+        btnFile = findViewById(R.id.file_open_tv);
         String api = Hawk.get(HawkConfig.API_URL);
         if (NullUtil.isNull(api)) {
             apiEdit.setHint(ApiConfig.DEFAULT_URL);
@@ -96,6 +120,114 @@ public class ApiDialog extends BaseDialog {
 
         initClick();
         refreshQRCode();
+    }
+
+    /**
+     * 校验配置期间一律不允许退出对话框：屏蔽返回键、取消、点击外部
+     */
+    @Override
+    public void dismiss() {
+        if (mVerifying) {
+            return;
+        }
+        super.dismiss();
+    }
+
+    @Override
+    public void cancel() {
+        if (mVerifying) {
+            return;
+        }
+        super.cancel();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mVerifying) {
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    private void setVerifying(boolean verifying) {
+        mVerifying = verifying;
+        //setCancelable(false) 从框架层拦掉返回键/取消
+        setCancelable(!verifying);
+        setBtnEnabled(btnSubmit, !verifying);
+        setBtnEnabled(btnCancel, !verifying);
+        setBtnEnabled(btnTest, !verifying);
+        setBtnEnabled(btnClear, !verifying);
+        setBtnEnabled(btnFile, !verifying);
+    }
+
+    private void setBtnEnabled(View view, boolean enabled) {
+        if (view == null) return;
+        view.setEnabled(enabled);
+        view.setAlpha(enabled ? 1f : 0.5f);
+    }
+
+    private void showStatus(String text, int color) {
+        if (tvVerifyStatus == null) return;
+        tvVerifyStatus.setVisibility(View.VISIBLE);
+        tvVerifyStatus.setText(text);
+        tvVerifyStatus.setTextColor(color);
+    }
+
+    /**
+     * 点「确定」先校验配置：校验中不可退出，校验通过才保存并关闭，失败则留在弹窗里显示具体原因
+     */
+    private void verifyAndSave() {
+        if (mVerifying) return;
+        final String newApi = apiEdit.getText().toString().trim();
+        final String content = etContent.getText().toString().trim();
+        if (NullUtil.isNull(newApi) && NullUtil.isNull(content)) {
+            //地址与内容都为空：沿用原逻辑，保存空配置（等价清空配置）
+            saveConfig(newApi, content);
+            dismiss();
+            return;
+        }
+        setVerifying(true);
+        showStatus("正在校验配置，请稍候…", STATUS_INFO);
+        new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                final ApiConfig.VerifyResult result = ApiConfig.verifyConfig(newApi, content);
+                mAct.runOnUiThread(() -> onVerifyDone(newApi, result));
+            }
+        }.start();
+    }
+
+    private void onVerifyDone(String newApi, ApiConfig.VerifyResult result) {
+        setVerifying(false);
+        if (result.ok) {
+            showStatus("✓ " + result.message, STATUS_OK);
+            saveConfig(newApi, result.json);
+            //校验通过后才退出：稍留片刻让用户看到结果
+            mHandler.postDelayed(() -> {
+                if (isShowing()) dismiss();
+            }, 800);
+        } else {
+            showStatus("✗ 校验失败：" + result.message, STATUS_FAIL);
+        }
+    }
+
+    private void saveConfig(String api, String content) {
+        if (!NullUtil.isNull(api)) {
+            ArrayList<String> historyList = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+            if (!historyList.contains(api)) {
+                historyList.add(0, api);
+            }
+            if (historyList.size() > 10) {
+                historyList.remove(10);
+            }
+            Hawk.put(HawkConfig.API_HISTORY, historyList);
+        }
+        if (mListener != null) {
+            mListener.onchange(api);
+        }
+        Hawk.put(HawkConfig.API_URL, api); //空也保存
+        mSpDataUtil.saveStringValue(ApiConfig.PRE_KEY_CONFIG, content);
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -192,18 +324,19 @@ public class ApiDialog extends BaseDialog {
                 @Override
                 public void run() {
                     super.run();
-                    url = apiEdit.getText().toString();
+                    url = apiEdit.getText().toString().trim();
                     L.d("apiEdit url=" + url);
                     String r = "";
-                    if (url.trim().startsWith("http")) {
+                    if (url.startsWith("http")) {
                         //配置接口按 UA 分流，必须用 okhttp UA 才拿到 JSON 配置体
-                        r = ApiConfig.getWithOkhttpUA(url);
-                    } else if (url.trim().startsWith("clan")) {
-                        url = UiHelper.clanToAddress(url);
-                        L.d("url=" + url);
-                        r = ApiConfig.getWithOkhttpUA(url);
-                    } else {
+                        r = ApiConfig.getWithOkhttpUA(ApiConfig.normalizeUrl(url));
+                    } else if (url.contains("clan")) {
+                        r = ApiConfig.getWithOkhttpUA(ApiConfig.normalizeUrl(UiHelper.clanToAddress(url)));
+                    } else if (new File(url).exists()) {
                         r = FileUtil.readFile(url);
+                    } else {
+                        //裸域名与配置加载逻辑保持一致：补 http://
+                        r = ApiConfig.getWithOkhttpUA(ApiConfig.normalizeUrl("http://" + url));
                     }
                     String finalR = r;
                     mAct.runOnUiThread(() -> {
@@ -221,28 +354,8 @@ public class ApiDialog extends BaseDialog {
             }.start();
         });
 
-        findViewById(R.id.inputSubmit).setOnClickListener(v -> {
-            //确定，保存
-            dismiss();
-            String newApi = apiEdit.getText().toString();
-            if (!newApi.isEmpty()) {
-                ArrayList<String> historyList = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
-                if (!historyList.contains(newApi)) {
-                    historyList.add(0, newApi);
-                }
-                if (historyList.size() > 10) {
-                    historyList.remove(10);
-                }
-                Hawk.put(HawkConfig.API_HISTORY, historyList);
-            } else {
-                //UIUtil.showToast(getContext(), "配置地址不能为空");
-            }
-            mListener.onchange(newApi);
-            Hawk.put(HawkConfig.API_URL, newApi); //空也保存
-
-            String content = etContent.getText().toString();
-            mSpDataUtil.saveStringValue(ApiConfig.PRE_KEY_CONFIG, content);
-        });
+        //确定：先校验配置，校验通过才保存并允许退出
+        btnSubmit.setOnClickListener(v -> verifyAndSave());
 
         findViewById(R.id.apiHistory).setOnClickListener(new View.OnClickListener() {
             @Override

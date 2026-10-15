@@ -24,6 +24,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.github.tvbox.osc.util.MD5;
 import com.lcstudio.commonsurport.L;
+import com.lcstudio.commonsurport.util.FileUtil;
 import com.lcstudio.commonsurport.util.MyFilesManager;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.SPDataUtil;
@@ -38,6 +39,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.net.IDN;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -136,6 +138,8 @@ public class ApiConfig {
                     } else if (!siteUrl.contains("http")) {
                         siteUrl = "http://" + siteUrl;
                     }
+                    //中文等非 ASCII 域名须先转 punycode，否则 okhttp 会直接抛 "unexpected url"
+                    siteUrl = normalizeUrl(siteUrl);
                     //该配置接口按 UA 分流：只有 okhttp UA 才返回 JSON 配置体，浏览器 UA 只会拿到下载页 HTML
                     String r = getWithOkhttpUA(siteUrl);
                     L.w("loadSitesFile 下载 len=" + r.length() + " head="
@@ -246,9 +250,28 @@ public class ApiConfig {
     public static final String UA_OKHTTP = "okhttp/3.12.1";
 
     /**
-     * 用 OkGo 已配置好的 OkHttpClient 直接 GET（绕开 OkGo 的浏览器公共头），返回响应体字符串
+     * HTTP 请求结果：code 为响应码（-1 表示请求异常），body 为响应体，error 为异常描述
      */
-    public static String getWithOkhttpUA(String url) {
+    public static class HttpResult {
+        public final int code;
+        public final String body;
+        public final String error;
+
+        HttpResult(int code, String body, String error) {
+            this.code = code;
+            this.body = body == null ? "" : body;
+            this.error = error == null ? "" : error;
+        }
+
+        public boolean ok() {
+            return code >= 200 && code < 300 && !NullUtil.isNull(body);
+        }
+    }
+
+    /**
+     * 用 OkGo 已配置好的 OkHttpClient 直接 GET（绕开 OkGo 的浏览器公共头），带出响应码与异常信息
+     */
+    public static HttpResult httpGetWithOkhttpUA(String url) {
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .url(url)
                 .header("User-Agent", UA_OKHTTP)
@@ -256,18 +279,240 @@ public class ApiConfig {
         try {
             okhttp3.Response response = OkGo.getInstance().getOkHttpClient().newCall(request).execute();
             try {
-                if (!response.isSuccessful() || response.body() == null) {
+                if (!response.isSuccessful()) {
                     L.w("getWithOkhttpUA 失败 code=" + response.code() + " url=" + url);
-                    return "";
                 }
-                return response.body().string();
+                String body = response.body() == null ? "" : response.body().string();
+                return new HttpResult(response.code(), body, "");
             } finally {
                 response.close();
             }
         } catch (Throwable th) {
             L.w("getWithOkhttpUA 异常 " + th.getMessage() + " url=" + url);
-            return "";
+            return new HttpResult(-1, "", th.getMessage() == null ? th.toString() : th.getMessage());
         }
+    }
+
+    /**
+     * 用 OkGo 已配置好的 OkHttpClient 直接 GET（绕开 OkGo 的浏览器公共头），返回响应体字符串
+     */
+    public static String getWithOkhttpUA(String url) {
+        HttpResult result = httpGetWithOkhttpUA(url);
+        return result.ok() ? result.body : "";
+    }
+
+    /**
+     * 地址归一化：域名部分含中文等非 ASCII 字符时转成 punycode（如 http://肥猫.net/ →
+     * http://xn--z7x900a.net/），否则 okhttp 的 Request.Builder 会直接抛 "unexpected url"。
+     */
+    public static String normalizeUrl(String raw) {
+        if (NullUtil.isNull(raw)) return raw;
+        String url = raw.trim();
+        int schemeIdx = url.indexOf("://");
+        if (schemeIdx < 0) return url;
+        int authStart = schemeIdx + 3;
+        int authEnd = url.length();
+        for (int i = authStart; i < url.length(); i++) {
+            char c = url.charAt(i);
+            if (c == '/' || c == '?' || c == '#') {
+                authEnd = i;
+                break;
+            }
+        }
+        String authority = url.substring(authStart, authEnd);
+        int at = authority.lastIndexOf('@');
+        String userInfo = at >= 0 ? authority.substring(0, at + 1) : "";
+        String hostPort = at >= 0 ? authority.substring(at + 1) : authority;
+        String host = hostPort;
+        String port = "";
+        int colon = hostPort.lastIndexOf(':');
+        if (colon >= 0 && hostPort.indexOf(']') < 0) {
+            host = hostPort.substring(0, colon);
+            port = hostPort.substring(colon);
+        }
+        boolean ascii = true;
+        for (int i = 0; i < host.length(); i++) {
+            if (host.charAt(i) > 127) {
+                ascii = false;
+                break;
+            }
+        }
+        if (ascii) return url;
+        try {
+            String puny = IDN.toASCII(host);
+            return url.substring(0, authStart) + userInfo + puny + port + url.substring(authEnd);
+        } catch (Exception e) {
+            L.w("normalizeUrl 失败 host=" + host);
+            return url;
+        }
+    }
+
+    /**
+     * 配置校验结果（只在本地校验，不写 ApiConfig 单例，旧配置零改动）
+     */
+    public static class VerifyResult {
+        public final boolean ok;
+        public final String message;  // 展示给用户的成功提示或失败原因
+        public final String json;     // 校验通过后的配置体
+        public final String url;      // 校验用到的配置地址
+
+        VerifyResult(boolean ok, String message, String json, String url) {
+            this.ok = ok;
+            this.message = message;
+            this.json = json == null ? "" : json;
+            this.url = url == null ? "" : url;
+        }
+    }
+
+    /**
+     * 校验配置是否真的可用：下载（或读本地文件 / 用已填内容）→ 解码 → JSON 合法性 → 站点数量。
+     * 全过程不修改 ApiConfig 单例状态，避免污染当前正在使用的配置。
+     */
+    public static VerifyResult verifyConfig(String rawUrl, String inlineContent) {
+        String url = rawUrl == null ? "" : rawUrl.trim();
+        String content = inlineContent == null ? "" : inlineContent.trim();
+        String usedUrl = url;
+
+        if (!NullUtil.isNull(url)) {
+            //单 URL 支持 "url;pk;configKey"
+            String configKey = "";
+            String downloadUrl = url;
+            if (url.contains(";pk;")) {
+                String[] parts = url.split(";pk;");
+                if (parts.length >= 2) {
+                    downloadUrl = parts[0];
+                    configKey = parts[1];
+                }
+            }
+            boolean localFile = false;
+            if (downloadUrl.contains("clan")) {
+                usedUrl = normalizeUrl(UiHelper.clanToAddress(downloadUrl));
+            } else if (!downloadUrl.startsWith("http")) {
+                //与加载逻辑保持一致：非 http 地址先当作本地文件，文件不存在再按域名补 http://
+                if (new File(downloadUrl).exists()) {
+                    usedUrl = downloadUrl;
+                    localFile = true;
+                } else {
+                    usedUrl = normalizeUrl("http://" + downloadUrl);
+                }
+            } else {
+                usedUrl = normalizeUrl(downloadUrl);
+            }
+            if (localFile) {
+                //本地文件：直接读文件内容
+                content = FileUtil.readFile(usedUrl);
+                if (NullUtil.isNull(content)) {
+                    return new VerifyResult(false, "读取配置文件失败：" + usedUrl, "", usedUrl);
+                }
+            } else {
+                HttpResult http = httpGetWithOkhttpUA(usedUrl);
+                VerifyResult fail = httpFail(http);
+                if (fail != null) return fail;
+                content = convert(http.body, configKey);
+            }
+        }
+
+        if (NullUtil.isNull(content)) {
+            return new VerifyResult(false, "配置地址和配置内容都为空", "", usedUrl);
+        }
+        if (!isJson(content)) {
+            return new VerifyResult(false, "配置内容不是合法 JSON（地址可能已失效或需要特定请求头）", "", usedUrl);
+        }
+        int[] counts = countSites(content);
+        if (counts[0] <= 0) {
+            return new VerifyResult(false, "配置里没有任何可用站点（缺少 key / api 字段）", "", usedUrl);
+        }
+        //与「搜索源管理」口径对齐：列表只列 searchable!=0 的站点，另外还会补上内置采集源
+        int extra = countExtraSites(content);
+        return new VerifyResult(true, "配置校验通过：共 " + counts[0] + " 个站点，可搜索 " + counts[1]
+                + " 个，另有 " + extra + " 个内置采集源（搜索源列表共 " + (counts[1] + extra) + " 个）",
+                content, usedUrl);
+    }
+
+    /**
+     * HTTP 层面失败时给出具体原因；正常则返回 null
+     */
+    private static VerifyResult httpFail(HttpResult http) {
+        if (http.code == -1) {
+            String msg = http.error.toLowerCase();
+            if (msg.contains("unable to resolve host")) {
+                return new VerifyResult(false, "域名无法解析，请检查配置地址是否正确", "", "");
+            }
+            if (msg.contains("timeout") || msg.contains("timed out")) {
+                return new VerifyResult(false, "连接超时，请检查网络后重试", "", "");
+            }
+            if (msg.contains("failed to connect") || msg.contains("connection refused")) {
+                return new VerifyResult(false, "无法连接服务器，请稍后重试", "", "");
+            }
+            String err = http.error.length() > 60 ? http.error.substring(0, 60) : http.error;
+            return new VerifyResult(false, "网络请求失败：" + err, "", "");
+        }
+        if (http.code < 200 || http.code >= 300) {
+            return new VerifyResult(false, "服务器返回 HTTP " + http.code + "，该配置地址不可用", "", "");
+        }
+        if (NullUtil.isNull(http.body)) {
+            return new VerifyResult(false, "服务器返回内容为空", "", "");
+        }
+        return null;
+    }
+
+    /**
+     * 统计配置里的站点数量：result[0] = 可用站点总数（key 与 api 都非空，会进站点列表）；
+     * result[1] = 其中 searchable != 0（会出现在「搜索源管理」里）的数量
+     */
+    private static int[] countSites(String json) {
+        int[] result = new int[2];
+        try {
+            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
+            if (obj == null || !obj.has("sites") || !obj.get("sites").isJsonArray()) return result;
+            for (JsonElement el : obj.getAsJsonArray("sites")) {
+                if (!el.isJsonObject()) continue;
+                JsonObject site = el.getAsJsonObject();
+                if (!site.has("key") || !site.has("api")) continue;
+                if (!site.get("key").isJsonPrimitive() || !site.get("api").isJsonPrimitive()) continue;
+                if (NullUtil.isNull(site.get("key").getAsString())) continue;
+                if (NullUtil.isNull(site.get("api").getAsString())) continue;
+                result[0]++;
+                if (DefaultConfig.safeJsonInt(site, "searchable", 1) != 0) result[1]++;
+            }
+        } catch (Throwable th) {
+            L.w("countSites 异常 " + th.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 内置采集源里「配置中还没有同 api 站点」的个数：这些会追加到站点列表最前，
+     * 所以搜索源列表数量 = 配置里可搜索站点数 + 本方法的返回值
+     */
+    private static int countExtraSites(String json) {
+        int count = 0;
+        try {
+            List<String> apis = new ArrayList<>();
+            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
+            if (obj != null && obj.has("sites") && obj.get("sites").isJsonArray()) {
+                for (JsonElement el : obj.getAsJsonArray("sites")) {
+                    if (!el.isJsonObject()) continue;
+                    JsonObject site = el.getAsJsonObject();
+                    if (site.has("api") && site.get("api").isJsonPrimitive()) {
+                        apis.add(site.get("api").getAsString());
+                    }
+                }
+            }
+            for (String[] def : DefaultConfig.EXTRA_SITES) {
+                boolean exist = false;
+                for (String api : apis) {
+                    if (sameApi(api, def[2])) {
+                        exist = true;
+                        break;
+                    }
+                }
+                if (!exist) count++;
+            }
+        } catch (Throwable th) {
+            L.w("countExtraSites 异常 " + th.getMessage());
+        }
+        return count;
     }
 
     /**
