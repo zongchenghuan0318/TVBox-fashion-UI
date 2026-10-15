@@ -292,43 +292,52 @@ public class SourceViewModel extends ViewModel {
             };
             mExecutorService.execute(waitResponse);
         } else if (sourceBean.getType() == 0 || sourceBean.getType() == 1) {
-            OkGo.<String>get(sourceBean.getApi())
-                    .tag("detail")
-                    .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
-                    .params("ids", TextUtils.join(",", ids))
-                    .execute(new AbsCallback<String>() {
-                        @Override
-                        public String convertResponse(okhttp3.Response response) throws Throwable {
-                            if (response.body() != null) {
-                                return response.body().string();
-                            } else {
-                                throw new IllegalStateException("网络请求错误");
-                            }
-                        }
+            AbsCallback<String> absCallback = new AbsCallback<String>() {
+                @Override
+                public String convertResponse(okhttp3.Response response) throws Throwable {
+                    if (response.body() != null) {
+                        return response.body().string();
+                    } else {
+                        throw new IllegalStateException("网络请求错误");
+                    }
+                }
 
-                        @Override
-                        public void onSuccess(Response<String> response) {
-                            AbsXml absXml;
-                            if (sourceBean.getType() == 0) {
-                                String xml = response.body();
-                                absXml = parseXml(null, xml, sourceBean.getKey(), 0);
-                            } else {
-                                String json = response.body();
-                                absXml = parseJson(null, json, sourceBean.getKey(), 0);
-                            }
-                            if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
-                                callback.done(absXml.movie.videoList);
-                            } else {
-                                callback.done(null);
-                            }
-                        }
+                @Override
+                public void onSuccess(Response<String> response) {
+                    AbsXml absXml;
+                    if (sourceBean.getType() == 0) {
+                        String xml = response.body();
+                        absXml = parseXml(null, xml, sourceBean.getKey(), 0);
+                    } else {
+                        String json = response.body();
+                        absXml = parseJson(null, json, sourceBean.getKey(), 0);
+                    }
+                    if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
+                        callback.done(absXml.movie.videoList);
+                    } else {
+                        callback.done(null);
+                    }
+                }
 
-                        @Override
-                        public void onError(Response<String> response) {
-                            super.onError(response);
-                            callback.done(null);
-                        }
-                    });
+                @Override
+                public void onError(Response<String> response) {
+                    super.onError(response);
+                    callback.done(null);
+                }
+            };
+            //推荐场景可能没有 ids（按最新列表取），此时不带 ids 参数
+            if (ids == null || ids.isEmpty()) {
+                OkGo.<String>get(sourceBean.getApi())
+                        .tag("detail")
+                        .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
+                        .execute(absCallback);
+            } else {
+                OkGo.<String>get(sourceBean.getApi())
+                        .tag("detail")
+                        .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
+                        .params("ids", TextUtils.join(",", ids))
+                        .execute(absCallback);
+            }
         } else {
             callback.done(null);
         }

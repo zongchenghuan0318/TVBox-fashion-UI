@@ -18,6 +18,7 @@ import dalvik.system.DexClassLoader;
 
 public class JarLoader {
     private DexClassLoader classLoader = null;
+    private final ConcurrentHashMap<String, DexClassLoader> extraLoaders = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, Spider> spidersMap = new ConcurrentHashMap<>();
     private Method proxyFun = null;
 
@@ -29,11 +30,7 @@ public class JarLoader {
         proxyFun = null;
         boolean success = false;
         try {
-            File cacheDir = new File(App.getInstance().getCacheDir().getAbsolutePath() + "/catvod_csp");
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs();
-            }
-            classLoader = new DexClassLoader(cacheFile, cacheDir.getAbsolutePath(), null, App.getInstance().getClassLoader());
+            classLoader = newDexClassLoader(cacheFile);
             int count = 0;
             do {
                 try {
@@ -66,12 +63,45 @@ public class JarLoader {
         return success;
     }
 
+    private DexClassLoader newDexClassLoader(String cacheFile) {
+        File cacheDir = new File(App.getInstance().getCacheDir().getAbsolutePath() + "/catvod_csp");
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs();
+        }
+        return new DexClassLoader(cacheFile, cacheDir.getAbsolutePath(), null, App.getInstance().getClassLoader());
+    }
+
+    /**
+     * 加载站点级 jar（配置里 site.jar 指向的包）。这类包里的站点类不在全局 spider jar 中
+     * （例如 csp_AppRJ 只存在于 feimao1004.jar），必须各自用独立 DexClassLoader 加载，
+     * 否则会与全局 jar 的 Init/Proxy 互相覆盖。已加载过的直接复用。
+     */
+    public boolean loadExtra(String cacheFile) {
+        if (cacheFile == null || cacheFile.isEmpty()) return false;
+        if (extraLoaders.containsKey(cacheFile)) return true;
+        try {
+            extraLoaders.put(cacheFile, newDexClassLoader(cacheFile));
+            L.w("JarLoader.loadExtra ok " + cacheFile);
+            return true;
+        } catch (Throwable th) {
+            L.e(th);
+        }
+        return false;
+    }
+
     public Spider getSpider(String key, String cls, String ext) {
+        return getSpider(key, cls, ext, "");
+    }
+
+    public Spider getSpider(String key, String cls, String ext, String jarPath) {
         String clsKey = cls.replace("csp_", "");
         if (spidersMap.containsKey(key)) return spidersMap.get(key);
-        if (classLoader == null) return new SpiderNull();
+        //站点自带 jar 的类优先从该 jar 取；没有站点 jar 时用全局 spider jar
+        DexClassLoader loader = jarPath == null || jarPath.isEmpty() ? null : extraLoaders.get(jarPath);
+        if (loader == null) loader = classLoader;
+        if (loader == null) return new SpiderNull();
         try {
-            Spider sp = loadSpider(clsKey);
+            Spider sp = loadSpider(loader, clsKey);
             sp.init(App.getInstance(), ext);
             spidersMap.put(key, sp);
             return sp;
@@ -86,12 +116,12 @@ public class JarLoader {
      * 按名取真实实现），也可能直接是真实类名（如 csp_AppRJ 用的 AppRJ）。后者不在 jar 外层 dex 里，
      * 只存在于护壳 native 解密出来的 dex 中，所以外层 DexClassLoader 找不到，必须走 Init 的兜底。
      */
-    private Spider loadSpider(String clsKey) throws Throwable {
+    private Spider loadSpider(DexClassLoader loader, String clsKey) throws Throwable {
         String fqn = "com.github.catvod.spider." + clsKey;
         try {
-            return (Spider) classLoader.loadClass(fqn).newInstance();
+            return (Spider) loader.loadClass(fqn).newInstance();
         } catch (ClassNotFoundException e) {
-            Spider sp = loadByInit(fqn);
+            Spider sp = loadByInit(loader, fqn);
             if (sp != null) {
                 L.w("getSpider " + fqn + " 外层找不到，已走 Init 原生加载器兜底");
                 return sp;
@@ -100,9 +130,9 @@ public class JarLoader {
         }
     }
 
-    private Spider loadByInit(String fqn) {
+    private Spider loadByInit(DexClassLoader loader, String fqn) {
         try {
-            Class initCls = classLoader.loadClass("com.github.catvod.spider.Init");
+            Class initCls = loader.loadClass("com.github.catvod.spider.Init");
             Method mth = initCls.getMethod("getSpider", String.class);
             Object obj = mth.invoke(null, fqn);
             if (obj instanceof Spider) return (Spider) obj;

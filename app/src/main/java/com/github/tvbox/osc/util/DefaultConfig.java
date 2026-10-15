@@ -13,14 +13,66 @@ import java.util.regex.Pattern;
 
 public class DefaultConfig {
 
+    /**
+     * 首页侧边栏固定分类模板：{显示名, 关键词1, 关键词2...}
+     * 数组顺序即显示顺序；关键词按从左到右的优先级匹配（不是按源的分类顺序）。
+     * 采集类接口（CMS）的父分类取不到内容（如“电影片”“连续剧”查询返回 0 条），
+     * 有内容的都是叶子分类（剧情片、动作片、国产剧…），所以关键词要先用叶子分类，
+     * 这样「电影」点进去拿到的才是真片库而不是空白页；
+     * 匹配不上的模板项不显示；不在模板里的分类（如“臻彩”）自动消失。
+     */
+    private static final String[][] FIXED_SORT = {
+            {"电影", "剧情片", "动作片", "喜剧片", "爱情片", "电影", "影片"},
+            {"电视剧", "国产剧", "内地剧", "连续剧", "电视剧", "剧集", "剧场", "电视"},
+            {"综艺", "大陆综艺", "综艺", "娱乐", "真人秀"},
+            {"动漫", "国产动漫", "中国动漫", "动漫", "动画", "番剧", "国漫", "日漫"},
+            {"纪录片", "记录片", "纪录片", "纪录", "纪实", "探索"},
+    };
+
+    /**
+     * 内置补充的主流采集源：{key, 显示名, api}
+     * 配置文件里正规采集站只有 1 个，其余多是盘搜类站点，分类页点进去基本是网盘资源；
+     * 这几个源为 CMS 采集接口（实测内容量 11 万～16 万条、当天有更新、支持关键词搜索），
+     * 作为分类页与聚合搜索的优选源。
+     */
+    public static final String[][] EXTRA_SITES = {
+            {"ffzy", "非凡┃影视", "http://cj.ffzyapi.com/api.php/provide/vod/"},
+            {"lzi", "量子┃影视", "https://cj.lziapi.com/api.php/provide/vod/"},
+            {"bfzy", "暴风┃影视", "https://bfzyapi.com/api.php/provide/vod/"},
+            {"jszy", "极速┃影视", "https://jszyapi.com/api.php/provide/vod/"},
+    };
+
     public static List<MovieSort.SortData> adjustSort(String sourceKey, List<MovieSort.SortData> list, boolean withMy) {
         List<MovieSort.SortData> sortList = new ArrayList<>();
-        for (MovieSort.SortData sortData : list) {
-            if (sortData.filters == null) {
-                sortData.filters = new ArrayList<>();
+        if (list != null) {
+            // 先做常规过滤（补齐 filters、剔除“伦理”），得到可用的源分类池
+            List<MovieSort.SortData> pool = new ArrayList<>();
+            for (MovieSort.SortData sortData : list) {
+                if (sortData == null) continue;
+                if (sortData.filters == null) {
+                    sortData.filters = new ArrayList<>();
+                }
+                if (!NullUtil.isNull(sortData.name) && sortData.name.contains("伦理")) continue;
+                pool.add(sortData);
             }
-            if (!NullUtil.isNull(sortData.name) && sortData.name.contains("伦理")) continue;
-            sortList.add(sortData);
+            // 再按固定模板重排：关键词按优先级取，沿用源对象的 id/filters（保证点进去有内容），仅替换显示名
+            for (String[] rule : FIXED_SORT) {
+                MovieSort.SortData hit = null;
+                for (int k = 1; k < rule.length && hit == null; k++) {
+                    for (MovieSort.SortData sortData : pool) {
+                        if (NullUtil.isNull(sortData.name)) continue;
+                        if (sortData.name.contains(rule[k])) {
+                            hit = sortData;
+                            break;
+                        }
+                    }
+                }
+                if (hit != null) {
+                    hit.name = rule[0];
+                    sortList.add(hit);
+                    pool.remove(hit);
+                }
+            }
         }
         if (withMy) {
             sortList.add(0, new MovieSort.SortData("my0", "首页"));

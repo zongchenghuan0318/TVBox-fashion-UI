@@ -312,12 +312,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             fragments.clear();
             for (MovieSort.SortData data : sortAdapter.getData()) {
                 if (data.id.equals("my0")) {
-                    if (Hawk.get(HawkConfig.HOME_REC, 0) == 1 && absXml != null && !NullUtil.isNull(absXml.videoList)) {
-                        //首页显示网站推荐
-                        fragments.add(FirstFragment.newInstance(absXml.videoList));
-                    } else {
-                        fragments.add(FirstFragment.newInstance(null));
-                    }
+                    //数据源推荐列表始终带进首页片段：选「网站推荐」时直接用，豆瓣被限流时作为兜底
+                    fragments.add(FirstFragment.newInstance(absXml == null ? null : absXml.videoList));
                 } else {
                     fragments.add(GridFragment.newInstance(data));
                 }

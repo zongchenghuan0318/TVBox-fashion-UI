@@ -35,10 +35,19 @@ public class BaseLoader {
         return jarLoader.load(path);
     }
 
+    /** 加载站点自带爬虫包（与全局 spider jar 各自独立） */
+    public boolean loadExtraJar(String path) {
+        return jarLoader.loadExtra(path);
+    }
+
     public Spider getSpider(String key, String api, String ext) {
+        return getSpider(key, api, ext, "");
+    }
+
+    public Spider getSpider(String key, String api, String ext, String jarPath) {
         try {
             if (api.startsWith("csp_")) {
-                Spider sp = jarLoader.getSpider(key, api, ext);
+                Spider sp = jarLoader.getSpider(key, api, ext, jarPath);
                 recentSpider = sp;
                 recentIsJar = true;
                 return sp;

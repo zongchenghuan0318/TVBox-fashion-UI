@@ -486,11 +486,20 @@ public class SearchActivity extends BaseActivity {
         searchResultAdapter.setNewData(new ArrayList<>());
 
         List<SiteBean> siteBeans = new ArrayList<>();
-        siteBeans.addAll(ApiConfig.getInstance().getSiteBeanList());
-        for (SiteBean siteBean : siteBeans) {
-            if (!siteBean.isSearchable()) {
+        for (SiteBean bean : ApiConfig.getInstance().getSiteBeanList()) {
+            // 设置里被取消勾选的源不参与任何聚合搜索
+            if (!bean.isSearchable() || !ApiConfig.getInstance().isSearchSiteEnabled(bean.getKey())) {
                 continue;
             }
+            siteBeans.add(bean);
+        }
+        if (siteBeans.isEmpty()) {
+            // 一个源都没勾选时不能一直停在加载中（搜索页没有超时兜底）
+            showEmpty();
+            Toast.makeText(mContext, "未选择任何搜索源，请到 设置 → 设置其他 → 搜索源管理 中勾选", Toast.LENGTH_LONG).show();
+            return;
+        }
+        for (final SiteBean siteBean : siteBeans) {
             mExecutorService.submit(new Runnable() {
                 @Override
                 public void run() {

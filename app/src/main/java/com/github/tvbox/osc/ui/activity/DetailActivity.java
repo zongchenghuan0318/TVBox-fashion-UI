@@ -524,7 +524,8 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
         ArrayList<String> siteKey = new ArrayList<>();
         for (SiteBean bean : searchRequestList) {
-            if (!bean.isSearchable() || !bean.isQuickSearch()) {
+            // 设置里被取消勾选的源不参与任何聚合搜索
+            if (!bean.isSearchable() || !bean.isQuickSearch() || !ApiConfig.getInstance().isSearchSiteEnabled(bean.getKey())) {
                 continue;
             }
             siteKey.add(bean.getKey());

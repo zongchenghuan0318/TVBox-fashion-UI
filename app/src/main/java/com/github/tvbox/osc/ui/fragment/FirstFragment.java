@@ -21,6 +21,7 @@ import com.bumptech.glide.request.target.Target;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.Movie;
+import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.ui.activity.CollectActivity;
@@ -34,10 +35,12 @@ import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.GlideImg;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.http.HttpDoRequest;
 import com.lcstudio.commonsurport.util.DateUtil;
@@ -53,6 +56,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -81,6 +85,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private TextView mHomeTitle;
     private TextView mHomeSub;
     private ExecutorService mExecutorService;
+    private SourceViewModel mSourceViewModel;
 
     // 首页静置自动轮播：无操作 6 秒后平滑右移一张，末张回到第一张
     private static final long AUTO_SCROLL_DELAY = 6000L;
@@ -116,6 +121,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     @Override
     protected void init() {
         mExecutorService =  Executors.newSingleThreadExecutor();
+        mSourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         tvLive = findViewById(R.id.tvLive);
         tvSearch = findViewById(R.id.tvSearch);
         tvSetting = findViewById(R.id.tvSetting);
@@ -167,17 +173,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 mStart += 20;
                 return;
             }
-            if (vod.id != null && !vod.id.isEmpty()) {
-                Bundle bundle = new Bundle();
-                bundle.putString("id", vod.id);
-                bundle.putString("sourceKey", vod.sourceKey);
-                jumpActivity(DetailActivity.class, bundle);
-            } else {
-                Intent newIntent = new Intent(mContext, SearchActivity.class);
-                newIntent.putExtra("title", vod.name);
-                newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                mActivity.startActivity(newIntent);
+            //首页卡片点击统一进聚合搜索：不管有没有 id，都拿片名去搜
+            if (vod.name == null || vod.name.isEmpty()) {
+                return;
             }
+            Intent newIntent = new Intent(mContext, SearchActivity.class);
+            newIntent.putExtra("title", vod.name);
+            newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            mActivity.startActivity(newIntent);
         });
 
         mAdapter.setOnLoadMoreListener(() -> {
@@ -287,17 +290,20 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void getVideos() {
         int homeSource = Hawk.get(HawkConfig.HOME_REC, 0);
+        L.w("homeFeed start homeSource=" + homeSource
+                + " recCount=" + (mRecommendVideos == null ? 0 : mRecommendVideos.size()));
         if (homeSource == 1) {
             //网站推荐
             int recCount = mRecommendVideos == null ? 0 : mRecommendVideos.size();
             setHeader("网站推荐", recCount > 0 ? "共 " + recCount + " 部" : "当前接口暂无推荐");
+            showSuccess();
             if (recCount > 0) {
                 mAdapter.setNewData(mRecommendVideos);
                 bindHero(mRecommendVideos.get(0));
             } else {
-                setHeroEmpty("暂无推荐影片", "可在设置中切换其他接口");
+                //当前数据源的推荐也可能为空（豆瓣系被风控时会这样），必须走同一条兜底链，不能留白页
+                loadHotRankFeed();
             }
-            showSuccess();
         } else if (homeSource == 2) {
             //历史
             List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
@@ -314,40 +320,245 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 vodList.add(vod);
             }
             setHeader("继续观看", vodList.isEmpty() ? "暂无播放记录" : "最近 " + vodList.size() + " 条播放记录");
-            mAdapter.setNewData(vodList);
+            showSuccess();
             if (vodList.isEmpty()) {
-                setHeroEmpty("还没有播放记录", "看过的影片会出现在这里");
+                //没有播放记录也不留白页，同样走兜底链
+                mAdapter.setNewData(vodList);
+                loadHotRankFeed();
             } else {
+                mAdapter.setNewData(vodList);
                 bindHero(vodList.get(0));
             }
-            showSuccess();
         } else {
-            //豆瓣推荐
+            //豆瓣热播：豆瓣按出口 IP 风控、时通时断，改成「主流热榜优先」——
+            //热榜拿不到再依次回落数据源推荐 / 聚合源 / 豆瓣
             showLoading();
-            new Thread() {
-                @Override
-                public void run() {
-                    super.run();
-                    int year = DateUtil.getLastNYear(0);
-                    String doubanUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=" + 0;
-                    String result = HttpDoRequest.getInstance(getContext()).doGetRequestInOkGo(doubanUrl, null, true, 5 * 60 * 1000);
-                    List<Movie.Video> list0 = parseJson(result);
-                    if (!NullUtil.isNull(list0)) {
-                        mDobanVideos.addAll(list0);
+            loadHotRankFeed();
+        }
+    }
+
+    /**
+     * 豆瓣层：只有聚合源全军覆没才走到这里；直连取不到就用上次成功的本地缓存
+     */
+    private void loadDoubanRecommend() {
+        new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                int year = DateUtil.getLastNYear(0);
+                String doubanUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=" + 0;
+                //超时压到 10 秒：豆瓣挂起时尽快收尾，别让用户对着转圈等
+                String result = HttpDoRequest.getInstance(getContext()).doGetRequestInOkGo(doubanUrl, null, true, 10 * 1000);
+                List<Movie.Video> list0 = parseJson(result);
+                L.w("homeFeed douban len=" + (result == null ? -1 : result.length())
+                        + " riskMsg=" + (result != null && result.contains("\"msg\""))
+                        + " parsed=" + (list0 == null ? -1 : list0.size()));
+                final boolean fresh = !NullUtil.isNull(list0) && !list0.isEmpty();
+                if (fresh) {
+                    //成功一次就缓存，豆瓣按 IP 限流（时通时断）时用它兜底
+                    saveDoubanCache(list0);
+                    mDobanVideos.addAll(list0);
+                } else {
+                    List<Movie.Video> cache = loadDoubanCache();
+                    L.w("homeFeed douban cache=" + (cache == null ? 0 : cache.size()));
+                    if (cache != null && !cache.isEmpty()) {
+                        mDobanVideos.addAll(cache);
                     }
-                    mActivity.runOnUiThread(() -> {
-                        setHeader("豆瓣热播", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序");
-                        showSuccess();
-                        mAdapter.setNewData(mDobanVideos);
-                        if (mDobanVideos.isEmpty()) {
-                            setHeroEmpty("暂无内容", "请检查网络后重试");
-                        } else {
-                            bindHero(mDobanVideos.get(0));
-                        }
-                        getMoreVideos(20);
-                    });
                 }
-            }.start();
+                mActivity.runOnUiThread(() -> {
+                    if (!isAdded()) return;
+                    showSuccess();
+                    if (mDobanVideos.isEmpty()) {
+                        mAdapter.setNewData(new ArrayList<>());
+                        setHeroEmpty("暂无内容", "请检查网络后重试");
+                    } else {
+                        setHeader("豆瓣热播", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序"
+                                + (fresh ? "" : "（离线缓存）"));
+                        mAdapter.setNewData(mDobanVideos);
+                        bindHero(mDobanVideos.get(0));
+                    }
+                });
+            }
+        }.start();
+    }
+
+    private static final String HOT_RANK_URL = "https://api.bilibili.com/pgc/web/rank/list?day=3&season_type=";
+    //热榜分类优先级：电视剧 → 电影 → 番剧 → 国创，取第一个有数据的
+    private static final String[] HOT_RANK_TYPES = {"5", "2", "1", "4"};
+    private static final int HOT_RANK_MAX = 40;
+
+    /**
+     * 主流热榜层（B站 PGC 影视/剧集榜）：片名干净、海报由图床直出，作为首页推荐的首选层。
+     * 拿不到才回落到「数据源推荐 → 聚合源 → 豆瓣」这条链
+     */
+    private void loadHotRankFeed() {
+        new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                for (String type : HOT_RANK_TYPES) {
+                    List<Movie.Video> list = null;
+                    try {
+                        String json = HttpDoRequest.getInstance(getContext())
+                                .doGetRequestInOkGo(HOT_RANK_URL + type, null, true, 10 * 1000);
+                        list = parseHotRank(json);
+                    } catch (Throwable th) {
+                        L.e(th);
+                    }
+                    L.w("homeFeed hotRank type=" + type + " -> " + (list == null ? -1 : list.size()));
+                    if (list != null && !list.isEmpty()) {
+                        final List<Movie.Video> videos = list;
+                        mActivity.runOnUiThread(() -> {
+                            if (!isAdded()) return;
+                            showFallbackVideos("热门榜单", "正在热播 · 排行榜实时更新", videos);
+                        });
+                        return;
+                    }
+                }
+                //热榜也没拿到，回到原有兜底链
+                mActivity.runOnUiThread(() -> {
+                    if (!isAdded()) return;
+                    showRecommendFallback();
+                });
+            }
+        }.start();
+    }
+
+    /**
+     * 解析 B站 PGC 榜单：result.list[] 里的 title 是片名、cover 是海报，
+     * cover 有 http 的必须换成 https，否则被 cleartext 策略拦掉不显示
+     */
+    private List<Movie.Video> parseHotRank(String json) {
+        List<Movie.Video> videos = new ArrayList<>();
+        if (NullUtil.isNull(json)) return videos;
+        try {
+            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
+            if (obj == null || !obj.has("result") || obj.get("result").isJsonNull()) return videos;
+            JsonObject result = obj.getAsJsonObject("result");
+            if (result == null || !result.has("list") || result.get("list").isJsonNull()) return videos;
+            JsonArray arr = result.getAsJsonArray("list");
+            for (int i = 0; i < arr.size() && videos.size() < HOT_RANK_MAX; i++) {
+                JsonElement el = arr.get(i);
+                if (el == null || !el.isJsonObject()) continue;
+                JsonObject o = el.getAsJsonObject();
+                String title = o.has("title") && !o.get("title").isJsonNull() ? o.get("title").getAsString() : null;
+                if (NullUtil.isNull(title)) continue;
+                Movie.Video vod = new Movie.Video();
+                vod.name = title;
+                vod.note = "热榜 TOP" + (i + 1);
+                if (o.has("cover") && !o.get("cover").isJsonNull()) {
+                    String cover = o.get("cover").getAsString();
+                    vod.pic = cover.startsWith("http://") ? "https://" + cover.substring(7) : cover;
+                }
+                videos.add(vod);
+            }
+        } catch (Throwable th) {
+            L.e(th);
+        }
+        return videos;
+    }
+
+    /**
+     * 首页推荐兜底链：当前数据源推荐 → 配置里其它聚合源 → 豆瓣（直连/缓存） → 空态
+     */
+    private void showRecommendFallback() {
+        L.w("homeFeed fallback recCount=" + (mRecommendVideos == null ? 0 : mRecommendVideos.size()));
+        if (mRecommendVideos != null && !mRecommendVideos.isEmpty()) {
+            showFallbackVideos("网站推荐", "已自动匹配可用的数据源", mRecommendVideos);
+            return;
+        }
+        fillFromOtherSource();
+    }
+
+    private void showFallbackVideos(String title, String subTitle, List<Movie.Video> videos) {
+        //兜底链拿到内容也必须收起 LoadSir 的转圈，否则卡片被加载层遮住
+        showSuccess();
+        setHeader(title, subTitle);
+        mAdapter.setNewData(videos);
+        //兜底列表已是一次性全量，不能再按豆瓣分页续拉
+        mAdapter.setEnableLoadMore(false);
+        //列表换数据后控件可能停在上一份数据的滚动位置，强制回到第一张
+        mHotGridView.setSelection(0);
+        bindHero(videos.get(0));
+    }
+
+    /**
+     * 当前数据源（豆瓣系）也取不到时，换配置里别的源来取，保证首页有内容：
+     * 优先 http api 源（出图最稳），再试 csp 源；跳过工具类站点（云盘/盘搜没有海报墙）
+     */
+    private void fillFromOtherSource() {
+        List<SiteBean> all = ApiConfig.getInstance().getSiteBeanList();
+        SiteBean home = ApiConfig.getInstance().getHomeBean();
+        String homeKey = home == null ? "" : home.getKey();
+        List<SiteBean> candidates = new ArrayList<>();
+        for (int pass = 0; pass < 2 && candidates.isEmpty(); pass++) {
+            for (SiteBean bean : all) {
+                if (bean == null || NullUtil.isNull(bean.getKey())) continue;
+                if (bean.getKey().equals(homeKey) || "豆瓣".equals(bean.getKey())) continue;
+                if (!bean.isSearchable()) continue;
+                boolean httpApi = bean.getType() == 0 || bean.getType() == 1;
+                if ((pass == 0) != httpApi) continue;
+                candidates.add(bean);
+                if (candidates.size() >= 4) break;
+            }
+        }
+        StringBuilder keys = new StringBuilder();
+        for (SiteBean bean : candidates) {
+            keys.append(bean.getKey()).append("(type=").append(bean.getType()).append(") ");
+        }
+        L.w("homeFeed candidates=" + candidates.size() + " [" + keys + "] homeKey=" + homeKey);
+        trySource(candidates, 0);
+    }
+
+    private void trySource(final List<SiteBean> candidates, final int index) {
+        if (index >= candidates.size()) {
+            L.w("homeFeed all sources empty, fallback to douban");
+            mActivity.runOnUiThread(() -> {
+                if (!isAdded()) return;
+                //聚合源全军覆没，最后一层回落豆瓣（直连→本地缓存），仍无内容才显示空态
+                loadDoubanRecommend();
+            });
+            return;
+        }
+        final SiteBean bean = candidates.get(index);
+        L.w("homeFeed try#" + index + " key=" + bean.getKey() + " type=" + bean.getType());
+        mSourceViewModel.getHomeRecList(bean, new ArrayList<String>(), new SourceViewModel.HomeRecCallback() {
+            @Override
+            public void done(List<Movie.Video> videos) {
+                L.w("homeFeed try#" + index + " -> " + (videos == null ? -1 : videos.size()));
+                if (videos != null && !videos.isEmpty()) {
+                    mActivity.runOnUiThread(() -> {
+                        if (!isAdded()) return;
+                        showFallbackVideos(bean.getName() + " 推荐", "已自动匹配可用的数据源", videos);
+                    });
+                } else {
+                    trySource(candidates, index + 1);
+                }
+            }
+        });
+    }
+
+    private void saveDoubanCache(List<Movie.Video> videos) {
+        try {
+            Hawk.put(HawkConfig.HOME_DOUBAN_CACHE, new Gson().toJson(videos));
+        } catch (Throwable th) {
+            L.e(th);
+        }
+    }
+
+    /**
+     * Hawk 存对象会丢泛型元素类型（读回变成 LinkedTreeMap，取用时 ClassCastException 闪退），所以统一存 JSON 字符串
+     */
+    private List<Movie.Video> loadDoubanCache() {
+        try {
+            String json = Hawk.get(HawkConfig.HOME_DOUBAN_CACHE, "");
+            if (NullUtil.isNull(json)) return null;
+            List<Movie.Video> cache = new Gson().fromJson(json, new TypeToken<List<Movie.Video>>() {
+            }.getType());
+            return (cache == null || cache.isEmpty()) ? null : cache;
+        } catch (Throwable th) {
+            L.e(th);
+            return null;
         }
     }
 
@@ -496,16 +707,19 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             public void run() {
                 int year = DateUtil.getLastNYear(0);
                 String doubanUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=" + start;
-                String result = HttpDoRequest.getInstance(getContext()).doGetRequestInOkGo(doubanUrl, null, true, 5 * 60 * 1000);
+                String result = HttpDoRequest.getInstance(getContext()).doGetRequestInOkGo(doubanUrl, null, true, 10 * 1000);
                 List<Movie.Video> listMore = parseJson(result);
                 mActivity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         //UiHelper.showToast(getActivity(), doubanUrl + " result=" + result);
                         L.d(doubanUrl + " result=" + result);
-                        if (!NullUtil.isNull(listMore)) {
-                            mAdapter.addData(listMore);//解决焦点跳走的问题
+                        if (NullUtil.isNull(listMore) || listMore.isEmpty()) {
+                            //豆瓣被限流或已到底：结束本轮加载，避免继续砸接口加重限流
+                            mAdapter.loadMoreEnd();
+                            return;
                         }
+                        mAdapter.addData(listMore);//解决焦点跳走的问题
                         mAdapter.loadMoreComplete();
                     }
                 });
@@ -517,6 +731,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         ArrayList<Movie.Video> videos = new ArrayList<>();
         try {
             JsonObject infoJson = new Gson().fromJson(json, JsonObject.class);
+            //豆瓣风控时会返回 {"msg":"检测到有异常请求从您的IP发出,请登录再试!","r":1}，没有 data 字段
+            if (infoJson == null || !infoJson.has("data") || infoJson.get("data").isJsonNull()) {
+                return videos;
+            }
             JsonArray array = infoJson.getAsJsonArray("data");
             for (JsonElement ele : array) {
                 JsonObject obj = (JsonObject) ele;

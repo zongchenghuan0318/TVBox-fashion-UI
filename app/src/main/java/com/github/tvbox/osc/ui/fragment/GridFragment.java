@@ -5,16 +5,18 @@ import android.view.View;
 import android.view.animation.BounceInterpolator;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
+import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.AbsXml;
 import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.MovieSort;
-import com.github.tvbox.osc.ui.activity.DetailActivity;
+import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.ui.adapter.GridAdapter;
 import com.github.tvbox.osc.ui.dialog.GridFilterDialog;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
+import com.lcstudio.commonsurport.L;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 import com.studio.osc.R;
@@ -100,11 +102,11 @@ public class GridFragment extends BaseLazyFragment {
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
                 Movie.Video video = mGridAdapter.getData().get(position);
-                if (video != null) {
+                //和首页卡片一致：直接拿片名去聚合搜索，不再进详情页
+                if (video != null && video.name != null && !video.name.isEmpty()) {
                     Bundle bundle = new Bundle();
-                    bundle.putString("id", video.id);
-                    bundle.putString("sourceKey", video.sourceKey);
-                    jumpActivity(DetailActivity.class, bundle);
+                    bundle.putString("title", video.name);
+                    jumpActivity(SearchActivity.class, bundle);
                 }
             }
         });
@@ -117,6 +119,9 @@ public class GridFragment extends BaseLazyFragment {
         sourceViewModel.listResult.observe(this, new Observer<AbsXml>() {
             @Override
             public void onChanged(AbsXml absXml) {
+                int count = (absXml == null || absXml.movie == null || absXml.movie.videoList == null)
+                        ? -1 : absXml.movie.videoList.size();
+                L.w("gridFeed page=" + mPage + " count=" + count + " maxPage=" + maxPage);
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                     if (mPage == 1) {
                         showSuccess();
@@ -142,6 +147,9 @@ public class GridFragment extends BaseLazyFragment {
 
     private void initData() {
         showLoading();
+        L.w("gridFeed start sort=" + (mSortData == null ? "null" : mSortData.name)
+                + " id=" + (mSortData == null ? "" : mSortData.id)
+                + " src=" + ApiConfig.getInstance().getHomeBean().getKey());
         sourceViewModel.getMovieList(mSortData, mPage);
     }
 

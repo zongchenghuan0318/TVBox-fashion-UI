@@ -13,6 +13,7 @@ import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.ApiDialog;
+import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -55,6 +56,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvDns;
     private TextView tvHomeRec;
     private TextView tvSearchView;
+    private TextView tvSearchSite;
     private ApiDialog mApiDialog =null;
 
     public static ModelSettingFragment newInstance() {
@@ -88,6 +90,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvDns = findViewById(R.id.tvDns);
         tvHomeRec = findViewById(R.id.tvHomeRec);
         tvSearchView = findViewById(R.id.tvSearchView);
+        tvSearchSite = findViewById(R.id.tvSearchSite);
+        tvSearchSite.setText(getSearchSiteSummary());
         tvMediaCodec.setText(Hawk.get(HawkConfig.IJK_CODEC, ""));
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
         tvParseWebView.setText("系统自带");
@@ -463,6 +467,21 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 dialog.show();
             }
         });
+        findViewById(R.id.llSearchSite).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                SearchSiteDialog dialog = new SearchSiteDialog(mActivity);
+                dialog.setOnChanged(new SearchSiteDialog.OnChanged() {
+                    @Override
+                    public void onChanged() {
+                        tvSearchSite.setText(getSearchSiteSummary());
+                    }
+                });
+                dialog.init();
+                dialog.show();
+            }
+        });
         SettingActivity.callback = new SettingActivity.DevModeCallback() {
             @Override
             public void onChange() {
@@ -493,5 +512,28 @@ public class ModelSettingFragment extends BaseLazyFragment {
         } else {
             return "缩略图";
         }
+    }
+
+    /** 搜索源管理入口右侧摘要：全部 / 已选 x/y / 未勾选 */
+    String getSearchSiteSummary() {
+        int total = 0;
+        int enabled = 0;
+        for (SiteBean bean : ApiConfig.getInstance().getSiteBeanList()) {
+            if (!bean.isSearchable()) continue;
+            total++;
+            if (ApiConfig.getInstance().isSearchSiteEnabled(bean.getKey())) {
+                enabled++;
+            }
+        }
+        if (total == 0) {
+            return "无可用源";
+        }
+        if (enabled == 0) {
+            return "未勾选";
+        }
+        if (enabled == total) {
+            return "全部（" + total + "）";
+        }
+        return enabled + "/" + total;
     }
 }

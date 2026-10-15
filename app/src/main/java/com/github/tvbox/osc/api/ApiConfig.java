@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -69,8 +70,12 @@ public class ApiConfig {
     private List<String> mVipFlagList;
     private List<IJKCode> mIjkCodes;
     private String mSpider = null;
+    /** 站点级 jar：jar url → 本地加载后的 jar 路径（加载失败存空串） */
+    private final ConcurrentHashMap<String, String> mSiteJarPaths = new ConcurrentHashMap<>();
+    /** 站点级 jar 的按 url 下载锁：避免并发线程重复下载同一个包 */
+    private final ConcurrentHashMap<String, Object> mSiteJarLocks = new ConcurrentHashMap<>();
     private final BaseLoader mBaseLoader;
-    private boolean bInit = false;
+    private volatile boolean bInit = false;
     private String apiUrl;
     private boolean m_bParsed = false;
 
@@ -401,10 +406,15 @@ public class ApiConfig {
                 bean.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
                 bean.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
                 bean.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
+                //部分源的类不在全局 spider 里，配置用站点级 jar 单独提供（如 csp_AppRJ 在 feimao1004.jar）
+                bean.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
                 bean.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
                 L.d(UiHelper.getBeanStr(bean));
                 mSiteBeanMap.put(siteKey, bean);
             }
+
+            // 配置文件里多是盘搜类站点，补上内置的主流采集源并排到最前（分类页/搜索用它们）
+            addExtraSites();
 
             // 需要使用vip解析的flag
             mVipFlagList = DefaultConfig.safeJsonStringList(jsonObject, "flags");
@@ -566,7 +576,52 @@ public class ApiConfig {
     }
 
     public Spider getCSP(SiteBean sourceBean) {
-        return mBaseLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt());
+        //该源自带爬虫包时先把它准备好，否则类找不到会静默降级成 SpiderNull（表现为搜索结果为空）
+        String jarPath = preloadSiteJar(sourceBean.getJar());
+        return mBaseLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt(), jarPath);
+    }
+
+    /**
+     * 下载并加载站点级 jar（配置里 site.jar 字段），返回本地 jar 路径。
+     * 同一 url 只允许一个线程下载，其余线程在锁上等它完成——否则并发线程会在 jar 就绪前查类，
+     * 全部落到"类找不到"的空结果上。结果按 url 缓存，失败缓存空串避免反复重试。
+     */
+    public String preloadSiteJar(String jarWithMd5) {
+        if (NullUtil.isNull(jarWithMd5)) return "";
+        String url = jarWithMd5.split(";md5;")[0].trim();
+        if (NullUtil.isNull(url)) return "";
+        String cached = mSiteJarPaths.get(url);
+        if (cached != null) return cached;
+        Object lock = mSiteJarLocks.get(url);
+        if (lock == null) {
+            mSiteJarLocks.putIfAbsent(url, new Object());
+            lock = mSiteJarLocks.get(url);
+        }
+        synchronized (lock) {
+            cached = mSiteJarPaths.get(url);
+            if (cached != null) return cached;
+            String path = "";
+            try {
+                File jarDir = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/spider");
+                if (jarDir.exists() || jarDir.mkdirs()) {
+                    File jarFile = new File(jarDir, "csp_" + MD5.encode(url) + ".jar");
+                    if ((jarFile.exists() && jarFile.length() > 0) || downloadJar(url, jarFile)) {
+                        if (mBaseLoader.loadExtraJar(jarFile.getAbsolutePath())) {
+                            path = jarFile.getAbsolutePath();
+                            L.w("preloadSiteJar ok " + url + " size=" + jarFile.length());
+                        } else {
+                            L.w("preloadSiteJar 加载失败 " + url);
+                        }
+                    } else {
+                        L.w("preloadSiteJar 下载失败 " + url);
+                    }
+                }
+            } catch (Throwable th) {
+                L.e(th);
+            }
+            mSiteJarPaths.put(url, path);
+            return path;
+        }
     }
 
     public Object[] proxyLocal(Map param) {
@@ -606,6 +661,26 @@ public class ApiConfig {
         return new ArrayList<>(mSiteBeanMap.values());
     }
 
+    /**
+     * 用户设置的不参与搜索的站点 key 列表。
+     * 存“被取消勾选”的 key：缺省为空 → 全部站点参与搜索，
+     * 这样配置源更新后新增的站点会自动参与，不会漏掉。
+     */
+    public ArrayList<String> getSearchSiteDisabled() {
+        ArrayList<String> disabled = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
+        return disabled == null ? new ArrayList<String>() : disabled;
+    }
+
+    public void setSearchSiteDisabled(List<String> keys) {
+        Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
+    }
+
+    /** 该站点是否被允许参与搜索（未设置或未被取消勾选 → 允许） */
+    public boolean isSearchSiteEnabled(String key) {
+        if (NullUtil.isNull(key)) return true;
+        return !getSearchSiteDisabled().contains(key);
+    }
+
     public List<ParseBean> getmParseBeanList() {
         return mParseBeanList;
     }
@@ -642,6 +717,7 @@ public class ApiConfig {
 
     public void setHomeBean(SiteBean bean) {
         L.d("setHomeBean= "+bean.getKey() + "\t"+bean.getName());
+        L.w("setHomeBean key=" + bean.getKey() + " name=" + bean.getName() + " type=" + bean.getType() + " api=" + bean.getApi());
         Hawk.put(HawkConfig.HOME_API, bean.getKey());
     }
 
@@ -661,13 +737,34 @@ public class ApiConfig {
         //已自动选定过、且是正常影视站点时沿用，避免每次启动重新抢答导致左栏分类变化
         String homeKey = Hawk.get(HawkConfig.HOME_API, "");
         SiteBean cachedHomeBean = getSiteBean(homeKey);
-        if (null != cachedHomeBean && cachedHomeBean.isSearchable()) {
-            L.d("initHomeBean cachedHomeBean callback.success() ");
+        //老缓存可能是盘搜类站点（分类页点进去全是网盘资源），此时不沿用，按新顺序（采集源已排最前）重新探测
+        boolean cachedOk = null != cachedHomeBean && cachedHomeBean.isSearchable()
+                && !(hasCollectBean() && !isCollectBean(cachedHomeBean));
+        if (cachedOk) {
+            L.w("initHomeBean 沿用已选首页源 " + homeKey);
             callback.success();
             return;
         }
         //自动设置home
         bInit = false;
+        //重新探测期间如果一直没探测成功，兜底沿用上次的首页源，避免分类列表一直空白
+        final SiteBean lastBean = cachedHomeBean;
+        if (lastBean != null) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(6000);
+                    } catch (Throwable ignored) {
+                    }
+                    if (bInit) return;
+                    L.w("initHomeBean 探测未成功，沿用上次首页源 " + lastBean.getKey());
+                    bInit = true;
+                    setHomeBean(lastBean);
+                    callback.success();
+                }
+            }).start();
+        }
         List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
         if (!NullUtil.isNull(beans)) {
             ExecutorService mExecutorService = Executors.newFixedThreadPool(3);
@@ -746,6 +843,72 @@ public class ApiConfig {
         } catch (Throwable ignored) {
         }
         return 0;
+    }
+
+    /**
+     * 补上内置的主流采集源（DefaultConfig.EXTRA_SITES）并排到站点表最前面。
+     * 作用有两个：一是首页源自动探测按站点表顺序并发抢答，采集源是纯 HTTP 接口、响应最快，
+     * 排在前面就能稳定选中它们而不是盘搜站点；二是「设置 → 首页数据源」和搜索源管理里可选用。
+     * 配置里已有同 api 的站点不重复添加，只把它提到最前面。
+     */
+    private void addExtraSites() {
+        LinkedHashMap<String, SiteBean> merged = new LinkedHashMap<>();
+        for (String[] def : DefaultConfig.EXTRA_SITES) {
+            SiteBean exist = null;
+            for (SiteBean bean : mSiteBeanMap.values()) {
+                if (sameApi(bean.getApi(), def[2])) {
+                    exist = bean;
+                    break;
+                }
+            }
+            if (exist != null) {
+                merged.put(exist.getKey(), exist);
+                continue;
+            }
+            SiteBean bean = new SiteBean();
+            bean.setKey(def[0]);
+            bean.setName(def[1]);
+            bean.setType(1);
+            bean.setApi(def[2]);
+            bean.setSearchable(1);
+            bean.setQuickSearch(1);
+            bean.setFilterable(1);
+            L.d("addExtraSites add " + UiHelper.getBeanStr(bean));
+            merged.put(def[0], bean);
+        }
+        merged.putAll(mSiteBeanMap);
+        mSiteBeanMap.clear();
+        mSiteBeanMap.putAll(merged);
+        StringBuilder order = new StringBuilder();
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (order.length() > 0) order.append(",");
+            order.append(bean.getKey());
+            if (order.length() > 120) break;
+        }
+        L.w("addExtraSites sites=" + mSiteBeanMap.size() + " first=" + order);
+        // 内置采集源上线后，清掉一次旧的自动首页源缓存：老缓存多半是盘搜站点，
+        // 分类页点进去全是网盘资源，需要按新顺序（采集源优先）重新探测一次
+        if (Hawk.get(HawkConfig.EXTRA_SITE_VER, 0) < 1) {
+            Hawk.put(HawkConfig.HOME_API, "");
+            Hawk.put(HawkConfig.EXTRA_SITE_VER, 1);
+        }
+    }
+
+    private static boolean sameApi(String api1, String api2) {
+        if (NullUtil.isNull(api1) || NullUtil.isNull(api2)) return false;
+        return api1.trim().replaceAll("/+$", "").equalsIgnoreCase(api2.trim().replaceAll("/+$", ""));
+    }
+
+    /** 采集源（CMS http 接口）：片库是正规影视站的，不是盘搜出来的网盘资源 */
+    private static boolean isCollectBean(SiteBean bean) {
+        return bean != null && (bean.getType() == 0 || bean.getType() == 1);
+    }
+
+    private boolean hasCollectBean() {
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (isCollectBean(bean) && bean.isSearchable()) return true;
+        }
+        return false;
     }
 
     public SiteBean getSiteBean(String key) {
