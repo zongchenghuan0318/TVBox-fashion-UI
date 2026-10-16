@@ -63,14 +63,4 @@
         android:paddingRight="10dp"
         android:textColor="@color/color_CCFFFFFF"
         android:textSize="@dimen/ts_22" />
-
-    <TextView
-        android:id="@+id/play_ad_tip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|right"
-        android:layout_margin="25dp"
-        android:gravity="center"
-        android:text="请勿相信视频内广告\n否则责任自负"
-        android:textColor="@color/color_66FFFFFF" />
 </FrameLayout>

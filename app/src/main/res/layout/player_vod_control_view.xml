@@ -269,6 +269,20 @@
                 app:tv_selectedItemIsCentered="true"
                 app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
         </LinearLayout>
+
+        <!--广告提示：放在控制栏内，避免与按钮重叠-->
+        <TextView
+            android:id="@+id/play_ad_tip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_5"
+            android:ellipsize="end"
+            android:gravity="right"
+            android:singleLine="true"
+            android:text="请勿相信视频内广告，否则责任自负"
+            android:textColor="@color/color_66FFFFFF"
+            android:textSize="@dimen/ts_22"
+            android:visibility="gone" />
     </LinearLayout>
 
     <FrameLayout
