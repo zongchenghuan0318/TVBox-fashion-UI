@@ -86,6 +86,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private HomeCardRecyclerView mHotGridView;
     private ImageView mHeroBackdrop;
     private ImageView mHeroBackdropAlt;
+    /** 首页压暗层：与背景海报一样铺满整屏（含侧栏下方），非首页时需一起收起 */
+    private View mHeroScrim;
     /** 当前正在显示背景的那层；还没显示过任何海报时为 null */
     private ImageView mHeroFront;
     private int mHeroSeq = 0;
@@ -176,6 +178,23 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         return this;
     }
 
+    /**
+     * 显隐首页大背景海报。背景层属于 Activity，不随 ViewPager 页面裁剪。
+     */
+    public void setHeroVisible(boolean visible) {
+        int visibility = visible ? View.VISIBLE : View.GONE;
+        if (mHeroBackdrop != null && mHeroBackdrop.getVisibility() != visibility) {
+            mHeroBackdrop.setVisibility(visibility);
+        }
+        if (mHeroBackdropAlt != null && mHeroBackdropAlt.getVisibility() != visibility) {
+            mHeroBackdropAlt.setVisibility(visibility);
+        }
+        // 压暗层同样需要完全移除，否则会压暗侧栏下方的默认背景
+        if (mHeroScrim != null && mHeroScrim.getVisibility() != visibility) {
+            mHeroScrim.setVisibility(visibility);
+        }
+    }
+
     @Override
     protected int getLayoutResID() {
         return R.layout.fragment_home;
@@ -192,8 +211,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         tvHistory = findViewById(R.id.tvHistory);
         tvPush = findViewById(R.id.shareLayout);
         mHotGridView = findViewById(R.id.tvHotList);
-        mHeroBackdrop = findViewById(R.id.ivHeroBackdrop);
-        mHeroBackdropAlt = findViewById(R.id.ivHeroBackdropAlt);
+        mHeroBackdrop = requireActivity().findViewById(R.id.ivHeroBackdrop);
+        mHeroBackdropAlt = requireActivity().findViewById(R.id.ivHeroBackdropAlt);
+        mHeroScrim = requireActivity().findViewById(R.id.viewHeroScrim);
         mHeroTitle = findViewById(R.id.tvHeroTitle);
         mHeroNote = findViewById(R.id.tvHeroNote);
         mHeroMeta = findViewById(R.id.tvHeroMeta);
@@ -420,6 +440,15 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHeroHandler.removeCallbacks(mHeroImageRun);
         if (rootView != null) {
             rootView.getViewTreeObserver().removeOnGlobalFocusChangeListener(mFocusChangeListener);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // Fragment 退出时释放成员线程池，避免其常驻
+        if (mExecutorService != null) {
+            mExecutorService.shutdownNow();
         }
     }
 

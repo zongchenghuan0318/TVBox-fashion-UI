@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="@dimen/radius_10" />
-    <solid android:color="#26FFFFFF" />
-</shape>
+<!-- 导航项：焦点悬停 —— 微妙的白色玻璃高亮 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- 玻璃底层 -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_10" />
+            <gradient
+                android:angle="135"
+                android:startColor="#33FFFFFF"
+                android:endColor="#1AFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#66FFFFFF" />
+        </shape>
+    </item>
+    
+    <!-- 顶部亮光 -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_10" />
+            <gradient
+                android:angle="270"
+                android:startColor="#33FFFFFF"
+                android:endColor="@android:color/transparent"
+                android:centerY="0.4" />
+        </shape>
+    </item>
+    
+</layer-list>

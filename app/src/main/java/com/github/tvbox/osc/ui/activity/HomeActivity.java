@@ -5,7 +5,8 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
-import android.view.animation.BounceInterpolator;
+import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -73,6 +74,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View mLoadingView;
     private long mShowLoadingTime = 0;
     private String mSortSignature = "";
+    /** 首页片段只创建一次：ViewPager 按 tag 复用它，页面列表里必须放同一个实例 */
+    private FirstFragment mFirstFragment;
 
     @Override
     protected int getLayoutResID() {
@@ -88,6 +91,38 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         findViewById(R.id.layout_setting).setOnClickListener(this);
         this.mMovieSortRV = findViewById(R.id.sortRV);
         this.mContentViewPager = findViewById(R.id.viewPager);
+        
+        // 禁用整个主容器和左侧导航栏的滚动
+        ViewGroup homeContent = findViewById(R.id.homeContent);
+        View leftNavPanel = findViewById(R.id.leftNavPanel);
+        
+        if (homeContent != null) {
+            homeContent.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            // 内容页不能绘制到左侧导航栏下方
+            homeContent.setClipChildren(true);
+            homeContent.setClipToPadding(true);
+        }
+        if (this.mContentViewPager != null) {
+            this.mContentViewPager.setClipChildren(true);
+            this.mContentViewPager.setClipToPadding(true);
+            if (this.mContentViewPager.getParent() instanceof ViewGroup) {
+                ViewGroup host = (ViewGroup) this.mContentViewPager.getParent();
+                host.setClipChildren(true);
+                host.setClipToPadding(true);
+            }
+        }
+        
+        if (leftNavPanel != null) {
+            leftNavPanel.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            // 禁用触摸滚动，但保留子View的点击功能
+            leftNavPanel.setOnTouchListener((v, event) -> {
+                // 禁止父容器拦截触摸事件，防止产生滚动
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+                // 返回true：侧栏区域内子View没消费掉的触摸（例如条目间距、上下内边距这些空档）
+                // 由侧栏自己吃掉，避免穿透到下层内容区，点到被侧栏遮住看不见的分类卡片
+                return true;
+            });
+        }
     }
 
     @Override
@@ -124,10 +159,15 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void initSortView(){
         this.sortAdapter = new SortAdapter();
-        // 分类列表纵向排列：首页在最上，热播电影等依次堆在下面，过多时向下滚动
+        // 分类列表纵向排列：首页在最上，热播电影等依次堆在下面
+        // 行距压到刚好让 6 个分类完整落在列表可视区内（无滚动范围 → 触摸滑动时整块固定不动）
         this.mMovieSortRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
-        this.mMovieSortRV.setSpacingWithMargins(0, AutoSizeUtils.dp2px(this.mContext, 10.0f));
+        this.mMovieSortRV.setSpacingWithMargins(0, AutoSizeUtils.dp2px(this.mContext, 2.0f));
         this.mMovieSortRV.setAdapter(this.sortAdapter);
+        
+        // 禁用嵌套滚动，使列表固定不可滑动
+        this.mMovieSortRV.setNestedScrollingEnabled(false);
+        
         this.mMovieSortRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView tvRecyclerView, View view, int position) {
@@ -135,7 +175,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     view.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).start();
                     TextView textView = view.findViewById(R.id.tvTitle);
                     textView.getPaint().setFakeBoldText(false);
-                    textView.setTextColor(HomeActivity.this.getResources().getColor(R.color.color_BBFFFFFF));
+                    textView.setTextColor(HomeActivity.this.getResources().getColor(R.color.color_rail_text_normal));
                     textView.invalidate();
                     view.findViewById(R.id.tvFilter).setVisibility(View.GONE);
                 }
@@ -161,10 +201,15 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void initFirstPager() {
-        fragments.add(FirstFragment.newInstance(null));
+        mFirstFragment = FirstFragment.newInstance(null);
+        fragments.add(mFirstFragment);
         mPageAdapter = new HomePageAdapter(getSupportFragmentManager(), fragments);
         mContentViewPager.setPageTransformer(true, new DefaultTransformer());
         mContentViewPager.setAdapter(mPageAdapter);
+        // 禁用预加载相邻页面：只保留当前页，避免其他页面的背景透出来
+        // 注意：ViewPager 的 offscreenPageLimit 最小值是 1，设为 0 会被强制改回 1
+        // 但结合 NoScrollViewPager 禁止用户切换，实际效果是只有当前页活跃
+        mContentViewPager.setOffscreenPageLimit(1);
         mContentViewPager.setCurrentItem(0, true);
         List<MovieSort.SortData> sortDataList = new ArrayList<>();
         sortDataList.add(new MovieSort.SortData("my0", "首页"));
@@ -185,16 +230,18 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private void changeTap(View view, int position) {
         bDownOrUp = false;
         bSortChange = true;
-        view.animate().scaleX(1.1f).scaleY(1.1f).setInterpolator(new BounceInterpolator()).setDuration(300).start();
+        view.animate().scaleX(1.06f).scaleY(1.06f).setInterpolator(new DecelerateInterpolator()).setDuration(220).start();
         TextView textView = view.findViewById(R.id.tvTitle);
         textView.getPaint().setFakeBoldText(true);
-        textView.setTextColor(getResources().getColor(R.color.color_FFFFFF));
+        textView.setTextColor(getResources().getColor(R.color.color_rail_text_active));
         textView.invalidate();
         if (sortAdapter.getItem(position) != null && !NullUtil.isNull(sortAdapter.getItem(position).filters)) {
             view.findViewById(R.id.tvFilter).setVisibility(View.VISIBLE);
         }
         mSortFocusView = view;
         mSortFocused = position;
+        // 立即同步背景显隐，消除 200ms 延迟期间首页背景透过侧边栏残留的问题
+        syncHeroBackdrop(mSortFocused);
         mHandler.removeCallbacks(mChangeTapRunnable);
         mHandler.postDelayed(mChangeTapRunnable, 200);
     }
@@ -313,12 +360,33 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             for (MovieSort.SortData data : sortAdapter.getData()) {
                 if (data.id.equals("my0")) {
                     //数据源推荐列表始终带进首页片段：选「网站推荐」时直接用，豆瓣被限流时作为兜底
-                    fragments.add(FirstFragment.newInstance(absXml == null ? null : absXml.videoList));
+                    // 必须复用首次创建的那个首页片段：ViewPager 的 FragmentPagerAdapter 会按 tag
+                    // 复用已注册的实例，列表里换成新实例的话，fragments 里就只剩一个没被使用的空壳，
+                    // setHeroVisible 之类针对首页的调用会全部落空
+                    if (mFirstFragment == null) {
+                        mFirstFragment = FirstFragment.newInstance(absXml == null ? null : absXml.videoList);
+                    }
+                    fragments.add(mFirstFragment);
                 } else {
                     fragments.add(GridFragment.newInstance(data));
                 }
             }
             mPageAdapter.notifyDataSetChanged();
+            // 重建后各页背景的默认可见性要按当前页重新同步，否则分类页背景会默认显示并漏到首页
+            syncHeroBackdrop();
+            // 【临时调试，验证完删除】am start --ei dbgPage N 可直接切到第 N 页
+            Intent dbg = getIntent();
+            if (dbg != null && dbg.hasExtra("dbgPage")) {
+                final int dbgPage = dbg.getIntExtra("dbgPage", 0);
+                mHandler.postDelayed(() -> {
+                    if (dbgPage >= 0 && dbgPage < fragments.size()) {
+                        mSortFocused = dbgPage;
+                        mCurrentSelected = dbgPage;
+                        mContentViewPager.setCurrentItem(dbgPage, false);
+                        syncHeroBackdrop();
+                    }
+                }, 2500);
+            }
         }
     }
 
@@ -376,8 +444,43 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     mContentViewPager.setCurrentItem(mSortFocused, false);
                 }
             }
+            syncHeroBackdrop();
         }
     };
+
+    /** 首页海报层独立于 ViewPager，只在首页显示。 */
+    private void syncHeroBackdrop() {
+        syncHeroBackdrop(mCurrentSelected);
+    }
+
+    private void syncHeroBackdrop(int currentIndex) {
+        if (fragments == null || fragments.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < fragments.size(); i++) {
+            BaseLazyFragment fragment = fragments.get(i);
+            if (fragment instanceof FirstFragment) {
+                ((FirstFragment) fragment).setHeroVisible(i == currentIndex);
+            }
+            // 非当前页的片段整页隐藏：ViewPager 会预加载相邻页，而页空间里左邻页的右边缘
+            // 正好落在侧栏下方（页面从侧栏右侧开始排），它自己的卡片/海报会从半透明侧栏
+            // 底下透出来，甚至在侧栏区域点到它们，所以只保留当前页参与绘制与触摸
+            View pageView = fragment.getView();
+            if (pageView != null) {
+                int visibility = (i == currentIndex) ? View.VISIBLE : View.INVISIBLE;
+                if (pageView.getVisibility() != visibility) {
+                    pageView.setVisibility(visibility);
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 从其它页面返回时，当前页可能还停在分类页，需要重新同步大背景的显隐
+        syncHeroBackdrop();
+    }
 
     @Override
     protected void onDestroy() {

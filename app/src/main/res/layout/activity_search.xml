@@ -25,7 +25,7 @@
 
                 <ImageView
                     android:id="@+id/back_tv"
-                    android:layout_width="20dp"
+                    android:layout_width="@dimen/vs_20"
                     android:layout_height="@dimen/vs_50"
                     android:clickable="true"
                     android:gravity="center_vertical"
@@ -54,8 +54,8 @@
                     android:layout_width="@dimen/vs_35"
                     android:layout_height="@dimen/vs_35"
                     android:layout_alignParentLeft="true"
-                    android:layout_marginLeft="2dp"
-                    android:layout_marginRight="10dp"
+                    android:layout_marginLeft="@dimen/vs_2"
+                    android:layout_marginRight="@dimen/vs_10"
                     android:layout_centerVertical="true"
                     android:alpha="0.75"
                     android:clickable="true"
@@ -63,9 +63,9 @@
 
                 <TextView
                     android:id="@+id/tvSearch"
-                    android:layout_width="50dp"
+                    android:layout_width="@dimen/vs_50"
                     android:layout_height="@dimen/vs_40"
-                    android:layout_marginRight="4dp"
+                    android:layout_marginRight="@dimen/vs_4"
                     android:layout_alignParentRight="true"
                     android:layout_centerVertical="true"
                     android:background="@drawable/selector_user_focus"
@@ -80,7 +80,7 @@
                 android:id="@+id/serch_history_rv"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
+                android:layout_marginTop="@dimen/vs_1"
                 android:focusableInTouchMode="true"
                 android:focusable="true"
                 app:tv_horizontalSpacingWithMargins="@dimen/vs_2"
@@ -98,7 +98,7 @@
 
                 <TextView
                     android:id="@+id/tvClear"
-                    android:layout_width="0mm"
+                    android:layout_width="0dp"
                     android:layout_height="@dimen/vs_50"
                     android:layout_weight="1"
                     android:background="@drawable/selector_user_focus"
@@ -139,10 +139,10 @@
 
             <ImageView
                 android:id="@+id/ivQRCode"
-                android:layout_width="300mm"
-                android:layout_height="300mm"
+                android:layout_width="@dimen/vs_300"
+                android:layout_height="@dimen/vs_300"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="20mm" />
+                android:layout_marginTop="@dimen/vs_20" />
         </LinearLayout>
     </LinearLayout>
 

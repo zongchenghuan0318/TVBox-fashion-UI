@@ -1,21 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  首页海报压暗层：压到与侧栏面板同档，让右侧内容区与侧栏底下透出的海报亮度一致
+  - 左侧几乎不压，只做极轻过渡
+  - 底部仅保留 25% 左右的压暗，维持剧名与卡片行最低可读性
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 左侧压暗：保证剧名/元信息所在左列的对比度 -->
+    <!-- 左侧压暗：极淡 -->
     <item>
         <shape>
             <gradient
                 android:angle="0"
                 android:endColor="@android:color/transparent"
-                android:startColor="#80000000" />
+                android:startColor="#14000000" />
         </shape>
     </item>
-    <!-- 底部压暗：承载剧名与底部卡片行 -->
+    <!-- 底部压暗：承载剧名与底部卡片行（很淡） -->
     <item>
         <shape>
             <gradient
                 android:angle="270"
-                android:centerColor="#40000000"
-                android:endColor="#CC000000"
+                android:centerColor="#12000000"
+                android:endColor="#40000000"
                 android:startColor="@android:color/transparent" />
         </shape>
     </item>

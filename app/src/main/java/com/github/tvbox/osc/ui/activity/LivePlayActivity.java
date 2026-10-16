@@ -215,6 +215,10 @@ public class LivePlayActivity extends BaseActivity {
             mVideoView.release();
             mVideoView = null;
         }
+        // mUpdateTimeRun 会每秒自我重投递，不清掉会一直持有本 Activity 刷新已销毁的视图
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+        }
     }
 
     private void showChannelList() {

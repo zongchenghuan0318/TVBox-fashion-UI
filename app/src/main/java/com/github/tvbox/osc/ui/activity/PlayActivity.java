@@ -609,7 +609,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         stopParse();
         mController.releaseController();
         if (null != mHandler) {
-            mHandler.removeCallbacks(null);
+            // removeCallbacks(null) 在 MessageQueue 里会直接 return，清不掉任何定时器，
+            // 会导致 showSystemTime() 的每秒自循环在退出后继续持有本 Activity 并刷新已销毁的视图
+            mHandler.removeCallbacksAndMessages(null);
         }
     }
 

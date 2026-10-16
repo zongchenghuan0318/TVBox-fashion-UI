@@ -360,6 +360,9 @@ public class SourceViewModel extends ViewModel {
                     parseJson(detailResult, detail, sourceBean.getKey(), 0);
                 } catch (Exception th) {
                     L.w("getDetail " + th.getMessage());
+                } finally {
+                    // 一次性线程池用完即关，否则每次调用都会泄漏一个线程
+                    executor.shutdown();
                 }
             });
         } else if (type == 0 || type == 1) {

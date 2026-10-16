@@ -4,30 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/color_home_base"
     android:clipChildren="false"
     android:clipToPadding="false"
     tools:ignore="MissingDefaultResource">
-
-    <!-- 背景：当前节目的海报（双层交叉淡入，随焦点滚动切换） -->
-    <ImageView
-        android:id="@+id/ivHeroBackdrop"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:alpha="0"
-        android:scaleType="centerCrop" />
-
-    <ImageView
-        android:id="@+id/ivHeroBackdropAlt"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:alpha="0"
-        android:scaleType="centerCrop" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/shape_home_scrim_hero" />
 
     <!-- 底部：节目信息 + 大卡片横向流 -->
     <LinearLayout

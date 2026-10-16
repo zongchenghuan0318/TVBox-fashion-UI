@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 侧边栏文字：聚焦/选中时提亮到纯白，常态为一档中性白 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/color_rail_text_active" android:state_focused="true" />
+    <item android:color="@color/color_rail_text_active" android:state_selected="true" />
+    <item android:color="@color/color_rail_text_active" android:state_pressed="true" />
+    <item android:color="@color/color_rail_text_normal" />
+</selector>

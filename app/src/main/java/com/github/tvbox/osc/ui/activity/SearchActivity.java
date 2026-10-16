@@ -551,5 +551,9 @@ public class SearchActivity extends BaseActivity {
         super.onDestroy();
         OkGo.getInstance().cancelTag("search");
         EventBus.getDefault().unregister(this);
+        // 释放聚合搜索线程池，避免退出搜索页后仍存活 5 条线程
+        if (mExecutorService != null) {
+            mExecutorService.shutdownNow();
+        }
     }
 }

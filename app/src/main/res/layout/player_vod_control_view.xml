@@ -375,9 +375,9 @@
             android:id="@+id/tv_progress_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="20dp"
+            android:layout_marginLeft="@dimen/vs_20"
             android:layout_marginTop="@dimen/vs_20"
-            android:layout_marginRight="20dp"
+            android:layout_marginRight="@dimen/vs_20"
             android:gravity="center_horizontal"
             android:textColor="@android:color/white"
             android:textSize="@dimen/ts_30"
@@ -399,7 +399,7 @@
         android:layout_width="@dimen/vs_80"
         android:layout_height="wrap_content"
         android:layout_gravity="right|center_vertical"
-        android:layout_marginRight="70dp"
+        android:layout_marginRight="@dimen/vs_70"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -417,7 +417,7 @@
             android:layout_width="@dimen/vs_42"
             android:layout_height="@dimen/vs_42"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="@dimen/vs_10"
             android:clickable="true"
             android:scaleType="fitCenter"
             android:src="@drawable/port_hor" />

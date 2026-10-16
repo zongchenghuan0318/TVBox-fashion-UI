@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 侧栏右缘投影：淡化的冷色光晕，只做轻微过渡，不强调侧栏边界 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="0"
+        android:startColor="#3300D9FF"
+        android:centerColor="#1A00B8E6"
+        android:endColor="@android:color/transparent"
+        android:centerX="0.3" />
+</shape>

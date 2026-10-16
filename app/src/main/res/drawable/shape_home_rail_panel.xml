@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  侧边栏面板：轻玻璃拟态(Glassmorphism)
+  - 大幅降低不透明度，让首页大背景海报从侧栏底下透出来，弱化侧栏的存在感
+  - 仅保留极淡的深色渐变底，保证文字在亮海报上依然可读
+  - 顶部高光与描边一起淡化，避免抢主体背景的视线
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. 玻璃基底 - 半透明深色渐变（更透） -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#2E1A1D2E"
+                android:centerColor="#26151822"
+                android:endColor="#1F0F111A" />
+            <corners android:radius="@dimen/vs_0" />
+        </shape>
+    </item>
+
+    <!-- 2. 淡青色调层（代替原先的发光边框，只留一点冷色调气息） -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#1400D9FF"
+                android:centerColor="#0C00B8E6"
+                android:endColor="#060099CC" />
+            <corners android:radius="@dimen/vs_0" />
+        </shape>
+    </item>
+
+    <!-- 3. 内描边 - 玻璃折射线（淡化） -->
+    <item
+        android:top="@dimen/vs_1"
+        android:right="@dimen/vs_1">
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#14FFFFFF" />
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="@dimen/vs_0" />
+        </shape>
+    </item>
+
+    <!-- 4. 顶部高光 - 玻璃受光面（淡化） -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#14FFFFFF"
+                android:centerColor="#0AFFFFFF"
+                android:endColor="@android:color/transparent"
+                android:centerY="0.3" />
+            <corners android:radius="@dimen/vs_0" />
+        </shape>
+    </item>
+
+</layer-list>

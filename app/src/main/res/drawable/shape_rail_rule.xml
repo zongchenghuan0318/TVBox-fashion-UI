@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 品牌名下方的强调色短横（胶囊形带发光效果） -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- 发光底层 -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_5" />
+            <solid android:color="#8000D9FF" />
+        </shape>
+    </item>
+    
+    <!-- 主体亮线 -->
+    <item
+        android:top="@dimen/vs_1">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_5" />
+            <gradient
+                android:angle="0"
+                android:startColor="#FF00D9FF"
+                android:endColor="#FF00B8E6" />
+        </shape>
+    </item>
+    
+</layer-list>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 分类指示条：胶囊形，聚焦/选中时点亮为强调色 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="@dimen/radius_5" />
-    <solid android:color="@color/color_FF5F00" />
+    <solid android:color="@color/color_rail_accent" />
 </shape>

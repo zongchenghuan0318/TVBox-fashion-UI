@@ -67,6 +67,8 @@
     <dimen name="vs_160">160mm</dimen>
     <dimen name="vs_162">162mm</dimen>
     <dimen name="vs_165">165mm</dimen>
+    <!-- 背景海报向左溢出到侧栏底下的偏移量（与侧栏等宽） -->
+    <dimen name="vs_neg165">-165mm</dimen>
     <dimen name="vs_170">170mm</dimen>
     <dimen name="vs_180">180mm</dimen>
     <dimen name="vs_190">190mm</dimen>
