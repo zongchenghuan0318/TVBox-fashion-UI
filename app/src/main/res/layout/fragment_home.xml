@@ -144,7 +144,7 @@
             android:clipToPadding="false"
             android:orientation="vertical">
 
-            <com.owen.tvrecyclerview.widget.TvRecyclerView
+            <com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView
                 android:id="@+id/tvHotList"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/vs_230"

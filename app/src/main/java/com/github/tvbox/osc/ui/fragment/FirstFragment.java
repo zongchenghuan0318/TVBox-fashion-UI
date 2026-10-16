@@ -32,6 +32,7 @@ import com.github.tvbox.osc.ui.activity.LivePlayActivity;
 import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.adapter.HomeHotVodAdapter;
+import com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.GlideImg;
@@ -114,7 +115,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private static final float ARC_MIN_ALPHA = 0.74f;    // 两端卡片的最低不透明度
     /** 弧线深度归一化基准：距中心达到列表半宽的这个比例时，下沉量达到最大 */
     private static final float ARC_REACH_RATIO = 0.72f;
-    private static final long ITEM_SCALE_DURATION = 220L; // 聚焦缩放时长，短且不带回弹更顺
+    /** 聚焦缩放时长与整排滑动时长保持一致（见 HomeCardRecyclerView），滑动与放大是一个动作 */
+    private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
     /** 当前选中卡片的位置，弧顶跟随它移动 */
     private int mArcFocusPos = 0;
     private TextView mHeroTitle;
