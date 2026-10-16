@@ -53,7 +53,9 @@ import com.studio.osc.R;
 import com.uisupport.UiConstans;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -72,6 +74,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private HomeHotVodAdapter mAdapter;
     private List<Movie.Video> mRecommendVideos;
     private List<Movie.Video> mDobanVideos = new ArrayList<>();
+    /** 豆瓣被风控后的冷却截止时间：冷却期内不再直连豆瓣，只用缓存/兜底，避免继续砸接口把限流期拉长 */
+    private static long sDoubanBlockedUntil = 0L;
+    private static final long DOU_BAN_BLOCK_COOLDOWN_MS = 5 * 60 * 1000L;
+    /** 豆瓣翻页上限：按出口 IP 限流，翻页过多必然触发风控，最多只额外拉 2 页 */
+    private static final int DOU_BAN_MAX_START = 40;
     private int mStart = 40;
     private TvRecyclerView mHotGridView;
     private ImageView mHeroBackdrop;
@@ -331,15 +338,17 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 bindHero(vodList.get(0));
             }
         } else {
-            //豆瓣热播：豆瓣按出口 IP 风控、时通时断，改成「主流热榜优先」——
-            //热榜拿不到再依次回落数据源推荐 / 聚合源 / 豆瓣
+            //豆瓣推荐固定放在第一位；豆瓣被风控或断网时，loadDoubanRecommend 内部会依次
+            //回落到本地缓存 → 主流热榜 → 站点推荐 → 聚合源，保证首页不留白
             showLoading();
-            loadHotRankFeed();
+            loadDoubanRecommend();
         }
     }
 
     /**
-     * 豆瓣层：只有聚合源全军覆没才走到这里；直连取不到就用上次成功的本地缓存
+     * 豆瓣推荐层：主页默认就是这一层，直连取不到就用上次成功的本地缓存；
+     * 连缓存都没有才回落到热榜 / 站点推荐 / 聚合源，始终不留白页。
+     * 豆瓣按出口 IP 风控（返回「检测到有异常请求从您的IP发出」），一旦命中就冷却几分钟不再直连。
      */
     private void loadDoubanRecommend() {
         new Thread() {
@@ -347,14 +356,25 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             public void run() {
                 super.run();
                 int year = DateUtil.getLastNYear(0);
-                String doubanUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=" + 0;
-                //超时压到 10 秒：豆瓣挂起时尽快收尾，别让用户对着转圈等
-                String result = HttpDoRequest.getInstance(getContext()).doGetRequestInOkGo(doubanUrl, null, true, 10 * 1000);
-                List<Movie.Video> list0 = parseJson(result);
-                L.w("homeFeed douban len=" + (result == null ? -1 : result.length())
-                        + " riskMsg=" + (result != null && result.contains("\"msg\""))
-                        + " parsed=" + (list0 == null ? -1 : list0.size()));
+                List<Movie.Video> list0 = null;
+                if (isDoubanBlocked()) {
+                    //冷却期内不再碰豆瓣接口，直接用缓存，省得把限流期越砸越长
+                    L.w("homeFeed douban skip: blocked");
+                } else {
+                    String doubanUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=" + 0;
+                    //超时压到 10 秒：豆瓣挂起时尽快收尾，别让用户对着转圈等
+                    String result = ApiConfig.getWithHeaders(doubanUrl, doubanHeaders(), 10 * 1000);
+                    boolean risk = result != null && result.contains("\"msg\"");
+                    if (risk) {
+                        sDoubanBlockedUntil = System.currentTimeMillis() + DOU_BAN_BLOCK_COOLDOWN_MS;
+                    }
+                    list0 = parseJson(result);
+                    L.w("homeFeed douban len=" + (result == null ? -1 : result.length())
+                            + " risk=" + risk
+                            + " parsed=" + (list0 == null ? -1 : list0.size()));
+                }
                 final boolean fresh = !NullUtil.isNull(list0) && !list0.isEmpty();
+                mDobanVideos.clear();
                 if (fresh) {
                     //成功一次就缓存，豆瓣按 IP 限流（时通时断）时用它兜底
                     saveDoubanCache(list0);
@@ -368,19 +388,47 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 }
                 mActivity.runOnUiThread(() -> {
                     if (!isAdded()) return;
-                    showSuccess();
                     if (mDobanVideos.isEmpty()) {
-                        mAdapter.setNewData(new ArrayList<>());
-                        setHeroEmpty("暂无内容", "请检查网络后重试");
-                    } else {
-                        setHeader("豆瓣热播", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序"
-                                + (fresh ? "" : "（离线缓存）"));
-                        mAdapter.setNewData(mDobanVideos);
-                        bindHero(mDobanVideos.get(0));
+                        //豆瓣直连与缓存都拿不到：回落到热榜 / 站点推荐 / 聚合源，依然不留白页
+                        loadHotRankFeed();
+                        return;
                     }
+                    showSuccess();
+                    setHeader("豆瓣推荐", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序"
+                            + (fresh ? "" : "（离线缓存）"));
+                    mAdapter.setNewData(mDobanVideos);
+                    bindHero(mDobanVideos.get(0));
                 });
             }
         }.start();
+    }
+
+    /** 豆瓣按出口 IP 风控：带上来源页 Referer 和固定的 bid Cookie，降低被判定为异常请求的概率 */
+    private Map<String, String> doubanHeaders() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Referer", "https://movie.douban.com/");
+        headers.put("Cookie", "bid=" + doubanBid());
+        return headers;
+    }
+
+    /** bid 是豆瓣的身份串，首次随机生成后固定保存，每次换新身份反而更容易被判异常请求 */
+    private String doubanBid() {
+        String bid = Hawk.get(HawkConfig.DOU_BAN_BID, "");
+        if (NullUtil.isNull(bid)) {
+            String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            StringBuilder sb = new StringBuilder();
+            java.util.Random random = new java.util.Random();
+            for (int i = 0; i < 11; i++) {
+                sb.append(chars.charAt(random.nextInt(chars.length())));
+            }
+            bid = sb.toString();
+            Hawk.put(HawkConfig.DOU_BAN_BID, bid);
+        }
+        return bid;
+    }
+
+    private boolean isDoubanBlocked() {
+        return System.currentTimeMillis() < sDoubanBlockedUntil;
     }
 
     private static final String HOT_RANK_URL = "https://api.bilibili.com/pgc/web/rank/list?day=3&season_type=";
@@ -708,9 +756,22 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mExecutorService.submit(new Runnable() {
             @Override
             public void run() {
+                //豆瓣按出口 IP 限流：正处于冷却期或已翻到上限就直接收尾，不再砸接口
+                if (isDoubanBlocked() || start > DOU_BAN_MAX_START) {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mAdapter.loadMoreEnd();
+                        }
+                    });
+                    return;
+                }
                 int year = DateUtil.getLastNYear(0);
                 String doubanUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=" + start;
-                String result = HttpDoRequest.getInstance(getContext()).doGetRequestInOkGo(doubanUrl, null, true, 10 * 1000);
+                String result = ApiConfig.getWithHeaders(doubanUrl, doubanHeaders(), 10 * 1000);
+                if (result != null && result.contains("\"msg\"")) {
+                    sDoubanBlockedUntil = System.currentTimeMillis() + DOU_BAN_BLOCK_COOLDOWN_MS;
+                }
                 List<Movie.Video> listMore = parseJson(result);
                 mActivity.runOnUiThread(new Runnable() {
                     @Override

@@ -302,6 +302,43 @@ public class ApiConfig {
     }
 
     /**
+     * 用 OkGo 已配置好的 OkHttpClient 直接 GET，可自定义请求头与超时。
+     * 豆瓣接口按出口 IP 风控，需要带上来源页 Referer 与固定的 bid Cookie；
+     * aar 的 HttpDoRequest.doGetRequestInOkGo 传不进这两个头，所以这里自己发请求。
+     */
+    public static String getWithHeaders(String url, java.util.Map<String, String> headers, int timeoutMs) {
+        okhttp3.Request.Builder builder = new okhttp3.Request.Builder().url(url);
+        if (headers != null) {
+            for (java.util.Map.Entry<String, String> entry : headers.entrySet()) {
+                builder.header(entry.getKey(), entry.getValue());
+            }
+        }
+        okhttp3.OkHttpClient client = OkGo.getInstance().getOkHttpClient();
+        if (timeoutMs > 0) {
+            //newBuilder 复用同一个连接池与线程池，只改超时，开销很小
+            client = client.newBuilder()
+                    .connectTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .readTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .build();
+        }
+        try {
+            okhttp3.Response response = client.newCall(builder.build()).execute();
+            try {
+                if (!response.isSuccessful()) {
+                    L.w("getWithHeaders 失败 code=" + response.code() + " url=" + url);
+                    return null;
+                }
+                return response.body() == null ? null : response.body().string();
+            } finally {
+                response.close();
+            }
+        } catch (Throwable th) {
+            L.w("getWithHeaders 异常 " + th.getMessage() + " url=" + url);
+            return null;
+        }
+    }
+
+    /**
      * 地址归一化：域名部分含中文等非 ASCII 字符时转成 punycode（如 http://肥猫.net/ →
      * http://xn--z7x900a.net/），否则 okhttp 的 Request.Builder 会直接抛 "unexpected url"。
      */

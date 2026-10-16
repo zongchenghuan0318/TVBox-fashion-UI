@@ -116,7 +116,7 @@
                 android:layout_height="wrap_content"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
-                android:text="豆瓣热播"
+                android:text="豆瓣推荐"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_26"
                 android:textStyle="bold" />
