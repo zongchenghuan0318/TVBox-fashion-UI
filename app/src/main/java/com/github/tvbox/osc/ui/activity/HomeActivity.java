@@ -240,8 +240,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
         mSortFocusView = view;
         mSortFocused = position;
-        // 立即同步背景显隐，消除 200ms 延迟期间首页背景透过侧边栏残留的问题
-        syncHeroBackdrop(mSortFocused);
         mHandler.removeCallbacks(mChangeTapRunnable);
         mHandler.postDelayed(mChangeTapRunnable, 200);
     }
@@ -372,21 +370,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 }
             }
             mPageAdapter.notifyDataSetChanged();
-            // 重建后各页背景的默认可见性要按当前页重新同步，否则分类页背景会默认显示并漏到首页
+            // 重建页面后重新同步首页背景层的可见性
             syncHeroBackdrop();
-            // 【临时调试，验证完删除】am start --ei dbgPage N 可直接切到第 N 页
-            Intent dbg = getIntent();
-            if (dbg != null && dbg.hasExtra("dbgPage")) {
-                final int dbgPage = dbg.getIntExtra("dbgPage", 0);
-                mHandler.postDelayed(() -> {
-                    if (dbgPage >= 0 && dbgPage < fragments.size()) {
-                        mSortFocused = dbgPage;
-                        mCurrentSelected = dbgPage;
-                        mContentViewPager.setCurrentItem(dbgPage, false);
-                        syncHeroBackdrop();
-                    }
-                }, 2500);
-            }
         }
     }
 
@@ -443,7 +428,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     mCurrentSelected = mSortFocused;
                     mContentViewPager.setCurrentItem(mSortFocused, false);
                 }
+                // ViewPager 已经切到目标页后再同步可见性，避免切换中间出现空黑帧
             }
+            syncHeroBackdrop();
             syncHeroBackdrop();
         }
     };
@@ -457,17 +444,19 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (fragments == null || fragments.isEmpty()) {
             return;
         }
+        BaseLazyFragment currentFragment = fragments.get(currentIndex);
+        if (currentFragment.getView() != null) {
+            currentFragment.getView().setVisibility(View.VISIBLE);
+        }
         for (int i = 0; i < fragments.size(); i++) {
             BaseLazyFragment fragment = fragments.get(i);
             if (fragment instanceof FirstFragment) {
                 ((FirstFragment) fragment).setHeroVisible(i == currentIndex);
             }
-            // 非当前页的片段整页隐藏：ViewPager 会预加载相邻页，而页空间里左邻页的右边缘
-            // 正好落在侧栏下方（页面从侧栏右侧开始排），它自己的卡片/海报会从半透明侧栏
-            // 底下透出来，甚至在侧栏区域点到它们，所以只保留当前页参与绘制与触摸
+            // 非当前页整页隐藏，避免预加载页面参与绘制和触摸
             View pageView = fragment.getView();
-            if (pageView != null) {
-                int visibility = (i == currentIndex) ? View.VISIBLE : View.INVISIBLE;
+            if (pageView != null && i != currentIndex) {
+                int visibility = View.INVISIBLE;
                 if (pageView.getVisibility() != visibility) {
                     pageView.setVisibility(visibility);
                 }

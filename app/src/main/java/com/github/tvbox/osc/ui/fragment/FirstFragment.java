@@ -76,7 +76,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private LinearLayout tvPush;
     private HomeHotVodAdapter mAdapter;
     private List<Movie.Video> mRecommendVideos;
-    private List<Movie.Video> mDobanVideos = new ArrayList<>();
     /** 豆瓣被风控后的冷却截止时间：冷却期内不再直连豆瓣，只用缓存/兜底，避免继续砸接口把限流期拉长 */
     private static long sDoubanBlockedUntil = 0L;
     private static final long DOU_BAN_BLOCK_COOLDOWN_MS = 5 * 60 * 1000L;
@@ -146,6 +145,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private TextView mHomeSub;
     private ExecutorService mExecutorService;
     private SourceViewModel mSourceViewModel;
+    private volatile boolean mViewActive;
+    private volatile boolean mHeroVisible;
 
     // 首页静置自动轮播：无操作 6 秒后平滑右移一张，末张回到第一张
     private static final long AUTO_SCROLL_DELAY = 6000L;
@@ -182,6 +183,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 显隐首页大背景海报。背景层属于 Activity，不随 ViewPager 页面裁剪。
      */
     public void setHeroVisible(boolean visible) {
+        mHeroVisible = visible;
         int visibility = visible ? View.VISIBLE : View.GONE;
         if (mHeroBackdrop != null && mHeroBackdrop.getVisibility() != visibility) {
             mHeroBackdrop.setVisibility(visibility);
@@ -193,6 +195,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mHeroScrim != null && mHeroScrim.getVisibility() != visibility) {
             mHeroScrim.setVisibility(visibility);
         }
+        if (!visible) {
+            mHeroHandler.removeCallbacks(mHeroImageRun);
+            cancelHeroAnim();
+        }
     }
 
     @Override
@@ -202,6 +208,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     @Override
     protected void init() {
+        mViewActive = true;
         mExecutorService =  Executors.newSingleThreadExecutor();
         mSourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         tvLive = findViewById(R.id.tvLive);
@@ -425,22 +432,28 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     @Override
     protected void onFragmentResume() {
+        mViewActive = true;
         scheduleAutoScroll();
     }
 
     @Override
     protected void onFragmentPause() {
+        mViewActive = false;
         stopAutoScroll();
+        mHeroHandler.removeCallbacks(mHeroImageRun);
+        cancelHeroAnim();
     }
 
     @Override
     public void onDestroyView() {
-        super.onDestroyView();
+        mViewActive = false;
         stopAutoScroll();
         mHeroHandler.removeCallbacks(mHeroImageRun);
+        cancelHeroAnim();
         if (rootView != null) {
             rootView.getViewTreeObserver().removeOnGlobalFocusChangeListener(mFocusChangeListener);
         }
+        super.onDestroyView();
     }
 
     @Override
@@ -454,7 +467,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void scheduleAutoScroll() {
         mAutoScrollHandler.removeCallbacks(mAutoScrollRun);
-        mAutoScrollHandler.postDelayed(mAutoScrollRun, AUTO_SCROLL_DELAY);
+        if (mViewActive && mHeroVisible) {
+            mAutoScrollHandler.postDelayed(mAutoScrollRun, AUTO_SCROLL_DELAY);
+        }
     }
 
     private void stopAutoScroll() {
@@ -466,7 +481,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 焦点停在左栏说明用户正在导航，此时不抢焦点也不轮播
      */
     private void autoScrollNext() {
-        if (mHotGridView == null || mAdapter == null) return;
+        if (!mViewActive || !mHeroVisible || mHotGridView == null || mAdapter == null) return;
         if (mHotGridView.isScrolling() || isSidebarFocused()) {
             return;
         }
@@ -564,10 +579,15 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 豆瓣按出口 IP 风控（返回「检测到有异常请求从您的IP发出」），一旦命中就冷却几分钟不再直连。
      */
     private void loadDoubanRecommend() {
-        new Thread() {
+        if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
+            return;
+        }
+        mExecutorService.submit(new Runnable() {
             @Override
             public void run() {
-                super.run();
+                if (!mViewActive) {
+                    return;
+                }
                 int year = DateUtil.getLastNYear(0);
                 List<Movie.Video> list0 = null;
                 if (isDoubanBlocked()) {
@@ -587,21 +607,22 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                             + " parsed=" + (list0 == null ? -1 : list0.size()));
                 }
                 final boolean fresh = !NullUtil.isNull(list0) && !list0.isEmpty();
-                mDobanVideos.clear();
+                List<Movie.Video> videos = new ArrayList<>();
                 if (fresh) {
                     //成功一次就缓存，豆瓣按 IP 限流（时通时断）时用它兜底
                     saveDoubanCache(list0);
-                    mDobanVideos.addAll(list0);
+                    videos.addAll(list0);
                 } else {
                     List<Movie.Video> cache = loadDoubanCache();
                     L.w("homeFeed douban cache=" + (cache == null ? 0 : cache.size()));
                     if (cache != null && !cache.isEmpty()) {
-                        mDobanVideos.addAll(cache);
+                        videos.addAll(cache);
                     }
                 }
+                final List<Movie.Video> resultVideos = videos;
                 mActivity.runOnUiThread(() -> {
-                    if (!isAdded()) return;
-                    if (mDobanVideos.isEmpty()) {
+                    if (!isPageActive()) return;
+                    if (resultVideos.isEmpty()) {
                         //豆瓣直连与缓存都拿不到：回落到热榜 / 站点推荐 / 聚合源，依然不留白页
                         loadHotRankFeed();
                         return;
@@ -609,11 +630,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     showSuccess();
                     setHeader("豆瓣推荐", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序"
                             + (fresh ? "" : "（离线缓存）"));
-                    mAdapter.setNewData(mDobanVideos);
-                    bindHero(mDobanVideos.get(0));
+                    mAdapter.setNewData(resultVideos);
+                    bindHero(resultVideos.get(0));
                 });
             }
-        }.start();
+        });
     }
 
     /** 豆瓣按出口 IP 风控：带上来源页 Referer 和固定的 bid Cookie，降低被判定为异常请求的概率 */
@@ -654,11 +675,16 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 拿不到才回落到「数据源推荐 → 聚合源 → 豆瓣」这条链
      */
     private void loadHotRankFeed() {
-        new Thread() {
+        if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
+            return;
+        }
+        mExecutorService.submit(new Runnable() {
             @Override
             public void run() {
-                super.run();
                 for (String type : HOT_RANK_TYPES) {
+                    if (!mViewActive) {
+                        return;
+                    }
                     List<Movie.Video> list = null;
                     try {
                         String json = HttpDoRequest.getInstance(getContext())
@@ -671,7 +697,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     if (list != null && !list.isEmpty()) {
                         final List<Movie.Video> videos = list;
                         mActivity.runOnUiThread(() -> {
-                            if (!isAdded()) return;
+                            if (!isPageActive()) return;
                             showFallbackVideos("热门榜单", "正在热播 · 排行榜实时更新", videos);
                         });
                         return;
@@ -679,11 +705,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 }
                 //热榜也没拿到，回到原有兜底链
                 mActivity.runOnUiThread(() -> {
-                    if (!isAdded()) return;
+                    if (!isPageActive()) return;
                     showRecommendFallback();
                 });
             }
-        }.start();
+        });
     }
 
     /**
@@ -733,6 +759,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     private void showFallbackVideos(String title, String subTitle, List<Movie.Video> videos) {
+        if (!isPageActive() || videos == null || videos.isEmpty()) {
+            return;
+        }
         //兜底链拿到内容也必须收起 LoadSir 的转圈，否则卡片被加载层遮住
         showSuccess();
         setHeader(title, subTitle);
@@ -773,10 +802,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     private void trySource(final List<SiteBean> candidates, final int index) {
+        if (!isPageActive()) {
+            return;
+        }
         if (index >= candidates.size()) {
             L.w("homeFeed all sources empty, fallback to douban");
             mActivity.runOnUiThread(() -> {
-                if (!isAdded()) return;
+                if (!isPageActive()) return;
                 //聚合源全军覆没，最后一层回落豆瓣（直连→本地缓存），仍无内容才显示空态
                 loadDoubanRecommend();
             });
@@ -787,10 +819,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mSourceViewModel.getHomeRecList(bean, new ArrayList<String>(), new SourceViewModel.HomeRecCallback() {
             @Override
             public void done(List<Movie.Video> videos) {
+                if (!isPageActive()) {
+                    return;
+                }
                 L.w("homeFeed try#" + index + " -> " + (videos == null ? -1 : videos.size()));
                 if (videos != null && !videos.isEmpty()) {
                     mActivity.runOnUiThread(() -> {
-                        if (!isAdded()) return;
+                        if (!isPageActive()) return;
                         showFallbackVideos(bean.getName() + " 推荐", "已自动匹配可用的数据源", videos);
                     });
                 } else {
@@ -798,6 +833,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 }
             }
         });
+    }
+
+    private boolean isPageActive() {
+        return mViewActive && isAdded() && mAdapter != null && mHotGridView != null;
     }
 
     private void saveDoubanCache(List<Movie.Video> videos) {
@@ -938,7 +977,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 只有高清图实在慢（网络差）时，才用低清预览先把背景跟上，等高清到了就地变清晰。
      */
     private void loadHeroImage(Movie.Video vod) {
-        if (vod == null || NullUtil.isNull(vod.pic) || mHeroBackdrop == null || mHeroBackdropAlt == null) {
+        if (!mViewActive || !mHeroVisible || vod == null || NullUtil.isNull(vod.pic)
+                || mHeroBackdrop == null || mHeroBackdropAlt == null) {
             return;
         }
         final int seq = ++mHeroSeq;
@@ -1098,15 +1138,23 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     private void getMoreVideos(int start) {
+        if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
+            return;
+        }
         mExecutorService.submit(new Runnable() {
             @Override
             public void run() {
+                if (!mViewActive) {
+                    return;
+                }
                 //豆瓣按出口 IP 限流：正处于冷却期或已翻到上限就直接收尾，不再砸接口
                 if (isDoubanBlocked() || start > DOU_BAN_MAX_START) {
                     mActivity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            mAdapter.loadMoreEnd();
+                            if (mViewActive && mAdapter != null) {
+                                mAdapter.loadMoreEnd();
+                            }
                         }
                     });
                     return;
@@ -1121,6 +1169,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 mActivity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        if (!mViewActive || mAdapter == null) {
+                            return;
+                        }
                         //UiHelper.showToast(getActivity(), doubanUrl + " result=" + result);
                         L.d(doubanUrl + " result=" + result);
                         if (NullUtil.isNull(listMore) || listMore.isEmpty()) {
