@@ -35,6 +35,7 @@ import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.GlideImg;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.github.tvbox.osc.util.SharpenTransformation;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -638,6 +639,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 .placeholder(R.drawable.shape_home_hero_placeholder)
                 .error(R.drawable.shape_home_hero_placeholder)
                 .dontAnimate()
+                //豆瓣最大只有 1080px 宽，全屏背景要放大 2 倍多，补一次锐化找回边缘
+                .bitmapTransform(new SharpenTransformation(incoming.getContext()))
                 .listener(new RequestListener<Object, GlideDrawable>() {
                     @Override
                     public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
