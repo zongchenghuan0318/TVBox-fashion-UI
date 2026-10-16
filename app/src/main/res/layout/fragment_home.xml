@@ -153,6 +153,7 @@
                 android:paddingTop="@dimen/vs_8"
                 android:paddingBottom="@dimen/vs_8"
                 app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
+                app:tv_selectedItemIsCentered="true"
                 app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
         </LinearLayout>
     </LinearLayout>

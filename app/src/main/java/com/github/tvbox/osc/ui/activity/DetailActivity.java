@@ -83,6 +83,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     public String noteStr;
     public String movieName;
     boolean bSeriesSelect = false;
+    /** 进入详情页后，首次加载完成时把焦点落到「当前集」上（否则默认停在左上角返回键） */
+    private boolean bNeedFocusSeries = true;
+    /** 当前集还没被布局出来时的重试次数，避免滚动/布局未完成导致焦点设置失效 */
+    private int mFocusSeriesRetry = 0;
     private View mFocusView = null;
     private String searchTitle = "";
     private boolean bHadQuickStart = false;
@@ -262,6 +266,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         if (vid != null) {
             vodId = vid;
             sourceKey = key;
+            // 换源搜索会重新加载详情，这里重置焦点标记，保证重新进入时焦点仍落在当前集
+            bNeedFocusSeries = true;
+            mFocusSeriesRetry = 0;
             showLoading();
             L.d("loadDetail()");
             mSourceViewModel.getDetail(sourceKey, vodId);
@@ -387,8 +394,31 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             @Override
             public void run() {
                 mSeriesGridView.scrollToPosition(mVodInfo.playIndex);
+                focusCurrentSeries();
             }
         }, 100);
+    }
+
+    /**
+     * 把焦点移到当前集上。
+     * 首次进入时列表还没有滚动到该集，其子 View 尚未被布局出来，直接 setSelection 会失效，
+     * 因此这里在子 View 出现后再设置焦点，并限制重试次数避免死循环。
+     */
+    private void focusCurrentSeries() {
+        if (!bNeedFocusSeries || mVodInfo == null || mSeriesGridView.getLayoutManager() == null) {
+            bNeedFocusSeries = false;
+            return;
+        }
+        if (mFocusSeriesRetry++ > 20) {
+            bNeedFocusSeries = false;
+            return;
+        }
+        if (mSeriesGridView.getLayoutManager().findViewByPosition(mVodInfo.playIndex) != null) {
+            bNeedFocusSeries = false;
+            mSeriesGridView.setSelection(mVodInfo.playIndex);
+        } else {
+            mSeriesGridView.postDelayed(this::focusCurrentSeries, 100);
+        }
     }
 
 
