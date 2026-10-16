@@ -51,7 +51,7 @@
             android:marqueeRepeatLimit="marquee_forever"
             android:singleLine="true"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_50"
+            android:textSize="@dimen/ts_40"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -147,7 +147,7 @@
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/tvHotList"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_190"
+                android:layout_height="@dimen/vs_170"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:paddingTop="@dimen/vs_8"

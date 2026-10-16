@@ -9,8 +9,8 @@
 
     <FrameLayout
         android:id="@+id/layoutPoster"
-        android:layout_width="@dimen/vs_220"
-        android:layout_height="@dimen/vs_140"
+        android:layout_width="@dimen/vs_200"
+        android:layout_height="@dimen/vs_128"
         android:background="@drawable/shape_home_poster">
 
         <ImageView
