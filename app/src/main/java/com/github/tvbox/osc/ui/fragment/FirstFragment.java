@@ -15,6 +15,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.DrawableRequestBuilder;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
@@ -82,13 +83,27 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     /** 豆瓣翻页上限：按出口 IP 限流，翻页过多必然触发风控，最多只额外拉 2 页 */
     private static final int DOU_BAN_MAX_START = 40;
     private int mStart = 40;
-    private TvRecyclerView mHotGridView;
+    private HomeCardRecyclerView mHotGridView;
     private ImageView mHeroBackdrop;
     private ImageView mHeroBackdropAlt;
-    private boolean mHeroUsingAlt = false;
+    /** 当前正在显示背景的那层；还没显示过任何海报时为 null */
+    private ImageView mHeroFront;
     private int mHeroSeq = 0;
-    /** 已经完成交叉淡入的序号，防止同一张海报的缩略图与高清图各淡入一次造成闪动 */
-    private int mHeroSwappedSeq = -1;
+    /** 本轮这张海报是否已经淡入到位：防止重复淡入，也防止低清图反过来盖掉已经清晰的那层 */
+    private boolean mHeroShown = false;
+    /** 背景推镜的起止比例：每张图接着上一张的当前比例继续推，淡入时画面不会突然缩放 */
+    private static final float HERO_ZOOM_MIN = 1.03f;
+    private static final float HERO_ZOOM_MAX = 1.08f;
+    private static final long HERO_ZOOM_DURATION = 6000L;
+    /** 兜底预览层尺寸：只用于「背景先跟上」，分辨率约全屏 1/3，解码快 */
+    private static final int HERO_PREVIEW_WIDTH = 786;
+    private static final int HERO_PREVIEW_HEIGHT = 360;
+    /** 两层背景交叉淡入的时长：够长才看得出「渐变」，太短会像硬切 */
+    private static final long HERO_FADE_DURATION = 750L;
+    /** 高清图超过这个时间还没解好，才用低清预览先把背景跟上；正常网络下不会走到 */
+    private static final long HERO_PREVIEW_GRACE = 700L;
+    /** 正在跑的 hero 动画，换图时统一取消：两个动画半路互相打断会让背景亮度抖一下 */
+    private final List<ObjectAnimator> mHeroAnims = new ArrayList<>();
     private Movie.Video mHeroVod;
     /**
      * 全屏背景是 1080px 大图放大到屏幕宽再逐像素锐化，解码很重；
@@ -119,6 +134,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
     /** 当前选中卡片的位置，弧顶跟随它移动 */
     private int mArcFocusPos = 0;
+    /** 上一次被放大高亮的卡片位置；用位置而不是 View 记录，避免视图复用后指向错的卡 */
+    private int mScaledPos = -1;
     private TextView mHeroTitle;
     private TextView mHeroNote;
     private TextView mHeroMeta;
@@ -134,7 +151,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private final Runnable mAutoScrollRun = new Runnable() {
         @Override
         public void run() {
-            autoScrollNext();
+            try {
+                autoScrollNext();
+            } catch (Exception e) {
+                // 轮播抛出异常不能中断计时链，否则首页卡片会一直停在原地
+                L.e(e);
+            }
             scheduleAutoScroll();
         }
     };
@@ -242,14 +264,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.08f).scaleY(1.08f).setDuration(ITEM_SCALE_DURATION)
-                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
-                mArcFocusPos = position;
-                applyArcLayout();
-                // 焦点滚动时同步切换背景海报与节目信息
-                bindHero((Movie.Video) mAdapter.getItem(position));
-                // 焦点由用户操作变化时，自动轮播重新计时
-                scheduleAutoScroll();
+                // 手动方向键选中的一张卡：与自动轮播走同一条选中逻辑，落点和动画完全一致
+                applyCardSelected(itemView, position);
             }
 
             @Override
@@ -279,6 +295,59 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                                                 oldLeft, oldTop, oldRight, oldBottom) -> applyArcLayout());
         mHotGridView.setAdapter(mAdapter);
         mHotGridView.post(this::applyArcLayout);
+    }
+
+    /**
+     * 选中某张卡片的唯一出口：放大当前卡、复位上一张、让弧顶和列表正中都落在它身上、
+     * 同步背景海报与节目信息、重置轮播计时。
+     * 手动方向键（onItemSelected）和自动轮播共用它，落点、曲线、时长完全一致。
+     */
+    private void applyCardSelected(View card, int position) {
+        if (mHotGridView == null || mAdapter == null) {
+            return;
+        }
+        mHotGridView.setSelectedPosition(position);
+        if (mScaledPos != position) {
+            View previous = mHotGridView.getLayoutManager() != null
+                    ? mHotGridView.getLayoutManager().findViewByPosition(mScaledPos) : null;
+            if (previous != null && previous != card) {
+                previous.animate().scaleX(1f).scaleY(1f).setDuration(ITEM_SCALE_DURATION)
+                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
+            }
+            if (card != null) {
+                card.animate().scaleX(1.08f).scaleY(1.08f).setDuration(ITEM_SCALE_DURATION)
+                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
+            }
+            mScaledPos = position;
+        }
+        mArcFocusPos = position;
+        applyArcLayout();
+        // 选中的卡始终停在屏幕正中，切换一次就居中一次
+        centerCardAt(position, card);
+        List<Movie.Video> data = mAdapter.getData();
+        if (position >= 0 && position < data.size()) {
+            // 背景海报与节目信息跟随当前选中的卡
+            bindHero(data.get(position));
+        }
+        scheduleAutoScroll();
+    }
+
+    /** 把指定位置的卡挪到列表正中；卡还没布局时按位置直接落位 */
+    private void centerCardAt(int position, View card) {
+        if (mHotGridView == null) {
+            return;
+        }
+        if (card != null && card.getWidth() > 0) {
+            mHotGridView.centerCard(card);
+            return;
+        }
+        View laidOut = mHotGridView.getLayoutManager() != null
+                ? mHotGridView.getLayoutManager().findViewByPosition(position) : null;
+        if (laidOut != null) {
+            mHotGridView.centerCard(laidOut);
+        } else {
+            mHotGridView.centerPosition(position);
+        }
     }
 
     /**
@@ -369,18 +438,26 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      */
     private void autoScrollNext() {
         if (mHotGridView == null || mAdapter == null) return;
-        if (mHotGridView.isScrolling() || isSidebarFocused()) return;
+        if (mHotGridView.isScrolling() || isSidebarFocused()) {
+            return;
+        }
         List<Movie.Video> data = mAdapter.getData();
         int count = data.size();
         // 末尾的“查看更多”不是影片，轮播时跳过
         while (count > 0 && data.get(count - 1).isMore) count--;
         if (count < 2) return;
         int current = mHotGridView.getSelectedPosition();
+        if (current < 0 || current >= count) current = mArcFocusPos;
         int next = current + 1;
         if (next >= count) next = 0;
-        mHotGridView.setSelectionWithSmooth(next);
-        // 库的平滑选中不会走 OnItemListener，也不会真的移动焦点，这里主动同步背景
-        bindHero(data.get(next));
+        View target = mHotGridView.getLayoutManager() != null
+                ? mHotGridView.getLayoutManager().findViewByPosition(next) : null;
+        // 能把焦点交给下一张卡就交给它，onItemSelected 会统一处理选中态与居中；
+        // 拿不到焦点（触摸模式、卡尚未布局）就自己把选中态补上，轮播不会停在原地
+        if (target != null && target.requestFocus()) {
+            return;
+        }
+        applyCardSelected(target, next);
     }
 
     private boolean isSidebarFocused() {
@@ -766,6 +843,39 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         mHeroHandler.postDelayed(mHeroImageRun, HERO_IMAGE_SETTLE_DELAY);
+        // 顺手把下一张卡的海报预热好：轮播隔 6 秒才切，这段时间足够把它解码进内存缓存，
+        // 到时那一次切换就是纯淡入，不会出现「等大图」的空档
+        preloadHeroNext(vod);
+    }
+
+    /**
+     * 预热下一张卡的海报（按轮播方向），让 6 秒后那次切换不用现下载现解码。
+     * 请求参数与真正加载时保持一致（同一尺寸、同一锐化），否则命中不了同一份缓存。
+     */
+    private void preloadHeroNext(Movie.Video vod) {
+        if (mAdapter == null || mHeroBackdrop == null) {
+            return;
+        }
+        List<Movie.Video> data = mAdapter.getData();
+        int index = data.indexOf(vod);
+        int next = index + 1;
+        if (next >= data.size()) {
+            next = 0;
+        }
+        if (next < 0 || next >= data.size() || next == index) {
+            return;
+        }
+        Movie.Video nextVod = data.get(next);
+        int width = mHeroBackdrop.getWidth();
+        int height = mHeroBackdrop.getHeight();
+        if (nextVod == null || nextVod.isMore || NullUtil.isNull(nextVod.pic) || width <= 0 || height <= 0) {
+            return;
+        }
+        Glide.with(mContext)
+                .load(GlideImg.model(nextVod.pic))
+                .override(width, height)
+                .bitmapTransform(new SharpenTransformation(mContext))
+                .preload(width, height);
     }
 
     /** 更新 hero 区的文字信息（片名、备注、元信息、简介） */
@@ -792,38 +902,104 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
     }
 
-    /** 真正加载背景海报：先给一张缩略图让背景立刻跟着卡片变，高清图解码好后再原地替换 */
+    /**
+     * 加载背景海报。关键是「先解好、再融过去」：
+     * 高清图先在看不见的那层解好（下载 + 裁切放大 + 锐化），就绪之后才和旧海报交叉淡入，
+     * 旧海报全程保持全亮——中间不会插进一张糊图，也不会出现两层都半透明让背景发暗的一闪。
+     * 只有高清图实在慢（网络差）时，才用低清预览先把背景跟上，等高清到了就地变清晰。
+     */
     private void loadHeroImage(Movie.Video vod) {
         if (vod == null || NullUtil.isNull(vod.pic) || mHeroBackdrop == null || mHeroBackdropAlt == null) {
             return;
         }
         final int seq = ++mHeroSeq;
-        // incoming 为当前隐藏的一层，先把新海报载进来，载入完成后再与 outgoing 交叉淡入
-        final ImageView incoming = mHeroUsingAlt ? mHeroBackdrop : mHeroBackdropAlt;
-        final ImageView outgoing = mHeroUsingAlt ? mHeroBackdropAlt : mHeroBackdrop;
+        final String pic = vod.pic;
+        final ImageView outgoing = mHeroFront;
+        final ImageView incoming = outgoing == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
+        // 上一轮可能还在淡入：先停手，并让正在显示的那层回到全亮。
+        // 两层同时半透明会让整个背景变暗，那正是「中间闪一下」的来源
+        cancelHeroAnim();
         incoming.setAlpha(0f);
-        incoming.setScaleX(1f);
-        incoming.setScaleY(1f);
-        Glide.with(incoming.getContext())
-                .load(GlideImg.model(vod.pic))
-                //缩略图先到，背景不用等高清解码完才跟着卡片变
-                .thumbnail(0.2f)
-                .placeholder(R.drawable.shape_home_hero_placeholder)
+        if (outgoing != null && outgoing.getDrawable() != null) {
+            outgoing.setAlpha(1f);
+            // 新图接上旧图当前的推镜比例，淡入时画面不会突然缩放
+            incoming.setScaleX(outgoing.getScaleX());
+            incoming.setScaleY(outgoing.getScaleY());
+        } else {
+            incoming.setScaleX(HERO_ZOOM_MIN);
+            incoming.setScaleY(HERO_ZOOM_MIN);
+        }
+        mHeroShown = false;
+
+        final int width = mHeroBackdrop.getWidth();
+        final int height = mHeroBackdrop.getHeight();
+        DrawableRequestBuilder<Object> request = Glide.with(mContext)
+                .load(GlideImg.model(pic))
                 .error(R.drawable.shape_home_hero_placeholder)
-                .dontAnimate()
-                //豆瓣最大只有 1080px 宽，全屏背景要放大 2 倍多，补一次锐化找回边缘
-                .bitmapTransform(new SharpenTransformation(incoming.getContext()))
-                .listener(new RequestListener<Object, GlideDrawable>() {
+                .bitmapTransform(new SharpenTransformation(mContext))
+                .dontAnimate();
+        if (width > 0 && height > 0) {
+            // 和预热请求用同一尺寸，才能命中同一份缓存，切换时不用现解码
+            request = request.override(width, height);
+        }
+        request.listener(new RequestListener<Object, GlideDrawable>() {
                     @Override
                     public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
-                        swapHeroOnce(seq, incoming, outgoing, false);
-                        return false;
+                        // 还没有任何背景时（首次加载就失败）退一张占位图上去，别留一块空背景
+                        if (seq == mHeroSeq && mHeroFront == null) {
+                            crossfadeHero(seq, incoming, outgoing);
+                        }
+                        // 已经有旧海报在显示：什么都不做，继续用它垫着，不会闪
+                        return true;
                     }
 
                     @Override
                     public boolean onResourceReady(GlideDrawable resource, Object model, Target<GlideDrawable> target,
                                                    boolean isFromMemoryCache, boolean isFirstResource) {
-                        swapHeroOnce(seq, incoming, outgoing, true);
+                        if (seq != mHeroSeq) {
+                            // 已经换了别的海报，这张旧图别往背景上贴
+                            return true;
+                        }
+                        if (!mHeroShown) {
+                            // 低清预览已经先顶上时只换图不再淡入一次，画面直接变清晰
+                            crossfadeHero(seq, incoming, outgoing);
+                        }
+                        return false;
+                    }
+                })
+                .into(incoming);
+
+        // 高清图还没好就先用低清预览把背景跟上：只淡入一次，等高清到了就地变清晰
+        mHeroHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (seq == mHeroSeq && !mHeroShown) {
+                    fadeInPreview(seq, incoming, outgoing, pic);
+                }
+            }
+        }, HERO_PREVIEW_GRACE);
+    }
+
+    /** 兜底：低清预览图先顶上，让背景跟得住卡片；高清图随后会把这层就地换清楚 */
+    private void fadeInPreview(final int seq, final ImageView incoming, final ImageView outgoing, String pic) {
+        Glide.with(mContext)
+                .load(GlideImg.model(pic))
+                .override(HERO_PREVIEW_WIDTH, HERO_PREVIEW_HEIGHT)
+                .dontAnimate()
+                .listener(new RequestListener<Object, GlideDrawable>() {
+                    @Override
+                    public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(GlideDrawable resource, Object model, Target<GlideDrawable> target,
+                                                   boolean isFromMemoryCache, boolean isFirstResource) {
+                        if (seq != mHeroSeq || mHeroShown) {
+                            // 高清图已经上去了（或已经换卡）：这张低清图别再把背景糊回去
+                            return true;
+                        }
+                        crossfadeHero(seq, incoming, outgoing);
                         return false;
                     }
                 })
@@ -831,28 +1007,36 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     /**
-     * 一张海报的缩略图与高清图会各回调一次，同一序号只淡入一次；
-     * 高清图随后由 Glide 直接替换到当前图层上（无动画），因此不会重播淡入
+     * 新海报就绪：和旧海报交叉淡入，并接上旧图的推镜比例继续缓慢推近，
+     * 淡入过程里画面既不突然缩放，也不会出现亮度塌陷。
      */
-    private void swapHeroOnce(int seq, ImageView incoming, ImageView outgoing, boolean zoom) {
-        if (seq != mHeroSeq || mHeroSwappedSeq == seq) {
+    private void crossfadeHero(int seq, ImageView incoming, ImageView outgoing) {
+        if (seq != mHeroSeq || mHeroShown) {
             return;
         }
-        mHeroSwappedSeq = seq;
-        swapHero(incoming, outgoing, zoom);
+        mHeroShown = true;
+        mHeroFront = incoming;
+        float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
+        float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
+        startHeroAnim(ObjectAnimator.ofFloat(incoming, "alpha", incoming.getAlpha(), 1f), HERO_FADE_DURATION);
+        startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleX", from, to), HERO_ZOOM_DURATION);
+        startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), HERO_ZOOM_DURATION);
+        if (outgoing != null && outgoing.getDrawable() != null) {
+            startHeroAnim(ObjectAnimator.ofFloat(outgoing, "alpha", outgoing.getAlpha(), 0f), HERO_FADE_DURATION);
+        }
     }
 
-    /**
-     * 双层 cross-dissolve：新海报淡入并缓慢推近，旧海报同时淡出
-     */
-    private void swapHero(ImageView incoming, ImageView outgoing, boolean zoom) {
-        ObjectAnimator.ofFloat(incoming, "alpha", 0f, 1f).setDuration(300).start();
-        ObjectAnimator.ofFloat(outgoing, "alpha", 1f, 0f).setDuration(300).start();
-        if (zoom) {
-            ObjectAnimator.ofFloat(incoming, "scaleX", 1f, 1.05f).setDuration(6000).start();
-            ObjectAnimator.ofFloat(incoming, "scaleY", 1f, 1.05f).setDuration(6000).start();
+    private void startHeroAnim(ObjectAnimator animator, long duration) {
+        mHeroAnims.add(animator);
+        animator.setDuration(duration).start();
+    }
+
+    /** 换图前把上一轮的淡入/推镜全部停掉，否则两个动画抢同一个属性会把画面打断 */
+    private void cancelHeroAnim() {
+        for (ObjectAnimator animator : mHeroAnims) {
+            animator.cancel();
         }
-        mHeroUsingAlt = (incoming == mHeroBackdropAlt);
+        mHeroAnims.clear();
     }
 
     /**
