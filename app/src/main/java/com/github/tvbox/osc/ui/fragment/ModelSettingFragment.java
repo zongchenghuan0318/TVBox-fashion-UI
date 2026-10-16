@@ -133,7 +133,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 BiQuUpdateInfoGetter.checkUpdate(getActivity(), true);
             }
         });
-        ((TextView) findViewById(R.id.versionTV)).setText(PhoneParams.getAppSelfVersionName(getContext()) + " >");
+        ((TextView) findViewById(R.id.versionTV)).setText(PhoneParams.getAppSelfVersionName(getContext()));
         findViewById(R.id.llHomeApi).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

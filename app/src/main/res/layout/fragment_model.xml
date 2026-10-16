@@ -15,33 +15,22 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|center_horizontal"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:focusable="false"
             android:focusableInTouchMode="false"
             android:orientation="vertical">
 
+            <!--调试模式：连按 4 次 0 后显示，默认隐藏-->
             <LinearLayout
                 android:id="@+id/llDebug"
-                android:layout_width="match_parent"
+                style="@style/SettingRow"
                 android:layout_height="@dimen/vs_50"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:background="@drawable/shape_setting_model_focus"
-                android:focusable="true"
-
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingLeft="@dimen/vs_20"
-                android:paddingRight="@dimen/vs_20"
                 android:visibility="gone">
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="调试模式"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowTitle"
+                    android:text="调试模式" />
 
                 <Space
                     android:layout_width="0dp"
@@ -50,41 +39,23 @@
 
                 <TextView
                     android:id="@+id/tvDebugOpen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="关"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowValue"
+                    android:ellipsize="none" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/vs_10"
-                    android:layout_marginLeft="@dimen/vs_10"
-                    android:text=">"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
+                <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
+
+            <TextView
+                style="@style/SettingSectionTitle"
+                android:text="接口与数据源" />
 
             <LinearLayout
                 android:id="@+id/llApi"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:background="@drawable/shape_setting_model_focus"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingLeft="@dimen/vs_20"
-                android:visibility="visible"
-                android:paddingRight="@dimen/vs_20">
+                style="@style/SettingRow">
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="设置配置文件"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowTitle"
+                    android:text="设置配置文件" />
 
                 <Space
                     android:layout_width="0dp"
@@ -93,41 +64,18 @@
 
                 <TextView
                     android:id="@+id/tvApi"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="middle"
-                    android:singleLine="true"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowValue" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/vs_10"
-                    android:layout_marginLeft="@dimen/vs_10"
-                    android:text=">"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
+                <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/llHomeApi"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:background="@drawable/shape_setting_model_focus"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingLeft="@dimen/vs_20"
-                android:paddingRight="@dimen/vs_20">
+                style="@style/SettingRow">
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="默认网站"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowTitle"
+                    android:text="默认网站" />
 
                 <Space
                     android:layout_width="0dp"
@@ -136,50 +84,29 @@
 
                 <TextView
                     android:id="@+id/tvHomeApi"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="middle"
-                    android:singleLine="true"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowValue" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/vs_10"
-                    android:layout_marginLeft="@dimen/vs_10"
-                    android:text=">"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
+                <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:focusable="false"
-                android:orientation="horizontal">
+            <TextView
+                style="@style/SettingSectionTitle"
+                android:text="首页与搜索" />
+
+            <LinearLayout style="@style/SettingRowPair">
 
                 <LinearLayout
                     android:id="@+id/llHomeRec"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginEnd="@dimen/vs_5"
                     android:layout_marginRight="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginEnd="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="首页推荐"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="首页推荐" />
 
                     <Space
                         android:layout_width="0dp"
@@ -188,41 +115,24 @@
 
                     <TextView
                         android:id="@+id/tvHomeRec"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/llSearchView"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="@dimen/vs_5"
                     android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginStart="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="搜索展示"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="搜索展示" />
 
                     <Space
                         android:layout_width="0dp"
@@ -231,40 +141,20 @@
 
                     <TextView
                         android:id="@+id/tvSearchView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/llSearchSite"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:background="@drawable/shape_setting_model_focus"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingLeft="@dimen/vs_20"
-                android:paddingRight="@dimen/vs_20">
+                style="@style/SettingRow">
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="搜索源管理"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowTitle"
+                    android:text="搜索源管理" />
 
                 <Space
                     android:layout_width="0dp"
@@ -273,50 +163,29 @@
 
                 <TextView
                     android:id="@+id/tvSearchSite"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="middle"
-                    android:singleLine="true"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowValue" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/vs_10"
-                    android:layout_marginLeft="@dimen/vs_10"
-                    android:text=">"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
+                <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:focusable="false"
-                android:orientation="horizontal">
+            <TextView
+                style="@style/SettingSectionTitle"
+                android:text="播放" />
+
+            <LinearLayout style="@style/SettingRowPair">
 
                 <LinearLayout
                     android:id="@+id/llPlay"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginEnd="@dimen/vs_5"
                     android:layout_marginRight="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginEnd="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="播放器"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="播放器" />
 
                     <Space
                         android:layout_width="0dp"
@@ -325,41 +194,24 @@
 
                     <TextView
                         android:id="@+id/tvPlay"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/llMediaCodec"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="@dimen/vs_5"
                     android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginStart="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="IJK解码方式"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="IJK解码方式" />
 
                     <Space
                         android:layout_width="0dp"
@@ -368,51 +220,29 @@
 
                     <TextView
                         android:id="@+id/tvMediaCodec"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
             </LinearLayout>
 
-
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:focusable="false"
-                android:visibility="gone"
-                android:orientation="horizontal">
+                style="@style/SettingRowPair"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:id="@+id/llRender"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginEnd="@dimen/vs_5"
                     android:layout_marginRight="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginEnd="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="渲染方式"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="渲染方式" />
 
                     <Space
                         android:layout_width="0dp"
@@ -421,41 +251,24 @@
 
                     <TextView
                         android:id="@+id/tvRenderType"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/llScale"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="@dimen/vs_5"
                     android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginStart="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="画面缩放"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="画面缩放" />
 
                     <Space
                         android:layout_width="0dp"
@@ -464,50 +277,29 @@
 
                     <TextView
                         android:id="@+id/tvScaleType"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_60"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:focusable="false"
-                android:visibility="gone"
-                android:orientation="horizontal">
+                style="@style/SettingRowPair"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:id="@+id/llParseWebVew"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginEnd="@dimen/vs_5"
                     android:layout_marginRight="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginEnd="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="嗅探Webview"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="嗅探Webview" />
 
                     <Space
                         android:layout_width="0dp"
@@ -516,43 +308,25 @@
 
                     <TextView
                         android:id="@+id/tvParseWebView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="系统自带"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none"
+                        android:text="系统自带" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
-
 
                 <LinearLayout
                     android:id="@+id/llDns"
-                    android:layout_width="@dimen/vs_0"
+                    style="@style/SettingRow"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="@dimen/vs_5"
                     android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_setting_model_focus"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20">
+                    android:layout_marginStart="@dimen/vs_5"
+                    android:layout_weight="1">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="安全DNS"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowTitle"
+                        android:text="安全DNS" />
 
                     <Space
                         android:layout_width="0dp"
@@ -561,74 +335,40 @@
 
                     <TextView
                         android:id="@+id/tvDns"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        style="@style/SettingRowValue"
+                        android:ellipsize="none" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:text=">"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30" />
+                    <TextView style="@style/SettingRowArrow" />
                 </LinearLayout>
             </LinearLayout>
 
+            <TextView
+                style="@style/SettingSectionTitle"
+                android:text="其他" />
+
             <LinearLayout
                 android:id="@+id/llBackup"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_50"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:background="@drawable/shape_setting_model_focus"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingLeft="@dimen/vs_20"
-                android:paddingRight="@dimen/vs_20">
+                style="@style/SettingRow">
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="分享给好友"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowTitle"
+                    android:text="分享给好友" />
 
                 <Space
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/vs_10"
-                    android:layout_marginLeft="@dimen/vs_10"
-                    android:text=">"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
+                <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/llAbout"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_50"
-                android:layout_marginBottom="@dimen/vs_10"
-                android:background="@drawable/shape_setting_model_focus"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingLeft="@dimen/vs_20"
-                android:paddingRight="@dimen/vs_20">
+                style="@style/SettingRow">
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="关于"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_24" />
+                    style="@style/SettingRowTitle"
+                    android:text="关于" />
 
                 <Space
                     android:layout_width="0dp"
@@ -637,13 +377,9 @@
 
                 <TextView
                     android:id="@+id/versionTV"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/vs_10"
-                    android:layout_marginLeft="@dimen/vs_10"
-                    android:text=">"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_26" />
+                    style="@style/SettingRowValue" />
+
+                <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
         </LinearLayout>
