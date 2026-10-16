@@ -72,7 +72,7 @@ public class VodController extends BaseController {
     private boolean bSkipEnd = true;
     private TimerMin mTimerMin;
     private int mTimeSpeed = 1;
-    private String mDualtion;
+    private String mDualtion = "00:00";
 
     public VodController(Context context) {
         super(context);
@@ -184,13 +184,16 @@ public class VodController extends BaseController {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                if(bLocked) return;
-                long duration = mControlWrapper.getDuration();
-                long newPosition = (duration * seekBar.getProgress()) / seekBar.getMax();
-                mControlWrapper.seekTo((int) newPosition);
+                if (!mIsDragging) return;
+                //先恢复刷新，再处理跳转：中途被锁定也不能让进度条停在原地
                 mIsDragging = false;
                 mControlWrapper.startProgress();
                 mControlWrapper.startFadeOut();
+                if (bLocked) return;
+                long duration = mControlWrapper.getDuration();
+                if (duration <= 0) return;
+                long newPosition = (duration * seekBar.getProgress()) / seekBar.getMax();
+                mControlWrapper.seekTo((int) newPosition);
             }
         });
         mPlayerRetryTv.setOnClickListener(v -> {
@@ -403,16 +406,19 @@ public class VodController extends BaseController {
 
     @Override
     protected void setProgress(int duration, int position) {
-        if (mIsDragging) {
+        //拖动进度条或遥控快进时，播放位置不要回头覆盖进度条
+        if (mIsDragging || bSimSlideStart) {
             return;
         }
         super.setProgress(duration, position);
         if (bSkipEnd && position != 0 && duration != 0) {
             int et = 0;
-            try {
-                et = mJsonObject.getInt("et");
-            } catch (JSONException e) {
-                e.printStackTrace();
+            if (mJsonObject != null) {
+                try {
+                    et = mJsonObject.getInt("et");
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
             if (et > 0 && position + (et * 1000) >= duration) {
                 bSkipEnd = false;
@@ -461,6 +467,9 @@ public class VodController extends BaseController {
         if (position < 0) position = 0;
         updateSeekUI(currentPosition, position, duration);
         simSeekPosition = position;
+        //把遥控快进的落点同步到进度条，操作结果可见
+        mSeekBar.setProgress((int) (position * 1.0 / duration * mSeekBar.getMax()));
+        mCurrentTimeTV.setText(PlayerUtils.stringForTime(position));
     }
 
     @Override
