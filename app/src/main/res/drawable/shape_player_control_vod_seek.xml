@@ -3,14 +3,23 @@
     <item android:id="@android:id/background">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/radius_5" />
-            <solid android:color="#33FFFFFF" />
+            <gradient
+                android:angle="270"
+                android:startColor="#3DFFFFFF"
+                android:endColor="#18FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#55FFFFFF" />
         </shape>
     </item>
     <item android:id="@android:id/secondaryProgress">
         <clip>
             <shape android:shape="rectangle">
                 <corners android:radius="@dimen/radius_5" />
-                <solid android:color="#66FFFFFF" />
+                <gradient
+                    android:angle="270"
+                    android:startColor="#99FFFFFF"
+                    android:endColor="#45FFFFFF" />
             </shape>
         </clip>
     </item>
@@ -18,7 +27,13 @@
         <clip>
             <shape android:shape="rectangle">
                 <corners android:radius="@dimen/radius_5" />
-                <solid android:color="@color/color_02F8E1" />
+                <gradient
+                    android:angle="270"
+                    android:startColor="#D902F8E1"
+                    android:endColor="#8A02BFAF" />
+                <stroke
+                    android:width="@dimen/vs_1"
+                    android:color="#AAFFFFFF" />
             </shape>
         </clip>
     </item>

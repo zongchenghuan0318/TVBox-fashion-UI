@@ -169,4 +169,25 @@ public class GridFragment extends BaseLazyFragment {
             mFilterDialog.show();
         }
     }
+
+    @Override
+    protected void onFragmentPause() {
+        if (sourceViewModel != null) {
+            sourceViewModel.cancelCategoryRequests();
+        }
+        if (mFilterDialog != null && mFilterDialog.isShowing()) {
+            mFilterDialog.dismiss();
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (mFilterDialog != null && mFilterDialog.isShowing()) {
+            mFilterDialog.dismiss();
+        }
+        mFilterDialog = null;
+        mGridView = null;
+        mGridAdapter = null;
+        super.onDestroyView();
+    }
 }

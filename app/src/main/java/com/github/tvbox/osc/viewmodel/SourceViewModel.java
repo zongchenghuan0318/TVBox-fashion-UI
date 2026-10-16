@@ -72,6 +72,27 @@ public class SourceViewModel extends ViewModel {
         playResult = new MutableLiveData<>();
     }
 
+    @Override
+    protected void onCleared() {
+        cancelHomeRequests();
+        if (mExecutorService != null) {
+            mExecutorService.shutdownNow();
+            mExecutorService = null;
+        }
+        super.onCleared();
+    }
+
+    public void cancelHomeRequests() {
+        OkGo.getInstance().cancelTag("home_rec");
+    }
+
+    public void cancelCategoryRequests() {
+        SiteBean homeSourceBean = ApiConfig.getInstance().getHomeBean();
+        if (homeSourceBean != null && homeSourceBean.getApi() != null) {
+            OkGo.getInstance().cancelTag(homeSourceBean.getApi());
+        }
+    }
+
     public void getSort(String sourceKey) {
         L.d("getSort start sourceKey="+sourceKey);
         if (NullUtil.isNull(sourceKey)) {
@@ -328,12 +349,12 @@ public class SourceViewModel extends ViewModel {
             //推荐场景可能没有 ids（按最新列表取），此时不带 ids 参数
             if (ids == null || ids.isEmpty()) {
                 OkGo.<String>get(sourceBean.getApi())
-                        .tag("detail")
+                        .tag("home_rec")
                         .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
                         .execute(absCallback);
             } else {
                 OkGo.<String>get(sourceBean.getApi())
-                        .tag("detail")
+                        .tag("home_rec")
                         .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
                         .params("ids", TextUtils.join(",", ids))
                         .execute(absCallback);

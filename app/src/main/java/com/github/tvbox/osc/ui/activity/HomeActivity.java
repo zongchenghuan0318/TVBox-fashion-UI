@@ -48,6 +48,8 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -65,7 +67,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private HomePageAdapter mPageAdapter;
     private List<BaseLazyFragment> fragments = new ArrayList<>();
     private boolean bDownOrUp = false;
-    private boolean bSortChange = false;
     private int mCurrentSelected = 0;
     private int mSortFocused = 0;
     public View mSortFocusView = null;
@@ -74,6 +75,18 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View mLoadingView;
     private long mShowLoadingTime = 0;
     private String mSortSignature = "";
+    private int mLastSyncedPage = -1;
+    private ExecutorService mConfigExecutor;
+    private final Runnable mClockRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (tvDate == null || mHandler == null) {
+                return;
+            }
+            tvDate.setText(StringUtil.getFormatTime_HH_MM(System.currentTimeMillis()));
+            mHandler.postDelayed(this, 1000);
+        }
+    };
     /** 首页片段只创建一次：ViewPager 按 tag 复用它，页面列表里必须放同一个实例 */
     private FirstFragment mFirstFragment;
 
@@ -130,6 +143,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         // 初始化Web服务器
         ControlManager.get().startServer(getApplicationContext());
         mHandler = new Handler(Looper.getMainLooper());
+        mConfigExecutor = Executors.newSingleThreadExecutor();
         EventBus.getDefault().register(this);
         initView();
         mShowLoadingTime = System.currentTimeMillis();
@@ -145,16 +159,17 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     public void getConfig(Context context) {
-        new Thread() {
-            @Override
-            public void run() {
-                RspReportConfig bean = HttpUtil.getConfig(UiConstans.GET_CONFIG_URL, context);
-                if (null != bean && null != bean.resultData) {
-                    SPDataUtil spDataUtil = new SPDataUtil(context);
-                    spDataUtil.saveObjectValue(UiConstans.PRE_KEY_CONFIG, bean.resultData);
-                }
+        if (mConfigExecutor == null || mConfigExecutor.isShutdown()) {
+            return;
+        }
+        Context applicationContext = context.getApplicationContext();
+        mConfigExecutor.execute(() -> {
+            RspReportConfig bean = HttpUtil.getConfig(UiConstans.GET_CONFIG_URL, applicationContext);
+            if (bean != null && bean.resultData != null) {
+                SPDataUtil spDataUtil = new SPDataUtil(applicationContext);
+                spDataUtil.saveObjectValue(UiConstans.PRE_KEY_CONFIG, bean.resultData);
             }
-        }.start();
+        });
     }
 
     private void initSortView(){
@@ -218,18 +233,14 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void showTime() {
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                tvDate.setText(StringUtil.getFormatTime_HH_MM(System.currentTimeMillis()));
-                mHandler.postDelayed(this, 1000);
-            }
-        });
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mClockRunnable);
+            mHandler.post(mClockRunnable);
+        }
     }
 
     private void changeTap(View view, int position) {
         bDownOrUp = false;
-        bSortChange = true;
         view.animate().scaleX(1.06f).scaleY(1.06f).setInterpolator(new DecelerateInterpolator()).setDuration(220).start();
         TextView textView = view.findViewById(R.id.tvTitle);
         textView.getPaint().setFakeBoldText(true);
@@ -240,8 +251,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
         mSortFocusView = view;
         mSortFocused = position;
-        mHandler.removeCallbacks(mChangeTapRunnable);
-        mHandler.postDelayed(mChangeTapRunnable, 200);
+        if (mSortFocused != mCurrentSelected) {
+            mCurrentSelected = mSortFocused;
+            mContentViewPager.setCurrentItem(mCurrentSelected, false);
+        }
+        // 内容页立即切换，首页海报层单独做轻量过渡。
+        syncHeroBackdrop();
     }
 
     private void observePages() {
@@ -355,6 +370,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private void freshViewPager(AbsSortXml absXml) {
         if (sortAdapter.getData().size() > 0) {
             fragments.clear();
+            mLastSyncedPage = -1;
             for (MovieSort.SortData data : sortAdapter.getData()) {
                 if (data.id.equals("my0")) {
                     //数据源推荐列表始终带进首页片段：选「网站推荐」时直接用，豆瓣被限流时作为兜底
@@ -419,65 +435,88 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
     }
 
-    private Runnable mChangeTapRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (bSortChange) {
-                bSortChange = false;
-                if (mSortFocused != mCurrentSelected) {
-                    mCurrentSelected = mSortFocused;
-                    mContentViewPager.setCurrentItem(mSortFocused, false);
-                }
-                // ViewPager 已经切到目标页后再同步可见性，避免切换中间出现空黑帧
-            }
-            syncHeroBackdrop();
-            syncHeroBackdrop();
-        }
-    };
-
     /** 首页海报层独立于 ViewPager，只在首页显示。 */
     private void syncHeroBackdrop() {
         syncHeroBackdrop(mCurrentSelected);
     }
 
     private void syncHeroBackdrop(int currentIndex) {
-        if (fragments == null || fragments.isEmpty()) {
+        if (fragments == null || fragments.isEmpty()
+                || currentIndex < 0 || currentIndex >= fragments.size()) {
             return;
         }
         BaseLazyFragment currentFragment = fragments.get(currentIndex);
         if (currentFragment.getView() != null) {
             currentFragment.getView().setVisibility(View.VISIBLE);
         }
-        for (int i = 0; i < fragments.size(); i++) {
-            BaseLazyFragment fragment = fragments.get(i);
-            if (fragment instanceof FirstFragment) {
-                ((FirstFragment) fragment).setHeroVisible(i == currentIndex);
+        if (mLastSyncedPage == currentIndex) {
+            if (currentFragment instanceof FirstFragment) {
+                ((FirstFragment) currentFragment).setHeroVisible(true);
             }
-            // 非当前页整页隐藏，避免预加载页面参与绘制和触摸
-            View pageView = fragment.getView();
-            if (pageView != null && i != currentIndex) {
-                int visibility = View.INVISIBLE;
-                if (pageView.getVisibility() != visibility) {
-                    pageView.setVisibility(visibility);
+            return;
+        }
+        if (mLastSyncedPage >= 0 && mLastSyncedPage < fragments.size()) {
+            BaseLazyFragment previousFragment = fragments.get(mLastSyncedPage);
+            if (previousFragment instanceof FirstFragment) {
+                ((FirstFragment) previousFragment).setHeroVisible(false);
+            }
+            View previousPage = previousFragment.getView();
+            if (previousPage != null) {
+                previousPage.setVisibility(View.INVISIBLE);
+            }
+        } else {
+            for (int i = 0; i < fragments.size(); i++) {
+                if (i == currentIndex) {
+                    continue;
+                }
+                BaseLazyFragment fragment = fragments.get(i);
+                if (fragment instanceof FirstFragment) {
+                    ((FirstFragment) fragment).setHeroVisible(false);
+                }
+                View pageView = fragment.getView();
+                if (pageView != null) {
+                    pageView.setVisibility(View.INVISIBLE);
                 }
             }
         }
+        if (currentFragment instanceof FirstFragment) {
+            ((FirstFragment) currentFragment).setHeroVisible(true);
+        }
+        mLastSyncedPage = currentIndex;
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        showTime();
         // 从其它页面返回时，当前页可能还停在分类页，需要重新同步大背景的显隐
         syncHeroBackdrop();
     }
 
     @Override
+    protected void onPause() {
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mClockRunnable);
+        }
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
-        super.onDestroy();
         EventBus.getDefault().unregister(this);
 //        AppManager.getInstance().appExit(0);
         ControlManager.get().stopServer();
-        mHandler.removeCallbacksAndMessages(null);
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+        }
+        if (mContentViewPager != null) {
+            mContentViewPager.setAdapter(null);
+        }
+        if (mConfigExecutor != null) {
+            mConfigExecutor.shutdownNow();
+            mConfigExecutor = null;
+        }
+        super.onDestroy();
     }
 
     @Override

@@ -311,6 +311,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             }
 
             @Override
+            public void playEpisode(int index) {
+                PlayActivity.this.playEpisode(index);
+            }
+
+            @Override
             public void changeParse(ParseBean pb) {
                 autoRetryCount = 0;
                 doParse(pb);
@@ -334,6 +339,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             }
         });
         mVideoView.addControlView(mController);
+        if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
+            mController.setEpisodes(mVodInfo.seriesMap.get(mVodInfo.playFlag), mVodInfo.playIndex);
+        }
         mController.requestFocus();
     }
 
@@ -488,6 +496,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             return;
         }
         mVodInfo.playIndex++;
+        mController.setCurrentEpisode(mVodInfo.playIndex);
         preGetPlayUrl();
     }
 
@@ -503,6 +512,20 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             return;
         }
         mVodInfo.playIndex--;
+        mController.setCurrentEpisode(mVodInfo.playIndex);
+        preGetPlayUrl();
+    }
+
+    private void playEpisode(int index) {
+        if (mVodInfo == null || mVodInfo.seriesMap == null || mVodInfo.playFlag == null) {
+            return;
+        }
+        java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (episodes == null || index < 0 || index >= episodes.size() || index == mVodInfo.playIndex) {
+            return;
+        }
+        mVodInfo.playIndex = index;
+        mController.setCurrentEpisode(index);
         preGetPlayUrl();
     }
 
@@ -576,6 +599,12 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             //有按键操作时重新显示已自动收起的节目介绍/时间/右下提示，5 秒后再次收起
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 showOverlaysThenAutoHide();
+                if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+                    if (mController != null) {
+                        mController.showEpisodeSelector();
+                    }
+                    return true;
+                }
             }
             if (mController.dealKeyEvent(event)) {
                 return true;

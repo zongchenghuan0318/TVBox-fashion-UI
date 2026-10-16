@@ -123,17 +123,33 @@
             android:clipToPadding="false"
             android:orientation="vertical">
 
-            <com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView
-                android:id="@+id/tvHotList"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/vs_230"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:paddingTop="@dimen/vs_8"
-                android:paddingBottom="@dimen/vs_8"
-                app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
-                app:tv_selectedItemIsCentered="true"
-                app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
+                >
+
+                <com.github.tvbox.osc.ui.tv.widget.HomeCardRingView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clickable="false"
+                    android:focusable="false"
+                    android:translationZ="0dp" />
+
+                <com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView
+                    android:id="@+id/tvHotList"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingTop="@dimen/vs_8"
+                    android:paddingBottom="@dimen/vs_8"
+                    android:translationZ="1dp"
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
+                    app:tv_selectedItemIsCentered="true"
+                    app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 
