@@ -14,11 +14,32 @@ import com.lcstudio.commonsurport.util.NullUtil;
 import com.studio.osc.R;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class HomeHotVodAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
-
     public HomeHotVodAdapter() {
         super(R.layout.item_user_hot_vod, new ArrayList<>());
+    }
+
+    @Override
+    public int getItemCount() {
+        return getData().size();
+    }
+
+    @Override
+    public Movie.Video getItem(int position) {
+        List<Movie.Video> data = getData();
+        if (position < 0 || position >= data.size()) {
+            return null;
+        }
+        return data.get(position);
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        // BaseQuickAdapter normally treats positions beyond mData.size() as
+        // footer/load-more rows; virtual positions must remain normal cards.
+        return 0;
     }
 
     @Override

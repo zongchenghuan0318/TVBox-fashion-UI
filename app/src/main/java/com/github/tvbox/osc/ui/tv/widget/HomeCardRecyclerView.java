@@ -8,6 +8,8 @@ import android.view.MotionEvent;
 import android.view.animation.Interpolator;
 import android.view.animation.PathInterpolator;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 
 /**
@@ -40,9 +42,13 @@ public class HomeCardRecyclerView extends TvRecyclerView {
 
     @Override
     public void smoothScrollBy(int dx, int dy) {
-        if (userTouching) {
+        // RecyclerView 对 0 位移也会启动一次 SmoothScroller。首页在焦点回调和
+        // 自动轮播回调重叠时会不断收到这类请求，导致列表看起来一直在滚动。
+        if (userTouching || (dx == 0 && dy == 0)) {
             return;
         }
+        // 只保留最后一次定位请求，避免焦点切换和控件自身的可见性定位叠加。
+        stopScroll();
         super.smoothScrollBy(dx, dy, SCROLL_INTERPOLATOR, SCROLL_DURATION);
     }
 
@@ -65,6 +71,10 @@ public class HomeCardRecyclerView extends TvRecyclerView {
 
     public boolean isUserTouching() {
         return userTouching;
+    }
+
+    public int contentCenterX() {
+        return windowCenterInList();
     }
 
     @Override
@@ -96,27 +106,39 @@ public class HomeCardRecyclerView extends TvRecyclerView {
     }
 
     /**
-     * 把某张卡送到屏幕正中，用上面那套统一曲线滚过去。
+     * 把某张卡送到屏幕正中。首页焦点回调可能在滚动过程中再次触发，
+     * 因此这里使用一次性位移，避免多个 SmoothScroller 互相重启而持续滚动。
      */
     public void centerCard(View card) {
         if (userTouching || card == null || card.getWidth() == 0 || getWidth() == 0) {
             return;
         }
-        // RecyclerView 的 smoothScrollBy 正数表示「内容向左移」（列表往后翻），
-        // 所以要把卡片中心 childCenter 挪到目标中点，位移量是两者之差。
+        // RecyclerView 的正位移表示内容向左移，所以位移量是两者之差。
         int childCenter = (card.getLeft() + card.getRight()) / 2;
-        smoothScrollBy(childCenter - windowCenterInList(), 0);
+        int distance = childCenter - windowCenterInList();
+        if (Math.abs(distance) > 1) {
+            stopScroll();
+            scrollBy(distance, 0);
+        }
     }
 
-    /** 目标卡还没布局时的兜底：直接滚到该位置，留白决定了它正好落在屏幕正中 */
+    /** 目标卡还没布局时一次性定位，避免先滚到目标再补一次居中造成卡顿 */
     public void centerPosition(int position) {
-        scrollToPosition(position);
-        post(() -> {
-            View card = getLayoutManager() != null ? getLayoutManager().findViewByPosition(position) : null;
-            if (card != null) {
-                centerCard(card);
-            }
-        });
+        if (getWidth() == 0 || getLayoutManager() == null) {
+            return;
+        }
+        int cardWidth = measuredCardWidth();
+        if (cardWidth <= 0) {
+            scrollToPosition(position);
+            return;
+        }
+        int targetLeft = windowCenterInList() - cardWidth / 2;
+        stopScroll();
+        if (getLayoutManager() instanceof LinearLayoutManager) {
+            ((LinearLayoutManager) getLayoutManager()).scrollToPositionWithOffset(position, targetLeft);
+        } else {
+            scrollToPosition(position);
+        }
     }
 
     /**

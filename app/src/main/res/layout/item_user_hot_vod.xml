@@ -5,12 +5,12 @@
     android:clipChildren="false"
     android:clipToPadding="false"
     android:focusable="true"
-    android:padding="@dimen/vs_6">
+    android:padding="@dimen/vs_4">
 
     <FrameLayout
         android:id="@+id/layoutPoster"
-        android:layout_width="@dimen/vs_200"
-        android:layout_height="@dimen/vs_128"
+        android:layout_width="@dimen/vs_170"
+        android:layout_height="@dimen/vs_110"
         android:background="@drawable/shape_home_poster">
 
         <ImageView
@@ -38,10 +38,10 @@
                 android:id="@+id/tvName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="marquee"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
-                android:marqueeRepeatLimit="marquee_forever"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="1"
                 android:singleLine="true"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_22"

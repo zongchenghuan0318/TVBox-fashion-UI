@@ -130,13 +130,6 @@
                 android:clipToPadding="false"
                 >
 
-                <com.github.tvbox.osc.ui.tv.widget.HomeCardRingView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clickable="false"
-                    android:focusable="false"
-                    android:translationZ="0dp" />
-
                 <com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView
                     android:id="@+id/tvHotList"
                     android:layout_width="match_parent"
@@ -145,8 +138,7 @@
                     android:clipToPadding="false"
                     android:paddingTop="@dimen/vs_8"
                     android:paddingBottom="@dimen/vs_8"
-                    android:translationZ="1dp"
-                    app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_12"
                     app:tv_selectedItemIsCentered="true"
                     app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
             </FrameLayout>

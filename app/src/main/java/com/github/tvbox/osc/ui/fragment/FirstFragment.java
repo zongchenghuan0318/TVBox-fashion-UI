@@ -94,6 +94,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private int mHeroSeq = 0;
     /** 本轮这张海报是否已经淡入到位：防止重复淡入，也防止低清图反过来盖掉已经清晰的那层 */
     private boolean mHeroShown = false;
+    /** 当前卡片的背景已准备好；背景未就绪时不启动自动轮播，避免首屏卡片空转。 */
+    private boolean mHeroReady;
     /** 背景推镜的起止比例：每张图接着上一张的当前比例继续推，淡入时画面不会突然缩放 */
     private static final float HERO_ZOOM_MIN = 1.03f;
     private static final float HERO_ZOOM_MAX = 1.08f;
@@ -130,22 +132,19 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 越往两端越低、越暗、略微向外翻转，整排形成一条弧线；
      * 滚动时卡片沿弧线滑动，切换不再是平铺一排平移。
      */
-    private static final float ARC_DROP_RATIO = 0.82f;   // 环两侧相对正面的纵深
-    private static final float ARC_ROTATION_Y = 78f;     // 环两侧接近侧面
-    private static final float ARC_MIN_ALPHA = 0.18f;    // 远端卡片只保留轮廓
-    private static final float ARC_CENTER_SCALE = 1.16f; // 环正面卡片放大
-    private static final float ARC_EDGE_SCALE = 0.48f;   // 环侧面卡片缩小
-    private static final float ARC_CAMERA_DISTANCE = 12000f;
-    private static final float ARC_VISIBLE_CARD_RADIUS = 2.65f;
-    /** 弧线深度归一化基准：距中心达到列表半宽的这个比例时，下沉量达到最大 */
-    private static final float ARC_REACH_RATIO = 0.72f;
     /** 聚焦缩放时长与整排滑动时长保持一致（见 HomeCardRecyclerView），滑动与放大是一个动作 */
     private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
+    private static final float CARD_FRONT_SCALE = 1.26f;
+    private static final float CARD_EDGE_SCALE = 0.62f;
+    private static final float CARD_MIN_ALPHA = 0.48f;
+    private static final float CARD_ARC_ROTATION = 42f;
     /** 当前选中卡片的位置，弧顶跟随它移动 */
     private int mArcFocusPos = 0;
     /** 循环卡片的一段长度；列表实际显示三段，保证首尾在视觉上相邻。 */
     private int mCircularBlockSize;
     private boolean mUserOperatingCards;
+    private boolean mAutoScrollingCards;
+    private long mLastAutoScrollAt;
     /** 数据刚替换时先完成一次布局和定位，避免旧焦点回调把首屏拉回第一张。 */
     private boolean mCarouselInitializing;
     /** 上一次被放大高亮的卡片位置；用位置而不是 View 记录，避免视图复用后指向错的卡 */
@@ -169,19 +168,26 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private final Runnable mAutoScrollRun = new Runnable() {
         @Override
         public void run() {
+            if (mAutoScrollingCards || System.currentTimeMillis() - mLastAutoScrollAt < AUTO_SCROLL_DELAY) {
+                return;
+            }
+            mAutoScrollingCards = true;
+            mLastAutoScrollAt = System.currentTimeMillis();
             try {
                 autoScrollNext();
             } catch (Exception e) {
                 // 轮播抛出异常不能中断计时链，否则首页卡片会一直停在原地
                 L.e(e);
             }
-            scheduleAutoScroll();
+            mAutoScrollingCards = false;
+            if (!mAutoScrollingCards) {
+                scheduleAutoScroll();
+            }
         }
     };
-    // 页面内任何焦点变化（切 Tab、左栏导航、卡片滚动）都算用户操作，重置轮播计时；
-    // 同时让背景海报跟随当前聚焦卡片（自动轮播不触发 OnItemListener，需要从焦点反查位置）
+    // 焦点变化只负责同步背景，不负责重置轮播；否则初始化和自动切换时
+    // 焦点的连续变化会反复创建计时器并叠加居中动画。
     private final ViewTreeObserver.OnGlobalFocusChangeListener mFocusChangeListener = (oldFocus, newFocus) -> {
-        scheduleAutoScroll();
         bindHeroFromFocus(newFocus);
     };
 
@@ -321,9 +327,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
+                if (mCarouselInitializing) {
+                    itemView.animate().cancel();
+                    itemView.setScaleX(1f);
+                    itemView.setScaleY(1f);
+                    return;
+                }
                 itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(ITEM_SCALE_DURATION)
                         .setInterpolator(new DecelerateInterpolator(1.8f)).start();
-                applyArcLayout();
             }
 
             @Override
@@ -346,17 +357,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 stopAutoScroll();
                 if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
                         || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    int current = mHotGridView.getSelectedPosition();
-                    int block = mCircularBlockSize;
-                    if (block > 1
-                            && ((keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && current >= block - 1)
-                            || (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && current <= 0))) {
-                        if (event.getRepeatCount() > 0) {
-                            return true;
-                        }
-                        wrapToCard(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 0 : block - 1);
-                        return true;
-                    }
+                    // 虚拟无限适配器负责左右边界，不在 Fragment 中重定位。
                 }
             } else if (event.getAction() == KeyEvent.ACTION_UP) {
                 scheduleAutoScroll();
@@ -377,21 +378,19 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                applyArcLayout();
+                updateCardDepth();
             }
 
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                applyArcLayout();
                 if (newState == RecyclerView.SCROLL_STATE_IDLE && !mCarouselInitializing) {
                     scheduleAutoScroll();
                 }
             }
         });
         mHotGridView.addOnLayoutChangeListener((v, left, top, right, bottom,
-                                                oldLeft, oldTop, oldRight, oldBottom) -> applyArcLayout());
+                                                oldLeft, oldTop, oldRight, oldBottom) -> updateCardDepth());
         mHotGridView.setAdapter(mAdapter);
-        mHotGridView.post(this::applyArcLayout);
     }
 
     /**
@@ -400,33 +399,55 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 手动方向键（onItemSelected）和自动轮播共用它，落点、曲线、时长完全一致。
      */
     private void applyCardSelected(View card, int position) {
-        if (mHotGridView == null || mAdapter == null) {
+        if (mHotGridView == null || mAdapter == null || mCarouselInitializing) {
             return;
         }
+        boolean positionChanged = mArcFocusPos != position;
         mHotGridView.setSelectedPosition(position);
-        if (mScaledPos != position) {
-            View previous = mHotGridView.getLayoutManager() != null
-                    ? mHotGridView.getLayoutManager().findViewByPosition(mScaledPos) : null;
-            if (previous != null && previous != card) {
-                previous.animate().scaleX(1f).scaleY(1f).setDuration(ITEM_SCALE_DURATION)
-                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
-            }
-            if (card != null) {
-                card.animate().scaleX(1.08f).scaleY(1.08f).setDuration(ITEM_SCALE_DURATION)
-                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
-            }
-            mScaledPos = position;
-        }
         mArcFocusPos = position;
-        applyArcLayout();
+        updateCardDepth();
         // 选中的卡始终停在屏幕正中，切换一次就居中一次
-        centerCardAt(position, card);
+        if (positionChanged) {
+            centerCardAt(position, card);
+        }
         List<Movie.Video> data = mAdapter.getData();
-        if (position >= 0 && position < data.size()) {
+        if (!data.isEmpty() && position >= 0 && position < data.size()) {
             // 背景海报与节目信息跟随当前选中的卡
             bindHero(data.get(position));
         }
-        scheduleAutoScroll();
+        if (!mAutoScrollingCards) {
+            scheduleAutoScroll();
+        }
+    }
+
+    private void updateCardDepth() {
+        if (mHotGridView == null || mAdapter == null) {
+            return;
+        }
+        float centerX = mHotGridView.contentCenterX();
+        for (int i = 0; i < mHotGridView.getChildCount(); i++) {
+            View child = mHotGridView.getChildAt(i);
+            int position = child == null ? -1 : mHotGridView.getChildAdapterPosition(child);
+            if (position < 0 || position >= mAdapter.getData().size()) {
+                continue;
+            }
+            float offset = ((child.getLeft() + child.getRight()) / 2f - centerX)
+                    / Math.max(1f, child.getWidth() * 2.5f);
+            float normalized = Math.max(-1f, Math.min(1f, offset));
+            float angle = normalized * CARD_ARC_ROTATION;
+            float depth = (float) Math.cos(Math.toRadians(Math.abs(angle)));
+            float scale = CARD_EDGE_SCALE
+                    + (CARD_FRONT_SCALE - CARD_EDGE_SCALE) * depth;
+            float drop = child.getHeight() * 0.42f * (1f - depth);
+            float alpha = Math.max(CARD_MIN_ALPHA, 1f - (1f - depth) * 0.6f);
+            child.setTranslationY(drop);
+            child.setRotationY(angle);
+            child.setRotation(-angle * 0.08f);
+            child.setScaleX(scale);
+            child.setScaleY(scale);
+            child.setAlpha(alpha);
+            child.setTranslationZ(depth * 60f);
+        }
     }
 
     /** 把指定位置的卡挪到列表正中；卡还没布局时按位置直接落位 */
@@ -453,74 +474,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 归一化基准取「卡片中心到弧顶的距离 / 列表半宽的比例」，
      * 贴到列表两端时弧线最深，屏幕宽度或卡片数量变化都不影响弧线的深浅。
      */
-    private void applyArcLayout() {
-        if (mHotGridView == null || mAdapter == null) {
-            return;
-        }
-        int childCount = mHotGridView.getChildCount();
-        int width = mHotGridView.getWidth();
-        if (childCount < 2 || width == 0) {
-            return;
-        }
-        float centerX = width / 2f;
-        float apexX = centerX;
-        int paddingTop = mHotGridView.getPaddingTop();
-        // 弧顶跟随选中的卡片：选中的卡始终是弧线最高点，两侧依次落下
-        for (int i = 0; i < childCount; i++) {
-            View child = mHotGridView.getChildAt(i);
-            if (child != null && child.getWidth() > 0
-                    && mHotGridView.getChildAdapterPosition(child) == mArcFocusPos) {
-                apexX = child.getLeft() + child.getWidth() / 2f;
-                break;
-            }
-        }
-        for (int i = 0; i < childCount; i++) {
-            View child = mHotGridView.getChildAt(i);
-            if (child == null || child.getWidth() == 0 || isLoadMoreView(child)) {
-                continue;
-            }
-            float childCenter = child.getLeft() + child.getWidth() / 2f;
-            // 只按列表自身的可视范围归一，避免列表预先布局的屏外卡片把弧线摊平；
-            // 到列表两端附近即达到最大下沉，中段也能看出明显的弧度
-            float offset = Math.max(0f, Math.min(width, childCenter)) - apexX;
-            // 不按整行宽度摊开环面，只保留中心左右约 2-3 张卡片参与视觉，
-            // 这样卡片数量再多也不会把弧度压平。
-            float ringRadius = Math.max(child.getWidth() * ARC_VISIBLE_CARD_RADIUS, centerX * 0.38f);
-            float t = Math.min(1f, Math.abs(offset) / ringRadius);
-            float curve = t * t;
-            // 角度必须保留左右符号：左侧和右侧分别朝环的两边转，
-            // 不能先取绝对值再靠多个条件补方向，否则首屏焦点尚未稳定时
-            // 两侧可能暂时被算成同一个旋转方向。
-            float signedT = Math.max(-1f, Math.min(1f, offset / ringRadius));
-            float angle = signedT * ARC_ROTATION_Y;
-            float depth = (float) Math.cos(Math.toRadians(Math.abs(angle)));
-            // 中心是环的正面，左右卡片按圆环角度转向侧面；深度决定近大远小。
-            float ringDepth = 1f - depth;
-            float drop = ARC_DROP_RATIO * child.getHeight() * ringDepth;
-            float scale = ARC_EDGE_SCALE
-                    + (ARC_CENTER_SCALE - ARC_EDGE_SCALE) * depth;
-            // 用 translationY 把卡片对到「弧线应有的位置」：弧顶固定在行的上方，
-            // 两端依次下沉；下沉量始终在列表自身余量内，不会顶到上面的文字
-            child.setTranslationY(paddingTop + drop - child.getTop());
-            child.setRotationY(angle);
-            child.setRotation(-angle * 0.12f);
-            child.setScaleX(scale);
-            child.setScaleY(scale);
-            child.setCameraDistance(ARC_CAMERA_DISTANCE);
-            child.setTranslationZ((1f - curve) * 40f);
-            child.setAlpha(1f - (1f - ARC_MIN_ALPHA) * curve);
-            if (t >= 1f) {
-                child.setAlpha(0f);
-            }
-        }
-    }
-
-    /** 底部「加载更多」footer 不参与弧线排布，否则会跟着一起越位 */
-    private boolean isLoadMoreView(View child) {
-        int position = mHotGridView != null ? mHotGridView.getChildAdapterPosition(child) : -1;
-        return position >= mAdapter.getData().size();
-    }
-
     @Override
     protected void onFragmentResume() {
         mViewActive = true;
@@ -586,14 +539,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void scheduleAutoScroll() {
         mAutoScrollHandler.removeCallbacks(mAutoScrollRun);
+        if (mAutoScrollingCards) {
+            return;
+        }
         mUserOperatingCards = false;
         if (mViewActive && mHeroVisible) {
+            if (!mHeroReady) {
+                return;
+            }
             mAutoScrollHandler.postDelayed(mAutoScrollRun, AUTO_SCROLL_DELAY);
         }
     }
 
     private void stopAutoScroll() {
         mAutoScrollHandler.removeCallbacks(mAutoScrollRun);
+        mAutoScrollingCards = false;
     }
 
     private void resetCarouselState() {
@@ -614,14 +574,15 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                         return;
                     }
                     mCarouselInitializing = false;
-                    applyArcLayout();
                     View selected = mHotGridView.getLayoutManager() == null
                             ? null
                             : mHotGridView.getLayoutManager().findViewByPosition(mArcFocusPos);
                     if (selected != null) {
                         selected.requestFocus();
                     }
-                    scheduleAutoScroll();
+                    if (!mAutoScrollingCards) {
+                        scheduleAutoScroll();
+                    }
                 });
             });
         } else {
@@ -630,10 +591,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
     }
 
-    /**
-     * 只保留一份真实数据。循环不是靠复制卡片实现，而是在首尾按键时
-     * 把焦点映射到另一端，因此列表中的卡片数量始终等于真实数据数量。
-     */
+    /** 设置真实卡片列表；自动轮播到末尾后回到第一张。 */
     private void setCircularVideos(List<Movie.Video> videos) {
         if (mAdapter == null || videos == null) {
             return;
@@ -669,17 +627,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         List<Movie.Video> data = mAdapter.getData();
-        int block = mCircularBlockSize;
-        if (block < 2) return;
+        if (mCircularBlockSize < 2) return;
         int current = mHotGridView.getSelectedPosition();
-        if (current < 0 || current >= block) {
+        if (current < 0 || current >= data.size()) {
             current = 0;
         }
-        int next = current + 1;
-        if (next >= block) {
-            wrapToCard(0);
-            return;
-        }
+        int next = current + 1 < data.size() ? current + 1 : 0;
         View target = mHotGridView.getLayoutManager() != null
                 ? mHotGridView.getLayoutManager().findViewByPosition(next) : null;
         // 能把焦点交给下一张卡就交给它，onItemSelected 会统一处理选中态与居中；
@@ -700,32 +653,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             count--;
         }
         return count;
-    }
-
-    /**
-     * 在首尾之间环绕。列表只保留一份数据，所以这里只改变焦点位置，
-     * 不会把复制卡片追加到适配器，也不会形成可继续翻动的隐藏尾部。
-     */
-    private void wrapToCard(int position) {
-        if (mHotGridView == null || mCircularBlockSize < 2
-                || position < 0
-                || position >= mCircularBlockSize) {
-            return;
-        }
-        mHotGridView.stopScroll();
-        mHotGridView.scrollToPosition(position);
-        mHotGridView.post(() -> {
-            if (mHotGridView == null || mAdapter == null) {
-                return;
-            }
-            View target = mHotGridView.getLayoutManager() == null
-                    ? null
-                    : mHotGridView.getLayoutManager().findViewByPosition(position);
-            if (target != null) {
-                target.requestFocus();
-            }
-            applyCardSelected(target, position);
-        });
     }
 
     /**
@@ -994,7 +921,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         //兜底列表已是一次性全量，不能再按豆瓣分页续拉
         mAdapter.setEnableLoadMore(false);
         //列表换数据后控件可能停在上一份数据的滚动位置，强制回到第一张
-        mHotGridView.setSelection(0);
+        resetCarouselState();
         bindHero(videos.get(0));
     }
 
@@ -1136,8 +1063,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHeroPic = vod.pic;
         mHeroHandler.removeCallbacks(mHeroImageRun);
         if (NullUtil.isNull(vod.pic)) {
+            mHeroReady = true;
+            scheduleAutoScroll();
             return;
         }
+        mHeroReady = false;
         mHeroHandler.postDelayed(mHeroImageRun, HERO_IMAGE_SETTLE_DELAY);
         // 顺手把下一张卡的海报预热好：轮播隔 6 秒才切，这段时间足够把它解码进内存缓存，
         // 到时那一次切换就是纯淡入，不会出现「等大图」的空档
@@ -1312,6 +1242,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         mHeroShown = true;
+        mHeroReady = true;
         mHeroFront = incoming;
         float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
         float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
@@ -1320,6 +1251,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), HERO_ZOOM_DURATION);
         if (outgoing != null && outgoing.getDrawable() != null) {
             startHeroAnim(ObjectAnimator.ofFloat(outgoing, "alpha", outgoing.getAlpha(), 0f), HERO_FADE_DURATION);
+        }
+        if (!mAutoScrollingCards) {
+            scheduleAutoScroll();
         }
     }
 
