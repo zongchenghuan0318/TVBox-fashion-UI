@@ -9,6 +9,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.animation.BounceInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -103,6 +104,19 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
     };
+    /**
+     * 卡片弧形排布：以列表中心为弧顶，中间的卡最高最亮，
+     * 越往两端越低、越暗、略微向外翻转，整排形成一条弧线；
+     * 滚动时卡片沿弧线滑动，切换不再是平铺一排平移。
+     */
+    private static final float ARC_DROP_RATIO = 0.36f;   // 两端下沉高度（相对卡片高度）
+    private static final float ARC_ROTATION_Y = 13f;     // 两端卡片的偏转角（度），形成弧面
+    private static final float ARC_MIN_ALPHA = 0.74f;    // 两端卡片的最低不透明度
+    /** 弧线深度归一化基准：距中心达到列表半宽的这个比例时，下沉量达到最大 */
+    private static final float ARC_REACH_RATIO = 0.72f;
+    private static final long ITEM_SCALE_DURATION = 220L; // 聚焦缩放时长，短且不带回弹更顺
+    /** 当前选中卡片的位置，弧顶跟随它移动 */
+    private int mArcFocusPos = 0;
     private TextView mHeroTitle;
     private TextView mHeroNote;
     private TextView mHeroMeta;
@@ -219,12 +233,17 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(ITEM_SCALE_DURATION)
+                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
+                applyArcLayout();
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.08f).scaleY(1.08f).setDuration(ITEM_SCALE_DURATION)
+                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
+                mArcFocusPos = position;
+                applyArcLayout();
                 // 焦点滚动时同步切换背景海报与节目信息
                 bindHero((Movie.Video) mAdapter.getItem(position));
                 // 焦点由用户操作变化时，自动轮播重新计时
@@ -242,7 +261,75 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
             return false;
         });
+        // 滚动过程中实时重算弧线，卡片才会顺着弧面前后滑动而不是整排平移
+        mHotGridView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                applyArcLayout();
+            }
+
+            @Override
+            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                applyArcLayout();
+            }
+        });
+        mHotGridView.addOnLayoutChangeListener((v, left, top, right, bottom,
+                                                oldLeft, oldTop, oldRight, oldBottom) -> applyArcLayout());
         mHotGridView.setAdapter(mAdapter);
+        mHotGridView.post(this::applyArcLayout);
+    }
+
+    /**
+     * 把当前可见的卡片摆到一条弧线上：弧顶落在当前选中的卡片上，
+     * 选中的卡最高最亮，越往两端越低、越暗、略微向外翻转；
+     * 归一化基准取「卡片中心到弧顶的距离 / 列表半宽的比例」，
+     * 贴到列表两端时弧线最深，屏幕宽度或卡片数量变化都不影响弧线的深浅。
+     */
+    private void applyArcLayout() {
+        if (mHotGridView == null || mAdapter == null) {
+            return;
+        }
+        int childCount = mHotGridView.getChildCount();
+        int width = mHotGridView.getWidth();
+        if (childCount < 2 || width == 0) {
+            return;
+        }
+        float centerX = width / 2f;
+        float apexX = centerX;
+        int paddingTop = mHotGridView.getPaddingTop();
+        // 弧顶跟随选中的卡片：选中的卡始终是弧线最高点，两侧依次落下
+        for (int i = 0; i < childCount; i++) {
+            View child = mHotGridView.getChildAt(i);
+            if (child != null && child.getWidth() > 0
+                    && mHotGridView.getChildAdapterPosition(child) == mArcFocusPos) {
+                apexX = child.getLeft() + child.getWidth() / 2f;
+                break;
+            }
+        }
+        for (int i = 0; i < childCount; i++) {
+            View child = mHotGridView.getChildAt(i);
+            if (child == null || child.getWidth() == 0 || isLoadMoreView(child)) {
+                continue;
+            }
+            float childCenter = child.getLeft() + child.getWidth() / 2f;
+            // 只按列表自身的可视范围归一，避免列表预先布局的屏外卡片把弧线摊平；
+            // 到列表两端附近即达到最大下沉，中段也能看出明显的弧度
+            float offset = Math.max(0f, Math.min(width, childCenter)) - apexX;
+            float t = Math.min(1f, Math.abs(offset) / (centerX * ARC_REACH_RATIO));
+            float curve = t * t; // 二次曲线：弧顶附近平缓，越往外变化越快，弧线更自然
+            float drop = ARC_DROP_RATIO * child.getHeight() * curve;
+            // 用 translationY 把卡片对到「弧线应有的位置」：弧顶固定在行的上方，
+            // 两端依次下沉；下沉量始终在列表自身余量内，不会顶到上面的文字
+            child.setTranslationY(paddingTop + drop - child.getTop());
+            child.setRotationY(ARC_ROTATION_Y * curve * (offset < 0 ? -1f : 1f));
+            child.setAlpha(1f - (1f - ARC_MIN_ALPHA) * curve);
+        }
+    }
+
+    /** 底部「加载更多」footer 不参与弧线排布，否则会跟着一起越位 */
+    private boolean isLoadMoreView(View child) {
+        int position = mHotGridView != null ? mHotGridView.getChildAdapterPosition(child) : -1;
+        return position >= mAdapter.getData().size();
     }
 
     @Override
