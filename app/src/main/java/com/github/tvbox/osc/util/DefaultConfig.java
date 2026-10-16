@@ -42,6 +42,13 @@ public class DefaultConfig {
             {"jszy", "极速┃影视", "https://jszyapi.com/api.php/provide/vod/"},
     };
 
+    /**
+     * 搜索源默认优先级：名字命中关键词的源排在默认顺序最前，数组顺序即优先级（越靠前越高）。
+     * 对应配置里的「文采┃秒播」与「非凡┃影视」，即默认 文采秒播 > 非凡影视 > 其余源。
+     * 仅在用户没有自定义过搜索源顺序时生效（搜索源管理里重新勾选过则以用户顺序为准）。
+     */
+    public static final String[] SEARCH_SITE_PRIORITY = {"文采", "非凡"};
+
     public static List<MovieSort.SortData> adjustSort(String sourceKey, List<MovieSort.SortData> list, boolean withMy) {
         List<MovieSort.SortData> sortList = new ArrayList<>();
         if (list != null) {

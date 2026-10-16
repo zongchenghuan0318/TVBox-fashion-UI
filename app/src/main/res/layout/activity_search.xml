@@ -89,6 +89,7 @@
                 />
 
             <LinearLayout
+                android:id="@+id/llClearHistory"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/vs_50"
                 android:layout_marginTop="@dimen/vs_2"

@@ -78,6 +78,10 @@ public class RoomDataManger {
         }
     }
 
+    public static void deleteAllVodRecord() {
+        AppDataManager.get().getVodRecordDao().deleteAll();
+    }
+
     public static List<VodInfo> getAllVodRecord(int limit) {
         List<VodRecord> recordList = AppDataManager.get().getVodRecordDao().getAll(limit);
         List<VodInfo> vodInfoList = new ArrayList<>();
@@ -119,6 +123,10 @@ public class RoomDataManger {
 
     public static void deleteVodCollect(int id) {
         AppDataManager.get().getVodCollectDao().delete(id);
+    }
+
+    public static void deleteAllVodCollect() {
+        AppDataManager.get().getVodCollectDao().deleteAll();
     }
 
     public static List<VodCollect> getAllVodCollect() {

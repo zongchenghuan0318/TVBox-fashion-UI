@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.animation.BounceInterpolator;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.github.tvbox.osc.base.BaseActivity;
@@ -12,6 +13,7 @@ import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.HistoryAdapter;
+import com.github.tvbox.osc.ui.dialog.TipDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
@@ -30,9 +32,11 @@ import java.util.List;
  */
 public class HistoryActivity extends BaseActivity implements View.OnClickListener {
     private TextView tvDel;
+    private TextView tvClearAll;
     private TextView tvDelTip;
     private TvRecyclerView mGridView;
     private HistoryAdapter historyAdapter;
+    private TipDialog mClearDialog = null;
     private boolean delMode = false;
 
     @Override
@@ -62,6 +66,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     private void initView() {
         EventBus.getDefault().register(this);
         tvDel = findViewById(R.id.tvDel);
+        tvClearAll = findViewById(R.id.tvClearAll);
         tvDelTip = findViewById(R.id.tvDelTip);
         mGridView = findViewById(R.id.sortRV);
         findViewById(R.id.title_history_tv).setOnClickListener(this);
@@ -75,10 +80,18 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
                 toggleDelMode();
             }
         });
+        tvClearAll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                showClearAllDialog();
+            }
+        });
         mGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
             @Override
             public boolean onInBorderKeyEvent(int direction, View focused) {
                 if (direction == View.FOCUS_UP) {
+                    tvClearAll.setFocusable(true);
                     tvDel.setFocusable(true);
                     tvDel.requestFocus();
                 }
@@ -123,6 +136,43 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     private void initData() {
         List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
         historyAdapter.setNewData(allVodRecord);
+        boolean empty = allVodRecord == null || allVodRecord.isEmpty();
+        tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
+        tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (empty && delMode) {
+            toggleDelMode();
+        }
+    }
+
+    /**
+     * 清空全部历史记录前弹窗二次确认，确认后才真正删除
+     */
+    private void showClearAllDialog() {
+        if (historyAdapter.getData() == null || historyAdapter.getData().isEmpty()) {
+            Toast.makeText(mContext, "暂无历史记录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mClearDialog = new TipDialog(mContext, "确定要清空全部历史记录吗？", "确定", "取消", new TipDialog.OnListener() {
+            @Override
+            public void left() {
+                mClearDialog.dismiss();
+                RoomDataManger.deleteAllVodRecord();
+                initData();
+                Toast.makeText(mContext, "已清空历史记录", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void right() {
+                mClearDialog.dismiss();
+            }
+
+            @Override
+            public void cancel() {
+                mClearDialog.dismiss();
+            }
+        });
+        mClearDialog.setOnShowListener(dialog -> mClearDialog.findViewById(R.id.leftBtn).requestFocus());
+        mClearDialog.show();
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)

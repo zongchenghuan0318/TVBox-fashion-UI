@@ -49,6 +49,21 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/tvClearAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginRight="@dimen/vs_5"
+            android:background="@drawable/selector_user_focus"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
+            android:gravity="center"
+            android:padding="@dimen/vs_10"
+            android:text="清空"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_24" />
+
+        <TextView
             android:id="@+id/tvDel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

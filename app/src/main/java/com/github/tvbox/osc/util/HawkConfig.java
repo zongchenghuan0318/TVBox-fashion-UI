@@ -18,6 +18,11 @@ public class HawkConfig {
     public static final String PLAY_TYPE = "play_type";//0 系统 1 ijk 2 exo 10 MXPlayer
     public static final String PLAY_RENDER = "play_render"; //0 texture 2
     public static final String PLAY_SCALE = "play_scale"; //0 texture 2
+    /**
+     * 画面比例默认值：5 = 裁剪（居中裁切填满屏幕），与 SCREEN_SCALE_CENTER_CROP 对应；
+     * 未设置过的机器上播放默认就是裁剪
+     */
+    public static final int PLAY_SCALE_DEFAULT = 5;
     public static final String PLAY_TIME_STEP = "play_time_step"; //0 texture 2
     public static final String DOH_URL = "doh_url";
     public static final String HOME_REC = "home_rec"; // 0 豆瓣热播 1 数据源推荐 2 历史
@@ -25,6 +30,8 @@ public class HawkConfig {
     public static final String DOU_BAN_BID = "dou_ban_bid"; // 豆瓣 bid Cookie，首次生成后固定，降低被判定异常请求的概率
     public static final String SEARCH_VIEW = "search_view"; // 0 列表 1 缩略图
     public static final String SEARCH_SITE_DISABLED = "search_site_disabled"; // 不参与搜索的站点 key 列表（缺省=全部参与）
+    public static final String SEARCH_SITE_ORDER = "search_site_order"; // 参与搜索的站点 key 顺序：勾选先后即所有搜索界面的展示顺序
+    public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 文采秒播最高」
     public static final String LIVE_CHANNEL = "last_live_channel_name";
     public static final String LIVE_CHANNEL_REVERSE = "live_channel_reverse";
     public static final String LIVE_CROSS_GROUP = "live_cross_group";

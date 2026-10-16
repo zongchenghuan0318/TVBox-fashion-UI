@@ -32,4 +32,7 @@ public interface VodCollectDao {
 
     @Delete
     int delete(VodCollect record);
+
+    @Query("delete from vodCollect")
+    void deleteAll();
 }

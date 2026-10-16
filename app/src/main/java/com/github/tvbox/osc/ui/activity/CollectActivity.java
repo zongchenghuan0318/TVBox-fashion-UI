@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.animation.BounceInterpolator;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.github.tvbox.osc.api.ApiConfig;
@@ -14,6 +15,7 @@ import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.cache.VodCollect;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.CollectAdapter;
+import com.github.tvbox.osc.ui.dialog.TipDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
@@ -28,9 +30,11 @@ import java.util.List;
 
 public class CollectActivity extends BaseActivity implements View.OnClickListener {
     private TextView tvDel;
+    private TextView tvClearAll;
     private TextView tvDelTip;
     private TvRecyclerView mGridView;
     private CollectAdapter collectAdapter;
+    private TipDialog mClearDialog = null;
     private boolean delMode = false;
 
     @Override
@@ -61,6 +65,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         EventBus.getDefault().register(this);
         tvDel = findViewById(R.id.tvDel);
         findViewById(R.id.title_collect_tv).setOnClickListener(this);
+        tvClearAll = findViewById(R.id.tvClearAll);
         tvDelTip = findViewById(R.id.tvDelTip);
         mGridView = findViewById(R.id.sortRV);
         mGridView.setHasFixedSize(true);
@@ -68,10 +73,15 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         collectAdapter = new CollectAdapter();
         mGridView.setAdapter(collectAdapter);
         tvDel.setOnClickListener(v -> toggleDelMode());
+        tvClearAll.setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            showClearAllDialog();
+        });
         mGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
             @Override
             public boolean onInBorderKeyEvent(int direction, View focused) {
                 if (direction == View.FOCUS_UP) {
+                    tvClearAll.setFocusable(true);
                     tvDel.setFocusable(true);
                     tvDel.requestFocus();
                 }
@@ -128,6 +138,43 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
             vodInfoList.add(vodInfo);
         }
         collectAdapter.setNewData(vodInfoList);
+        boolean empty = vodInfoList.isEmpty();
+        tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
+        tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (empty && delMode) {
+            toggleDelMode();
+        }
+    }
+
+    /**
+     * 清空全部收藏前弹窗二次确认，确认后才真正删除
+     */
+    private void showClearAllDialog() {
+        if (collectAdapter.getData() == null || collectAdapter.getData().isEmpty()) {
+            Toast.makeText(mContext, "暂无收藏", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mClearDialog = new TipDialog(mContext, "确定要清空全部收藏吗？", "确定", "取消", new TipDialog.OnListener() {
+            @Override
+            public void left() {
+                mClearDialog.dismiss();
+                RoomDataManger.deleteAllVodCollect();
+                initData();
+                Toast.makeText(mContext, "已清空收藏", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void right() {
+                mClearDialog.dismiss();
+            }
+
+            @Override
+            public void cancel() {
+                mClearDialog.dismiss();
+            }
+        });
+        mClearDialog.setOnShowListener(dialog -> mClearDialog.findViewById(R.id.leftBtn).requestFocus());
+        mClearDialog.show();
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)

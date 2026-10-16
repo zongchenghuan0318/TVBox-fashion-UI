@@ -26,7 +26,7 @@ public class PlayerHelper {
         int playerType = Hawk.get(HawkConfig.PLAY_TYPE, 0);
         int renderType = Hawk.get(HawkConfig.PLAY_RENDER, 0);
         String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
-        int scale = Hawk.get(HawkConfig.PLAY_SCALE, 0);
+        int scale = Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);
         try {
             playerType = playerCfg.getInt("pl");
             renderType = playerCfg.getInt("pr");

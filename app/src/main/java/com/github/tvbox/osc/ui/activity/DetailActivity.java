@@ -46,6 +46,7 @@ import org.json.JSONObject;
 
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -516,18 +517,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     private void quickSearch() {
-        List<SiteBean> searchRequestList = new ArrayList<>();
-        searchRequestList.addAll(ApiConfig.getInstance().getSiteBeanList());
-        SiteBean home = ApiConfig.getInstance().getHomeBean();
-        searchRequestList.remove(home);
-        searchRequestList.add(0, home);
-
+        // 搜索顺序与「搜索源管理」的勾选顺序一致（已过滤掉未勾选与不可搜索的源）
         ArrayList<String> siteKey = new ArrayList<>();
-        for (SiteBean bean : searchRequestList) {
-            // 设置里被取消勾选的源不参与任何聚合搜索
-            if (!bean.isSearchable() || !bean.isQuickSearch() || !ApiConfig.getInstance().isSearchSiteEnabled(bean.getKey())) {
-                continue;
-            }
+        for (SiteBean bean : ApiConfig.getInstance().getOrderedSearchSiteList()) {
+            if (!bean.isQuickSearch()) continue;
             siteKey.add(bean.getKey());
         }
         OkGo.getInstance().cancelTag("search");
@@ -551,6 +544,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                 data.add(video);
             }
             quickSearchList.addAll(data);
+            // 展示顺序按搜索源的勾选顺序排列，同一源内部保持返回顺序
+            Collections.sort(quickSearchList, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
+                    - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH, data));
         }
     }

@@ -23,6 +23,8 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
         public final String key;
         public final String name;
         public boolean checked;
+        /** 勾选顺序序号（1 起），未勾选为 0；用于让排序顺序在列表里可见 */
+        public int rank;
 
         public Row(int type, String key, String name, boolean checked) {
             this.type = type;
@@ -54,7 +56,7 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
         } else if (item.type == TYPE_UNSELECT_ALL) {
             text = "【 全不选 】";
         } else {
-            text = (item.checked ? "☑ " : "☐ ") + item.name;
+            text = (item.checked ? "☑ " : "☐ ") + (item.rank > 0 ? item.rank + ". " : "") + item.name;
         }
         helper.setText(R.id.tvName, text);
         helper.itemView.setOnClickListener(new View.OnClickListener() {

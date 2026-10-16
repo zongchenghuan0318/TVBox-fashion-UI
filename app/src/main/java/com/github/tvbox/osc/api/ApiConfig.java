@@ -963,6 +963,85 @@ public class ApiConfig {
         return !getSearchSiteDisabled().contains(key);
     }
 
+    /**
+     * 用户在「搜索源管理」里勾选搜索源的先后顺序，勾选顺序即所有搜索界面的搜索与展示顺序。
+     * 未登记过顺序的源（配置新增或默认启用）排在最后。
+     */
+    public ArrayList<String> getSearchSiteOrder() {
+        ArrayList<String> order = Hawk.get(HawkConfig.SEARCH_SITE_ORDER, new ArrayList<String>());
+        return order == null ? new ArrayList<String>() : order;
+    }
+
+    public void setSearchSiteOrder(List<String> keys) {
+        Hawk.put(HawkConfig.SEARCH_SITE_ORDER, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
+    }
+
+    /**
+     * 默认搜索源顺序（用户没自定义时使用）：名字命中 DefaultConfig.SEARCH_SITE_PRIORITY
+     * 关键词的源排在最前（文采┃秒播 > 非凡┃影视），其余保持站点表顺序。
+     */
+    public ArrayList<String> getDefaultSearchSiteOrder() {
+        ArrayList<String> rest = new ArrayList<>();
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (bean.isSearchable() && !NullUtil.isNull(bean.getKey())) {
+                rest.add(bean.getKey());
+            }
+        }
+        ArrayList<String> ordered = new ArrayList<>();
+        for (String keyword : DefaultConfig.SEARCH_SITE_PRIORITY) {
+            for (int i = 0; i < rest.size(); i++) {
+                SiteBean bean = mSiteBeanMap.get(rest.get(i));
+                if (bean != null && !NullUtil.isNull(bean.getName()) && bean.getName().contains(keyword)) {
+                    ordered.add(rest.remove(i));
+                    i--;
+                }
+            }
+        }
+        ordered.addAll(rest);
+        return ordered;
+    }
+
+    /** 用户自定义过顺序就尊重用户，否则返回默认顺序（文采秒播 > 非凡影视 > 其余） */
+    public ArrayList<String> getSearchSiteOrderOrDefault() {
+        ArrayList<String> order = getSearchSiteOrder();
+        return order.isEmpty() ? getDefaultSearchSiteOrder() : order;
+    }
+
+    /** 参与搜索的站点，按用户勾选顺序排列；没排过序的源接在最后并保持站点表原顺序 */
+    public List<SiteBean> getOrderedSearchSiteList() {
+        List<SiteBean> pending = new ArrayList<>();
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (bean.isSearchable() && isSearchSiteEnabled(bean.getKey())) {
+                pending.add(bean);
+            }
+        }
+        List<SiteBean> ordered = new ArrayList<>();
+        for (String key : getSearchSiteOrderOrDefault()) {
+            for (int i = 0; i < pending.size(); i++) {
+                if (key.equals(pending.get(i).getKey())) {
+                    ordered.add(pending.remove(i));
+                    break;
+                }
+            }
+        }
+        ordered.addAll(pending);
+        return ordered;
+    }
+
+    /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按站点表顺序接在最后 */
+    public int getSearchSiteOrderIndex(String key) {
+        if (NullUtil.isNull(key)) return Integer.MAX_VALUE;
+        List<String> order = getSearchSiteOrderOrDefault();
+        int index = order.indexOf(key);
+        if (index >= 0) return index;
+        int pos = 0;
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (key.equals(bean.getKey())) return order.size() + pos;
+            pos++;
+        }
+        return Integer.MAX_VALUE;
+    }
+
     public List<ParseBean> getmParseBeanList() {
         return mParseBeanList;
     }
@@ -1173,6 +1252,13 @@ public class ApiConfig {
         if (Hawk.get(HawkConfig.EXTRA_SITE_VER, 0) < 1) {
             Hawk.put(HawkConfig.HOME_API, "");
             Hawk.put(HawkConfig.EXTRA_SITE_VER, 1);
+        }
+        // 搜索源默认值改版：清掉一次旧的勾选/排序记录，让搜索源回到「默认全选」，
+        // 并按新默认优先级排序（文采┃秒播 > 非凡┃影视 > 其余）
+        if (Hawk.get(HawkConfig.SEARCH_SITE_VER, 0) < 1) {
+            Hawk.delete(HawkConfig.SEARCH_SITE_DISABLED);
+            Hawk.delete(HawkConfig.SEARCH_SITE_ORDER);
+            Hawk.put(HawkConfig.SEARCH_SITE_VER, 1);
         }
     }
 

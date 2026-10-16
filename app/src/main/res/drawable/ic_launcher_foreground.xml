@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 白底黑字的 Z 标记：位于自适应图标安全区内，圆角笔画端点 -->
+    <path
+        android:pathData="M34,34 L74,34 L34,74 L74,74"
+        android:strokeColor="#FF111111"
+        android:strokeWidth="8.4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

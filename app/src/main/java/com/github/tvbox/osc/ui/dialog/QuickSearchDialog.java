@@ -8,6 +8,7 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
+import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.activity.UiHelper;
@@ -25,6 +26,7 @@ import org.greenrobot.eventbus.ThreadMode;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class QuickSearchDialog extends BaseDialog {
@@ -64,11 +66,26 @@ public class QuickSearchDialog extends BaseDialog {
                 List<Movie.Video> data = (List<Movie.Video>) event.obj;
                 List<Movie.Video> videos = filterVideoList(data, mSearchWd);
                 mSearchAdapter.addData(videos);
+                sortBySourceOrder();
             }
         } else if (event.type == RefreshEvent.TYPE_QUICK_SEARCH_WORD) {
             if (event.obj != null) {
                 List<String> words = (List<String>) event.obj;
                 mWordAdapter.setNewData(words);
+            }
+        }
+    }
+
+    /** 结果按「搜索源管理」的勾选顺序排列；顺序没变就不动列表，避免打断用户操作 */
+    private void sortBySourceOrder() {
+        List<Movie.Video> old = mSearchAdapter.getData();
+        List<Movie.Video> merged = new ArrayList<>(old);
+        Collections.sort(merged, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
+                - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
+        for (int i = 0; i < old.size(); i++) {
+            if (old.get(i) != merged.get(i)) {
+                mSearchAdapter.setNewData(merged);
+                return;
             }
         }
     }

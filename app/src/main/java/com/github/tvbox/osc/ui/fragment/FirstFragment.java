@@ -85,7 +85,24 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private ImageView mHeroBackdropAlt;
     private boolean mHeroUsingAlt = false;
     private int mHeroSeq = 0;
+    /** 已经完成交叉淡入的序号，防止同一张海报的缩略图与高清图各淡入一次造成闪动 */
+    private int mHeroSwappedSeq = -1;
     private Movie.Video mHeroVod;
+    /**
+     * 全屏背景是 1080px 大图放大到屏幕宽再逐像素锐化，解码很重；
+     * 快速滚卡时逐个加载会互相拖后腿（背景明显跟不上卡片），
+     * 所以先排队，焦点停稳后再真正解码。
+     */
+    private static final long HERO_IMAGE_SETTLE_DELAY = 130L;
+    private final Handler mHeroHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mHeroImageRun = new Runnable() {
+        @Override
+        public void run() {
+            if (mHeroVod != null) {
+                loadHeroImage(mHeroVod);
+            }
+        }
+    };
     private TextView mHeroTitle;
     private TextView mHeroNote;
     private TextView mHeroMeta;
@@ -242,6 +259,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     public void onDestroyView() {
         super.onDestroyView();
         stopAutoScroll();
+        mHeroHandler.removeCallbacks(mHeroImageRun);
         if (rootView != null) {
             rootView.getViewTreeObserver().removeOnGlobalFocusChangeListener(mFocusChangeListener);
         }
@@ -641,7 +659,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     /**
-     * 用当前焦点节目的海报与信息刷新背景 hero 区
+     * 用当前焦点节目的海报与信息刷新背景 hero 区：
+     * 文案立即跟进卡片（开销小），海报则排队等焦点停稳后加载
      */
     private void bindHero(Movie.Video vod) {
         if (vod == null || mHeroBackdrop == null || mHeroBackdropAlt == null || vod.isMore) {
@@ -652,6 +671,16 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         mHeroVod = vod;
+        applyHeroInfo(vod);
+        mHeroHandler.removeCallbacks(mHeroImageRun);
+        if (NullUtil.isNull(vod.pic)) {
+            return;
+        }
+        mHeroHandler.postDelayed(mHeroImageRun, HERO_IMAGE_SETTLE_DELAY);
+    }
+
+    /** 更新 hero 区的文字信息（片名、备注、元信息、简介） */
+    private void applyHeroInfo(Movie.Video vod) {
         mHeroTitle.setText(NullUtil.isNull(vod.name) ? "" : vod.name);
         if (NullUtil.isNull(vod.note)) {
             mHeroNote.setVisibility(View.GONE);
@@ -672,7 +701,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             mHeroDesc.setVisibility(View.VISIBLE);
             mHeroDesc.setText(vod.des);
         }
-        if (NullUtil.isNull(vod.pic)) {
+    }
+
+    /** 真正加载背景海报：先给一张缩略图让背景立刻跟着卡片变，高清图解码好后再原地替换 */
+    private void loadHeroImage(Movie.Video vod) {
+        if (vod == null || NullUtil.isNull(vod.pic) || mHeroBackdrop == null || mHeroBackdropAlt == null) {
             return;
         }
         final int seq = ++mHeroSeq;
@@ -684,6 +717,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         incoming.setScaleY(1f);
         Glide.with(incoming.getContext())
                 .load(GlideImg.model(vod.pic))
+                //缩略图先到，背景不用等高清解码完才跟着卡片变
+                .thumbnail(0.2f)
                 .placeholder(R.drawable.shape_home_hero_placeholder)
                 .error(R.drawable.shape_home_hero_placeholder)
                 .dontAnimate()
@@ -692,22 +727,30 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 .listener(new RequestListener<Object, GlideDrawable>() {
                     @Override
                     public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
-                        if (seq == mHeroSeq) {
-                            swapHero(incoming, outgoing, false);
-                        }
+                        swapHeroOnce(seq, incoming, outgoing, false);
                         return false;
                     }
 
                     @Override
                     public boolean onResourceReady(GlideDrawable resource, Object model, Target<GlideDrawable> target,
                                                    boolean isFromMemoryCache, boolean isFirstResource) {
-                        if (seq == mHeroSeq) {
-                            swapHero(incoming, outgoing, true);
-                        }
+                        swapHeroOnce(seq, incoming, outgoing, true);
                         return false;
                     }
                 })
                 .into(incoming);
+    }
+
+    /**
+     * 一张海报的缩略图与高清图会各回调一次，同一序号只淡入一次；
+     * 高清图随后由 Glide 直接替换到当前图层上（无动画），因此不会重播淡入
+     */
+    private void swapHeroOnce(int seq, ImageView incoming, ImageView outgoing, boolean zoom) {
+        if (seq != mHeroSeq || mHeroSwappedSeq == seq) {
+            return;
+        }
+        mHeroSwappedSeq = seq;
+        swapHero(incoming, outgoing, zoom);
     }
 
     /**

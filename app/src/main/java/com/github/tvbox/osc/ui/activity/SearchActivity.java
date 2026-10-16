@@ -52,6 +52,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,6 +63,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 public class SearchActivity extends BaseActivity {
     private LinearLayout llLayout;
     private LinearLayout llWord;
+    private LinearLayout llClearHistory;
     private TvRecyclerView mSearchResultRV;
     private TvRecyclerView mHotWordRV;
     private TvRecyclerView mSearchHistoryRV;
@@ -107,6 +109,7 @@ public class SearchActivity extends BaseActivity {
         keyboard = findViewById(R.id.keyBoardRoot);
         mHotWordRV = findViewById(R.id.mGridViewWord);
         mSearchHistoryRV = findViewById(R.id.serch_history_rv);
+        llClearHistory = findViewById(R.id.llClearHistory);
         initHistoryView();
         initHotRecycleView();
         initSearchResultRecycleView();
@@ -222,7 +225,6 @@ public class SearchActivity extends BaseActivity {
         mSearchHistoryRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, LinearLayoutManager.HORIZONTAL,
                 false));
         historyAdapter = new SearchHistoryAdapter();
-        historyAdapter.setNewData(getHistoryWords());
         mSearchHistoryRV.setAdapter(historyAdapter);
         historyAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
@@ -230,19 +232,29 @@ public class SearchActivity extends BaseActivity {
                 search(historyAdapter.getItem(position));
             }
         });
+        refreshHistoryView();
     }
 
+    /**
+     * 搜索历史为空时整块收起：既不会占着位置，也不会出现「清空历史」按钮点了没变化
+     */
+    private void refreshHistoryView() {
+        List<String> historyWords = getHistoryWords();
+        boolean empty = historyWords == null || historyWords.isEmpty();
+        historyAdapter.setNewData(empty ? new ArrayList<>() : historyWords);
+        mSearchHistoryRV.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (llClearHistory != null) {
+            llClearHistory.setVisibility(empty ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    /**
+     * 只读取真实搜索过的历史；清空过就是空列表，不再用内置示例词把历史"填回来"
+     */
     private List<String> getHistoryWords() {
         List<String> historyWords = (List<String>) spDataUtil.getObjectValue("histroys");
-        if (NullUtil.isNull(historyWords)) {
+        if (historyWords == null) {
             historyWords = new ArrayList<>();
-            historyWords.add("斗罗大陆");
-            historyWords.add("火影");
-            historyWords.add("三国");
-            historyWords.add("莲花楼");
-            historyWords.add("流浪地球");
-            historyWords.add("繁花");
-            historyWords.add("暗战");
         }
         return historyWords;
     }
@@ -264,9 +276,10 @@ public class SearchActivity extends BaseActivity {
         spDataUtil.saveObjectValue("histroys", historys);
     }
     private void clearHistory() {
-        List<String> historyWords = new ArrayList<>();
-        spDataUtil.saveObjectValue("histroys", historyWords);
-        historyAdapter.setNewData(null);
+        spDataUtil.saveObjectValue("histroys", new ArrayList<String>());
+        refreshHistoryView();
+        //按钮清空后自己会隐藏，把焦点交回搜索键，避免焦点悬空
+        tvSearch.requestFocus();
     }
 
     private void initViewModel() {
@@ -461,7 +474,7 @@ public class SearchActivity extends BaseActivity {
             etSearch.setSelection(etSearch.getText().length());
         }
         saveHistoryWords(wd);
-        historyAdapter.setNewData(getHistoryWords());
+        refreshHistoryView();
         upSearchKey(wd);
         tvSearch.requestFocus();
     }
@@ -485,14 +498,8 @@ public class SearchActivity extends BaseActivity {
         OkGo.getInstance().cancelTag("search");
         searchResultAdapter.setNewData(new ArrayList<>());
 
-        List<SiteBean> siteBeans = new ArrayList<>();
-        for (SiteBean bean : ApiConfig.getInstance().getSiteBeanList()) {
-            // 设置里被取消勾选的源不参与任何聚合搜索
-            if (!bean.isSearchable() || !ApiConfig.getInstance().isSearchSiteEnabled(bean.getKey())) {
-                continue;
-            }
-            siteBeans.add(bean);
-        }
+        // 站点顺序即「搜索源管理」里的勾选顺序（已过滤掉未勾选与不可搜索的源）
+        List<SiteBean> siteBeans = ApiConfig.getInstance().getOrderedSearchSiteList();
         if (siteBeans.isEmpty()) {
             // 一个源都没勾选时不能一直停在加载中（搜索页没有超时兜底）
             showEmpty();
@@ -510,18 +517,33 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void showSearchData(AbsXml absXml) {
-        if (absXml != null && absXml.movie != null && !NullUtil.isNull(absXml.movie.videoList)) {
-            List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
-            if (searchResultAdapter.getData().size() > 0) {
-                searchResultAdapter.addData(videos);
-            } else {
-                searchResultAdapter.setNewData(videos);
-            }
-            if (searchResultAdapter.getData().size() >= 1) {
-                showSuccess();
-                mSearchResultRV.setVisibility(View.VISIBLE);
-            }
+        if (absXml == null || absXml.movie == null || NullUtil.isNull(absXml.movie.videoList)) return;
+        List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
+        List<Movie.Video> old = searchResultAdapter.getData();
+        List<Movie.Video> merged = new ArrayList<>(old);
+        merged.addAll(videos);
+        // 展示顺序与「搜索源管理」的勾选顺序一致；Collections.sort 是稳定排序，
+        // 同一个源内部仍保持返回顺序
+        Collections.sort(merged, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
+                - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
+        if (old.size() > 0 && isSamePrefix(old, merged)) {
+            // 新结果本来就落在末尾，增量追加即可，避免整表刷新打断焦点
+            searchResultAdapter.addData(videos);
+        } else {
+            searchResultAdapter.setNewData(merged);
         }
+        if (searchResultAdapter.getData().size() >= 1) {
+            showSuccess();
+            mSearchResultRV.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /** merged 的前缀是否与原列表完全一致（同一批对象、同一顺序） */
+    private boolean isSamePrefix(List<Movie.Video> old, List<Movie.Video> merged) {
+        for (int i = 0; i < old.size(); i++) {
+            if (old.get(i) != merged.get(i)) return false;
+        }
+        return true;
     }
 
     @Override
