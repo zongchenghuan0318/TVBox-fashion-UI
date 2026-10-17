@@ -1,3 +1,5 @@
+<img width="2358" height="1080" alt="e9929ac87570ab76408eb78cb8c7b2cc" src="https://github.com/user-attachments/assets/628169e7-faec-4423-bdba-c91ce121d8e3" />
+<img width="2358" height="1080" alt="e9929ac87570ab76408eb78cb8c7b2cc" src="https://github.com/user-attachments/assets/1b60adc9-71c5-48b4-811d-730ddd167bac" />
 # Z影视
 
 基于开源项目 [TVBoxOSC](https://github.com/CatVodTVOfficial/TVBoxOSC)（CatVodTVOfficial）二次开发与打磨的 Android 影视聚合客户端，面向电视盒子 / 电视 / 手机横屏使用。
