@@ -138,7 +138,7 @@
                     android:clipToPadding="false"
                     android:paddingTop="@dimen/vs_8"
                     android:paddingBottom="@dimen/vs_8"
-                    app:tv_horizontalSpacingWithMargins="@dimen/vs_12"
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_60"
                     app:tv_selectedItemIsCentered="true"
                     app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
             </FrameLayout>

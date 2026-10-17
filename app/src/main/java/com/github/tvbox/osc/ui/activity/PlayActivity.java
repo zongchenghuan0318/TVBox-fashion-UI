@@ -112,6 +112,16 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private Handler mHandler;
     private PlayBean mPlayBean;
     private long firstTimes = System.currentTimeMillis();
+    private boolean playbackStartPending;
+    private final Runnable playbackStartTimeout = new Runnable() {
+        @Override
+        public void run() {
+            if (playbackStartPending) {
+                playbackStartPending = false;
+                errorWithRetry("播放超时，请检查线路或网络", false);
+            }
+        }
+    };
 
     private WebView mSysWebView;
     private SysWebClient mSysWebClient;
@@ -171,6 +181,22 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mAdTipTV = findViewById(R.id.play_ad_tip);
         mPlayLoadingPb = findViewById(R.id.play_loading);
         mPlayErrImg = findViewById(R.id.play_load_error);
+        mVideoView.addOnStateChangeListener(new VideoView.SimpleOnStateChangeListener() {
+            @Override
+            public void onPlayStateChanged(int playState) {
+                if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
+                    showTipsView("缓冲中...", true, false);
+                } else if (playState == VideoView.STATE_PLAYING) {
+                    playbackStartPending = false;
+                    mHandler.removeCallbacks(playbackStartTimeout);
+                    hideTipsView();
+                } else if (playState == VideoView.STATE_ERROR && playbackStartPending) {
+                    playbackStartPending = false;
+                    mHandler.removeCallbacks(playbackStartTimeout);
+                    errorWithRetry("视频播放出错", false);
+                }
+            }
+        });
         mMovieNameTV.setOnClickListener(this);
         //触摸屏幕（手机/平板）时同样重新显示，但不拦截手势
         mVideoView.setOnTouchListener((v, event) -> {
@@ -251,6 +277,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void preGetPlayUrl() {
         L.d("preGetPlayUrl() start");
+        mHandler.removeCallbacks(playbackStartTimeout);
+        playbackStartPending = true;
+        mHandler.postDelayed(playbackStartTimeout, 20000L);
         VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex);
         EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, mVodInfo.playIndex));
         showTipsView("正在获取播放信息", true, false);
@@ -375,6 +404,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void errorWithRetry(String err, boolean finish) {
         L.d("errorWithRetry() "+err);
+        mHandler.removeCallbacks(playbackStartTimeout);
+        playbackStartPending = false;
         VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex);
         String site = ApiConfig.getInstance().getSiteBean(mVodInfo.sourceKey).getName();
         PrintUtil.saveError(site + "|" + mVodInfo.name + vs.name, err);
@@ -450,6 +481,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                                 }
                             }
                             showTipsView("调用外部播放器" + PlayerHelper.getPlayerName(playerType) + (bSuccess ? "成功" : "失败"), bSuccess, !bSuccess);
+                            playbackStartPending = false;
+                            mHandler.removeCallbacks(playbackStartTimeout);
                             insertVod(mSourceKeyStr, mVodInfo);
                             return;
                         }
@@ -469,7 +502,6 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     showOverlaysThenAutoHide();
                     mController.resetSpeed();
                     insertVod(mSourceKeyStr, mVodInfo);
-                    hideTipsView();
                 }
             }
         });
@@ -642,6 +674,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             // 会导致 showSystemTime() 的每秒自循环在退出后继续持有本 Activity 并刷新已销毁的视图
             mHandler.removeCallbacksAndMessages(null);
         }
+        playbackStartPending = false;
     }
 
     private void stopParse() {

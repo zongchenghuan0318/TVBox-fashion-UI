@@ -43,6 +43,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -57,6 +59,9 @@ public class SourceViewModel extends ViewModel {
     public MutableLiveData<AbsXml> detailResult;
     public MutableLiveData<JSONObject> playResult;
     public ExecutorService mExecutorService;
+    private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(2);
+    private volatile FutureTask<String> activePlayContentTask;
+    private volatile int playRequestId;
 
     public interface HomeRecCallback {
         void done(List<Movie.Video> videos);
@@ -75,6 +80,12 @@ public class SourceViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         cancelHomeRequests();
+        FutureTask<String> playTask = activePlayContentTask;
+        if (playTask != null) {
+            playTask.cancel(true);
+        }
+        playRequestId++;
+        mSearchParseExecutor.shutdownNow();
         if (mExecutorService != null) {
             mExecutorService.shutdownNow();
             mExecutorService = null;
@@ -453,24 +464,59 @@ public class SourceViewModel extends ViewModel {
         doSearch(searchResult, sourceKey, wd);
     }
 
+    public void getSearch(String sourceKey, String wd, int requestId) {
+        doSearch(searchResult, sourceKey, wd, requestId);
+    }
+
     public void getQuickSearch(String sourceKey, String wd) {
         doSearch(quickSearchResult, sourceKey, wd);
     }
 
     private void doSearch(MutableLiveData<AbsXml> searchType, String sourceKey, String wd) {
+        doSearch(searchType, sourceKey, wd, -1);
+    }
+
+    private void doSearch(MutableLiveData<AbsXml> searchType, String sourceKey, String wd, int requestId) {
         SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
-        if (siteBean == null) return;
+        if (siteBean == null) {
+            postSearchResult(searchType, null, requestId);
+            return;
+        }
         int type = siteBean.getType();
         if (type == 3) {
+            FutureTask<String> searchTask = null;
             try {
-                Spider sp = ApiConfig.getInstance().getCSP(siteBean);
-                L.d("doSearch sp "+sp);
-                if (sp == null) return;
-                String content = sp.searchContent(wd, false);
+                searchTask = new FutureTask<>(() -> {
+                    Spider spider = ApiConfig.getInstance().getCSP(siteBean);
+                    if (spider == null) {
+                        throw new IllegalStateException("搜索源未初始化");
+                    }
+                    return spider.searchContent(wd, false);
+                });
+                Thread searchThread = new Thread(searchTask, "search-" + sourceKey);
+                searchThread.setDaemon(true);
+                searchThread.start();
+                String content = searchTask.get(12, TimeUnit.SECONDS);
                 L.d(siteBean.getName()+" doSearch sp  content="+content);
-                parseJson(searchType, content, siteBean.getKey(), 0);
+                parseJson(searchType, content, siteBean.getKey(), 0, requestId);
+            } catch (TimeoutException e) {
+                if (searchTask != null) {
+                    searchTask.cancel(true);
+                }
+                L.w(sourceKey + " spider search timed out");
+                postSearchResult(searchType, null, requestId);
+            } catch (InterruptedException e) {
+                if (searchTask != null) {
+                    searchTask.cancel(true);
+                }
+                Thread.currentThread().interrupt();
+                postSearchResult(searchType, null, requestId);
+            } catch (ExecutionException | RuntimeException e) {
+                L.e(sourceKey + " doSearch " + e.getMessage());
+                postSearchResult(searchType, null, requestId);
             } catch (Exception e) {
                 L.e(sourceKey + " doSearch " + e.getMessage());
+                postSearchResult(searchType, null, requestId);
             }
         } else if (type == 0 || type == 1) {
             final long beginTime = System.currentTimeMillis();
@@ -493,25 +539,41 @@ public class SourceViewModel extends ViewModel {
                             long duration = System.currentTimeMillis() - beginTime;
                             if (type == 0) {
                                 String xml = response.body();
-                                parseXml(searchType, xml, siteBean.getKey(), duration);
+                                submitSearchParse(searchType, requestId, () ->
+                                        parseXml(searchType, xml, siteBean.getKey(), duration, requestId));
                             } else {
                                 String json = response.body();
-                                parseJson(searchType, json, siteBean.getKey(), duration);
+                                submitSearchParse(searchType, requestId, () ->
+                                        parseJson(searchType, json, siteBean.getKey(), duration, requestId));
                             }
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            if (searchResult == searchType) {
-                                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
-                            } else if (quickSearchResult == searchType) {
-                                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
-                            }
+                            postSearchResult(searchType, null, requestId);
                         }
+
                     });
         } else {
-            searchType.postValue(null);
+            postSearchResult(searchType, null, requestId);
+        }
+    }
+
+    private void postSearchResult(MutableLiveData<AbsXml> result, AbsXml data, int requestId) {
+        if (searchResult == result) {
+            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data, requestId));
+        } else if (quickSearchResult == result) {
+            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
+        }
+    }
+
+    private void submitSearchParse(MutableLiveData<AbsXml> result, int requestId, Runnable parse) {
+        try {
+            mSearchParseExecutor.execute(parse);
+        } catch (RejectedExecutionException e) {
+            L.e("search parse executor rejected request: " + e.getMessage());
+            postSearchResult(result, null, requestId);
         }
     }
 
@@ -545,15 +607,37 @@ public class SourceViewModel extends ViewModel {
 
     public void getPlayUrl(String sourceKey, String playFlag, String progressKey, String url) {
         L.d("getPlayUrl() sourceKey=" +sourceKey);
+        final int requestId = ++playRequestId;
+        FutureTask<String> previousTask = activePlayContentTask;
+        if (previousTask != null) {
+            previousTask.cancel(true);
+        }
         SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+        if (sourceBean == null) {
+            playResult.postValue(null);
+            return;
+        }
         int type = sourceBean.getType();
         L.d("type="+type);
         if (type == 3) {
+            FutureTask<String> task = new FutureTask<>(() -> {
+                Spider spider = ApiConfig.getInstance().getCSP(sourceBean);
+                if (spider == null) {
+                    throw new IllegalStateException("播放源未初始化");
+                }
+                return spider.playerContent(playFlag, url, ApiConfig.getInstance().getmVipFlagList());
+            });
+            activePlayContentTask = task;
+            Thread spiderThread = new Thread(task, "play-content-" + sourceKey);
+            spiderThread.setDaemon(true);
+            spiderThread.start();
             mExecutorService.execute(() -> {
-                Spider sp = ApiConfig.getInstance().getCSP(sourceBean);
-                String json = sp.playerContent(playFlag, url, ApiConfig.getInstance().getmVipFlagList());
-                L.d(sourceKey+" getPlayUrl json="+json);
                 try {
+                    String json = task.get(15, TimeUnit.SECONDS);
+                    if (requestId != playRequestId) {
+                        return;
+                    }
+                    L.d(sourceKey+" getPlayUrl json="+json);
                     JSONObject result = new JSONObject(json);//包含了url
                     result.put("key", url);
                     result.put("proKey", progressKey);
@@ -561,8 +645,23 @@ public class SourceViewModel extends ViewModel {
                         result.put("flag", playFlag);
                     }
                     playResult.postValue(result);
-                } catch (Throwable th) {
-                    L.e("getPlayUrl "+th.getMessage());
+                } catch (TimeoutException e) {
+                    task.cancel(true);
+                    if (requestId == playRequestId) {
+                        L.w(sourceKey + " playerContent timed out");
+                        playResult.postValue(null);
+                    }
+                } catch (InterruptedException e) {
+                    task.cancel(true);
+                    Thread.currentThread().interrupt();
+                    if (requestId == playRequestId) {
+                        playResult.postValue(null);
+                    }
+                } catch (Exception e) {
+                    if (requestId != playRequestId) {
+                        return;
+                    }
+                    L.e("getPlayUrl "+e.getMessage());
                     playResult.postValue(null);
                 }
             });
@@ -716,8 +815,12 @@ public class SourceViewModel extends ViewModel {
     }
 
     private AbsXml parseXml(MutableLiveData<AbsXml> result, String xml, String sourceKey, long duration) {
+        return parseXml(result, xml, sourceKey, duration, -1);
+    }
+
+    private AbsXml parseXml(MutableLiveData<AbsXml> result, String xml, String sourceKey, long duration, int requestId) {
         try {
-            L.d(sourceKey+" parseXml() xml="+xml);
+            L.d(sourceKey + " parseXml length=" + (xml == null ? -1 : xml.length()));
             XStream xstream = new XStream(new DomDriver());//创建Xstram对象
             xstream.autodetectAnnotations(true);
             xstream.processAnnotations(AbsXml.class);
@@ -732,7 +835,7 @@ public class SourceViewModel extends ViewModel {
             parseSeriesUrl(absXml, sourceKey);
             if (searchResult == result) {
                 addDuration(duration, absXml);
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId));
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml));
             } else if (result != null) {
@@ -745,7 +848,7 @@ public class SourceViewModel extends ViewModel {
             return absXml;
         } catch (Exception e) {
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId));
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
             } else if (result != null) {
@@ -773,16 +876,20 @@ public class SourceViewModel extends ViewModel {
             "\t}]\n" +
             "}";*/
     private AbsXml parseJson(MutableLiveData<AbsXml> result, String json, String sourceKey, long duration) {
+        return parseJson(result, json, sourceKey, duration, -1);
+    }
+
+    private AbsXml parseJson(MutableLiveData<AbsXml> result, String json, String sourceKey, long duration, int requestId) {
         try {
             AbsXml absXml = null;
             AbsJson absJson = new Gson().fromJson(json, new TypeToken<AbsJson>() {}.getType());
-            L.d(sourceKey + " absJson=" + json);
+            L.d(sourceKey + " parseJson length=" + (json == null ? -1 : json.length()));
             if (absJson != null) {
                 absXml = absJson.toAbsXml();
                 parseSeriesUrl(absXml, sourceKey);
                 if (searchResult == result) {
                     addDuration(duration, absXml);
-                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml));
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId));
                 } else if (quickSearchResult == result) {
                     EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml));
                 } else if (result != null) {
@@ -792,13 +899,13 @@ public class SourceViewModel extends ViewModel {
                         result.postValue(absXml);
                     }
                 }
-            }else{
-                result.postValue(null);
+            } else {
+                postSearchResult(result, null, requestId);
             }
             return absXml;
         } catch (Exception e) {
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId));
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
             } else if (result != null) {

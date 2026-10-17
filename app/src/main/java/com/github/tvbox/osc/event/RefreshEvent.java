@@ -18,6 +18,7 @@ public class RefreshEvent {
     public static final int TYPE_PUSH_URL = 9;
     public int type;
     public Object obj;
+    public int requestId = -1;
 
     public RefreshEvent(int type) {
         this.type = type;
@@ -26,5 +27,11 @@ public class RefreshEvent {
     public RefreshEvent(int type, Object obj) {
         this.type = type;
         this.obj = obj;
+    }
+
+    public RefreshEvent(int type, Object obj, int requestId) {
+        this.type = type;
+        this.obj = obj;
+        this.requestId = requestId;
     }
 }

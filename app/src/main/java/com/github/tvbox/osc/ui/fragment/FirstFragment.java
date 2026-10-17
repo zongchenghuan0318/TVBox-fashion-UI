@@ -82,6 +82,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private static final long DOU_BAN_BLOCK_COOLDOWN_MS = 5 * 60 * 1000L;
     /** 豆瓣翻页上限：按出口 IP 限流，翻页过多必然触发风控，最多只额外拉 2 页 */
     private static final int DOU_BAN_MAX_START = 40;
+    private static final int INITIAL_EXTRA_RECOMMENDATIONS = 8;
     private int mStart = 40;
     private HomeCardRecyclerView mHotGridView;
     private ImageView mHeroBackdrop;
@@ -127,28 +128,18 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
     };
-    /**
-     * 卡片弧形排布：以列表中心为弧顶，中间的卡最高最亮，
-     * 越往两端越低、越暗、略微向外翻转，整排形成一条弧线；
-     * 滚动时卡片沿弧线滑动，切换不再是平铺一排平移。
-     */
     /** 聚焦缩放时长与整排滑动时长保持一致（见 HomeCardRecyclerView），滑动与放大是一个动作 */
     private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
-    private static final float CARD_FRONT_SCALE = 1.26f;
-    private static final float CARD_EDGE_SCALE = 0.62f;
+    private static final float CARD_FRONT_SCALE = 1.34f;
+    private static final float CARD_EDGE_SCALE = 0.66f;
     private static final float CARD_MIN_ALPHA = 0.48f;
     private static final float CARD_ARC_ROTATION = 42f;
-    /** 当前选中卡片的位置，弧顶跟随它移动 */
-    private int mArcFocusPos = 0;
-    /** 循环卡片的一段长度；列表实际显示三段，保证首尾在视觉上相邻。 */
-    private int mCircularBlockSize;
+    private int mFocusedCardPosition;
     private boolean mUserOperatingCards;
     private boolean mAutoScrollingCards;
     private long mLastAutoScrollAt;
     /** 数据刚替换时先完成一次布局和定位，避免旧焦点回调把首屏拉回第一张。 */
     private boolean mCarouselInitializing;
-    /** 上一次被放大高亮的卡片位置；用位置而不是 View 记录，避免视图复用后指向错的卡 */
-    private int mScaledPos = -1;
     private TextView mHeroTitle;
     private TextView mHeroNote;
     private TextView mHeroMeta;
@@ -355,10 +346,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 mUserOperatingCards = true;
                 stopAutoScroll();
-                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-                        || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    // 虚拟无限适配器负责左右边界，不在 Fragment 中重定位。
-                }
             } else if (event.getAction() == KeyEvent.ACTION_UP) {
                 scheduleAutoScroll();
             }
@@ -374,7 +361,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
             return false;
         });
-        // 滚动过程中实时重算弧线，卡片才会顺着弧面前后滑动而不是整排平移
+        // Scroll-dependent card effects follow the card currently nearest the screen center.
         mHotGridView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
@@ -394,7 +381,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     /**
-     * 选中某张卡片的唯一出口：放大当前卡、复位上一张、让弧顶和列表正中都落在它身上、
+     * 选中某张卡片的唯一出口：更新卡片层次、居中列表、
      * 同步背景海报与节目信息、重置轮播计时。
      * 手动方向键（onItemSelected）和自动轮播共用它，落点、曲线、时长完全一致。
      */
@@ -402,9 +389,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mHotGridView == null || mAdapter == null || mCarouselInitializing) {
             return;
         }
-        boolean positionChanged = mArcFocusPos != position;
+        boolean positionChanged = mFocusedCardPosition != position;
         mHotGridView.setSelectedPosition(position);
-        mArcFocusPos = position;
+        mFocusedCardPosition = position;
         updateCardDepth();
         // 选中的卡始终停在屏幕正中，切换一次就居中一次
         if (positionChanged) {
@@ -432,7 +419,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 continue;
             }
             float offset = ((child.getLeft() + child.getRight()) / 2f - centerX)
-                    / Math.max(1f, child.getWidth() * 2.5f);
+                    / Math.max(1f, child.getWidth() * 1.45f);
             float normalized = Math.max(-1f, Math.min(1f, offset));
             float angle = normalized * CARD_ARC_ROTATION;
             float depth = (float) Math.cos(Math.toRadians(Math.abs(angle)));
@@ -440,6 +427,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     + (CARD_FRONT_SCALE - CARD_EDGE_SCALE) * depth;
             float drop = child.getHeight() * 0.42f * (1f - depth);
             float alpha = Math.max(CARD_MIN_ALPHA, 1f - (1f - depth) * 0.6f);
+            child.setPivotX(child.getWidth() / 2f);
+            child.setPivotY(child.getHeight() / 2f);
             child.setTranslationY(drop);
             child.setRotationY(angle);
             child.setRotation(-angle * 0.08f);
@@ -469,10 +458,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     /**
-     * 把当前可见的卡片摆到一条弧线上：弧顶落在当前选中的卡片上，
-     * 选中的卡最高最亮，越往两端越低、越暗、略微向外翻转；
-     * 归一化基准取「卡片中心到弧顶的距离 / 列表半宽的比例」，
-     * 贴到列表两端时弧线最深，屏幕宽度或卡片数量变化都不影响弧线的深浅。
+     * 按卡片中心到屏幕中心的距离更新大小、明暗和轻微旋转。
      */
     @Override
     protected void onFragmentResume() {
@@ -559,16 +545,15 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private void resetCarouselState() {
         mCarouselInitializing = true;
         stopAutoScroll();
-        mArcFocusPos = 0;
-        mScaledPos = -1;
+        mFocusedCardPosition = 0;
         if (mHotGridView != null) {
-            mHotGridView.scrollToPosition(mArcFocusPos);
+            mHotGridView.scrollToPosition(mFocusedCardPosition);
             mHotGridView.post(() -> {
                 if (mHotGridView == null) {
                     return;
                 }
-                mHotGridView.setSelection(mArcFocusPos);
-                mHotGridView.scrollToPosition(mArcFocusPos);
+                mHotGridView.setSelection(mFocusedCardPosition);
+                mHotGridView.scrollToPosition(mFocusedCardPosition);
                 mHotGridView.post(() -> {
                     if (mHotGridView == null) {
                         return;
@@ -576,7 +561,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     mCarouselInitializing = false;
                     View selected = mHotGridView.getLayoutManager() == null
                             ? null
-                            : mHotGridView.getLayoutManager().findViewByPosition(mArcFocusPos);
+                            : mHotGridView.getLayoutManager().findViewByPosition(mFocusedCardPosition);
                     if (selected != null) {
                         selected.requestFocus();
                     }
@@ -592,7 +577,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     /** 设置真实卡片列表；自动轮播到末尾后回到第一张。 */
-    private void setCircularVideos(List<Movie.Video> videos) {
+    private void setHomeCards(List<Movie.Video> videos) {
         if (mAdapter == null || videos == null) {
             return;
         }
@@ -604,14 +589,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 source.add(video);
             }
         }
-        if (source.size() < 2) {
-            mCircularBlockSize = source.size();
-            mAdapter.setEnableLoadMore(false);
-            mAdapter.setNewData(source);
-            mCarouselInitializing = false;
-            return;
-        }
-        mCircularBlockSize = source.size();
         mAdapter.setEnableLoadMore(false);
         mAdapter.setNewData(source);
     }
@@ -627,7 +604,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         List<Movie.Video> data = mAdapter.getData();
-        if (mCircularBlockSize < 2) return;
+        if (data.size() < 2) return;
         int current = mHotGridView.getSelectedPosition();
         if (current < 0 || current >= data.size()) {
             current = 0;
@@ -682,7 +659,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             setHeader("网站推荐", recCount > 0 ? "共 " + recCount + " 部" : "当前接口暂无推荐");
             showSuccess();
             if (recCount > 0) {
-                setCircularVideos(mRecommendVideos);
+                setHomeCards(mRecommendVideos);
                 resetCarouselState();
                 bindHero(mRecommendVideos.get(0));
             } else {
@@ -708,11 +685,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             showSuccess();
             if (vodList.isEmpty()) {
                 //没有播放记录也不留白页，同样走兜底链
-                setCircularVideos(vodList);
+                setHomeCards(vodList);
                 resetCarouselState();
                 loadHotRankFeed(requestId);
             } else {
-                setCircularVideos(vodList);
+                setHomeCards(vodList);
                 resetCarouselState();
                 bindHero(vodList.get(0));
             }
@@ -753,6 +730,28 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                         sDoubanBlockedUntil = System.currentTimeMillis() + DOU_BAN_BLOCK_COOLDOWN_MS;
                     }
                     list0 = parseJson(result);
+                    if (list0 != null && !list0.isEmpty()
+                            && !isDoubanBlocked() && INITIAL_EXTRA_RECOMMENDATIONS > 0) {
+                        String extraUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=20";
+                        String extraResult = ApiConfig.getWithHeaders(extraUrl, doubanHeaders(), 10 * 1000);
+                        if (extraResult != null && extraResult.contains("\"msg\"")) {
+                            sDoubanBlockedUntil = System.currentTimeMillis() + DOU_BAN_BLOCK_COOLDOWN_MS;
+                        } else {
+                            List<Movie.Video> extra = parseJson(extraResult);
+                            if (extra != null && !extra.isEmpty()) {
+                                int remaining = INITIAL_EXTRA_RECOMMENDATIONS;
+                                for (Movie.Video video : extra) {
+                                    if (remaining == 0) {
+                                        break;
+                                    }
+                                    if (video != null && !containsMovie(list0, video)) {
+                                        list0.add(video);
+                                        remaining--;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     L.w("homeFeed douban len=" + (result == null ? -1 : result.length())
                             + " risk=" + risk
                             + " parsed=" + (list0 == null ? -1 : list0.size()));
@@ -780,7 +779,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     }
                     showSuccess();
                     setHeader("豆瓣推荐", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序");
-                    setCircularVideos(resultVideos);
+                    setHomeCards(resultVideos);
                     resetCarouselState();
                     bindHero(resultVideos.get(0));
                 });
@@ -897,6 +896,18 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         return videos;
     }
 
+    private boolean containsMovie(List<Movie.Video> videos, Movie.Video candidate) {
+        if (candidate == null || candidate.name == null) {
+            return false;
+        }
+        for (Movie.Video video : videos) {
+            if (video != null && candidate.name.equalsIgnoreCase(video.name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * 首页推荐兜底链：当前数据源推荐 → 配置里其它聚合源 → 豆瓣（直连/缓存） → 空态
      */
@@ -916,7 +927,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         //兜底链拿到内容也必须收起 LoadSir 的转圈，否则卡片被加载层遮住
         showSuccess();
         setHeader(title, subTitle);
-        setCircularVideos(videos);
+        setHomeCards(videos);
         resetCarouselState();
         //兜底列表已是一次性全量，不能再按豆瓣分页续拉
         mAdapter.setEnableLoadMore(false);
@@ -1335,7 +1346,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                             return;
                         }
                         //UiHelper.showToast(getActivity(), doubanUrl + " result=" + result);
-                        L.d(doubanUrl + " result=" + result);
+                        L.d(doubanUrl + " resultLength=" + (result == null ? -1 : result.length()));
                         if (NullUtil.isNull(listMore) || listMore.isEmpty()) {
                             //豆瓣被限流或已到底：结束本轮加载，避免继续砸接口加重限流
                             mAdapter.loadMoreEnd();

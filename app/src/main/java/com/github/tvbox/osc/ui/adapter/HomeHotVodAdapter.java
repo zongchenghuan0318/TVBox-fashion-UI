@@ -9,7 +9,6 @@ import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.util.GlideImg;
-import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.studio.osc.R;
 
@@ -47,7 +46,6 @@ public class HomeHotVodAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHol
         // 海报圆角：按背景形状裁剪
         helper.getView(R.id.layoutPoster).setClipToOutline(true);
         TextView tvNote = helper.getView(R.id.tvNote);
-        L.d("item.note="+item.note);
         if(item.isMore){
             helper.setText(R.id.tvName, item.name);
             ImageView thumbImg = helper.getView(R.id.ivThumb);

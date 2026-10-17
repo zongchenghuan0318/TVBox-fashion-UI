@@ -23,9 +23,9 @@ import com.owen.tvrecyclerview.widget.TvRecyclerView;
  */
 public class HomeCardRecyclerView extends TvRecyclerView {
     /** 焦点切换时整排滑动的时长（毫秒） */
-    public static final int SCROLL_DURATION = 350;
+    public static final int SCROLL_DURATION = 850;
     /** 缓和进出曲线：起步不急、收尾不顿 */
-    private static final Interpolator SCROLL_INTERPOLATOR = new PathInterpolator(0.4f, 0f, 0.2f, 1f);
+    private static final Interpolator SCROLL_INTERPOLATOR = new PathInterpolator(0.12f, 0.72f, 0.18f, 1f);
     private boolean userTouching;
 
     public HomeCardRecyclerView(Context context) {

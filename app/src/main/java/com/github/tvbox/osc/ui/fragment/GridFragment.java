@@ -37,6 +37,8 @@ public class GridFragment extends BaseLazyFragment {
     private GridAdapter mGridAdapter;
     private int mPage = 1;
     private int maxPage = 1;
+    private boolean retryWhenResumed;
+    private boolean pageRequestInFlight;
 
     public static GridFragment newInstance(MovieSort.SortData sortData) {
         return new GridFragment().setArguments(sortData);
@@ -69,7 +71,11 @@ public class GridFragment extends BaseLazyFragment {
         mGridAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
             @Override
             public void onLoadMoreRequested() {
+                if (pageRequestInFlight || mPage > maxPage) {
+                    return;
+                }
                 mGridAdapter.setEnableLoadMore(true);
+                pageRequestInFlight = true;
                 sourceViewModel.getMovieList(mSortData, mPage);
             }
         }, mGridView);
@@ -119,6 +125,7 @@ public class GridFragment extends BaseLazyFragment {
         sourceViewModel.listResult.observe(this, new Observer<AbsXml>() {
             @Override
             public void onChanged(AbsXml absXml) {
+                pageRequestInFlight = false;
                 int count = (absXml == null || absXml.movie == null || absXml.movie.videoList == null)
                         ? -1 : absXml.movie.videoList.size();
                 L.w("gridFeed page=" + mPage + " count=" + count + " maxPage=" + maxPage);
@@ -136,7 +143,8 @@ public class GridFragment extends BaseLazyFragment {
                         showEmpty();
                     }
                 }
-                if (mPage > maxPage) {
+                if (mPage > maxPage || absXml == null || absXml.movie == null
+                        || absXml.movie.videoList == null || absXml.movie.videoList.isEmpty()) {
                     mGridAdapter.loadMoreEnd();
                 } else {
                     mGridAdapter.loadMoreComplete();
@@ -146,11 +154,23 @@ public class GridFragment extends BaseLazyFragment {
     }
 
     private void initData() {
+        retryWhenResumed = false;
+        pageRequestInFlight = true;
         showLoading();
         L.w("gridFeed start sort=" + (mSortData == null ? "null" : mSortData.name)
                 + " id=" + (mSortData == null ? "" : mSortData.id)
                 + " src=" + ApiConfig.getInstance().getHomeBean().getKey());
         sourceViewModel.getMovieList(mSortData, mPage);
+    }
+
+    @Override
+    protected void onFragmentResume() {
+        if (retryWhenResumed && mGridAdapter != null && mGridAdapter.getData().isEmpty()) {
+            mPage = 1;
+            maxPage = 1;
+            retryWhenResumed = false;
+            initData();
+        }
     }
 
     public void showFilter() {
@@ -172,6 +192,8 @@ public class GridFragment extends BaseLazyFragment {
 
     @Override
     protected void onFragmentPause() {
+        retryWhenResumed = mGridAdapter != null && mGridAdapter.getData().isEmpty();
+        pageRequestInFlight = false;
         if (sourceViewModel != null) {
             sourceViewModel.cancelCategoryRequests();
         }

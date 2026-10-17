@@ -2,6 +2,8 @@ package com.github.tvbox.osc.ui.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
@@ -78,6 +80,24 @@ public class SearchActivity extends BaseActivity {
     private String searchWord = "";
     private SPDataUtil spDataUtil = null;
     public ExecutorService mExecutorService;
+    private int searchRequestId;
+    private int searchSourceCount;
+    private int completedSearchSources;
+    private boolean searchFinished;
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private final Runnable searchTimeout = new Runnable() {
+        @Override
+        public void run() {
+            if (!searchFinished && searchResultAdapter != null) {
+                searchFinished = true;
+                OkGo.getInstance().cancelTag("search");
+                if (searchResultAdapter.getData().isEmpty()) {
+                    showEmpty();
+                    Toast.makeText(SearchActivity.this, "搜索超时，请检查网络或更换搜索源", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+    };
 
     @Override
     protected int getLayoutResID() {
@@ -444,10 +464,22 @@ public class SearchActivity extends BaseActivity {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
         if (event.type == RefreshEvent.TYPE_SEARCH_RESULT) {
+            if (event.requestId != searchRequestId || searchFinished) {
+                return;
+            }
             try {
                 showSearchData(event.obj == null ? null : (AbsXml) event.obj);
             } catch (Exception e) {
+                L.e("showSearchData " + e.getMessage());
                 showSearchData(null);
+            }
+            completedSearchSources++;
+            if (completedSearchSources >= searchSourceCount) {
+                searchFinished = true;
+                searchHandler.removeCallbacks(searchTimeout);
+                if (searchResultAdapter.getData().isEmpty()) {
+                    showEmpty();
+                }
             }
         }
     }
@@ -464,11 +496,19 @@ public class SearchActivity extends BaseActivity {
 
     private void search(String wd) {
         OkGo.getInstance().cancelTag("search");
+        searchHandler.removeCallbacks(searchTimeout);
+        searchRequestId++;
+        searchFinished = false;
+        completedSearchSources = 0;
+        searchSourceCount = 0;
         showLoading();
         this.searchWord = wd;
         mSearchResultRV.setVisibility(View.INVISIBLE);
         searchResultAdapter.setNewData(new ArrayList<>());
         doSearch();
+        if (searchSourceCount > 0) {
+            searchHandler.postDelayed(searchTimeout, 15000L);
+        }
         if (etSearch != null) {
             etSearch.setText(wd);
             etSearch.setSelection(etSearch.getText().length());
@@ -506,11 +546,12 @@ public class SearchActivity extends BaseActivity {
             Toast.makeText(mContext, "未选择任何搜索源，请到 设置 → 设置其他 → 搜索源管理 中勾选", Toast.LENGTH_LONG).show();
             return;
         }
+        searchSourceCount = siteBeans.size();
         for (final SiteBean siteBean : siteBeans) {
             mExecutorService.submit(new Runnable() {
                 @Override
                 public void run() {
-                    sourceViewModel.getSearch(siteBean.getKey(), searchWord);
+                    sourceViewModel.getSearch(siteBean.getKey(), searchWord, searchRequestId);
                 }
             });
         }
@@ -549,6 +590,9 @@ public class SearchActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        searchFinished = true;
+        searchHandler.removeCallbacks(searchTimeout);
+        searchHandler.removeCallbacks(searchTimeout);
         OkGo.getInstance().cancelTag("search");
         EventBus.getDefault().unregister(this);
         // 释放聚合搜索线程池，避免退出搜索页后仍存活 5 条线程
