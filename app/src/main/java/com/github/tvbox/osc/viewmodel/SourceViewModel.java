@@ -377,7 +377,10 @@ public class SourceViewModel extends ViewModel {
 
     public void getDetail(String sourceKey, String id) {
         SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
-        if (null == sourceBean) return;
+        if (null == sourceBean) {
+            detailResult.postValue(null);
+            return;
+        }
         int type = sourceBean.getType();
         L.d("getDetail() type=" + type +" sourceKey="+sourceKey);
         if (type == 3) {
@@ -392,6 +395,7 @@ public class SourceViewModel extends ViewModel {
                     parseJson(detailResult, detail, sourceBean.getKey(), 0);
                 } catch (Exception th) {
                     L.w("getDetail " + th.getMessage());
+                    detailResult.postValue(null);
                 } finally {
                     // 一次性线程池用完即关，否则每次调用都会泄漏一个线程
                     executor.shutdown();

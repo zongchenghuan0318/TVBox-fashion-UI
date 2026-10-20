@@ -17,6 +17,7 @@ public class LiveController extends BaseController {
 //    protected ProgressBar mLoading;
     private int minFlingDistance = 100;             //最小识别距离
     private int minFlingVelocity = 10;              //最小识别速度
+    private static final float MIN_HORIZONTAL_DOMINANCE = 1.25f;
 
     public LiveController(@NotNull Context context) {
         super(context);
@@ -75,7 +76,7 @@ public class LiveController extends BaseController {
 
     @Override
     public boolean onSingleTapConfirmed(MotionEvent e) {
-        if (listener.singleTap())
+        if (listener != null && listener.singleTap())
             return true;
         return super.onSingleTapConfirmed(e);
     }
@@ -86,24 +87,37 @@ public class LiveController extends BaseController {
 
     @Override
     public void onLongPress(MotionEvent e) {
-        listener.longPress();
+        if (listener != null) {
+            listener.longPress();
+        }
         super.onLongPress(e);
     }
 
     @Override
     protected void onPlayStateChanged(int playState) {
         super.onPlayStateChanged(playState);
-        listener.playStateChanged(playState);
+        if (listener != null) {
+            listener.playStateChanged(playState);
+        }
     }
 
     @Override
     public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-        if (e1.getX() - e2.getX() > minFlingDistance && Math.abs(velocityX) > minFlingVelocity) {
+        if (e1 == null || e2 == null || listener == null) {
+            return false;
+        }
+        float distanceX = e2.getX() - e1.getX();
+        float distanceY = e2.getY() - e1.getY();
+        if (Math.abs(distanceX) <= minFlingDistance
+                || Math.abs(distanceX) < Math.abs(distanceY) * MIN_HORIZONTAL_DOMINANCE
+                || Math.abs(velocityX) <= minFlingVelocity
+                || Math.abs(velocityX) < Math.abs(velocityY)) {
+            return false;
+        }
+        if (distanceX < 0) {
             listener.changeSource(-1);          //左滑
-        } else if (e2.getX() - e1.getX() > minFlingDistance && Math.abs(velocityX) > minFlingVelocity) {
+        } else {
             listener.changeSource(1);           //右滑
-        } else if (e1.getY() - e2.getY() > minFlingDistance && Math.abs(velocityY) > minFlingVelocity) {
-        } else if (e2.getY() - e1.getY() > minFlingDistance && Math.abs(velocityY) > minFlingVelocity) {
         }
         return false;
     }

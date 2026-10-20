@@ -3,6 +3,8 @@ package com.github.tvbox.osc.ui.activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Html;
 import android.view.View;
 import android.widget.ImageView;
@@ -93,6 +95,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private List<Movie.Video> quickSearchList = new ArrayList<>();
     private List<String> wordList = new ArrayList<>();
     public ExecutorService mExecutorService;
+    private final Handler detailHandler = new Handler(Looper.getMainLooper());
+    private final Runnable detailTimeout = new Runnable() {
+        @Override
+        public void run() {
+            showEmpty();
+            Toast.makeText(DetailActivity.this, "详情加载超时，请检查网络或更换搜索源", Toast.LENGTH_SHORT).show();
+        }
+    };
 
     @Override
     protected int getLayoutResID() {
@@ -170,6 +180,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         mSourceViewModel.detailResult.observe(this, new Observer<AbsXml>() {
             @Override
             public void onChanged(AbsXml absXml) {
+                detailHandler.removeCallbacks(detailTimeout);
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                     showSuccess();
                     mVideo = absXml.movie.videoList.get(0);
@@ -178,7 +189,8 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     mVodInfo.sourceKey = mVideo.sourceKey;
 
                     tvName.setText(mVideo.name);
-                    setTextShow(tvSite, "来源：", ApiConfig.getInstance().getSiteBean(mVideo.sourceKey).getName());
+                    SiteBean videoSite = ApiConfig.getInstance().getSiteBean(mVideo.sourceKey);
+                    setTextShow(tvSite, "来源：", videoSite == null ? mVideo.sourceKey : videoSite.getName());
                     setTextShow(tvYear, "年份：", mVideo.year == 0 ? "" : String.valueOf(mVideo.year));
                     setTextShow(tvArea, "地区：", mVideo.area);
                     setTextShow(tvLang, "语言：", mVideo.lang);
@@ -240,12 +252,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                         mSeriesGridView.setVisibility(View.GONE);
                         tvPlay.setVisibility(View.GONE);
                         mEmptyLayout.setVisibility(View.VISIBLE);
-                        String site = ApiConfig.getInstance().getSiteBean(sourceKey).getName();
+                        SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+                        String site = siteBean == null ? sourceKey : siteBean.getName();
                         PrintUtil.saveError(site + movieName, "暂无播放数据");
                     }
                 } else {
                     showEmpty();
-                    String site = ApiConfig.getInstance().getSiteBean(sourceKey).getName();
+                    SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+                    String site = siteBean == null ? sourceKey : siteBean.getName();
                     PrintUtil.saveError(site + movieName, "没找到详情数据");
                 }
             }
@@ -270,6 +284,8 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             bNeedFocusSeries = true;
             mFocusSeriesRetry = 0;
             showLoading();
+            detailHandler.removeCallbacks(detailTimeout);
+            detailHandler.postDelayed(detailTimeout, 20000L);
             L.d("loadDetail()");
             mSourceViewModel.getDetail(sourceKey, vodId);
         }
@@ -584,6 +600,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        detailHandler.removeCallbacks(detailTimeout);
         OkGo.getInstance().cancelTag("fenci");
         OkGo.getInstance().cancelTag("detail");
         OkGo.getInstance().cancelTag("search");
