@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
@@ -40,6 +40,12 @@
         <item name="android:windowFullscreen">true</item>
     </style>
 
+    <!-- 播放页选集侧栏：从右侧滑入 -->
+    <style name="PlayerEpisodeWindowAnim" parent="@android:style/Animation.Dialog">
+        <item name="android:windowEnterAnimation">@anim/player_episode_in</item>
+        <item name="android:windowExitAnimation">@anim/player_episode_out</item>
+    </style>
+
     <!-- 系统 AlertDialog：深色主题，避免继承 Light 主题导致白底 -->
     <style name="DarkAlertDialog" parent="Theme.AppCompat.Dialog.Alert">
         <item name="android:windowBackground">@drawable/shape_dialog_bg_main</item>
@@ -48,11 +54,11 @@
         <item name="android:textColorSecondary">@color/color_6CFFFFFF</item>
     </style>
 
-    <!-- 设置页：分组标题（外包 SettingSectionHeader，内含左侧强调条） -->
+    <!-- 设置页：分组标题（小标签 + 青色圆点，弱化装饰、强化扫描） -->
     <style name="SettingSectionTitle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/color_6CFFFFFF</item>
+        <item name="android:textColor">@color/color_rail_text_muted</item>
         <item name="android:textSize">@dimen/ts_20</item>
         <item name="android:letterSpacing">0.12</item>
     </style>
@@ -63,21 +69,40 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">horizontal</item>
         <item name="android:gravity">center_vertical</item>
-        <item name="android:layout_marginTop">@dimen/vs_25</item>
-        <item name="android:layout_marginBottom">@dimen/vs_8</item>
+        <item name="android:layout_marginTop">@dimen/vs_20</item>
+        <item name="android:layout_marginBottom">@dimen/vs_10</item>
+        <item name="android:paddingLeft">@dimen/vs_6</item>
     </style>
 
-    <!-- 设置页：整行容器（无卡片，靠间距/发丝线分区；焦点态见 selector_setting_row） -->
+    <!-- 设置页：一组设置行共用的半透明面板 -->
+    <style name="SettingGroup">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/shape_setting_group</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:padding">@dimen/vs_6</item>
+    </style>
+
+    <!-- 设置页：组内发丝分隔线 -->
+    <style name="SettingDivider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">@dimen/vs_1</item>
+        <item name="android:layout_marginLeft">@dimen/vs_24</item>
+        <item name="android:layout_marginRight">@dimen/vs_24</item>
+        <item name="android:background">#14FFFFFF</item>
+    </style>
+
+    <!-- 设置页：整行容器（圆角焦点块，不画底部分隔线，分隔交给 SettingDivider） -->
     <style name="SettingRow">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">@dimen/vs_60</item>
+        <item name="android:layout_height">@dimen/vs_50</item>
         <item name="android:layout_marginBottom">@dimen/vs_0</item>
         <item name="android:background">@drawable/selector_setting_row</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:orientation">horizontal</item>
-        <item name="android:paddingLeft">@dimen/vs_20</item>
-        <item name="android:paddingRight">@dimen/vs_20</item>
+        <item name="android:paddingLeft">@dimen/vs_24</item>
+        <item name="android:paddingRight">@dimen/vs_24</item>
         <item name="android:stateListAnimator">@animator/setting_row_focus</item>
     </style>
 
@@ -107,17 +132,17 @@
         <item name="android:ellipsize">middle</item>
         <item name="android:singleLine">true</item>
         <item name="android:textColor">@color/color_6CFFFFFF</item>
-        <item name="android:textSize">@dimen/ts_24</item>
+        <item name="android:textSize">@dimen/ts_20</item>
     </style>
 
     <!-- 设置页：行末箭头 -->
     <style name="SettingRowArrow">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginLeft">@dimen/vs_15</item>
-        <item name="android:layout_marginStart">@dimen/vs_15</item>
+        <item name="android:layout_marginLeft">@dimen/vs_12</item>
+        <item name="android:layout_marginStart">@dimen/vs_12</item>
         <item name="android:text">›</item>
-        <item name="android:textColor">@color/color_66FFFFFF</item>
-        <item name="android:textSize">@dimen/ts_26</item>
+        <item name="android:textColor">#4DFFFFFF</item>
+        <item name="android:textSize">@dimen/ts_24</item>
     </style>
 </resources>

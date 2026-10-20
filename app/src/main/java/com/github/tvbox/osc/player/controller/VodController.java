@@ -5,20 +5,20 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
-import android.graphics.Color;
 import android.os.Message;
+import android.text.TextUtils;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -28,11 +28,14 @@ import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.player.thirdparty.MXPlayer;
 import com.github.tvbox.osc.player.thirdparty.ReexPlayer;
+import com.github.tvbox.osc.ui.adapter.PlayerEpisodeAdapter;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.TimerMin;
 import com.orhanobut.hawk.Hawk;
+import com.owen.tvrecyclerview.widget.TvRecyclerView;
+import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 import com.studio.osc.R;
 
 import org.json.JSONException;
@@ -58,6 +61,9 @@ public class VodController extends BaseController {
     private boolean mIsDragging;
     private LinearLayout mProgressLayout;
     private TextView mProgressTv;
+    private TextView mProgressTotalTv;
+    private TextView mProgressDeltaTv;
+    private View mProgressLine;
     private ImageView mProgressImg;
     private LinearLayout mBottomLayout;
     private TextView mPlayTitleTV;
@@ -100,6 +106,7 @@ public class VodController extends BaseController {
     private String mDualtion = "00:00";
     private List<VodInfo.VodSeries> mEpisodes = new ArrayList<>();
     private int mCurrentEpisode;
+    private Dialog mEpisodeDialog;
 
     public VodController(Context context) {
         super(context);
@@ -113,12 +120,12 @@ public class VodController extends BaseController {
     protected void callBackInUi(Message msg) {
         switch (msg.what) {
             case MSG_WHAT_SHOW_SEEK: { // seek 显示
-                mProgressLayout.setVisibility(VISIBLE);
+                showProgressOverlay(true);
                 break;
             }
             case MSG_WHAT_HIDE_SEEK: { // seek 隐藏
                 L.d("case 1001");
-                mProgressLayout.setVisibility(GONE);
+                showProgressOverlay(false);
                 break;
             }
             case MSG_WHAT_SEEK_PLAY: { // 遥控按键后播放
@@ -155,6 +162,9 @@ public class VodController extends BaseController {
         mProgressLayout = findViewById(R.id.ll_progress_container);
         mProgressImg = findViewById(R.id.tv_progress_icon);
         mProgressTv = findViewById(R.id.tv_progress_text);
+        mProgressTotalTv = findViewById(R.id.tv_progress_total);
+        mProgressDeltaTv = findViewById(R.id.tv_progress_delta);
+        mProgressLine = findViewById(R.id.tv_progress_line);
         mBottomLayout = findViewById(R.id.bottom_container);
         mPlayerRetryTv = findViewById(R.id.play_retry);
         mNextBtn = findViewById(R.id.play_next);
@@ -223,6 +233,17 @@ public class VodController extends BaseController {
                 if (duration <= 0) return;
                 long newPosition = (duration * seekBar.getProgress()) / seekBar.getMax();
                 mControlWrapper.seekTo((int) newPosition);
+            }
+        });
+        // 进度条获得焦点时，时间数字转为青色，明确当前可调节进度
+        mSeekBar.setOnFocusChangeListener((view, hasFocus) -> {
+            int color = mActivity == null ? 0 : mActivity.getResources().getColor(
+                    hasFocus ? R.color.color_02F8E1 : R.color.color_CCFFFFFF);
+            if (mCurrentTimeTV != null) {
+                mCurrentTimeTV.setTextColor(color);
+            }
+            if (mTotalTimeTV != null) {
+                mTotalTimeTV.setTextColor(color);
             }
         });
         mPlayerRetryTv.setOnClickListener(v -> {
@@ -480,91 +501,70 @@ public class VodController extends BaseController {
         if (bLocked || mEpisodes.isEmpty() || mActivity == null) {
             return;
         }
-        Dialog dialog = new Dialog(mActivity);
-        LinearLayout panel = new LinearLayout(mActivity);
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(24, 28, 24, 20);
-        panel.setBackgroundResource(R.drawable.shape_player_episode_panel);
-
-        LinearLayout header = new LinearLayout(mActivity);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = new TextView(mActivity);
-        title.setText("选集");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(22);
-        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView count = new TextView(mActivity);
-        count.setText((mCurrentEpisode + 1) + " / " + mEpisodes.size());
-        count.setTextColor(Color.rgb(2, 248, 225));
-        count.setTextSize(16);
-        header.addView(count, new LinearLayout.LayoutParams(-2, -2));
-        panel.addView(header, new LinearLayout.LayoutParams(-1, -2));
-
-        TextView hint = new TextView(mActivity);
-        hint.setText("方向键选择 · 确认播放 · 返回关闭");
-        hint.setTextColor(Color.argb(170, 255, 255, 255));
-        hint.setTextSize(13);
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-1, -2);
-        hintParams.topMargin = 8;
-        hintParams.bottomMargin = 16;
-        panel.addView(hint, hintParams);
-
-        ScrollView scrollView = new ScrollView(mActivity);
-        GridLayout grid = new GridLayout(mActivity);
-        grid.setColumnCount(4);
-        grid.setUseDefaultMargins(false);
-        for (int i = 0; i < mEpisodes.size(); i++) {
-            final int episodeIndex = i;
-            Button episodeButton = new Button(mActivity);
-            String name = mEpisodes.get(i).name;
-            episodeButton.setText(name == null || name.length() == 0 ? "第" + (i + 1) + "集" : name);
-            episodeButton.setTextColor(Color.WHITE);
-            episodeButton.setTextSize(16);
-            episodeButton.setSingleLine(true);
-            episodeButton.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            episodeButton.setAllCaps(false);
-            episodeButton.setGravity(Gravity.CENTER);
-            episodeButton.setPadding(4, 0, 4, 0);
-            episodeButton.setFocusable(true);
-            episodeButton.setBackgroundResource(R.drawable.selector_player_episode_item);
-            if (i == mCurrentEpisode) {
-                episodeButton.setTextColor(Color.rgb(2, 248, 225));
-            }
-            episodeButton.setOnClickListener(view -> {
-                if (episodeIndex != mCurrentEpisode) {
-                    mCurrentEpisode = episodeIndex;
-                    updateEpisodeButton();
-                    controlListener.playEpisode(episodeIndex);
-                }
-                dialog.dismiss();
-            });
-            GridLayout.LayoutParams itemParams = new GridLayout.LayoutParams();
-            itemParams.width = 0;
-            itemParams.height = 52;
-            itemParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-            itemParams.setMargins(5, 5, 5, 5);
-            grid.addView(episodeButton, itemParams);
-            if (i == mCurrentEpisode) {
-                episodeButton.post(episodeButton::requestFocus);
-            }
+        if (mEpisodeDialog != null && mEpisodeDialog.isShowing()) {
+            return;
         }
-        scrollView.addView(grid, new ScrollView.LayoutParams(-1, -2));
-        panel.addView(scrollView, new LinearLayout.LayoutParams(-1, 0, 1));
+        Dialog dialog = new Dialog(mActivity);
+        View panel = LayoutInflater.from(mActivity).inflate(R.layout.dialog_player_episode, null);
+        TextView count = panel.findViewById(R.id.episodeCount);
+        count.setText("共 " + mEpisodes.size() + " 集");
+        TextView current = panel.findViewById(R.id.episodeCurrent);
+        current.setText(episodeName(mCurrentEpisode));
+
+        TvRecyclerView episodeGrid = panel.findViewById(R.id.episodeGrid);
+        episodeGrid.setLayoutManager(new V7GridLayoutManager(mActivity, 3));
+        PlayerEpisodeAdapter adapter = new PlayerEpisodeAdapter();
+        adapter.setNewData(new ArrayList<>(mEpisodes));
+        adapter.setCurrent(mCurrentEpisode);
+        episodeGrid.setAdapter(adapter);
+        adapter.setOnItemClickListener((baseQuickAdapter, view, position) -> {
+            if (position != mCurrentEpisode) {
+                mCurrentEpisode = position;
+                updateEpisodeButton();
+                controlListener.playEpisode(position);
+            }
+            dialog.dismiss();
+        });
+
         dialog.setContentView(panel);
         Window window = dialog.getWindow();
         if (window == null) {
             return;
         }
+        mEpisodeDialog = dialog;
+        dialog.setOnDismissListener(d -> mEpisodeDialog = null);
         window.setBackgroundDrawableResource(android.R.color.transparent);
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        window.setWindowAnimations(R.style.PlayerEpisodeWindowAnim);
         WindowManager.LayoutParams windowParams = window.getAttributes();
-        windowParams.width = (int) (mActivity.getResources().getDisplayMetrics().widthPixels * 0.43f);
-        windowParams.height = (int) (mActivity.getResources().getDisplayMetrics().heightPixels * 0.72f);
-        windowParams.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
-        windowParams.dimAmount = 0.58f;
+        windowParams.width = (int) (mActivity.getResources().getDisplayMetrics().widthPixels * 0.44f);
+        windowParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+        windowParams.gravity = Gravity.RIGHT;
+        windowParams.dimAmount = 0.55f;
         window.setAttributes(windowParams);
         dialog.show();
-        window.setLayout(windowParams.width, windowParams.height);
+        window.setLayout(windowParams.width, WindowManager.LayoutParams.MATCH_PARENT);
+        episodeGrid.post(() -> focusEpisodeItem(episodeGrid, dialog, mCurrentEpisode, 0));
+    }
+
+    private void focusEpisodeItem(TvRecyclerView grid, Dialog dialog, int position, int retry) {
+        if (!dialog.isShowing() || mActivity == null || grid.getLayoutManager() == null) {
+            return;
+        }
+        if (grid.getLayoutManager().findViewByPosition(position) != null || retry >= 10) {
+            grid.setSelection(position);
+            grid.requestFocus();
+        } else {
+            grid.postDelayed(() -> focusEpisodeItem(grid, dialog, position, retry + 1), 60);
+        }
+    }
+
+    private String episodeName(int index) {
+        if (index < 0 || index >= mEpisodes.size()) {
+            return "";
+        }
+        String name = mEpisodes.get(index).name;
+        return TextUtils.isEmpty(name) ? "第" + (index + 1) + "集" : name;
     }
 
     @Override
@@ -637,15 +637,64 @@ public class VodController extends BaseController {
 
     @Override
     protected void updateSeekUI(int curr, int seekTo, long duration) {
-        if (seekTo > curr) {
-            mProgressImg.setImageResource(R.drawable.icon_pre);
-        } else {
-            mProgressImg.setImageResource(R.drawable.icon_back);
+        boolean forward = seekTo > curr;
+        mProgressImg.setImageResource(forward ? R.drawable.icon_pre : R.drawable.icon_back);
+        mProgressTv.setText(PlayerUtils.stringForTime(seekTo));
+        if (mProgressTotalTv != null) {
+            mProgressTotalTv.setText("/ " + mDualtion);
         }
-        mProgressTv.setText(PlayerUtils.stringForTime(seekTo) + " / " + mDualtion);
+        if (mProgressDeltaTv != null) {
+            int delta = Math.abs(seekTo - curr) / 1000;
+            mProgressDeltaTv.setText((forward ? "+" : "-") + PlayerUtils.stringForTime(delta));
+        }
+        updateSeekLine(seekTo, duration);
         mBaseHandler.sendEmptyMessage(MSG_WHAT_SHOW_SEEK);
         mBaseHandler.removeMessages(MSG_WHAT_HIDE_SEEK);
         mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_HIDE_SEEK, 1000);
+    }
+
+    /**
+     * 中央拖动浮层：先轻微放大淡入，隐藏时淡出，避免生硬闪现。
+     */
+    private void showProgressOverlay(boolean show) {
+        if (mProgressLayout == null) {
+            return;
+        }
+        mProgressLayout.animate().cancel();
+        if (show) {
+            if (mProgressLayout.getVisibility() != VISIBLE) {
+                mProgressLayout.setAlpha(0f);
+                mProgressLayout.setScaleX(0.96f);
+                mProgressLayout.setScaleY(0.96f);
+                mProgressLayout.setVisibility(VISIBLE);
+                mProgressLayout.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(150).start();
+            } else {
+                mProgressLayout.animate().alpha(1f).setDuration(90).start();
+            }
+        } else if (mProgressLayout.getVisibility() == VISIBLE) {
+            mProgressLayout.animate().alpha(0f).setDuration(160).withEndAction(() -> {
+                if (mProgressLayout != null && mProgressLayout.getAlpha() < 0.5f) {
+                    mProgressLayout.setVisibility(GONE);
+                }
+            }).start();
+        }
+    }
+
+    /**
+     * 浮层里的迷你时间轴：宽度跟随拖动落点。
+     */
+    private void updateSeekLine(int seekTo, long duration) {
+        if (mProgressLine == null) {
+            return;
+        }
+        int max = getResources().getDimensionPixelSize(R.dimen.vs_300);
+        float ratio = duration > 0 ? Math.min(1f, Math.max(0f, seekTo / (float) duration)) : 0f;
+        int width = (int) (max * ratio);
+        ViewGroup.LayoutParams params = mProgressLine.getLayoutParams();
+        if (params.width != width) {
+            params.width = width;
+            mProgressLine.setLayoutParams(params);
+        }
     }
 
     @Override
@@ -802,6 +851,10 @@ public class VodController extends BaseController {
 
     public void releaseController() {
         L.d("releaseController() mTimerMin=" + mTimerMin);
+        if (mEpisodeDialog != null) {
+            mEpisodeDialog.dismiss();
+            mEpisodeDialog = null;
+        }
         if (mTimerMin != null) {
             mTimerMin.cancelTimer();
             mTimerMin = null;

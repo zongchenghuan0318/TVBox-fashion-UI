@@ -1,11 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#BFFFFFFF" />
-    <stroke
-        android:width="@dimen/vs_1"
-        android:color="#66FFFFFF" />
-    <size
-        android:width="@dimen/vs_15"
-        android:height="@dimen/vs_15" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 外圈柔光 -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#2EFFFFFF" />
+            <size
+                android:width="@dimen/vs_20"
+                android:height="@dimen/vs_20" />
+        </shape>
+    </item>
+    <!-- 内芯 -->
+    <item
+        android:bottom="@dimen/vs_5"
+        android:left="@dimen/vs_5"
+        android:right="@dimen/vs_5"
+        android:top="@dimen/vs_5">
+        <shape android:shape="oval">
+            <solid android:color="#F2FFFFFF" />
+        </shape>
+    </item>
+</layer-list>

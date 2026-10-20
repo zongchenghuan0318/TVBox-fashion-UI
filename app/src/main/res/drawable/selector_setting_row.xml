@@ -1,42 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 焦点态：填充 + 发丝描边 + 左侧强调条 -->
+    <!-- 焦点态：轻柔青色填充 + 发丝描边，行内文字保持可读 -->
     <item android:state_focused="true">
-        <layer-list>
-            <item>
-                <shape>
-                    <corners android:radius="@dimen/vs_5" />
-                    <solid android:color="@color/color_6632364E" />
-                </shape>
-            </item>
-            <item>
-                <shape>
-                    <corners android:radius="@dimen/vs_5" />
-                    <stroke android:width="@dimen/vs_1" android:color="@color/color_rail_stroke" />
-                </shape>
-            </item>
-            <item android:width="@dimen/vs_3" android:gravity="left|center_vertical">
-                <shape>
-                    <solid android:color="@color/color_0CADE2" />
-                    <corners android:topRightRadius="@dimen/vs_3" android:bottomRightRadius="@dimen/vs_3" />
-                </shape>
-            </item>
-        </layer-list>
+        <shape>
+            <corners android:radius="@dimen/vs_15" />
+            <solid android:color="#290CADE2" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#660CADE2" />
+        </shape>
     </item>
-
-    <!-- 未聚焦态：透明填充 + 底部分隔线 -->
-    <item android:state_focused="false">
-        <layer-list>
-            <item>
-                <shape>
-                    <solid android:color="@color/color_transparent" />
-                </shape>
-            </item>
-            <item android:height="@dimen/vs_1" android:gravity="bottom">
-                <shape>
-                    <solid android:color="@color/color_rail_divider" />
-                </shape>
-            </item>
-        </layer-list>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_15" />
+            <solid android:color="@color/color_transparent" />
+        </shape>
     </item>
 </selector>

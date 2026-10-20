@@ -1,39 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 轨道：一条极淡的白线，不做描边，交给上下层次区分 -->
     <item android:id="@android:id/background">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/radius_5" />
-            <gradient
-                android:angle="270"
-                android:startColor="#3DFFFFFF"
-                android:endColor="#18FFFFFF" />
-            <stroke
-                android:width="@dimen/vs_1"
-                android:color="#55FFFFFF" />
+            <corners android:radius="4mm" />
+            <solid android:color="#1FFFFFFF" />
         </shape>
     </item>
+    <!-- 缓冲：半透明白 -->
     <item android:id="@android:id/secondaryProgress">
         <clip>
             <shape android:shape="rectangle">
-                <corners android:radius="@dimen/radius_5" />
-                <gradient
-                    android:angle="270"
-                    android:startColor="#99FFFFFF"
-                    android:endColor="#45FFFFFF" />
+                <corners android:radius="4mm" />
+                <solid android:color="#47FFFFFF" />
             </shape>
         </clip>
     </item>
+    <!-- 已播放：青色时间轴，向右微微提亮 -->
     <item android:id="@android:id/progress">
         <clip>
             <shape android:shape="rectangle">
-                <corners android:radius="@dimen/radius_5" />
+                <corners android:radius="4mm" />
                 <gradient
-                    android:angle="270"
-                    android:startColor="#D902F8E1"
-                    android:endColor="#8A02BFAF" />
-                <stroke
-                    android:width="@dimen/vs_1"
-                    android:color="#AAFFFFFF" />
+                    android:angle="0"
+                    android:startColor="#B302F8E1"
+                    android:endColor="#FF02F8E1" />
             </shape>
         </clip>
     </item>

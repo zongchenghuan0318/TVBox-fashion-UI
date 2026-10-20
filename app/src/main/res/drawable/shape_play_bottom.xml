@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners
-        android:topLeftRadius="10mm"
-        android:topRightRadius="10mm" />
-    <solid android:color="@color/color_CC353744" />
+    <!-- 沉浸式字幕带：顶部全透明，向下过渡到深色，取消原来的卡片底 -->
+    <gradient
+        android:angle="270"
+        android:centerColor="#66000000"
+        android:endColor="#E6000000"
+        android:startColor="#00000000" />
 </shape>

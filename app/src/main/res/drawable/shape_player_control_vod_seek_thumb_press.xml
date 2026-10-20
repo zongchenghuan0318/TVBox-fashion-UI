@@ -1,11 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#D902F8E1" />
-    <stroke
-        android:width="@dimen/vs_1"
-        android:color="#CCFFFFFF" />
-    <size
-        android:width="@dimen/vs_20"
-        android:height="@dimen/vs_20" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 聚焦/拖动：青色光晕 + 青色内芯，明确当前操作对象 -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#3D02F8E1" />
+            <size
+                android:width="@dimen/vs_24"
+                android:height="@dimen/vs_24" />
+        </shape>
+    </item>
+    <item
+        android:bottom="@dimen/vs_4"
+        android:left="@dimen/vs_4"
+        android:right="@dimen/vs_4"
+        android:top="@dimen/vs_4">
+        <shape android:shape="oval">
+            <solid android:color="#4D02F8E1" />
+        </shape>
+    </item>
+    <item
+        android:bottom="@dimen/vs_6"
+        android:left="@dimen/vs_6"
+        android:right="@dimen/vs_6"
+        android:top="@dimen/vs_6">
+        <shape android:shape="oval">
+            <solid android:color="@color/color_02F8E1" />
+        </shape>
+    </item>
+</layer-list>
