@@ -303,7 +303,7 @@ public abstract class BaseController extends BaseVideoController implements Gest
     protected void slideToChangePosition(float deltaX) {
         deltaX = -deltaX;
         int currentPosition = (int) mControlWrapper.getCurrentPosition();
-        int position = (int) (deltaX * baseDuration / 1800f + currentPosition);
+        int position = (int) (deltaX * baseDuration / 5400f + currentPosition);
         if (position >= baseDuration) position = (int) baseDuration;
         if (position <= 0) position = 0;
         for (Map.Entry<IControlComponent, Boolean> next : mControlComponents.entrySet()) {
