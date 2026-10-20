@@ -6,6 +6,7 @@ import android.animation.IntEvaluator;
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -31,7 +32,6 @@ import com.github.tvbox.osc.ui.adapter.LiveSettingGroupAdapter;
 import com.github.tvbox.osc.ui.adapter.LiveSettingItemAdapter;
 import com.github.tvbox.osc.ui.dialog.LivePasswordDialog;
 import com.github.tvbox.osc.ui.tv.widget.ViewObj;
-import com.github.tvbox.osc.util.AppManager;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.google.gson.Gson;
@@ -201,9 +201,7 @@ public class LivePlayActivity extends BaseActivity {
             mHandler.removeCallbacks(mUpdateNetSpeedRun);
 
             UiHelper.upPlayResult(getApplicationContext());
-            //关闭所有Activity，调转到Home
-            AppManager.getInstance().finishAllActivity();
-            jumpActivity(HomeActivity.class);
+            // Return to the existing home activity so its startup loading screen is not shown again.
             super.onBackPressed();
         }
     }
@@ -813,17 +811,55 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private void initSite() {
-        List<LiveChannelGroup> list = ApiConfig.getInstance().getChannelGroupList();
+        ApiConfig apiConfig = ApiConfig.getInstance();
+        List<LiveChannelGroup> list = apiConfig.getChannelGroupList();
         if (NullUtil.isNull(list)) {
-            ApiConfig.getInstance().loadSitesFile(LivePlayActivity.this, new ApiConfig.LoadConfigCallback() {
+            apiConfig.loadSitesFile(LivePlayActivity.this, new ApiConfig.LoadConfigCallback() {
                 @Override
                 public void success() {
-                    runOnUiThread(() -> initLiveChannelList());
+                    runOnUiThread(() -> loadLiveSourceOrDefault());
                 }
             });
         } else {
-            initLiveChannelList();
+            loadLiveSourceOrDefault();
         }
+    }
+
+    private void loadLiveSourceOrDefault() {
+        ApiConfig apiConfig = ApiConfig.getInstance();
+        String liveSourceUrl = Hawk.get(
+                HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS).trim();
+        if (TextUtils.isEmpty(liveSourceUrl)) {
+            apiConfig.restoreConfiguredLives();
+            initLiveChannelList();
+            return;
+        }
+
+        showLoading();
+        apiConfig.loadLiveSources(liveSourceUrl, new ApiConfig.LiveSourceCallback() {
+            @Override
+            public void success(int loadedSources, int failedSources) {
+                runOnUiThread(() -> {
+                    if (failedSources > 0) {
+                        Toast.makeText(LivePlayActivity.this,
+                                "已加载 " + loadedSources + " 个直播源，" + failedSources + " 个源加载失败",
+                                Toast.LENGTH_LONG).show();
+                    }
+                    initLiveChannelList();
+                });
+            }
+
+            @Override
+            public void error(String message) {
+                runOnUiThread(() -> {
+                    Toast.makeText(LivePlayActivity.this,
+                            "直播源加载失败：" + message + "，改用总配置直播源",
+                            Toast.LENGTH_LONG).show();
+                    apiConfig.restoreConfiguredLives();
+                    initLiveChannelList();
+                });
+            }
+        });
     }
 
     private void initLiveChannelList() {

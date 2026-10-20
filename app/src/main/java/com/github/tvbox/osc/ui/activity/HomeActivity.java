@@ -19,6 +19,7 @@ import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.HomePageAdapter;
 import com.github.tvbox.osc.ui.adapter.SortAdapter;
+import com.github.tvbox.osc.ui.activity.LivePlayActivity;
 import com.github.tvbox.osc.ui.fragment.FirstFragment;
 import com.github.tvbox.osc.ui.fragment.GridFragment;
 import com.github.tvbox.osc.ui.tv.widget.DefaultTransformer;
@@ -100,6 +101,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mLoadingView = findViewById(R.id.loadingView);
         findViewById(R.id.layout_search2).setOnClickListener(this);
         findViewById(R.id.layout_history).setOnClickListener(this);
+        findViewById(R.id.layout_live).setOnClickListener(this);
         findViewById(R.id.layout_collect).setOnClickListener(this);
         findViewById(R.id.layout_setting).setOnClickListener(this);
         this.mMovieSortRV = findViewById(R.id.sortRV);
@@ -529,6 +531,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 break;
             case R.id.layout_history:
                 intent = new Intent(mContext, HistoryActivity.class);
+                startActivity(intent);
+                break;
+            case R.id.layout_live:
+                intent = new Intent(mContext, LivePlayActivity.class);
                 startActivity(intent);
                 break;
             case R.id.layout_collect:

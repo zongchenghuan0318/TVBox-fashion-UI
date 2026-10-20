@@ -34,11 +34,12 @@ public class ApiHistoryDialog extends BaseDialog {
         adapter.setData(data, select);
         TvRecyclerView tvRecyclerView = ((TvRecyclerView) findViewById(R.id.list));
         tvRecyclerView.setAdapter(adapter);
-        tvRecyclerView.setSelectedPosition(select);
+        int focusedPosition = select >= 0 && select < data.size() ? select : 0;
+        tvRecyclerView.setSelectedPosition(focusedPosition);
         tvRecyclerView.post(new Runnable() {
             @Override
             public void run() {
-                tvRecyclerView.scrollToPosition(select);
+                tvRecyclerView.scrollToPosition(focusedPosition);
             }
         });
     }

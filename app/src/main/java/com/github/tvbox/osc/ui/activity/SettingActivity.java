@@ -17,6 +17,7 @@ import com.github.tvbox.osc.ui.adapter.SettingPageAdapter;
 import com.github.tvbox.osc.ui.fragment.ModelSettingFragment;
 import com.github.tvbox.osc.util.AppManager;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.lcstudio.commonsurport.util.SPDataUtil;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
@@ -46,6 +47,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
     private Handler mHandler;
     private String oldHomeKey;
     private String oldApi;
+    private String oldApiConfig;
     private int homeRec;
     private int dnsOpt;
 
@@ -122,6 +124,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
 
     private void initData() {
         oldApi = Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL);
+        oldApiConfig = new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, "");
         oldHomeKey = ApiConfig.getInstance().getHomeBean().getKey();
         if(oldHomeKey == null) oldHomeKey = "";
         homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
@@ -198,6 +201,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
         //切换回自动选择，没重新加载
         if (!oldHomeKey.equals(newHomeKey)
                 || !oldApi.equals(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL))
+                || !oldApiConfig.equals(new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, ""))
                 || homeRec != Hawk.get(HawkConfig.HOME_REC, 0)
                 || dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
             AppManager.getInstance().finishAllActivity();

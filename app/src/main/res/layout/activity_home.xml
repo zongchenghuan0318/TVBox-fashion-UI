@@ -163,6 +163,40 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/layout_live"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_48"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginTop="@dimen/vs_4"
+            android:layout_marginRight="@dimen/vs_12"
+            android:background="@drawable/selector_home_rail"
+            android:clickable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/vs_16"
+            android:stateListAnimator="@animator/rail_item_focus_animator">
+
+            <ImageView
+                android:layout_width="@dimen/vs_28"
+                android:layout_height="@dimen/vs_28"
+                android:focusable="false"
+                android:src="@drawable/icon_live"
+                android:tint="@color/selector_home_rail_icon" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="@dimen/vs_12"
+                android:focusable="false"
+                android:text="直播"
+                android:textColor="@color/selector_home_rail_text"
+                android:textSize="@dimen/ts_24" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/layout_search2"
             android:layout_width="match_parent"
             android:layout_height="@dimen/vs_48"

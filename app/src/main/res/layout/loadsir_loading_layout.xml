@@ -3,11 +3,26 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ProgressBar
-        android:layout_width="@dimen/vs_50"
-        android:layout_height="@dimen/vs_50"
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:indeterminateBehavior="repeat"
-        android:indeterminateDrawable="@drawable/anim_loading"
-        android:indeterminateOnly="true" />
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ProgressBar
+            android:layout_width="@dimen/vs_50"
+            android:layout_height="@dimen/vs_50"
+            android:indeterminateBehavior="repeat"
+            android:indeterminateDrawable="@drawable/anim_loading"
+            android:indeterminateOnly="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_12"
+            android:text="小宗提醒你耐心等待…"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_22" />
+    </LinearLayout>
 </FrameLayout>

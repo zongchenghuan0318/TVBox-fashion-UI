@@ -19,7 +19,6 @@ import android.widget.Toast;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.server.ControlManager;
-import com.github.tvbox.osc.ui.activity.UiHelper;
 import com.github.tvbox.osc.ui.adapter.ApiHistoryDialogAdapter;
 import com.github.tvbox.osc.ui.tv.QRCodeGen;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -30,7 +29,6 @@ import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.FileUtil;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.SPDataUtil;
-import com.lcstudio.commonsurport.util.UIUtil;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 
@@ -64,12 +62,12 @@ public class ApiDialog extends BaseDialog {
     private TextView tvAddress;
     private TextView tvVerifyStatus;
     private EditText apiEdit;
-    private EditText etContent;
     private View btnSubmit;
     private View btnCancel;
     private View btnTest;
-    private View btnClear;
     private View btnFile;
+    private View btnSaved;
+    private View btnSaveAddress;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     /** 正在校验配置：期间禁止任何方式退出对话框 */
     private boolean mVerifying = false;
@@ -93,13 +91,14 @@ public class ApiDialog extends BaseDialog {
         qrCodeImg = findViewById(R.id.ivQRCode);
         tvAddress = findViewById(R.id.tvAddress);
         apiEdit = findViewById(R.id.ed_input);
-        etContent = findViewById(R.id.et_content);
         tvVerifyStatus = findViewById(R.id.tvVerifyStatus);
         btnSubmit = findViewById(R.id.inputSubmit);
         btnCancel = findViewById(R.id.storagePermission);
         btnTest = findViewById(R.id.tv_test_http);
-        btnClear = findViewById(R.id.tv_clear);
         btnFile = findViewById(R.id.file_open_tv);
+        btnSaved = findViewById(R.id.apiHistory);
+        btnSaveAddress = findViewById(R.id.apiSave);
+        ensureDefaultSavedConfigs();
         String api = Hawk.get(HawkConfig.API_URL);
         if (NullUtil.isNull(api)) {
             apiEdit.setHint(ApiConfig.DEFAULT_URL);
@@ -107,17 +106,6 @@ public class ApiDialog extends BaseDialog {
             apiEdit.setText(api);
             apiEdit.setSelection(api.length());
         }
-        new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                String content = mSpDataUtil.getStringValue(ApiConfig.PRE_KEY_CONFIG, "");
-                if (!NullUtil.isNull(content)) {
-                    mAct.runOnUiThread(() -> etContent.setText(content));
-                }
-            }
-        }.start();
-
         initClick();
         refreshQRCode();
     }
@@ -156,8 +144,9 @@ public class ApiDialog extends BaseDialog {
         setBtnEnabled(btnSubmit, !verifying);
         setBtnEnabled(btnCancel, !verifying);
         setBtnEnabled(btnTest, !verifying);
-        setBtnEnabled(btnClear, !verifying);
         setBtnEnabled(btnFile, !verifying);
+        setBtnEnabled(btnSaved, !verifying);
+        setBtnEnabled(btnSaveAddress, !verifying);
     }
 
     private void setBtnEnabled(View view, boolean enabled) {
@@ -177,12 +166,15 @@ public class ApiDialog extends BaseDialog {
      * 点「确定」先校验配置：校验中不可退出，校验通过才保存并关闭，失败则留在弹窗里显示具体原因
      */
     private void verifyAndSave() {
+        verifyAndApply(apiEdit.getText().toString().trim());
+    }
+
+    private void verifyAndApply(String newApi) {
         if (mVerifying) return;
-        final String newApi = apiEdit.getText().toString().trim();
-        final String content = etContent.getText().toString().trim();
-        if (NullUtil.isNull(newApi) && NullUtil.isNull(content)) {
+        final String configAddress = normalizeConfigAddress(newApi);
+        if (NullUtil.isNull(configAddress)) {
             //地址与内容都为空：沿用原逻辑，保存空配置（等价清空配置）
-            saveConfig(newApi, content);
+            saveConfig(configAddress, "");
             dismiss();
             return;
         }
@@ -192,8 +184,8 @@ public class ApiDialog extends BaseDialog {
             @Override
             public void run() {
                 super.run();
-                final ApiConfig.VerifyResult result = ApiConfig.verifyConfig(newApi, content);
-                mAct.runOnUiThread(() -> onVerifyDone(newApi, result));
+                final ApiConfig.VerifyResult result = ApiConfig.verifyConfig(configAddress, "");
+                mAct.runOnUiThread(() -> onVerifyDone(configAddress, result));
             }
         }.start();
     }
@@ -203,7 +195,6 @@ public class ApiDialog extends BaseDialog {
         if (result.ok) {
             showStatus("✓ " + result.message, STATUS_OK);
             saveConfig(newApi, result.json);
-            //校验通过后才退出：稍留片刻让用户看到结果
             mHandler.postDelayed(() -> {
                 if (isShowing()) dismiss();
             }, 800);
@@ -222,6 +213,7 @@ public class ApiDialog extends BaseDialog {
                 historyList.remove(10);
             }
             Hawk.put(HawkConfig.API_HISTORY, historyList);
+            addSavedConfig(api);
         }
         if (mListener != null) {
             mListener.onchange(api);
@@ -241,10 +233,7 @@ public class ApiDialog extends BaseDialog {
                         mAct.runOnUiThread(() -> {
                             apiEdit.setText(path);
                             apiEdit.setSelection(path.length());
-                            etContent.setText(content);
-                            if (!NullUtil.isNull(content) && !UiHelper.isJson(content)) {
-                                UIUtil.showToast(getContext(), "配置文件存在错误！");
-                            }
+                            showStatus("已选择本地配置文件，点击“应用配置”完成校验", STATUS_INFO);
                         });
                     }
                 });
@@ -252,7 +241,6 @@ public class ApiDialog extends BaseDialog {
         }
     }
 
-    String url ="";
     public void uriToFilePath(Uri uri, Context context, MyFileCallback callback ) {
         new Thread(){
             @Override
@@ -284,11 +272,6 @@ public class ApiDialog extends BaseDialog {
     }
 
     private void initClick() {
-        findViewById(R.id.tv_clear).setOnClickListener(v -> {
-            //清空
-            etContent.setText("");
-        });
-
         findViewById(R.id.file_open_tv).setOnClickListener(v -> {
             //打开文件
             if (XXPermissions.isGranted(getContext(), Permission.Group.STORAGE)) {
@@ -320,38 +303,36 @@ public class ApiDialog extends BaseDialog {
 
 
         findViewById(R.id.tv_test_http).setOnClickListener(v -> {
+            String address = normalizeConfigAddress(apiEdit.getText().toString().trim());
+            if (NullUtil.isNull(address)) {
+                showStatus("请先输入配置地址", STATUS_FAIL);
+                return;
+            }
+            showStatus("正在测试配置源，请稍候…", STATUS_INFO);
+            setVerifying(true);
             new Thread() {
                 @Override
                 public void run() {
                     super.run();
-                    url = apiEdit.getText().toString().trim();
-                    L.d("apiEdit url=" + url);
-                    String r = "";
-                    if (url.startsWith("http")) {
-                        //配置接口按 UA 分流，必须用 okhttp UA 才拿到 JSON 配置体
-                        r = ApiConfig.getWithOkhttpUA(ApiConfig.normalizeUrl(url));
-                    } else if (url.contains("clan")) {
-                        r = ApiConfig.getWithOkhttpUA(ApiConfig.normalizeUrl(UiHelper.clanToAddress(url)));
-                    } else if (new File(url).exists()) {
-                        r = FileUtil.readFile(url);
-                    } else {
-                        //裸域名与配置加载逻辑保持一致：补 http://
-                        r = ApiConfig.getWithOkhttpUA(ApiConfig.normalizeUrl("http://" + url));
-                    }
-                    String finalR = r;
+                    ApiConfig.VerifyResult result = ApiConfig.verifyConfig(address, "");
                     mAct.runOnUiThread(() -> {
-                        if (!NullUtil.isNull(finalR)) {
-                            etContent.setText(finalR);
-                            if (!UiHelper.isJson(finalR)) {
-                                UIUtil.showToast(getContext(), "配置内容json格式错误!");
-                            }
-                        } else {
-                            UIUtil.showToast(getContext(), "网络或接口不通!");
-                            etContent.setText("");
-                        }
+                        setVerifying(false);
+                        showStatus((result.ok ? "✓ " : "✗ ") + result.message,
+                                result.ok ? STATUS_OK : STATUS_FAIL);
                     });
                 }
             }.start();
+        });
+
+        btnSaveAddress.setOnClickListener(v -> {
+            String address = apiEdit.getText().toString().trim();
+            if (NullUtil.isNull(address)) {
+                showStatus("请先输入配置地址", STATUS_FAIL);
+                return;
+            }
+            addSavedConfig(address);
+            apiEdit.setText(normalizeConfigAddress(address));
+            showStatus("已保存配置地址，可从“已保存配置”中直接切换", STATUS_OK);
         });
 
         //确定：先校验配置，校验通过才保存并允许退出
@@ -360,26 +341,23 @@ public class ApiDialog extends BaseDialog {
         findViewById(R.id.apiHistory).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
-                if (history.isEmpty())
-                    return;
+                ArrayList<String> history = Hawk.get(HawkConfig.API_SAVED_CONFIGS, new ArrayList<String>());
+                if (history.isEmpty()) return;
                 String current = Hawk.get(HawkConfig.API_URL, "");
-                int idx = 0;
-                if (history.contains(current))
-                    idx = history.indexOf(current);
+                int idx = history.indexOf(current);
                 ApiHistoryDialog dialog = new ApiHistoryDialog(getContext());
-                dialog.setTip("历史配置列表");
+                dialog.setTip("已保存配置 · 点击立即切换");
                 dialog.setAdapter(new ApiHistoryDialogAdapter.SelectDialogInterface() {
                     @Override
                     public void click(String value) {
                         apiEdit.setText(value);
-                        mListener.onchange(value);
                         dialog.dismiss();
+                        verifyAndApply(value);
                     }
 
                     @Override
                     public void del(String value, ArrayList<String> data) {
-                        Hawk.put(HawkConfig.API_HISTORY, data);
+                        Hawk.put(HawkConfig.API_SAVED_CONFIGS, data);
                     }
                 }, history, idx);
                 dialog.show();
@@ -392,6 +370,39 @@ public class ApiDialog extends BaseDialog {
                 dismiss();
             }
         });
+    }
+
+    private void ensureDefaultSavedConfigs() {
+        ArrayList<String> saved = Hawk.get(HawkConfig.API_SAVED_CONFIGS, new ArrayList<String>());
+        ArrayList<String> normalized = new ArrayList<>();
+        for (String address : saved) {
+            String normalizedAddress = normalizeConfigAddress(address);
+            if (!NullUtil.isNull(normalizedAddress) && !normalized.contains(normalizedAddress)) {
+                normalized.add(normalizedAddress);
+            }
+        }
+        saved = normalized;
+        for (String address : HawkConfig.DEFAULT_API_SAVED_CONFIGS) {
+            if (!saved.contains(address)) saved.add(address);
+        }
+        Hawk.put(HawkConfig.API_SAVED_CONFIGS, saved);
+    }
+
+    private void addSavedConfig(String address) {
+        address = normalizeConfigAddress(address);
+        ArrayList<String> saved = Hawk.get(HawkConfig.API_SAVED_CONFIGS, new ArrayList<String>());
+        saved.remove(address);
+        saved.add(0, address);
+        Hawk.put(HawkConfig.API_SAVED_CONFIGS, saved);
+    }
+
+    private String normalizeConfigAddress(String address) {
+        if (NullUtil.isNull(address)) return address == null ? "" : address.trim();
+        String normalized = address.trim();
+        if (normalized.contains("://") || normalized.contains("clan") || new File(normalized).exists()) {
+            return normalized;
+        }
+        return "http://" + normalized;
     }
 
     private void startActivityContent() {

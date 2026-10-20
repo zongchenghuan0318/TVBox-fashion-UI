@@ -588,6 +588,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         OkGo.getInstance().cancelTag("detail");
         OkGo.getInstance().cancelTag("search");
         EventBus.getDefault().unregister(this);
+        if (mExecutorService != null) {
+            mExecutorService.shutdownNow();
+            mExecutorService = null;
+        }
     }
 
     @Override

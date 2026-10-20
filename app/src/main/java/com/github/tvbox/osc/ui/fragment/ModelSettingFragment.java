@@ -2,7 +2,10 @@ package com.github.tvbox.osc.ui.fragment;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.app.AlertDialog;
+import android.text.InputType;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.github.tvbox.osc.api.ApiConfig;
@@ -52,6 +55,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvRender;
     private TextView tvScale;
     private TextView tvApi;
+    private TextView tvLiveSource;
     private TextView tvHomeApi;
     private TextView tvDns;
     private TextView tvHomeRec;
@@ -86,6 +90,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvRender = findViewById(R.id.tvRenderType);
         tvScale = findViewById(R.id.tvScaleType);
         tvApi = findViewById(R.id.tvApi);
+        tvLiveSource = findViewById(R.id.tvLiveSource);
         tvHomeApi = findViewById(R.id.tvHomeApi);
         tvDns = findViewById(R.id.tvDns);
         tvHomeRec = findViewById(R.id.tvHomeRec);
@@ -96,6 +101,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
         tvParseWebView.setText("系统自带");
         tvApi.setText(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL));
+        tvLiveSource.setText(getLiveSourceSummary(Hawk.get(
+                HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS)));
         tvDns.setText(OkGoHelper.dnsHttpsList.get(Hawk.get(HawkConfig.DOH_URL, 0)));
         tvHomeRec.setText(getHomeRecName(Hawk.get(HawkConfig.HOME_REC, 0)));
         tvSearchView.setText(getSearchView(Hawk.get(HawkConfig.SEARCH_VIEW, 1)));
@@ -240,6 +247,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 mApiDialog.show();
             }
         });
+        findViewById(R.id.llLiveSource).setOnClickListener(v -> showLiveSourceDialog());
         findViewById(R.id.llMediaCodec).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -512,6 +520,40 @@ public class ModelSettingFragment extends BaseLazyFragment {
         } else {
             return "缩略图";
         }
+    }
+
+    private void showLiveSourceDialog() {
+        EditText input = new EditText(mActivity);
+        input.setSingleLine(false);
+        input.setMinLines(5);
+        input.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setHint("每行填写一个直播配置地址（可带端口）");
+        input.setText(Hawk.get(HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS));
+        input.setSelection(input.length());
+
+        new AlertDialog.Builder(mActivity)
+                .setTitle("设置直播源地址")
+                .setMessage("每行一个地址，支持 M3U 和 TVBox JSON；多个源会同时合并显示。留空则使用总配置中的直播源。保存后下次进入直播页生效。")
+                .setView(input)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String url = input.getText().toString().trim();
+                    Hawk.put(HawkConfig.LIVE_SOURCE_URL, url);
+                    tvLiveSource.setText(getLiveSourceSummary(url));
+                })
+                .setNeutralButton("清除", (dialog, which) -> {
+                    Hawk.put(HawkConfig.LIVE_SOURCE_URL, "");
+                    tvLiveSource.setText("使用总配置");
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private String getLiveSourceSummary(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return "使用默认";
+        }
+        return url.trim();
     }
 
     /** 搜索源管理入口右侧摘要：全部 / 已选 x/y / 未勾选 */

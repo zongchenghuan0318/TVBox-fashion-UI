@@ -2,7 +2,7 @@
  <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="wrap_content"
-        android:layout_height="@dimen/vs_440"
+        android:layout_height="@dimen/vs_420"
         android:layout_gravity="center"
         android:background="@drawable/shape_dialog_bg_main"
         android:orientation="horizontal"
@@ -11,11 +11,23 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
+            android:gravity="center_horizontal"
             android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/vs_15"
+                android:gravity="center"
+                android:text="配置管理"
+                android:textColor="@color/color_CC000000"
+                android:textSize="@dimen/ts_26" />
+
             <TextView
                 android:id="@+id/tvAddress"
                 android:layout_width="@dimen/vs_310"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:textColor="@color/color_CC000000"
                 android:textSize="@dimen/ts_22"
                 tools:text="1111111111111111111111111" />
@@ -29,8 +41,25 @@
         <LinearLayout
             android:layout_width="@dimen/vs_520"
             android:layout_height="match_parent"
-            android:layout_marginLeft="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_24"
             android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/vs_6"
+                android:text="选择你的点播源"
+                android:textColor="@color/color_CC000000"
+                android:textSize="@dimen/ts_24" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/vs_15"
+                android:text="添加或切换配置地址，应用前会自动检查可用性"
+                android:textColor="@color/color_6C3D3D3D"
+                android:textSize="@dimen/ts_20" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -43,7 +72,7 @@
                     android:layout_marginLeft="@dimen/vs_2"
                     android:layout_weight="1"
                     android:background="@drawable/input_dialog_api_input"
-                    android:hint="请输入配置地址"
+                    android:hint="输入配置源地址"
                     android:inputType="text"
                     android:maxLines="1"
                     android:paddingLeft="@dimen/vs_2"
@@ -76,62 +105,69 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:padding="@dimen/vs_6"
-                    android:text="..."
+                    android:text="本地文件"
                     android:textColor="@color/color_FFFFFF"
                     android:textSize="@dimen/ts_22" />
 
-                <TextView
-                    android:id="@+id/apiHistory"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:background="@drawable/button_dialog_main"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:padding="@dimen/vs_10"
-                    android:visibility="gone"
-                    android:layout_marginLeft="@dimen/vs_5"
-                    android:text="历史"
-                    android:textColor="@color/color_FFFFFF"
-                    android:textSize="@dimen/ts_22" />
             </LinearLayout>
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_margin="@dimen/vs_2"
-                android:layout_weight="1"
-                android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/et_content"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/shape_edit_bg"
-                    android:hint="配置文件内容（可直接填写）"
-                    android:padding="@dimen/vs_2"
-                    android:gravity="left|top"
-                    android:singleLine="false"
-                    android:textColor="@color/color_CC000000"
-                    android:textColorHint="@color/color_6C3D3D3D" />
-
-                <TextView
-                    android:id="@+id/tv_clear"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentRight="true"
-                    android:layout_alignParentBottom="true"
-                    android:layout_margin="@dimen/vs_10"
-                    android:background="@drawable/button_dialog_main"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:text="清空"
-                    android:padding="@dimen/vs_10"
-                    android:textColor="@color/color_FFFFFF" />
-            </RelativeLayout>
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_10"
+                android:layout_marginTop="@dimen/vs_12"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/apiHistory"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/button_dialog_main"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="@dimen/vs_10"
+                    android:text="配置库"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="@dimen/ts_20" />
+
+                <TextView
+                    android:id="@+id/apiSave"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/button_dialog_main"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="@dimen/vs_10"
+                    android:text="收藏地址"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="@dimen/ts_20" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvVerifyStatus"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="@dimen/vs_15"
+                android:layout_weight="1"
+                android:background="@drawable/shape_edit_bg"
+                android:gravity="center_vertical"
+                android:paddingLeft="@dimen/vs_20"
+                android:paddingRight="@dimen/vs_20"
+                android:maxLines="3"
+                android:text="输入或选择配置源地址，应用前会自动检查可用性"
+                android:textColor="@color/color_6C3D3D3D"
+                android:textSize="@dimen/ts_20"
+                android:visibility="visible"
+                tools:text="✓ 配置源可用" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_15"
                 android:orientation="horizontal">
 
                 <TextView
@@ -163,18 +199,6 @@
                     android:textColor="@color/color_FFFFFF"
                     android:textSize="@dimen/ts_22" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvVerifyStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_6"
-                android:lineSpacingExtra="@dimen/vs_2"
-                android:maxLines="2"
-                android:textColor="@color/color_CC000000"
-                android:textSize="@dimen/ts_20"
-                android:visibility="gone"
-                tools:text="正在校验配置，请稍候…" />
 
         </LinearLayout>
     </LinearLayout>

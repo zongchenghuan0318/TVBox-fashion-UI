@@ -57,7 +57,8 @@ public class ApiHistoryDialogAdapter extends ListAdapter<String, ApiHistoryDialo
     public void setData(List<String> newData, int defaultSelect) {
         data.clear();
         data.addAll(newData);
-        select = data.get(defaultSelect);
+        select = data.isEmpty() || defaultSelect < 0 || defaultSelect >= data.size()
+                ? "" : data.get(defaultSelect);
         notifyDataSetChanged();
     }
 
@@ -82,10 +83,9 @@ public class ApiHistoryDialogAdapter extends ListAdapter<String, ApiHistoryDialo
         holder.itemView.findViewById(R.id.tvName).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (select.equals(value))
-                    return;
-                notifyItemChanged(data.indexOf(select));
+                int previousIndex = data.indexOf(select);
                 select = value;
+                if (previousIndex >= 0) notifyItemChanged(previousIndex);
                 notifyItemChanged(data.indexOf(value));
                 dialogInterface.click(value);
             }
@@ -95,8 +95,11 @@ public class ApiHistoryDialogAdapter extends ListAdapter<String, ApiHistoryDialo
             public void onClick(View v) {
                 if (select.equals(value))
                     return;
-                notifyItemRemoved(data.indexOf(value));
+                int index = data.indexOf(value);
+                if (index < 0) return;
                 data.remove(value);
+                notifyItemRemoved(index);
+                select = "";
                 dialogInterface.del(value, data);
             }
         });

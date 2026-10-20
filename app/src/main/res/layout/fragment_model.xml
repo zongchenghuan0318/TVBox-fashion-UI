@@ -70,6 +70,28 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/llLiveSource"
+                style="@style/SettingRow">
+
+                <TextView
+                    style="@style/SettingRowTitle"
+                    android:text="直播源地址" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvLiveSource"
+                    style="@style/SettingRowValue"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
+                <TextView style="@style/SettingRowArrow" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/llHomeApi"
                 style="@style/SettingRow">
 

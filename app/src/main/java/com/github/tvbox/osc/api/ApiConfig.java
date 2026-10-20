@@ -5,6 +5,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Base64;
+import android.widget.Toast;
 
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.utils.Util;
@@ -22,6 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.github.tvbox.osc.util.MD5;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.FileUtil;
@@ -43,9 +45,15 @@ import java.net.IDN;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -68,6 +76,7 @@ public class ApiConfig {
     private final LinkedHashMap<String, SiteBean> mSiteBeanMap;
     private ParseBean mDefaultParseBean;
     private final List<LiveChannelGroup> mLiveChannelGroupList;
+    private final List<LiveChannelGroup> mConfiguredLiveChannelGroupList = new ArrayList<>();
     private final List<ParseBean> mParseBeanList;
     private List<String> mVipFlagList;
     private List<IJKCode> mIjkCodes;
@@ -111,49 +120,47 @@ public class ApiConfig {
             public void run() {
                 super.run();
                 m_bParsed = false;
+                List<String> candidates = new ArrayList<>();
+                if (!NullUtil.isNull(apiUrl)) candidates.add(apiUrl);
+                ArrayList<String> savedConfigs = Hawk.get(HawkConfig.API_SAVED_CONFIGS, new ArrayList<String>());
+                for (String savedUrl : savedConfigs) {
+                    if (!NullUtil.isNull(savedUrl) && !candidates.contains(savedUrl)) candidates.add(savedUrl);
+                }
+                for (String defaultUrl : HawkConfig.DEFAULT_API_SAVED_CONFIGS) {
+                    if (!candidates.contains(defaultUrl)) candidates.add(defaultUrl);
+                }
+                if (!candidates.contains(DEFAULT_URL)) candidates.add(DEFAULT_URL);
+
+                for (String candidate : candidates) {
+                    VerifyResult result = verifyConfig(candidate, "", LIVE_SOURCE_READ_TIMEOUT_MS);
+                    if (!result.ok) {
+                        L.w("loadSitesFile 配置源不可用 url=" + candidate + " reason=" + result.message);
+                        continue;
+                    }
+                    apiUrl = candidate;
+                    current_siteUrl = result.url;
+                    parseSiteFile(result.url, result.json);
+                    if (!candidate.equals(Hawk.get(HawkConfig.API_URL, ""))) {
+                        Hawk.put(HawkConfig.API_URL, candidate);
+                        spDataUtil.saveStringValue(PRE_KEY_CONFIG, result.json);
+                        L.w("loadSitesFile 已自动切换可用配置 url=" + candidate);
+                    }
+                    callback.success();
+                    return;
+                }
+
                 if (!NullUtil.isNull(configContent) && UiHelper.isJson(configContent)) {
-                    //测试连接有配置内容
+                    L.w("loadSitesFile 所有配置源均不可用，使用本地缓存");
                     current_siteUrl = "user config";
                     parseSiteFile(apiUrl, configContent);
-                    callback.success();
-                }  else{
-                    //对齐 v6.1.7：配置只能来自 Hawk api_url，无 assets 兜底
-                    if (NullUtil.isNull(apiUrl)) {
-                        L.w("loadSitesFile api_url 为空，无配置可加载");
-                        callback.success();
-                        return;
-                    }
-                    String siteUrl = apiUrl;
-                    String configKey = "";
-                    //单 URL 支持 "url;pk;configKey"，key 取第二段
-                    if (siteUrl.contains(";pk;")) {
-                        String[] parts = siteUrl.split(";pk;");
-                        if (parts.length >= 2) {
-                            configKey = parts[1];
-                            siteUrl = parts[0];
-                        }
-                    }
-                    if (siteUrl.contains("clan")) {
-                        siteUrl = UiHelper.clanToAddress(siteUrl);
-                    } else if (!siteUrl.contains("http")) {
-                        siteUrl = "http://" + siteUrl;
-                    }
-                    //中文等非 ASCII 域名须先转 punycode，否则 okhttp 会直接抛 "unexpected url"
-                    siteUrl = normalizeUrl(siteUrl);
-                    //该配置接口按 UA 分流：只有 okhttp UA 才返回 JSON 配置体，浏览器 UA 只会拿到下载页 HTML
-                    String r = getWithOkhttpUA(siteUrl);
-                    L.w("loadSitesFile 下载 len=" + r.length() + " head="
-                            + r.substring(0, Math.min(60, r.length())));
-                    //对齐 v6.1.7：配置体解码（base64 / AES）
-                    r = convert(r, configKey);
-                    if (!NullUtil.isNull(r) && UiHelper.isJson(r)) {
-                        current_siteUrl = siteUrl;
-                        parseSiteFile(siteUrl, r);
-                    } else {
-                        L.w("loadSitesFile 配置下载或解析失败 url=" + siteUrl);
-                    }
-                    callback.success();
+                    activity.runOnUiThread(() ->
+                            Toast.makeText(activity, "配置源暂时无法连接，已使用本地缓存", Toast.LENGTH_LONG).show());
+                } else {
+                    L.w("loadSitesFile 所有已保存配置源均不可用，且没有可用缓存");
+                    activity.runOnUiThread(() ->
+                            Toast.makeText(activity, "默认及已保存的配置源均无法连接", Toast.LENGTH_LONG).show());
                 }
+                callback.success();
             }
         }.start();
     }
@@ -248,6 +255,8 @@ public class ApiConfig {
      * 所以必须自己带上 okhttp UA 请求。
      */
     public static final String UA_OKHTTP = "okhttp/3.12.1";
+    private static final int LIVE_SOURCE_CONNECT_TIMEOUT_MS = 5000;
+    private static final int LIVE_SOURCE_READ_TIMEOUT_MS = 7000;
 
     /**
      * HTTP 请求结果：code 为响应码（-1 表示请求异常），body 为响应体，error 为异常描述
@@ -272,12 +281,24 @@ public class ApiConfig {
      * 用 OkGo 已配置好的 OkHttpClient 直接 GET（绕开 OkGo 的浏览器公共头），带出响应码与异常信息
      */
     public static HttpResult httpGetWithOkhttpUA(String url) {
+        return httpGetWithOkhttpUA(url, 0);
+    }
+
+    private static HttpResult httpGetWithOkhttpUA(String url, int timeoutMs) {
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .url(url)
                 .header("User-Agent", UA_OKHTTP)
                 .build();
         try {
-            okhttp3.Response response = OkGo.getInstance().getOkHttpClient().newCall(request).execute();
+            okhttp3.OkHttpClient client = OkGo.getInstance().getOkHttpClient();
+            if (timeoutMs > 0) {
+                client = client.newBuilder()
+                        .connectTimeout(Math.min(timeoutMs, LIVE_SOURCE_CONNECT_TIMEOUT_MS), TimeUnit.MILLISECONDS)
+                        .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                        .callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                        .build();
+            }
+            okhttp3.Response response = client.newCall(request).execute();
             try {
                 if (!response.isSuccessful()) {
                     L.w("getWithOkhttpUA 失败 code=" + response.code() + " url=" + url);
@@ -406,6 +427,10 @@ public class ApiConfig {
      * 全过程不修改 ApiConfig 单例状态，避免污染当前正在使用的配置。
      */
     public static VerifyResult verifyConfig(String rawUrl, String inlineContent) {
+        return verifyConfig(rawUrl, inlineContent, 0);
+    }
+
+    private static VerifyResult verifyConfig(String rawUrl, String inlineContent, int timeoutMs) {
         String url = rawUrl == null ? "" : rawUrl.trim();
         String content = inlineContent == null ? "" : inlineContent.trim();
         String usedUrl = url;
@@ -442,7 +467,9 @@ public class ApiConfig {
                     return new VerifyResult(false, "读取配置文件失败：" + usedUrl, "", usedUrl);
                 }
             } else {
-                HttpResult http = httpGetWithOkhttpUA(usedUrl);
+                HttpResult http = timeoutMs > 0
+                        ? httpGetWithOkhttpUA(usedUrl, timeoutMs)
+                        : httpGetWithOkhttpUA(usedUrl);
                 VerifyResult fail = httpFail(http);
                 if (fail != null) return fail;
                 content = convert(http.body, configKey);
@@ -798,7 +825,259 @@ public class ApiConfig {
         } catch (Exception e) {
             L.e(e);
         }
+        mConfiguredLiveChannelGroupList.clear();
+        mConfiguredLiveChannelGroupList.addAll(mLiveChannelGroupList);
         m_bParsed = true;
+    }
+
+    public void restoreConfiguredLives() {
+        mLiveChannelGroupList.clear();
+        mLiveChannelGroupList.addAll(mConfiguredLiveChannelGroupList);
+    }
+
+    public void loadLiveSources(String sourceUrls, LiveSourceCallback callback) {
+        new Thread(() -> {
+            ExecutorService executor = null;
+            try {
+                String rawSources = sourceUrls == null ? "" : sourceUrls.trim();
+                if (rawSources.isEmpty()) {
+                    throw new IllegalArgumentException("直播源地址为空");
+                }
+                Set<String> seenUrls = new LinkedHashSet<>();
+                List<String> uniqueSources = new ArrayList<>();
+                for (String line : rawSources.split("\\r?\\n")) {
+                    String sourceUrl = line.trim();
+                    if (sourceUrl.isEmpty() || sourceUrl.startsWith("#")) continue;
+                    if (!sourceUrl.startsWith("http://") && !sourceUrl.startsWith("https://")) {
+                        sourceUrl = "http://" + sourceUrl;
+                    }
+                    sourceUrl = normalizeUrl(sourceUrl);
+                    if (seenUrls.add(getLiveSourceDedupKey(sourceUrl))) uniqueSources.add(sourceUrl);
+                }
+
+                executor = Executors.newFixedThreadPool(Math.min(uniqueSources.size(), 5));
+                List<Future<LiveSourceResult>> futures = new ArrayList<>();
+                for (String sourceUrl : uniqueSources) {
+                    futures.add(executor.submit(() -> fetchLiveSource(sourceUrl)));
+                }
+
+                JsonArray mergedLives = new JsonArray();
+                List<String> errors = new ArrayList<>();
+                int loadedSources = 0;
+                for (int i = 0; i < futures.size(); i++) {
+                    LiveSourceResult result;
+                    try {
+                        result = futures.get(i).get(
+                                LIVE_SOURCE_READ_TIMEOUT_MS + LIVE_SOURCE_CONNECT_TIMEOUT_MS,
+                                TimeUnit.MILLISECONDS);
+                    } catch (Exception e) {
+                        futures.get(i).cancel(true);
+                        errors.add(uniqueSources.get(i) + "：" + e.getMessage());
+                        continue;
+                    }
+                    if (result.error != null) {
+                        errors.add(uniqueSources.get(i) + "：" + result.error);
+                        continue;
+                    }
+                    mergeLiveGroups(mergedLives, result.lives);
+                    loadedSources++;
+                }
+                if (mergedLives.size() == 0) {
+                    throw new IllegalStateException(errors.isEmpty()
+                            ? "所有直播源都没有可用频道"
+                            : "没有直播源加载成功：" + errors.get(0));
+                }
+                loadLives(mergedLives);
+                callback.success(loadedSources, errors.size());
+            } catch (Exception e) {
+                L.w("loadLiveSources 失败：" + e.getMessage());
+                callback.error(e.getMessage() == null ? "未知错误" : e.getMessage());
+            } finally {
+                if (executor != null) {
+                    executor.shutdownNow();
+                }
+            }
+        }, "load-live-sources").start();
+    }
+
+    private LiveSourceResult fetchLiveSource(String sourceUrl) {
+        HttpResult response = httpGetWithOkhttpUA(sourceUrl, LIVE_SOURCE_READ_TIMEOUT_MS);
+        if (!response.ok()) {
+            String reason = response.error.isEmpty() ? "HTTP " + response.code : response.error;
+            return new LiveSourceResult(null, reason);
+        }
+
+        try {
+            JsonArray sourceLives;
+            JsonArray lives = parseLiveJson(response.body);
+            if (lives != null) {
+                if (lives.size() == 0) {
+                    throw new IllegalArgumentException("直播配置中没有频道分组");
+                }
+                sourceLives = new JsonArray();
+                for (JsonElement group : lives) {
+                    if (!group.isJsonObject()
+                            || !group.getAsJsonObject().has("group")
+                            || !group.getAsJsonObject().has("channels")
+                            || !group.getAsJsonObject().get("channels").isJsonArray()) {
+                        throw new IllegalArgumentException("直播 JSON 分组缺少 group 或 channels");
+                    }
+                    JsonObject copy = group.getAsJsonObject().deepCopy();
+                    for (JsonElement channelElement : copy.getAsJsonArray("channels")) {
+                        JsonObject channel = channelElement.getAsJsonObject();
+                        JsonArray urls = channel.getAsJsonArray("urls");
+                        if (urls == null) channel.add("urls", new JsonArray());
+                    }
+                    sourceLives.add(copy);
+                }
+            } else {
+                sourceLives = parseM3uLives(response.body);
+                if (sourceLives.size() == 0) {
+                    throw new IllegalArgumentException("M3U 中未找到频道");
+                }
+            }
+            return new LiveSourceResult(sourceLives, null);
+        } catch (Exception e) {
+            return new LiveSourceResult(null, e.getMessage() == null ? "直播配置解析失败" : e.getMessage());
+        }
+    }
+
+    private static class LiveSourceResult {
+        final JsonArray lives;
+        final String error;
+
+        LiveSourceResult(JsonArray lives, String error) {
+            this.lives = lives;
+            this.error = error;
+        }
+    }
+
+    private JsonArray parseLiveJson(String content) {
+        try {
+            JsonElement root = new JsonParser().parse(content);
+            if (root.isJsonArray()) return root.getAsJsonArray();
+            if (root.isJsonObject() && root.getAsJsonObject().has("lives")
+                    && root.getAsJsonObject().get("lives").isJsonArray()) {
+                return root.getAsJsonObject().getAsJsonArray("lives");
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private JsonArray parseM3uLives(String content) {
+        Map<String, JsonArray> groups = new LinkedHashMap<>();
+        String channelName = null;
+        String groupName = null;
+        for (String rawLine : content.split("\\r?\\n")) {
+            String line = rawLine.trim();
+            if (line.isEmpty()) continue;
+            if (line.startsWith("#EXTINF")) {
+                int comma = line.lastIndexOf(',');
+                channelName = comma >= 0 ? line.substring(comma + 1).trim() : "";
+                groupName = getM3uAttribute(line, "group-title");
+                if (groupName.isEmpty()) groupName = "其他";
+            } else if (!line.startsWith("#") && channelName != null && !channelName.isEmpty()) {
+                JsonArray channels = groups.get(groupName);
+                if (channels == null) {
+                    channels = new JsonArray();
+                    groups.put(groupName, channels);
+                }
+                JsonObject channel = new JsonObject();
+                channel.addProperty("name", channelName);
+                JsonArray urls = new JsonArray();
+                urls.add(line);
+                channel.add("urls", urls);
+                channels.add(channel);
+                channelName = null;
+                groupName = null;
+            }
+        }
+        JsonArray lives = new JsonArray();
+        for (Map.Entry<String, JsonArray> entry : groups.entrySet()) {
+            JsonObject group = new JsonObject();
+            group.addProperty("group", entry.getKey());
+            group.add("channels", entry.getValue());
+            lives.add(group);
+        }
+        return lives;
+    }
+
+    private void mergeLiveGroups(JsonArray target, JsonArray source) {
+        Map<String, JsonObject> groupsByName = new LinkedHashMap<>();
+        for (JsonElement element : target) {
+            JsonObject group = element.getAsJsonObject();
+            groupsByName.put(group.get("group").getAsString(), group);
+        }
+        for (JsonElement element : source) {
+            JsonObject sourceGroup = element.getAsJsonObject();
+            String name = sourceGroup.get("group").getAsString().trim();
+            JsonObject targetGroup = groupsByName.get(name);
+            if (targetGroup == null) {
+                targetGroup = new JsonObject();
+                targetGroup.addProperty("group", name);
+                targetGroup.add("channels", new JsonArray());
+                target.add(targetGroup);
+                groupsByName.put(name, targetGroup);
+            }
+            mergeLiveChannels(targetGroup.getAsJsonArray("channels"),
+                    sourceGroup.getAsJsonArray("channels"));
+        }
+    }
+
+    private void mergeLiveChannels(JsonArray target, JsonArray source) {
+        Map<String, JsonObject> channelsByName = new LinkedHashMap<>();
+        for (JsonElement element : target) {
+            JsonObject channel = element.getAsJsonObject();
+            channelsByName.put(channel.get("name").getAsString().trim().toLowerCase(), channel);
+        }
+        for (JsonElement element : source) {
+            JsonObject sourceChannel = element.getAsJsonObject();
+            String name = sourceChannel.get("name").getAsString().trim();
+            String key = name.toLowerCase();
+            JsonObject targetChannel = channelsByName.get(key);
+            if (targetChannel == null) {
+                targetChannel = sourceChannel.deepCopy();
+                targetChannel.addProperty("name", name);
+                target.add(targetChannel);
+                channelsByName.put(key, targetChannel);
+                continue;
+            }
+
+            JsonArray targetUrls = targetChannel.getAsJsonArray("urls");
+            if (targetUrls == null) {
+                targetUrls = new JsonArray();
+                targetChannel.add("urls", targetUrls);
+            }
+            JsonArray sourceUrls = sourceChannel.getAsJsonArray("urls");
+            if (sourceUrls == null) continue;
+            Set<String> existingUrls = new LinkedHashSet<>();
+            for (JsonElement url : targetUrls) {
+                existingUrls.add(getLiveUrlKey(url.getAsString()));
+            }
+            for (JsonElement url : sourceUrls) {
+                String value = url.getAsString();
+                if (existingUrls.add(getLiveUrlKey(value))) targetUrls.add(value);
+            }
+        }
+    }
+
+    private String getLiveUrlKey(String value) {
+        String[] parts = value.split("\\$", 2);
+        return parts[0].trim();
+    }
+
+    private String getM3uAttribute(String line, String attribute) {
+        Matcher matcher = Pattern.compile("(?:^|\\s)" + Pattern.quote(attribute)
+                + "=\"([^\"]*)\"").matcher(line);
+        return matcher.find() ? matcher.group(1).trim() : "";
+    }
+
+    private String getLiveSourceDedupKey(String url) {
+        Uri uri = Uri.parse(url);
+        return String.valueOf(uri.getHost()) + ":" + uri.getPort()
+                + uri.getPath() + "?" + uri.getQuery();
     }
 
     public void loadLives(JsonArray livesArray) {
@@ -920,6 +1199,11 @@ public class ApiConfig {
 
     public interface LoadConfigCallback {
         void success();
+    }
+
+    public interface LiveSourceCallback {
+        void success(int loadedSources, int failedSources);
+        void error(String message);
     }
 
     public interface InitHomeCallback {

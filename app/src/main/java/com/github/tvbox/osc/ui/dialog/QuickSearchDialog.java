@@ -107,7 +107,7 @@ public class QuickSearchDialog extends BaseDialog {
         setOnDismissListener(new DialogInterface.OnDismissListener() {
             @Override
             public void onDismiss(DialogInterface dialog) {
-                EventBus.getDefault().unregister(this);
+                EventBus.getDefault().unregister(QuickSearchDialog.this);
             }
         });
         mRv = findViewById(R.id.sortRV);

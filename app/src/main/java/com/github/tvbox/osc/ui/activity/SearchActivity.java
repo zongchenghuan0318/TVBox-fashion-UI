@@ -58,6 +58,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -80,10 +81,11 @@ public class SearchActivity extends BaseActivity {
     private String searchWord = "";
     private SPDataUtil spDataUtil = null;
     public ExecutorService mExecutorService;
-    private int searchRequestId;
+    private final List<Future<?>> searchTasks = new ArrayList<>();
+    private volatile int searchRequestId;
     private int searchSourceCount;
     private int completedSearchSources;
-    private boolean searchFinished;
+    private volatile boolean searchFinished;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private final Runnable searchTimeout = new Runnable() {
         @Override
@@ -216,6 +218,7 @@ public class SearchActivity extends BaseActivity {
                 FastClickCheckUtil.check(view);
                 Movie.Video video = searchResultAdapter.getData().get(position);
                 if (video != null) {
+                    stopSearchRequests();
                     Bundle bundle = new Bundle();
                     bundle.putString("id", video.id);
                     bundle.putString("sourceKey", video.sourceKey);
@@ -495,7 +498,7 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void search(String wd) {
-        OkGo.getInstance().cancelTag("search");
+        stopSearchRequests();
         searchHandler.removeCallbacks(searchTimeout);
         searchRequestId++;
         searchFinished = false;
@@ -547,14 +550,30 @@ public class SearchActivity extends BaseActivity {
             return;
         }
         searchSourceCount = siteBeans.size();
+        final int requestId = searchRequestId;
+        final String query = searchWord;
         for (final SiteBean siteBean : siteBeans) {
-            mExecutorService.submit(new Runnable() {
+            searchTasks.add(mExecutorService.submit(new Runnable() {
                 @Override
                 public void run() {
-                    sourceViewModel.getSearch(siteBean.getKey(), searchWord, searchRequestId);
+                    if (searchFinished || requestId != searchRequestId
+                            || Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+                    sourceViewModel.getSearch(siteBean.getKey(), query, requestId);
                 }
-            });
+            }));
         }
+    }
+
+    private void stopSearchRequests() {
+        searchFinished = true;
+        searchHandler.removeCallbacks(searchTimeout);
+        OkGo.getInstance().cancelTag("search");
+        for (Future<?> task : searchTasks) {
+            task.cancel(true);
+        }
+        searchTasks.clear();
     }
 
     private void showSearchData(AbsXml absXml) {
@@ -590,10 +609,7 @@ public class SearchActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        searchFinished = true;
-        searchHandler.removeCallbacks(searchTimeout);
-        searchHandler.removeCallbacks(searchTimeout);
-        OkGo.getInstance().cancelTag("search");
+        stopSearchRequests();
         EventBus.getDefault().unregister(this);
         // 释放聚合搜索线程池，避免退出搜索页后仍存活 5 条线程
         if (mExecutorService != null) {

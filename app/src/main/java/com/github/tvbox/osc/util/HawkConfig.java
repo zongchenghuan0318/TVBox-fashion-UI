@@ -8,6 +8,17 @@ package com.github.tvbox.osc.util;
 public class HawkConfig {
     public static final String API_URL = "api_url";
     public static final String API_HISTORY = "api_history";
+    public static final String API_SAVED_CONFIGS = "api_saved_configs";
+    public static final String[] DEFAULT_API_SAVED_CONFIGS = {
+            "https://tv.xn--yhqu5zs87a.top",
+            "http://www.xn--sss604efuw.cc/tv",
+            "http://xn--z7x900a.net/tv",
+            "http://tvbox.xn--4kq62z5rby2qupq9ub.top/",
+            "https://9280.kstore.vip/newwex.json",
+            "http://www.饭太硬.net/tv",
+            "http://肥猫.net/",
+            "http://xhztv.top/xhz"
+    };
     public static final String HOME_API = "home_api";
     public static final String USER_HOME_API = "user_home_api";
     public static final String EXTRA_SITE_VER = "extra_site_ver";//内置采集源版本，升级时清掉一次旧的自动首页源缓存
@@ -33,6 +44,13 @@ public class HawkConfig {
     public static final String SEARCH_SITE_ORDER = "search_site_order"; // 参与搜索的站点 key 顺序：勾选先后即所有搜索界面的展示顺序
     public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 文采秒播最高」
     public static final String LIVE_CHANNEL = "last_live_channel_name";
+    public static final String LIVE_SOURCE_URL = "live_source_urls";
+    public static final String DEFAULT_LIVE_SOURCE_URLS =
+            "193.123.86.190:14888/TV/iptv.php\n"
+                    + "sub.ottiptv.cc/huyayqk.m3u\n"
+                    + "sub.ottiptv.cc/douyuyqk.m3u\n"
+                    + "https://iptv-org.github.io/iptv/countries/cn.m3u\n"
+                    + "https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u";
     public static final String LIVE_CHANNEL_REVERSE = "live_channel_reverse";
     public static final String LIVE_CROSS_GROUP = "live_cross_group";
     public static final String LIVE_CONNECT_TIMEOUT = "live_connect_timeout";
