@@ -190,6 +190,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
                     hideTipsView();
+                } else if (playState == VideoView.STATE_BUFFERED) {
+                    hideTipsView();
                 } else if (playState == VideoView.STATE_ERROR && playbackStartPending) {
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
