@@ -65,11 +65,93 @@ Z影视 是一款多源聚合的影视客户端。它自己不提供片源，而
 - 配置地址校验：校验通过后才保存，校验期间锁定不可退出，失败时显示具体原因，并同时展示站点总数与可搜索站点数
 - 分组：接口与数据源（设置配置文件 / 默认网站）、首页与搜索（首页推荐 / 搜索展示 / 搜索源管理）、播放（播放器 / IJK 解码方式）、其他（分享给好友 / 关于）
 
+## 源码结构
+
+Gradle 多模块工程，`rootProject.name = "MoviePlayer"`，仅含 `app`（主应用）与 `player`（播放内核）两个模块。
+
+```
+tvbox_source/
+├── app/                        主应用模块（applicationId com.studio.osc）
+├── player/                     播放器模块：IJK 内核 + 播放器框架
+├── gradle/                     Gradle Wrapper 与国内镜像配置
+├── build.gradle                根构建脚本
+├── settings.gradle             模块声明（include ':app' ':player'）
+├── gradle.properties
+├── site.json                   内置站点配置示例
+├── README.md / README.en.md / 使用指南.md
+└── LICENSE
+```
+
+### app 模块
+
+```
+app/
+├── libs/
+│   ├── thunder.jar             迅雷下载支持
+│   └── uiSupport-release.aar   闭源 UI 支持库（附带更新/上报能力，见免责声明）
+└── src/main/
+    ├── AndroidManifest.xml     入口为 HomeActivity（MAIN + LEANBACK_LAUNCHER）
+    ├── assets/
+    │   ├── tvbox.jar           内置爬虫包，运行时由 DexClassLoader 动态加载
+    │   ├── js/                 JS 爬虫引擎与依赖（drpy、cat.js、cheerio、crypto-js、pako 等）
+    │   ├── parse.html          内置解析页
+    │   └── site.json / site_muti.json / readme.json
+    ├── python/                 Chaquopy Python 爬虫运行时（app.py / runner.py / trigger.py / base/spider.py）
+    ├── java/com/github/
+    │   ├── tvbox/osc/          本项目主体代码（详见下表）
+    │   ├── catvod/             爬虫加载与执行（JarLoader、crawler、utils）
+    │   ├── com/fongmi/quickjs/ QuickJS 引擎适配（bean / method / utils）
+    │   └── okhttp3/dnsoverhttps/  安全 DNS（DoH）
+    └── res/                    layout(54) / drawable(96) / values + values-sw600dp / xml / raw / animator
+```
+
+### com/github/tvbox/osc 包说明
+
+| 包 | 文件数 | 职责 |
+| --- | --- | --- |
+| `api` | 2 | `ApiConfig`（配置解析、站点管理、默认配置地址）、`BaseLoader` |
+| `base` | 3 | `App`、`BaseActivity`、`BaseLazyFragment` 等基类 |
+| `bean` | 17 | 数据模型（影片、站点、搜索结果等） |
+| `cache` | 8 | Room 数据库与本地缓存（收藏、历史、播放记录） |
+| `callback` / `data` / `event` | 2 / 2 / 4 | 回调封装、全局数据、EventBus 事件 |
+| `player` | 1+3+2+2 | 播放内核接入：`IjkMediaPlayer`、`VodController` / `LiveController`、渲染与第三方播放器（MX / Reex） |
+| `receiver` | 3 | 开机自启、外部搜索与自定义 Web 广播接收 |
+| `server` | 7 | 局域网 HTTP 服务与口令投屏（`RemoteServer`、`ControlManager` 等） |
+| `ui.activity` | 11 | `HomeActivity`（入口）、`PlayActivity`、`SearchActivity`、`DetailActivity`、`SettingActivity`、`CollectActivity`、`HistoryActivity`、`PushActivity`、`LivePlayActivity` 等 |
+| `ui.fragment` | 3 | `FirstFragment`（首页）、`GridFragment`（分类 / 收藏 / 历史网格）、`ModelSettingFragment` |
+| `ui.adapter` | 25 | 各页面的 RecyclerView 适配器 |
+| `ui.dialog` | 12 | 设置项、配置地址、备份、选集、快速搜索、搜索站点等对话框 |
+| `ui.tv` + `ui.tv.widget` | 1 + 9 | TV 端控件：首页卡片 `HomeCardRecyclerView`、虚拟键盘、跑马灯、不滚动 ViewPager 等 |
+| `util` | 12 (+js 5 / python 1 / SSL 1 / thunder 1) | `OkGoHelper`、`HawkConfig`、`FileUtils`、`AppManager`、`MD5`、`SharpenTransformation` 等 |
+| `viewmodel` | 1 | `SourceViewModel`（搜索聚合） |
+
+### player 模块
+
+```
+player/src/main/
+├── java/tv/danmaku/ijk/         IJKPlayer 内核（含 media / ffmpeg / annotations）
+├── java/xyz/doikki/videoplayer/ 播放器框架（exo / ijk / controller / render / util）
+├── jniLibs/armeabi-v7a/        仅保留 armeabi-v7a 原生库
+└── res/values/
+```
+
+### 构建技术栈
+
+| 项 | 值 |
+| --- | --- |
+| 语言 / 构建 | Java 8、Gradle、`compileSdk 30` / `buildTools 30.0.3` |
+| 兼容性 | `minSdk 21` / `targetSdk 28`，仅 `armeabi-v7a`，开启 multiDex |
+| 数据 | Room 2.3.0、Hawk、Gson |
+| 网络 | OkGo 3.0.4、OkHttp 3.12.1、DoH（dnsoverhttps） |
+| UI | Glide 3.7.0、BaseRecyclerViewAdapterHelper、TV-RecyclerView、LoadSir、AutoSize |
+| 脚本运行时 | QuickJS（`wang.harlon.quickjs` 2.4.5）、Chaquopy Python 3.8（含 requests / bs4 / lxml / pyquery / pycryptodome） |
+| 本地服务 | NanoHTTPD 2.3.1 |
+
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
-| [README.md](./README.md) | 项目介绍、主要功能、构建与免责声明 |
+| [README.md](./README.md) | 项目介绍、主要功能、源码结构、构建与免责声明 |
 | [使用指南](./使用指南.md) | 面向用户的操作手册：安装、首次启动、遥控器按键、首页 / 分类 / 搜索 / 详情 / 播放 / 收藏历史、设置项逐条说明、常见问题 FAQ |
 
 ## 构建
