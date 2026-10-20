@@ -326,23 +326,30 @@ public class LivePlayActivity extends BaseActivity {
     private boolean playChannel(int group, int channel, boolean bChangeSource) {
         L.d("playChannel() group=" + group + " channel=" + channel
                 + "\tchangeSource=" + bChangeSource);
+        if (!isActivityActive() || mVideoView == null) return false;
+        LiveChannelItem targetChannel = currentLiveChannelItem;
+        if (bChangeSource) {
+            if (targetChannel == null) return false;
+        } else {
+            if (group < 0 || group >= mChannelGroupList.size()) return false;
+            ArrayList<LiveChannelItem> channels = getGroupLiveChannels(group);
+            if (channels == null || channel < 0 || channel >= channels.size()) return false;
+            targetChannel = channels.get(channel);
+            if (targetChannel == null) return false;
+        }
         if ((group == groupIndex && channel == channelIndex && !bChangeSource)
-                || (bChangeSource && currentLiveChannelItem.getSourceNum() == 1)) {
+                || (bChangeSource && targetChannel.getSourceNum() <= 1)) {
             showChannelInfo();
             L.d("playChannel() return  ");
             return true;
         }
+        mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
+        sourceTimes = 0;
         mVideoView.release();
         if (!bChangeSource) {
             groupIndex = group;
             channelIndex = channel;
-            if (null != getGroupLiveChannels(groupIndex)) {
-                currentLiveChannelItem = getGroupLiveChannels(groupIndex).get(channelIndex);
-            }
-            if (null == currentLiveChannelItem) {
-                L.d("null == currentLiveChannelItem");
-                return true;
-            }
+            currentLiveChannelItem = targetChannel;
             Hawk.put(HawkConfig.LIVE_CHANNEL, currentLiveChannelItem.getChannelName());
             livePlayerManager.getLiveChannelPlayer(mVideoView, currentLiveChannelItem.getChannelName());
         }
@@ -511,6 +518,7 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private Runnable mConnectTimeoutChangeSourceRun = () -> {
+        if (!isActivityActive() || mVideoView == null || currentLiveChannelItem == null) return;
         sourceTimes++;
         if (currentLiveChannelItem.getSourceNum() <= sourceTimes) {
             sourceTimes = 0;
@@ -758,7 +766,13 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private void clickSettingItem(int position) {
+        if (!isActivityActive() || mVideoView == null || currentLiveChannelItem == null) return;
         int settingGroupIndex = liveSettingGroupAdapter.getSelectedGroupIndex();
+        if (settingGroupIndex < 0 || settingGroupIndex >= mSettingGroupList.size()
+                || position < 0
+                || position >= mSettingGroupList.get(settingGroupIndex).getLiveSettingItems().size()) {
+            return;
+        }
         if (settingGroupIndex < 4) {
             if (position == liveSettingItemAdapter.getSelectedItemIndex())
                 return;
@@ -817,7 +831,11 @@ public class LivePlayActivity extends BaseActivity {
             apiConfig.loadSitesFile(LivePlayActivity.this, new ApiConfig.LoadConfigCallback() {
                 @Override
                 public void success() {
-                    runOnUiThread(() -> loadLiveSourceOrDefault());
+                    runOnUiThread(() -> {
+                        if (isActivityActive()) {
+                            loadLiveSourceOrDefault();
+                        }
+                    });
                 }
             });
         } else {
@@ -825,7 +843,12 @@ public class LivePlayActivity extends BaseActivity {
         }
     }
 
+    private boolean isActivityActive() {
+        return !isFinishing() && !isDestroyed();
+    }
+
     private void loadLiveSourceOrDefault() {
+        if (!isActivityActive() || mVideoView == null) return;
         ApiConfig apiConfig = ApiConfig.getInstance();
         String liveSourceUrl = Hawk.get(
                 HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS).trim();
@@ -840,6 +863,7 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void success(int loadedSources, int failedSources) {
                 runOnUiThread(() -> {
+                    if (!isActivityActive()) return;
                     if (failedSources > 0) {
                         Toast.makeText(LivePlayActivity.this,
                                 "已加载 " + loadedSources + " 个直播源，" + failedSources + " 个源加载失败",
@@ -852,6 +876,7 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void error(String message) {
                 runOnUiThread(() -> {
+                    if (!isActivityActive()) return;
                     Toast.makeText(LivePlayActivity.this,
                             "直播源加载失败：" + message + "，改用总配置直播源",
                             Toast.LENGTH_LONG).show();
@@ -863,6 +888,7 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private void initLiveChannelList() {
+        if (!isActivityActive() || mVideoView == null) return;
         L.d("initLiveChannelList()");
         List<LiveChannelGroup> list = ApiConfig.getInstance().getChannelGroupList();
         if (NullUtil.isNull(list)) {
@@ -893,12 +919,14 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void onError(Response<String> response) {
                 super.onError(response);
+                if (!isActivityActive()) return;
                 L.d("onError "+response.body());
                 Toast.makeText(App.getInstance(), "加载代理频道错误"+response.body(), Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onSuccess(Response<String> response) {
+                if (!isActivityActive() || mVideoView == null) return;
                 L.d("onSuccess "+response.body());
                 JsonArray livesArray = new Gson().fromJson(response.body(), JsonArray.class);
                 ApiConfig.getInstance().loadLives(livesArray);
@@ -912,6 +940,7 @@ public class LivePlayActivity extends BaseActivity {
                 mChannelGroupList.addAll(list);
 
                 mHandler.post(() -> {
+                    if (!isActivityActive() || mVideoView == null) return;
                     LivePlayActivity.this.showSuccess();
                     initLiveState();
                 });
@@ -920,6 +949,7 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private void initLiveState() {
+        if (!isActivityActive() || mVideoView == null) return;
         L.d("initLiveState()");
         String lastChannelName = Hawk.get(HawkConfig.LIVE_CHANNEL, "");
 

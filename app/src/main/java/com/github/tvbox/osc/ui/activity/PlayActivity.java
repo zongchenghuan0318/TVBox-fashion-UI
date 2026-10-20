@@ -173,6 +173,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         }
     }
 
+    private boolean isActivityActive() {
+        return !isFinishing() && !isDestroyed();
+    }
+
     private void initView() {
         mVideoView = findViewById(R.id.mVideoView);
         mTimeTV = findViewById(R.id.system_time_tv);
@@ -278,11 +282,20 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void preGetPlayUrl() {
+        if (!isActivityActive() || mVodInfo == null || mVodInfo.seriesMap == null
+                || mVodInfo.playFlag == null || mHandler == null || mController == null) {
+            return;
+        }
+        java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (episodes == null || mVodInfo.playIndex < 0 || mVodInfo.playIndex >= episodes.size()) {
+            L.e("preGetPlayUrl() ignored because current episode is invalid");
+            return;
+        }
         L.d("preGetPlayUrl() start");
         mHandler.removeCallbacks(playbackStartTimeout);
         playbackStartPending = true;
         mHandler.postDelayed(playbackStartTimeout, 20000L);
-        VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex);
+        VodInfo.VodSeries vs = episodes.get(mVodInfo.playIndex);
         EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, mVodInfo.playIndex));
         showTipsView("正在获取播放信息", true, false);
         String title = mVodInfo.name + " " + vs.name;
@@ -405,13 +418,24 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void errorWithRetry(String err, boolean finish) {
+        if (!isActivityActive() || mVodInfo == null || mVodInfo.seriesMap == null
+                || mVodInfo.playFlag == null || mHandler == null) {
+            return;
+        }
+        java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (episodes == null || mVodInfo.playIndex < 0 || mVodInfo.playIndex >= episodes.size()) {
+            L.e("errorWithRetry() ignored because current episode is invalid");
+            return;
+        }
         L.d("errorWithRetry() "+err);
         mHandler.removeCallbacks(playbackStartTimeout);
         playbackStartPending = false;
-        VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex);
-        String site = ApiConfig.getInstance().getSiteBean(mVodInfo.sourceKey).getName();
+        VodInfo.VodSeries vs = episodes.get(mVodInfo.playIndex);
+        SiteBean siteBean = ApiConfig.getInstance().getSiteBean(mVodInfo.sourceKey);
+        String site = siteBean == null ? mVodInfo.sourceKey : siteBean.getName();
         PrintUtil.saveError(site + "|" + mVodInfo.name + vs.name, err);
         runOnUiThread(() -> {
+            if (!isActivityActive()) return;
             if (!doRetry()) {
                 if (finish) {
                     Toast.makeText(mContext, err, Toast.LENGTH_SHORT).show();
@@ -450,15 +474,29 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private void playVideo(final String url, HashMap<String, String> headers) {
         L.d("playVideo() stop if url==null, url=" + url);
         runOnUiThread(() -> {
+            if (!isActivityActive() || mVideoView == null || mVodInfo == null
+                    || mVodInfo.seriesMap == null || mVodInfo.playFlag == null
+                    || mPlayBean == null || mController == null) {
+                return;
+            }
+            java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+            if (episodes == null || mVodInfo.playIndex < 0 || mVodInfo.playIndex >= episodes.size()) {
+                L.e("playVideo() ignored because current episode is invalid");
+                return;
+            }
             stopParse();
-            VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex);
+            VodInfo.VodSeries vs = episodes.get(mVodInfo.playIndex);
             String playTitle = mVodInfo.name + " " + vs.name;
-            String site = ApiConfig.getInstance().getSiteBean(mVodInfo.sourceKey).getName();
-            if (mVideoView != null) {
-                //停止播放， 再开始
-                mVideoView.release();
-                String playUrl = url;
-                if (!NullUtil.isNull(playUrl)) {
+            SiteBean siteBean = ApiConfig.getInstance().getSiteBean(mVodInfo.sourceKey);
+            String site = siteBean == null ? mVodInfo.sourceKey : siteBean.getName();
+            if (mVodPlayerCfgJsonObject == null) {
+                L.e("playVideo() ignored because player configuration is missing");
+                return;
+            }
+            //停止播放， 再开始
+            mVideoView.release();
+            String playUrl = url;
+            if (!NullUtil.isNull(playUrl)) {
                     showTipsView("缓冲中...", true, false);
                     //修复鑫鑫影视播放地址错误问题
                     if (playUrl.contains("bf.hhuus.com")) {
@@ -504,7 +542,6 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     showOverlaysThenAutoHide();
                     mController.resetSpeed();
                     insertVod(mSourceKeyStr, mVodInfo);
-                }
             }
         });
     }
@@ -603,7 +640,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.movie_name_tv:
-                if (mController.bLocked) {
+                if (mController != null && mController.bLocked) {
                     mController.showLockImg();
                     return;
                 }
@@ -616,7 +653,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     @Override
     public void onBackPressed() {
-        if (mController.lockWarning()) {
+        if (mController != null && mController.lockWarning()) {
             return;
         }
         if (System.currentTimeMillis() - firstTimes > 5000) {
@@ -640,7 +677,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     return true;
                 }
             }
-            if (mController.dealKeyEvent(event)) {
+            if (mController != null && mController.dealKeyEvent(event)) {
                 return true;
             }
         }
@@ -670,7 +707,14 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         }
         stopLoadWebView(true);
         stopParse();
-        mController.releaseController();
+        if (mController != null) {
+            mController.releaseController();
+            mController = null;
+        }
+        if (mExecutorService != null) {
+            mExecutorService.shutdownNow();
+            mExecutorService = null;
+        }
         if (null != mHandler) {
             // removeCallbacks(null) 在 MessageQueue 里会直接 return，清不掉任何定时器，
             // 会导致 showSystemTime() 的每秒自循环在退出后继续持有本 Activity 并刷新已销毁的视图
@@ -686,6 +730,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void doParse(ParseBean parseBean) {
+        if (!isActivityActive() || parseBean == null || mExecutorService == null) return;
         stopParse();
         L.d("doParse parseBean.getType()=" + parseBean.getType() + " \t" +parseBean.getName());
         if (parseBean.getType() == 0) {
@@ -805,7 +850,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private void loadInWebView(String url) {
         L.d("loadInWebView() url=" + url);
         runOnUiThread(() -> {
-            if (mSysWebView != null) {
+            if (isActivityActive() && mSysWebView != null) {
                 mSysWebView.stopLoading();
                 mSysWebView.clearCache(true);
                 mSysWebView.loadUrl(url);
@@ -861,7 +906,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void showTipsView(String msg, boolean loading, boolean err) {
+        if (!isActivityActive() || mHandler == null) return;
         mHandler.post(() -> {
+            if (!isActivityActive() || mPlayLoadTipTV == null
+                    || mPlayLoadingPb == null || mPlayErrImg == null) return;
             mPlayLoadTipTV.setText(msg);
             mPlayLoadTipTV.setVisibility(View.VISIBLE);
             mPlayLoadingPb.setVisibility(loading ? View.VISIBLE : View.GONE);
@@ -870,7 +918,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void hideTipsView() {
+        if (!isActivityActive() || mHandler == null) return;
         mHandler.post(() -> {
+            if (!isActivityActive() || mPlayLoadTipTV == null
+                    || mPlayLoadingPb == null || mPlayErrImg == null) return;
             mPlayLoadTipTV.setVisibility(View.GONE);
             mPlayLoadingPb.setVisibility(View.GONE);
             mPlayErrImg.setVisibility(View.GONE);
