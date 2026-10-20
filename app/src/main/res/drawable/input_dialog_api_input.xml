@@ -6,8 +6,8 @@
         <layer-list>
             <item android:bottom="@dimen/vs_5" android:left="@dimen/vs_20_" android:right="@dimen/vs_20_" android:top="@dimen/vs_20_">
                 <shape android:shape="rectangle">
-                    <stroke android:width="@dimen/vs_2" android:color="@color/color_CC000000" />
-                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="@dimen/vs_2" android:color="@color/color_0CADE2" />
+                    <solid android:color="@color/color_dialog_field" />
                 </shape>
             </item>
         </layer-list>
@@ -16,8 +16,8 @@
         <layer-list>
             <item android:bottom="@dimen/vs_5" android:left="@dimen/vs_20_" android:right="@dimen/vs_20_" android:top="@dimen/vs_20_">
                 <shape android:shape="rectangle">
-                    <stroke android:width="@dimen/vs_1" android:color="@color/color_6C3D3D3D" />
-                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="@dimen/vs_1" android:color="@color/color_rail_stroke" />
+                    <solid android:color="@color/color_dialog_field" />
                 </shape>
             </item>
         </layer-list>

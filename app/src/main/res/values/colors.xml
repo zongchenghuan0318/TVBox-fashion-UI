@@ -41,4 +41,8 @@
     <color name="color_rail_glass_rim">#4DFFFFFF</color>
     <color name="color_rail_stroke">#33FFFFFF</color>
     <color name="color_rail_divider">#33FFFFFF</color>
+
+    <!-- 弹窗体系：深色 surface 与内嵌控件底色 -->
+    <color name="color_dialog_surface">#F2192130</color>
+    <color name="color_dialog_field">#14FFFFFF</color>
 </resources>

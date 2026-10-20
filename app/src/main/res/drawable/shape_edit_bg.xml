@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="8mm" />
-    <solid android:color="@color/color_FFFFFF" />
+    <corners android:radius="@dimen/vs_5" />
+    <solid android:color="@color/color_dialog_field" />
     <stroke
-        android:width="1mm"
-        android:color="@color/color_6C3D3D3D" />
+        android:width="@dimen/vs_1"
+        android:color="@color/color_rail_stroke" />
 </shape>

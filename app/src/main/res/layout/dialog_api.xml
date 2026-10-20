@@ -20,15 +20,16 @@
                 android:layout_marginBottom="@dimen/vs_15"
                 android:gravity="center"
                 android:text="配置管理"
-                android:textColor="@color/color_CC000000"
-                android:textSize="@dimen/ts_26" />
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_26"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvAddress"
                 android:layout_width="@dimen/vs_310"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:textColor="@color/color_CC000000"
+                android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_22"
                 tools:text="1111111111111111111111111" />
             <ImageView
@@ -49,15 +50,16 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/vs_6"
                 android:text="选择你的点播源"
-                android:textColor="@color/color_CC000000"
-                android:textSize="@dimen/ts_24" />
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_26"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/vs_15"
                 android:text="添加或切换配置地址，应用前会自动检查可用性"
-                android:textColor="@color/color_6C3D3D3D"
+                android:textColor="@color/color_6CFFFFFF"
                 android:textSize="@dimen/ts_20" />
 
             <LinearLayout
@@ -79,8 +81,8 @@
                     android:paddingTop="@dimen/vs_10"
                     android:paddingRight="@dimen/vs_2"
                     android:paddingBottom="@dimen/vs_10"
-                    android:textColor="@color/color_CC000000"
-                    android:textColorHint="@color/color_6C3D3D3D" />
+                    android:textColor="@color/color_FFFFFF"
+                    android:textColorHint="@color/color_6CFFFFFF" />
 
                 <TextView
                     android:id="@+id/tv_test_http"
@@ -91,6 +93,7 @@
                     android:background="@drawable/button_dialog_main"
                     android:focusable="true"
                     android:gravity="center"
+                    android:minHeight="@dimen/vs_40"
                     android:padding="@dimen/vs_10"
                     android:text="测试连接"
                     android:textColor="@color/color_FFFFFF"
@@ -104,7 +107,8 @@
                     android:background="@drawable/button_dialog_main"
                     android:focusable="true"
                     android:gravity="center"
-                    android:padding="@dimen/vs_6"
+                    android:minHeight="@dimen/vs_40"
+                    android:padding="@dimen/vs_10"
                     android:text="本地文件"
                     android:textColor="@color/color_FFFFFF"
                     android:textSize="@dimen/ts_22" />
@@ -127,6 +131,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
+                    android:minHeight="@dimen/vs_40"
                     android:padding="@dimen/vs_10"
                     android:text="配置库"
                     android:textColor="@color/color_FFFFFF"
@@ -141,6 +146,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
+                    android:minHeight="@dimen/vs_40"
                     android:padding="@dimen/vs_10"
                     android:text="收藏地址"
                     android:textColor="@color/color_FFFFFF"
@@ -159,7 +165,7 @@
                 android:paddingRight="@dimen/vs_20"
                 android:maxLines="3"
                 android:text="输入或选择配置源地址，应用前会自动检查可用性"
-                android:textColor="@color/color_6C3D3D3D"
+                android:textColor="@color/color_6CFFFFFF"
                 android:textSize="@dimen/ts_20"
                 android:visibility="visible"
                 tools:text="✓ 配置源可用" />
@@ -179,6 +185,7 @@
                     android:background="@drawable/button_dialog_main"
                     android:focusable="true"
                     android:gravity="center"
+                    android:minHeight="@dimen/vs_40"
                     android:padding="@dimen/vs_10"
                     android:text="取消"
                     android:textColor="@color/color_FFFFFF"
@@ -194,6 +201,7 @@
                     android:background="@drawable/button_dialog_main"
                     android:focusable="true"
                     android:gravity="center"
+                    android:minHeight="@dimen/vs_40"
                     android:padding="@dimen/vs_10"
                     android:text="确定"
                     android:textColor="@color/color_FFFFFF"

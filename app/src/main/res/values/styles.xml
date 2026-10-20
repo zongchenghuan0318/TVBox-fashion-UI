@@ -40,28 +40,45 @@
         <item name="android:windowFullscreen">true</item>
     </style>
 
-    <!-- 设置页：分组标题 -->
-    <style name="SettingSectionTitle">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginLeft">@dimen/vs_20</item>
-        <item name="android:layout_marginStart">@dimen/vs_20</item>
-        <item name="android:layout_marginBottom">@dimen/vs_10</item>
-        <item name="android:textColor">@color/color_66FFFFFF</item>
-        <item name="android:textSize">@dimen/ts_20</item>
+    <!-- 系统 AlertDialog：深色主题，避免继承 Light 主题导致白底 -->
+    <style name="DarkAlertDialog" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/shape_dialog_bg_main</item>
+        <item name="colorAccent">@color/color_0CADE2</item>
+        <item name="android:textColorPrimary">@color/color_FFFFFF</item>
+        <item name="android:textColorSecondary">@color/color_6CFFFFFF</item>
     </style>
 
-    <!-- 设置页：整行容器（含焦点态背景） -->
+    <!-- 设置页：分组标题（外包 SettingSectionHeader，内含左侧强调条） -->
+    <style name="SettingSectionTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/color_6CFFFFFF</item>
+        <item name="android:textSize">@dimen/ts_20</item>
+        <item name="android:letterSpacing">0.12</item>
+    </style>
+
+    <!-- 设置页：分组标题容器 -->
+    <style name="SettingSectionHeader">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:layout_marginTop">@dimen/vs_25</item>
+        <item name="android:layout_marginBottom">@dimen/vs_8</item>
+    </style>
+
+    <!-- 设置页：整行容器（无卡片，靠间距/发丝线分区；焦点态见 selector_setting_row） -->
     <style name="SettingRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">@dimen/vs_60</item>
-        <item name="android:layout_marginBottom">@dimen/vs_10</item>
-        <item name="android:background">@drawable/shape_setting_model_focus</item>
+        <item name="android:layout_marginBottom">@dimen/vs_0</item>
+        <item name="android:background">@drawable/selector_setting_row</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:orientation">horizontal</item>
         <item name="android:paddingLeft">@dimen/vs_20</item>
         <item name="android:paddingRight">@dimen/vs_20</item>
+        <item name="android:stateListAnimator">@animator/setting_row_focus</item>
     </style>
 
     <!-- 设置页：并排两行的外层容器 -->
@@ -76,17 +93,20 @@
     <style name="SettingRowTitle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@android:color/white</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/color_FFFFFF</item>
         <item name="android:textSize">@dimen/ts_24</item>
     </style>
 
-    <!-- 设置页：行当前值 -->
+    <!-- 设置页：行当前值（比标题暗一档；宽度吃满剩余空间并右对齐，避免长值顶住标题、把箭头挤出屏幕） -->
     <style name="SettingRowValue">
-        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_weight">1</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">end</item>
         <item name="android:ellipsize">middle</item>
         <item name="android:singleLine">true</item>
-        <item name="android:textColor">@color/color_CCFFFFFF</item>
+        <item name="android:textColor">@color/color_6CFFFFFF</item>
         <item name="android:textSize">@dimen/ts_24</item>
     </style>
 
@@ -94,10 +114,10 @@
     <style name="SettingRowArrow">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginLeft">@dimen/vs_10</item>
-        <item name="android:layout_marginStart">@dimen/vs_10</item>
-        <item name="android:text">&gt;</item>
+        <item name="android:layout_marginLeft">@dimen/vs_15</item>
+        <item name="android:layout_marginStart">@dimen/vs_15</item>
+        <item name="android:text">›</item>
         <item name="android:textColor">@color/color_66FFFFFF</item>
-        <item name="android:textSize">@dimen/ts_24</item>
+        <item name="android:textSize">@dimen/ts_26</item>
     </style>
 </resources>

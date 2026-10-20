@@ -21,18 +21,38 @@
             android:layout_height="match_parent"
             android:layout_gravity="center" />
     </LinearLayout>
-    <TextView
-        android:id="@+id/title_setting_tv"
-        android:layout_width="wrap_content"
-        android:layout_height="@dimen/vs_50"
-        android:clickable="true"
-        android:drawableLeft="@drawable/browser_back_selector"
-        android:drawablePadding="@dimen/vs_10"
-        android:gravity="center_vertical"
-        android:text="设置"
-        android:textColor="@android:color/white"
-        android:textSize="@dimen/ts_34"
-        android:textStyle="bold" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/vs_100"
+        android:paddingTop="@dimen/vs_30"
+        android:paddingBottom="@dimen/vs_10">
+
+        <TextView
+            android:id="@+id/title_setting_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/vs_50"
+            android:clickable="true"
+            android:drawableLeft="@drawable/browser_back_selector"
+            android:drawablePadding="@dimen/vs_15"
+            android:gravity="center_vertical"
+            android:text="设置"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_34"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="@dimen/vs_40"
+            android:layout_height="@dimen/vs_3"
+            android:layout_marginTop="@dimen/vs_5"
+            android:background="@color/color_0CADE2" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/vs_1"
+        android:background="@color/color_rail_divider" />
 
     <com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager
         android:id="@+id/viewPager"

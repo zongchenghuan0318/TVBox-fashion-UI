@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="@dimen/vs_5" />
-    <solid android:color="@color/color_FFFFFF" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_8" />
+            <solid android:color="@color/color_dialog_surface" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_8" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="@color/color_rail_stroke" />
+        </shape>
+    </item>
+</layer-list>

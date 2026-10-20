@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners
-        android:topLeftRadius="@dimen/vs_10"
-        android:topRightRadius="@dimen/vs_10" />
-    <solid android:color="@color/color_FFFFFF" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <corners
+                android:topLeftRadius="@dimen/vs_10"
+                android:topRightRadius="@dimen/vs_10" />
+            <solid android:color="@color/color_dialog_surface" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners
+                android:topLeftRadius="@dimen/vs_10"
+                android:topRightRadius="@dimen/vs_10" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="@color/color_rail_stroke" />
+        </shape>
+    </item>
+</layer-list>

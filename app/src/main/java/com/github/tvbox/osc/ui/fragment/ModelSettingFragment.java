@@ -532,7 +532,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         input.setText(Hawk.get(HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS));
         input.setSelection(input.length());
 
-        new AlertDialog.Builder(mActivity)
+        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(mActivity, R.style.DarkAlertDialog))
                 .setTitle("设置直播源地址")
                 .setMessage("每行一个地址，支持 M3U 和 TVBox JSON；多个源会同时合并显示。留空则使用总配置中的直播源。保存后下次进入直播页生效。")
                 .setView(input)

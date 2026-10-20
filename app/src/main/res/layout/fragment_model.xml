@@ -2,7 +2,10 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="@dimen/vs_20">
+    android:paddingLeft="@dimen/vs_100"
+    android:paddingTop="@dimen/vs_30"
+    android:paddingRight="@dimen/vs_100"
+    android:paddingBottom="@dimen/vs_30">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -32,11 +35,6 @@
                     style="@style/SettingRowTitle"
                     android:text="调试模式" />
 
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-
                 <TextView
                     android:id="@+id/tvDebugOpen"
                     style="@style/SettingRowValue"
@@ -45,9 +43,19 @@
                 <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
-            <TextView
-                style="@style/SettingSectionTitle"
-                android:text="接口与数据源" />
+            <LinearLayout style="@style/SettingSectionHeader">
+
+                <View
+                    android:layout_width="@dimen/vs_3"
+                    android:layout_height="@dimen/vs_15"
+                    android:background="@color/color_0CADE2" />
+
+                <TextView
+                    style="@style/SettingSectionTitle"
+                    android:layout_marginLeft="@dimen/vs_10"
+                    android:layout_marginStart="@dimen/vs_10"
+                    android:text="接口与数据源" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/llApi"
@@ -56,11 +64,6 @@
                 <TextView
                     style="@style/SettingRowTitle"
                     android:text="设置配置文件" />
-
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/tvApi"
@@ -76,11 +79,6 @@
                 <TextView
                     style="@style/SettingRowTitle"
                     android:text="直播源地址" />
-
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/tvLiveSource"
@@ -99,11 +97,6 @@
                     style="@style/SettingRowTitle"
                     android:text="默认网站" />
 
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-
                 <TextView
                     android:id="@+id/tvHomeApi"
                     style="@style/SettingRowValue" />
@@ -111,9 +104,19 @@
                 <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
-            <TextView
-                style="@style/SettingSectionTitle"
-                android:text="首页与搜索" />
+            <LinearLayout style="@style/SettingSectionHeader">
+
+                <View
+                    android:layout_width="@dimen/vs_3"
+                    android:layout_height="@dimen/vs_15"
+                    android:background="@color/color_0CADE2" />
+
+                <TextView
+                    style="@style/SettingSectionTitle"
+                    android:layout_marginLeft="@dimen/vs_10"
+                    android:layout_marginStart="@dimen/vs_10"
+                    android:text="首页与搜索" />
+            </LinearLayout>
 
             <LinearLayout style="@style/SettingRowPair">
 
@@ -121,19 +124,15 @@
                     android:id="@+id/llHomeRec"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginRight="@dimen/vs_5"
-                    android:layout_marginEnd="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginRight="@dimen/vs_8"
+                    android:layout_marginEnd="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="首页推荐" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvHomeRec"
@@ -147,19 +146,15 @@
                     android:id="@+id/llSearchView"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_marginStart="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginLeft="@dimen/vs_8"
+                    android:layout_marginStart="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="搜索展示" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvSearchView"
@@ -170,6 +165,11 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_1"
+                android:background="@color/color_rail_divider" />
+
             <LinearLayout
                 android:id="@+id/llSearchSite"
                 style="@style/SettingRow">
@@ -178,11 +178,6 @@
                     style="@style/SettingRowTitle"
                     android:text="搜索源管理" />
 
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-
                 <TextView
                     android:id="@+id/tvSearchSite"
                     style="@style/SettingRowValue" />
@@ -190,9 +185,19 @@
                 <TextView style="@style/SettingRowArrow" />
             </LinearLayout>
 
-            <TextView
-                style="@style/SettingSectionTitle"
-                android:text="播放" />
+            <LinearLayout style="@style/SettingSectionHeader">
+
+                <View
+                    android:layout_width="@dimen/vs_3"
+                    android:layout_height="@dimen/vs_15"
+                    android:background="@color/color_0CADE2" />
+
+                <TextView
+                    style="@style/SettingSectionTitle"
+                    android:layout_marginLeft="@dimen/vs_10"
+                    android:layout_marginStart="@dimen/vs_10"
+                    android:text="播放" />
+            </LinearLayout>
 
             <LinearLayout style="@style/SettingRowPair">
 
@@ -200,19 +205,15 @@
                     android:id="@+id/llPlay"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginRight="@dimen/vs_5"
-                    android:layout_marginEnd="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginRight="@dimen/vs_8"
+                    android:layout_marginEnd="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="播放器" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvPlay"
@@ -226,19 +227,15 @@
                     android:id="@+id/llMediaCodec"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_marginStart="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginLeft="@dimen/vs_8"
+                    android:layout_marginStart="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="IJK解码方式" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvMediaCodec"
@@ -249,6 +246,11 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_1"
+                android:background="@color/color_rail_divider" />
+
             <LinearLayout
                 style="@style/SettingRowPair"
                 android:visibility="gone">
@@ -257,19 +259,15 @@
                     android:id="@+id/llRender"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginRight="@dimen/vs_5"
-                    android:layout_marginEnd="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginRight="@dimen/vs_8"
+                    android:layout_marginEnd="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="渲染方式" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvRenderType"
@@ -283,19 +281,15 @@
                     android:id="@+id/llScale"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_marginStart="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginLeft="@dimen/vs_8"
+                    android:layout_marginStart="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="画面缩放" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvScaleType"
@@ -306,6 +300,11 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_1"
+                android:background="@color/color_rail_divider" />
+
             <LinearLayout
                 style="@style/SettingRowPair"
                 android:visibility="gone">
@@ -314,19 +313,15 @@
                     android:id="@+id/llParseWebVew"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginRight="@dimen/vs_5"
-                    android:layout_marginEnd="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginRight="@dimen/vs_8"
+                    android:layout_marginEnd="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="嗅探Webview" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvParseWebView"
@@ -341,19 +336,15 @@
                     android:id="@+id/llDns"
                     style="@style/SettingRow"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginLeft="@dimen/vs_5"
-                    android:layout_marginStart="@dimen/vs_5"
-                    android:layout_weight="1">
+                    android:layout_height="@dimen/vs_60"
+                    android:layout_marginLeft="@dimen/vs_8"
+                    android:layout_marginStart="@dimen/vs_8"
+                    android:layout_weight="1"
+                    android:background="@drawable/selector_setting_row_plain">
 
                     <TextView
                         style="@style/SettingRowTitle"
                         android:text="安全DNS" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
 
                     <TextView
                         android:id="@+id/tvDns"
@@ -364,9 +355,24 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <TextView
-                style="@style/SettingSectionTitle"
-                android:text="其他" />
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_1"
+                android:background="@color/color_rail_divider" />
+
+            <LinearLayout style="@style/SettingSectionHeader">
+
+                <View
+                    android:layout_width="@dimen/vs_3"
+                    android:layout_height="@dimen/vs_15"
+                    android:background="@color/color_0CADE2" />
+
+                <TextView
+                    style="@style/SettingSectionTitle"
+                    android:layout_marginLeft="@dimen/vs_10"
+                    android:layout_marginStart="@dimen/vs_10"
+                    android:text="其他" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/llBackup"
@@ -391,11 +397,6 @@
                 <TextView
                     style="@style/SettingRowTitle"
                     android:text="关于" />
-
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/versionTV"

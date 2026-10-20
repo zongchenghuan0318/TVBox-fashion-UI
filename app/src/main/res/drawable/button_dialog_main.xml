@@ -15,7 +15,10 @@
     <item android:state_focused="false">
         <shape>
             <corners android:radius="@dimen/vs_5" />
-            <solid android:color="@color/color_CC353744" />
+            <solid android:color="@color/color_dialog_field" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="@color/color_rail_stroke" />
         </shape>
     </item>
 </selector>
