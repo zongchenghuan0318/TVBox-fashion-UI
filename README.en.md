@@ -30,7 +30,7 @@ Compared with the stock TVBoxOSC, this project reworks the home, category, searc
 - Card sizes are tightened so **more cards fit on screen**; after 6 s idle it slides to the next card, wrapping from the last card back to the first
 
 ### Categories
-- Sidebar categories are fixed to: Home, Movie, TV Series, Variety, Anime, Documentary (other categories hidden)
+- Sidebar categories are fixed to: Home, Movie, TV Series, Variety, Anime, Documentary (other categories hidden); the sidebar also carries a **Live** entry, whose channels can be customised in Settings (multiple M3U / TVBox JSON source URLs, merged automatically)
 - Category matching prefers **leaf categories** of each site, avoiding empty pages caused by parent categories returning zero results
 - Tapping a card jumps straight to the aggregated search page by title
 
@@ -55,8 +55,10 @@ Compared with the stock TVBoxOSC, this project reworks the home, category, searc
 
 ### Settings
 - Config URL validation: it is saved only after validation passes, the dialog is locked while validating, failures show the exact reason, and both total and searchable site counts are displayed
+- The config dialog was reworked into a **"config library / saved addresses"** picker: pasting config content by hand is no longer supported, you pick a saved address instead and it is validated and applied in one tap
+- **Config failover**: when the current config URL cannot be reached, the app tries the candidates in order — current URL → config library → built-in backup URLs → default URL — and adopts the first one that works; if all fail it falls back to the local cache and says so
 - Home data source, search source management, player engine / render / scale, DNS and search layout (list / grid) settings
-- Settings are grouped as: config & sources (config file / default site), home & search (home recommendations / search display / search source management), playback (player / IJK decode method) and other (share with friends / about)
+- Settings are grouped as: config & sources (config file / live source URLs / default site), home & search (home recommendations / search display / search source management), playback (player / IJK decode method / render / scale / sniffer webview / secure DNS) and other (share with friends / about)
 
 ## Source structure
 
@@ -98,6 +100,10 @@ Tech stack: Java 8, `compileSdk 30` / `buildTools 30.0.3`, `minSdk 21` / `target
 - Playback: the "buffering…" notice hides as soon as buffering ends, no longer waiting out the full 5 s
 - Home: card sizes moved to `home_card_*` size tokens (with a `values-sw600dp` override), the focused card grows further, idle carousel back to 6 s
 - Stability: 15 s timeout on the search chain, 20 s start timeout with request de-duplication on playback
+- **Config failover**: the config URL is now a candidate chain (current → config library → built-in backups → default), first reachable one wins; falls back to the local cache when none work
+- **Config library / saved addresses**: the config dialog was reworked, the paste box is gone, and picking a saved address validates and applies it immediately
+- **Live TV**: a new "live source URLs" setting (multi-line M3U / TVBox JSON, de-duplicated and merged) plus a Live entry in the sidebar; clearing the setting falls back to the sources shipped in the config
+- **Robustness fixes**: search requests tracked as `Future`s and stopped when the page is destroyed, detail-page executor shut down with the page, EventBus unregister fixed, out-of-range guards in the config-library list, app restart only when the config URL really changed
 
 ### 2026-10-17
 - Home backdrop promoted from the ViewPager fragments to an Activity-level layer, so category pages no longer leak the previous page's backdrop; sidebar glass restyle
