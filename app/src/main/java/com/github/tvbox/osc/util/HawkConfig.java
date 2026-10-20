@@ -11,11 +11,8 @@ public class HawkConfig {
     public static final String API_SAVED_CONFIGS = "api_saved_configs";
     public static final String[] DEFAULT_API_SAVED_CONFIGS = {
             "https://tv.xn--yhqu5zs87a.top",
-            "http://www.xn--sss604efuw.cc/tv",
             "http://xn--z7x900a.net/tv",
-            "http://tvbox.xn--4kq62z5rby2qupq9ub.top/",
             "https://9280.kstore.vip/newwex.json",
-            "http://www.饭太硬.net/tv",
             "http://肥猫.net/",
             "http://xhztv.top/xhz"
     };
