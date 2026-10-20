@@ -130,8 +130,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     };
     /** 聚焦缩放时长与整排滑动时长保持一致（见 HomeCardRecyclerView），滑动与放大是一个动作 */
     private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
-    private static final float CARD_FRONT_SCALE = 1.34f;
-    private static final float CARD_EDGE_SCALE = 0.66f;
+    private static final float CARD_FRONT_SCALE = 2.0f;
     private static final float CARD_MIN_ALPHA = 0.48f;
     private static final float CARD_ARC_ROTATION = 42f;
     private int mFocusedCardPosition;
@@ -153,8 +152,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private volatile int mFeedRequestId;
     private boolean mFeedCancelled;
 
-    // 首页静置自动轮播：电视按键或手机触摸结束后，连续无操作 15 秒才切换
-    private static final long AUTO_SCROLL_DELAY = 15000L;
+    // 首页静置自动轮播：电视按键或手机触摸结束后，连续无操作 6 秒才切换
+    private static final long AUTO_SCROLL_DELAY = 6000L;
     private final Handler mAutoScrollHandler = new Handler(Looper.getMainLooper());
     private final Runnable mAutoScrollRun = new Runnable() {
         @Override
@@ -423,8 +422,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             float normalized = Math.max(-1f, Math.min(1f, offset));
             float angle = normalized * CARD_ARC_ROTATION;
             float depth = (float) Math.cos(Math.toRadians(Math.abs(angle)));
-            float scale = CARD_EDGE_SCALE
-                    + (CARD_FRONT_SCALE - CARD_EDGE_SCALE) * depth;
+            float scale = position == mFocusedCardPosition ? CARD_FRONT_SCALE : 1f;
             float drop = child.getHeight() * 0.42f * (1f - depth);
             float alpha = Math.max(CARD_MIN_ALPHA, 1f - (1f - depth) * 0.6f);
             child.setPivotX(child.getWidth() / 2f);

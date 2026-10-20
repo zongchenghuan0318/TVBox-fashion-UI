@@ -125,7 +125,7 @@
 
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_230"
+                android:layout_height="@dimen/home_card_row_height"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 >
@@ -138,7 +138,7 @@
                     android:clipToPadding="false"
                     android:paddingTop="@dimen/vs_8"
                     android:paddingBottom="@dimen/vs_8"
-                    app:tv_horizontalSpacingWithMargins="@dimen/vs_60"
+                    app:tv_horizontalSpacingWithMargins="@dimen/home_card_spacing"
                     app:tv_selectedItemIsCentered="true"
                     app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
             </FrameLayout>

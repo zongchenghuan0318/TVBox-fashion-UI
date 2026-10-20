@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="home_card_width">170mm</dimen>
+    <dimen name="home_card_height">110mm</dimen>
+    <dimen name="home_card_row_height">230mm</dimen>
+    <dimen name="home_card_spacing">100mm</dimen>
+    <dimen name="home_card_radius">8mm</dimen>
+    <dimen name="home_card_scrim_height">70mm</dimen>
+    <dimen name="home_card_text_padding">10mm</dimen>
+    <dimen name="home_card_title_size">18mm</dimen>
+    <dimen name="home_card_note_size">16mm</dimen>
+</resources>

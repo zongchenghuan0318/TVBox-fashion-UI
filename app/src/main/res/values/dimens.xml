@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="home_card_width">112mm</dimen>
+    <dimen name="home_card_height">72mm</dimen>
+    <dimen name="home_card_row_height">160mm</dimen>
+    <dimen name="home_card_spacing">110mm</dimen>
+    <dimen name="home_card_radius">5mm</dimen>
+    <dimen name="home_card_scrim_height">50mm</dimen>
+    <dimen name="home_card_text_padding">6mm</dimen>
+    <dimen name="home_card_title_size">12mm</dimen>
+    <dimen name="home_card_note_size">10mm</dimen>
+
     <dimen name="ts_16">16mm</dimen>
     <dimen name="ts_20">20mm</dimen>
     <dimen name="ts_22">22mm</dimen>
