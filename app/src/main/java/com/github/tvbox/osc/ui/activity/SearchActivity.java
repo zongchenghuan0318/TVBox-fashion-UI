@@ -208,7 +208,8 @@ public class SearchActivity extends BaseActivity {
         if (Hawk.get(HawkConfig.SEARCH_VIEW, 1) == 0) {
             mSearchResultRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         } else {
-            mSearchResultRV.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
+            mSearchResultRV.setLayoutManager(            new V7GridLayoutManager(this.mContext,
+                    com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(3)));
         }
         searchResultAdapter = new SearchResultAdapter();
         mSearchResultRV.setAdapter(searchResultAdapter);

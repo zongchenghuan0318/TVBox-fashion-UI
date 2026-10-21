@@ -97,6 +97,35 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvSearchView = findViewById(R.id.tvSearchView);
         tvSearchSite = findViewById(R.id.tvSearchSite);
         tvSearchSite.setText(getSearchSiteSummary());
+        final TextView seniorModeState = findViewById(R.id.tvSeniorModeState);
+        View seniorModeRow = findViewById(R.id.llSeniorMode);
+        boolean seniorModeEnabled = com.github.tvbox.osc.util.SeniorMode.isEnabled();
+        seniorModeState.setText(seniorModeEnabled ? "已开启" : "已关闭");
+        seniorModeRow.setContentDescription(
+                "长辈模式，" + (seniorModeEnabled ? "已开启" : "已关闭"));
+        seniorModeRow.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(
+                    View host, android.view.accessibility.AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClassName(android.widget.Switch.class.getName());
+                info.setCheckable(true);
+                info.setChecked(com.github.tvbox.osc.util.SeniorMode.isEnabled());
+            }
+        });
+        seniorModeRow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                boolean enabled = !com.github.tvbox.osc.util.SeniorMode.isEnabled();
+                Hawk.put(HawkConfig.SENIOR_MODE, enabled);
+                seniorModeState.setText(enabled ? "已开启" : "已关闭");
+                v.setContentDescription("长辈模式，" + (enabled ? "已开启" : "已关闭"));
+                com.github.tvbox.osc.util.SeniorMode.apply(getView());
+                v.requestFocus();
+                v.announceForAccessibility(enabled ? "长辈模式已开启" : "长辈模式已关闭");
+            }
+        });
         tvMediaCodec.setText(Hawk.get(HawkConfig.IJK_CODEC, ""));
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
         tvParseWebView.setText("系统自带");

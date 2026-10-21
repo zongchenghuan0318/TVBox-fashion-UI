@@ -260,13 +260,17 @@ public class LivePlayActivity extends BaseActivity {
                     public void onAnimationEnd(Animator animation) {
                         super.onAnimationEnd(animation);
                         mHandler.removeCallbacks(mHideChannelListRun);
-                        mHandler.postDelayed(mHideChannelListRun, 5000);
+                        mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
                     }
                 });
                 animator.start();
             }
         }
     };
+
+    private long getOverlayHideTimeout() {
+        return com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000L : 5000L;
+    }
 
     private Runnable mHideChannelListRun = new Runnable() {
         @Override
@@ -313,7 +317,7 @@ public class LivePlayActivity extends BaseActivity {
 
         tvChannelInfo.setVisibility(View.VISIBLE);
         mHandler.removeCallbacks(mHideChannelInfoRun);
-        mHandler.postDelayed(mHideChannelInfoRun, 5000);
+        mHandler.postDelayed(mHideChannelInfoRun, getOverlayHideTimeout());
     }
 
     private final Runnable mHideChannelInfoRun = new Runnable() {
@@ -424,7 +428,7 @@ public class LivePlayActivity extends BaseActivity {
                         @Override
                         public void onAnimationEnd(Animator animation) {
                             super.onAnimationEnd(animation);
-                            mHandler.postDelayed(mHideSettingLayoutRun, 5000);
+                            mHandler.postDelayed(mHideSettingLayoutRun, getOverlayHideTimeout());
                         }
                     });
                     animator.start();
@@ -541,7 +545,7 @@ public class LivePlayActivity extends BaseActivity {
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 mHandler.removeCallbacks(mHideChannelListRun);
-                mHandler.postDelayed(mHideChannelListRun, 5000);
+                mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
             }
         });
 
@@ -589,7 +593,7 @@ public class LivePlayActivity extends BaseActivity {
         }
         if (llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelListRun);
-            mHandler.postDelayed(mHideChannelListRun, 5000);
+            mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
         }
     }
 
@@ -604,7 +608,7 @@ public class LivePlayActivity extends BaseActivity {
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 mHandler.removeCallbacks(mHideChannelListRun);
-                mHandler.postDelayed(mHideChannelListRun, 5000);
+                mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
             }
         });
 
@@ -620,7 +624,7 @@ public class LivePlayActivity extends BaseActivity {
                 liveGroupAdapter.setFocusedGroupIndex(-1);
                 liveChannelItemAdapter.setFocusedChannelIndex(position);
                 mHandler.removeCallbacks(mHideChannelListRun);
-                mHandler.postDelayed(mHideChannelListRun, 5000);
+                mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
             }
 
             @Override
@@ -644,7 +648,7 @@ public class LivePlayActivity extends BaseActivity {
         playChannel(liveGroupAdapter.getSelectedGroupIndex(), position, false);
         if (llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelListRun);
-            mHandler.postDelayed(mHideChannelListRun, 5000);
+            mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
         }
     }
 
@@ -659,7 +663,7 @@ public class LivePlayActivity extends BaseActivity {
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 mHandler.removeCallbacks(mHideSettingLayoutRun);
-                mHandler.postDelayed(mHideSettingLayoutRun, 5000);
+                mHandler.postDelayed(mHideSettingLayoutRun, getOverlayHideTimeout());
             }
         });
 
@@ -716,7 +720,7 @@ public class LivePlayActivity extends BaseActivity {
         if (scrollToPosition < 0) scrollToPosition = 0;
         mSettingItemRV.scrollToPosition(scrollToPosition);
         mHandler.removeCallbacks(mHideSettingLayoutRun);
-        mHandler.postDelayed(mHideSettingLayoutRun, 5000);
+        mHandler.postDelayed(mHideSettingLayoutRun, getOverlayHideTimeout());
     }
 
     private void initSettingItemView() {
@@ -730,7 +734,7 @@ public class LivePlayActivity extends BaseActivity {
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 mHandler.removeCallbacks(mHideSettingLayoutRun);
-                mHandler.postDelayed(mHideSettingLayoutRun, 5000);
+                mHandler.postDelayed(mHideSettingLayoutRun, getOverlayHideTimeout());
             }
         });
 
@@ -746,7 +750,7 @@ public class LivePlayActivity extends BaseActivity {
                 liveSettingGroupAdapter.setFocusedGroupIndex(-1);
                 liveSettingItemAdapter.setFocusedItemIndex(position);
                 mHandler.removeCallbacks(mHideSettingLayoutRun);
-                mHandler.postDelayed(mHideSettingLayoutRun, 5000);
+                mHandler.postDelayed(mHideSettingLayoutRun, getOverlayHideTimeout());
             }
 
             @Override
@@ -821,7 +825,7 @@ public class LivePlayActivity extends BaseActivity {
                 break;
         }
         mHandler.removeCallbacks(mHideSettingLayoutRun);
-        mHandler.postDelayed(mHideSettingLayoutRun, 5000);
+        mHandler.postDelayed(mHideSettingLayoutRun, getOverlayHideTimeout());
     }
 
     private void initSite() {
@@ -1101,7 +1105,7 @@ public class LivePlayActivity extends BaseActivity {
                 }
 
                 if (llLeftChannelListLayout.getVisibility() == View.VISIBLE)
-                    mHandler.postDelayed(mHideChannelListRun, 5000);
+                    mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
             }
 
             @Override

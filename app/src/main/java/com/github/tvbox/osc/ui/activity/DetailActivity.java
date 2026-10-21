@@ -344,7 +344,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private void initSeriesGridView(){
         mSeriesGridView = findViewById(R.id.seriesRV);
         mSeriesGridView.setHasFixedSize(true);
-        mSeriesGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 6 : 7));
+        mSeriesGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,
+                com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(
+                        isBaseOnWidth() ? 6 : 7)));
         mSeriesAdapter = new SeriesAdapter();
         mSeriesGridView.setAdapter(mSeriesAdapter);
 

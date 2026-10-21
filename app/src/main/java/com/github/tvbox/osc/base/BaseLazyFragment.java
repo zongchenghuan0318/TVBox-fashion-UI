@@ -68,6 +68,7 @@ public abstract class BaseLazyFragment extends Fragment implements CustomAdapt {
         if (null == rootView) {
             rootView = inflater.inflate(getLayoutResID(), container, false);
         }
+        com.github.tvbox.osc.util.SeniorMode.apply(rootView);
         isViewCreated = true;
         return rootView;
     }

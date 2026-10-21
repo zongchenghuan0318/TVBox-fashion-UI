@@ -110,6 +110,7 @@ public class VodController extends BaseController {
 
     public VodController(Context context) {
         super(context);
+        setDismissTimeout(com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000 : 4000);
     }
     @Override
     protected int getLayoutId() {
@@ -743,11 +744,25 @@ public class VodController extends BaseController {
         if (!wasVisible && !bLocked && mPlayingBtn != null) {
             mPlayingBtn.requestFocus();
         }
+        mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
+        if (com.github.tvbox.osc.util.SeniorMode.isEnabled()) {
+            mBaseHandler.postDelayed(mSeniorModeHideBottomRunnable, 10000L);
+        }
     }
 
     void hideBottom() {
+        mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
         mBottomLayout.setVisibility(GONE);
     }
+
+    private final Runnable mSeniorModeHideBottomRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (com.github.tvbox.osc.util.SeniorMode.isEnabled()) {
+                hideBottom();
+            }
+        }
+    };
 
     public void hideLockImg() {
         findViewById(R.id.img_layout).setVisibility(GONE);

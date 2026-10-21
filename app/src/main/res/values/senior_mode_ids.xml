@@ -1,0 +1,8 @@
+<resources>
+    <item name="senior_mode_layout_listener" type="id" />
+    <item name="senior_mode_focus_listener" type="id" />
+    <item name="senior_mode_original_text_size" type="id" />
+    <item name="senior_mode_focus_overlay" type="id" />
+    <item name="senior_mode_original_scale_x" type="id" />
+    <item name="senior_mode_original_scale_y" type="id" />
+</resources>

@@ -71,7 +71,9 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         mGridView = findViewById(R.id.sortRV);
         findViewById(R.id.title_history_tv).setOnClickListener(this);
         mGridView.setHasFixedSize(true);
-        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
+        mGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,
+                com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(
+                        isBaseOnWidth() ? 5 : 6)));
         historyAdapter = new HistoryAdapter();
         mGridView.setAdapter(historyAdapter);
         tvDel.setOnClickListener(new View.OnClickListener() {

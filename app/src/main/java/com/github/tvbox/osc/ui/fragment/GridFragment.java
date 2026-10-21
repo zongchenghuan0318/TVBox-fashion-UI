@@ -67,7 +67,9 @@ public class GridFragment extends BaseLazyFragment {
         mGridAdapter = new GridAdapter();
         mGridView.setAdapter(mGridAdapter);
         // 左侧分类栏占用 250，内容区变窄，列数由 5/6 降为 4/5
-        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 4 : 5));
+        mGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,
+                com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(
+                        isBaseOnWidth() ? 4 : 5)));
         mGridAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
             @Override
             public void onLoadMoreRequested() {

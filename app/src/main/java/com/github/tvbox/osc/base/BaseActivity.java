@@ -54,6 +54,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
         super.onCreate(savedInstanceState);
         setContentView(getLayoutResID());
+        com.github.tvbox.osc.util.SeniorMode.apply(findViewById(android.R.id.content));
         mContext = this;
         AppManager.getInstance().addActivity(this);
         init();

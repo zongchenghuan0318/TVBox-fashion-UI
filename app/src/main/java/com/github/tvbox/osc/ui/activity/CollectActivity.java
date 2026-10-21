@@ -69,7 +69,9 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         tvDelTip = findViewById(R.id.tvDelTip);
         mGridView = findViewById(R.id.sortRV);
         mGridView.setHasFixedSize(true);
-        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
+        mGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,
+                com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(
+                        isBaseOnWidth() ? 5 : 6)));
         collectAdapter = new CollectAdapter();
         mGridView.setAdapter(collectAdapter);
         tvDel.setOnClickListener(v -> toggleDelMode());

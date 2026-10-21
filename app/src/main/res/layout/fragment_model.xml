@@ -125,6 +125,47 @@
                 </LinearLayout>
 
                 <LinearLayout style="@style/SettingSectionHeader">
+                    <View
+                        android:layout_width="@dimen/vs_6"
+                        android:layout_height="@dimen/vs_6"
+                        android:background="@drawable/shape_setting_section_dot" />
+                    <TextView
+                        style="@style/SettingSectionTitle"
+                        android:layout_marginLeft="@dimen/vs_10"
+                        android:layout_marginStart="@dimen/vs_10"
+                        android:text="显示与无障碍" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout
+                        android:id="@+id/llSeniorMode"
+                        style="@style/SettingRow"
+                        android:nextFocusUp="@id/llSearchSite"
+                        android:nextFocusDown="@id/llPlay"
+                        android:nextFocusLeft="@id/llApi">
+                        <TextView
+                            style="@style/SettingRowTitle"
+                            android:text="长辈模式" />
+                        <TextView
+                            android:id="@+id/tvSeniorModeState"
+                            style="@style/SettingRowValue"
+                            android:textColor="@color/color_FFFFFF"
+                            android:text="已关闭" />
+                    </LinearLayout>
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="@dimen/vs_24"
+                        android:layout_marginTop="@dimen/vs_4"
+                        android:layout_marginRight="@dimen/vs_24"
+                        android:layout_marginBottom="@dimen/vs_10"
+                        android:paddingBottom="@dimen/vs_4"
+                        android:text="开启后，文字更大、焦点更清晰、操作更方便，可随时关闭。"
+                        android:textColor="@color/color_FFFFFF"
+                        android:textSize="@dimen/ts_20" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/SettingSectionHeader">
 
                     <View
                         android:layout_width="@dimen/vs_6"
