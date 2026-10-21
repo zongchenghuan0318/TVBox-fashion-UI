@@ -2,23 +2,29 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape>
-            <corners android:radius="@dimen/vs_5" />
-            <solid android:color="@color/color_0CADE2" />
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#3300D9FF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#B300D9FF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="@dimen/vs_5" />
-            <solid android:color="@color/color_0CADE2" />
-        </shape>
-    </item>
-    <item android:state_focused="false">
-        <shape>
-            <corners android:radius="@dimen/vs_5" />
-            <solid android:color="@color/color_dialog_field" />
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#3300D9FF" />
             <stroke
                 android:width="@dimen/vs_1"
-                android:color="@color/color_rail_stroke" />
+                android:color="#B300D9FF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#0FFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#1FFFFFFF" />
         </shape>
     </item>
 </selector>

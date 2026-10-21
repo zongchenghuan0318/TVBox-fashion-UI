@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 焦点态：轻柔青色填充 + 发丝描边，行内文字保持可读 -->
+    <!-- 焦点态：青色填充 + 发丝描边（settings 设计系统主色 #00D9FF） -->
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_15" />
-            <solid android:color="#290CADE2" />
+            <solid android:color="#2600D9FF" />
             <stroke
                 android:width="@dimen/vs_1"
-                android:color="#660CADE2" />
+                android:color="#8000D9FF" />
         </shape>
     </item>
     <item>
