@@ -24,7 +24,8 @@
             android:clipToPadding="false"
             android:focusable="false"
             android:focusableInTouchMode="false"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:baselineAligned="false">
 
             <!-- 左列 -->
             <LinearLayout
@@ -32,7 +33,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:clipChildren="false"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingRight="@dimen/vs_10">
 
                 <!--调试模式：连按 4 次 0 后显示，默认隐藏-->
                 <LinearLayout
@@ -72,7 +74,8 @@
                     <LinearLayout
                         android:id="@+id/llApi"
                         style="@style/SettingRow"
-                        android:nextFocusRight="@id/llHomeRec">
+                        android:nextFocusRight="@id/llHomeRec"
+                        android:nextFocusDown="@id/llLiveSource">
 
                         <TextView
                             style="@style/SettingRowTitle"
@@ -90,7 +93,9 @@
                     <LinearLayout
                         android:id="@+id/llLiveSource"
                         style="@style/SettingRow"
-                        android:nextFocusRight="@id/llSearchView">
+                        android:nextFocusRight="@id/llSearchView"
+                        android:nextFocusUp="@id/llApi"
+                        android:nextFocusDown="@id/llHomeApi">
 
                         <TextView
                             style="@style/SettingRowTitle"
@@ -110,7 +115,9 @@
                     <LinearLayout
                         android:id="@+id/llHomeApi"
                         style="@style/SettingRow"
-                        android:nextFocusRight="@id/llSearchSite">
+                        android:nextFocusRight="@id/llSearchSite"
+                        android:nextFocusUp="@id/llLiveSource"
+                        android:nextFocusDown="@id/llSeniorMode">
 
                         <TextView
                             style="@style/SettingRowTitle"
@@ -138,31 +145,38 @@
 
                 <LinearLayout style="@style/SettingGroup">
                     <LinearLayout
-                        android:id="@+id/llSeniorMode"
-                        style="@style/SettingRow"
-                        android:nextFocusUp="@id/llSearchSite"
-                        android:nextFocusDown="@id/llPlay"
-                        android:nextFocusLeft="@id/llApi">
-                        <TextView
-                            style="@style/SettingRowTitle"
-                            android:text="长辈模式" />
-                        <TextView
-                            android:id="@+id/tvSeniorModeState"
-                            style="@style/SettingRowValue"
-                            android:textColor="@color/color_FFFFFF"
-                            android:text="已关闭" />
-                    </LinearLayout>
-                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginLeft="@dimen/vs_24"
-                        android:layout_marginTop="@dimen/vs_4"
-                        android:layout_marginRight="@dimen/vs_24"
-                        android:layout_marginBottom="@dimen/vs_10"
-                        android:paddingBottom="@dimen/vs_4"
-                        android:text="开启后，文字更大、焦点更清晰、操作更方便，可随时关闭。"
-                        android:textColor="@color/color_FFFFFF"
-                        android:textSize="@dimen/ts_20" />
+                        android:orientation="vertical">
+                        <LinearLayout
+                            android:id="@+id/llSeniorMode"
+                            style="@style/SettingRow"
+                            android:nextFocusUp="@id/llSearchSite"
+                            android:nextFocusDown="@id/llPlay"
+                            android:nextFocusRight="@id/llPlay"
+                            android:nextFocusLeft="@id/llApi">
+                            <TextView
+                                style="@style/SettingRowTitle"
+                                android:text="长辈模式" />
+                            <TextView
+                                android:id="@+id/tvSeniorModeState"
+                                style="@style/SettingRowValue"
+                                android:textColor="@color/color_FFFFFF"
+                                android:text="已关闭" />
+                        </LinearLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginLeft="@dimen/vs_24"
+                            android:layout_marginTop="@dimen/vs_2"
+                            android:layout_marginRight="@dimen/vs_24"
+                            android:layout_marginBottom="@dimen/vs_6"
+                            android:text="开启后文字更大、焦点更清晰、操作更方便"
+                            android:textColor="@color/color_6CFFFFFF"
+                            android:textSize="@dimen/ts_16"
+                            android:maxLines="2"
+                            android:ellipsize="end" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <LinearLayout style="@style/SettingSectionHeader">
@@ -195,7 +209,8 @@
                             android:layout_marginRight="@dimen/vs_4"
                             android:layout_weight="1"
                             android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusRight="@id/llPlay">
+                            android:nextFocusRight="@id/llAbout"
+                            android:nextFocusDown="@id/llHomeRec">
 
                             <TextView
                                 style="@style/SettingRowTitle"
@@ -218,7 +233,8 @@
                             android:layout_marginLeft="@dimen/vs_4"
                             android:layout_weight="1"
                             android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusRight="@id/llPlay">
+                            android:nextFocusLeft="@id/llBackup"
+                            android:nextFocusDown="@id/llHomeRec">
 
                             <TextView
                                 style="@style/SettingRowTitle"
@@ -238,11 +254,12 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_20"
-                android:layout_marginStart="@dimen/vs_20"
+                android:layout_marginLeft="@dimen/vs_10"
+                android:layout_marginStart="@dimen/vs_10"
                 android:layout_weight="1"
                 android:clipChildren="false"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingLeft="@dimen/vs_10">
 
                 <LinearLayout style="@style/SettingSectionHeader">
 
@@ -274,7 +291,8 @@
                             android:layout_marginRight="@dimen/vs_4"
                             android:layout_weight="1"
                             android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llApi">
+                            android:nextFocusLeft="@id/llAbout"
+                            android:nextFocusUp="@id/llAbout">
 
                             <TextView
                                 style="@style/SettingRowTitle"
@@ -297,7 +315,7 @@
                             android:layout_marginLeft="@dimen/vs_4"
                             android:layout_weight="1"
                             android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llLiveSource">
+                            android:nextFocusLeft="@id/llHomeRec">
 
                             <TextView
                                 style="@style/SettingRowTitle"
@@ -361,7 +379,8 @@
                             android:layout_marginRight="@dimen/vs_4"
                             android:layout_weight="1"
                             android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llBackup">
+                            android:nextFocusLeft="@id/llSeniorMode"
+                            android:nextFocusUp="@id/llSearchSite">
 
                             <TextView
                                 style="@style/SettingRowTitle"
@@ -383,7 +402,8 @@
                             android:layout_marginStart="@dimen/vs_4"
                             android:layout_marginLeft="@dimen/vs_4"
                             android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain">
+                            android:background="@drawable/selector_setting_row_plain"
+                            android:nextFocusLeft="@id/llPlay">
 
                             <TextView
                                 style="@style/SettingRowTitle"

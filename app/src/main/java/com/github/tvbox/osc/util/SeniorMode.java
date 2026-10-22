@@ -15,7 +15,7 @@ import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 
 public final class SeniorMode {
-    private static final float TEXT_SCALE = 1.3f;
+    private static final float TEXT_SCALE = 1.2f;  // 降低文字缩放比例从1.3到1.2
     private static final float FOCUS_SCALE = 1.04f;
 
     private SeniorMode() {
