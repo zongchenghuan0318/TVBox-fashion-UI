@@ -3,7 +3,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="@dimen/dp_40"
-    android:visibility="invisible">
+    android:focusable="true"
+    android:background="@drawable/selector_user_focus">
 
     <LinearLayout
         android:id="@+id/load_more_loading_view"
@@ -42,7 +43,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/brvah_load_failed"/>
+            android:text="加载失败，点击或按确定重试"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/sp_14"/>
 
     </FrameLayout>
 

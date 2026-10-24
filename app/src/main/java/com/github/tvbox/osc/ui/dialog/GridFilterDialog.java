@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -20,11 +21,17 @@ import com.studio.osc.R;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import androidx.annotation.NonNull;
 
 public class GridFilterDialog extends BaseDialog {
     private LinearLayout filterRoot;
+    private MovieSort.SortData currentSortData;
+    private final HashMap<String, String> selectionsBeforeShow = new HashMap<>();
+    private TvRecyclerView firstFilterRow;
+    private String firstFilterKey;
+    private ArrayList<String> firstFilterValues;
 
     public GridFilterDialog(@NonNull @NotNull Context context) {
         super(context);
@@ -32,6 +39,11 @@ public class GridFilterDialog extends BaseDialog {
         setCancelable(true);
         setContentView(R.layout.dialog_grid_filter);
         filterRoot = findViewById(R.id.filterRoot);
+        findViewById(R.id.filterDone).setOnClickListener(v -> dismiss());
+        findViewById(R.id.filterReset).setOnClickListener(v -> {
+            if (currentSortData != null) currentSortData.filterSelect.clear();
+            dismiss();
+        });
     }
 
     public interface Callback {
@@ -42,7 +54,7 @@ public class GridFilterDialog extends BaseDialog {
         setOnDismissListener(new DialogInterface.OnDismissListener() {
             @Override
             public void onDismiss(DialogInterface dialogInterface) {
-                if (selectChange) {
+                if (currentSortData != null && !selectionsBeforeShow.equals(currentSortData.filterSelect)) {
                     callback.change();
                 }
             }
@@ -50,8 +62,12 @@ public class GridFilterDialog extends BaseDialog {
     }
 
     public void setData(MovieSort.SortData sortData) {
+        currentSortData = sortData;
+        firstFilterRow = null;
+        filterRoot.removeAllViews();
         ArrayList<MovieSort.SortFilter> filters = sortData.filters;
         for (MovieSort.SortFilter filter : filters) {
+            if (filter.values == null || filter.values.isEmpty()) continue;
             View line = LayoutInflater.from(getContext()).inflate(R.layout.item_grid_filter, null);
             ((TextView) line.findViewById(R.id.filterName)).setText(filter.name);
             TvRecyclerView gridView = line.findViewById(R.id.mFilterKv);
@@ -63,41 +79,76 @@ public class GridFilterDialog extends BaseDialog {
             ArrayList<String> values = new ArrayList<>(filter.values.keySet());
             ArrayList<String> keys = new ArrayList<>(filter.values.values());
             filterKVAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
-                View pre = null;
-
                 @Override
                 public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                    if (sortData.filterSelect.get(key) == null || !sortData.filterSelect.get(key).equals(values.get(position))) {
+                    if (!keys.get(position).equals(sortData.filterSelect.get(key))) {
                         sortData.filterSelect.put(key, keys.get(position));
-                        selectChange = true;
-                        if (pre != null) {
-                            TextView val = pre.findViewById(R.id.filterValue);
-                            val.getPaint().setFakeBoldText(false);
-                            val.setTextColor(getContext().getResources().getColor(R.color.color_FFFFFF));
-                        }
-                        TextView val = view.findViewById(R.id.filterValue);
-                        val.getPaint().setFakeBoldText(true);
-                        val.setTextColor(getContext().getResources().getColor(R.color.color_02F8E1));
-                        pre = view;
+                        filterKVAdapter.setSelectedLabel(values.get(position));
                     }
                 }
             });
             filterKVAdapter.setNewData(values);
+            int selected = keys.indexOf(sortData.filterSelect.get(key));
+            if (selected < 0 && !values.isEmpty()) selected = 0;
+            if (selected >= 0) {
+                filterKVAdapter.setSelectedLabel(values.get(selected));
+                gridView.scrollToPosition(selected);
+            }
             filterRoot.addView(line);
+            if (firstFilterRow == null) {
+                firstFilterRow = gridView;
+                firstFilterKey = key;
+                firstFilterValues = keys;
+            }
         }
     }
 
-    private boolean selectChange = false;
-
     public void show() {
-        selectChange = false;
+        selectionsBeforeShow.clear();
+        if (currentSortData != null) {
+            selectionsBeforeShow.putAll(currentSortData.filterSelect);
+            setData(currentSortData);
+        }
         super.show();
         WindowManager.LayoutParams layoutParams = getWindow().getAttributes();
         layoutParams.gravity = Gravity.BOTTOM;
         layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-        layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        View panel = findViewById(R.id.filterPanel);
+        ScrollView scroll = findViewById(R.id.filterScroll);
+        LinearLayout.LayoutParams scrollParams = (LinearLayout.LayoutParams) scroll.getLayoutParams();
+        scrollParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        scrollParams.weight = 0;
+        scroll.setLayoutParams(scrollParams);
+        int width = getContext().getResources().getDisplayMetrics().widthPixels;
+        int maxHeight = (int) (getContext().getResources().getDisplayMetrics().heightPixels * 0.75f);
+        panel.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        layoutParams.height = Math.min(panel.getMeasuredHeight(), maxHeight);
+        if (panel.getMeasuredHeight() > maxHeight) {
+            scrollParams.height = 0;
+            scrollParams.weight = 1;
+            scroll.setLayoutParams(scrollParams);
+        }
         layoutParams.dimAmount = 0f;
         getWindow().getDecorView().setPadding(0, 0, 0, 0);
         getWindow().setAttributes(layoutParams);
+        if (firstFilterRow != null) {
+            int selected = firstFilterValues.indexOf(currentSortData.filterSelect.get(firstFilterKey));
+            int position = Math.max(0, selected);
+            firstFilterRow.scrollToPosition(position);
+            firstFilterRow.post(() -> focusSelectedOption(position, 0));
+        } else {
+            findViewById(R.id.filterDone).requestFocus();
+        }
+    }
+
+    private void focusSelectedOption(int position, int retry) {
+        if (!isShowing() || firstFilterRow == null) return;
+        if (firstFilterRow.findViewHolderForAdapterPosition(position) != null || retry >= 8) {
+            firstFilterRow.setSelection(position);
+            firstFilterRow.requestFocus();
+        } else {
+            firstFilterRow.postDelayed(() -> focusSelectedOption(position, retry + 1), 50L);
+        }
     }
 }

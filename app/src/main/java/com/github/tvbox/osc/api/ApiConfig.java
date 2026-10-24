@@ -1087,7 +1087,7 @@ public class ApiConfig {
         for (JsonElement groupElement : livesArray) {
             LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
             liveChannelGroup.setLiveChannels(new ArrayList<LiveChannelItem>());
-            liveChannelGroup.setGroupIndex(groupIndex++);
+            liveChannelGroup.setGroupIndex(groupIndex);
             String groupName = ((JsonObject) groupElement).get("group").getAsString().trim();
             String[] splitGroupName = groupName.split("_", 2);
             liveChannelGroup.setGroupName(splitGroupName[0]);
@@ -1099,10 +1099,6 @@ public class ApiConfig {
             channelIndex = 0;
             for (JsonElement channelElement : ((JsonObject) groupElement).get("channels").getAsJsonArray()) {
                 JsonObject obj = (JsonObject) channelElement;
-                LiveChannelItem liveChannelItem = new LiveChannelItem();
-                liveChannelItem.setChannelName(obj.get("name").getAsString().trim());
-                liveChannelItem.setChannelIndex(channelIndex++);
-                liveChannelItem.setChannelNum(++channelNum);
                 ArrayList<String> urls = DefaultConfig.safeJsonStringList(obj, "urls");
                 L.d("urls="+urls);
                 ArrayList<String> sourceNames = new ArrayList<>();
@@ -1111,7 +1107,9 @@ public class ApiConfig {
                 for (String url : urls) {
                     L.d("url="+url);
                     String[] splitText = url.split("\\$", 2);
-                    sourceUrls.add(splitText[0]);
+                    String sourceUrl = splitText[0].trim();
+                    if (sourceUrl.isEmpty()) continue;
+                    sourceUrls.add(sourceUrl);
                     if (splitText.length > 1) {
                         sourceNames.add(splitText[1]);
                     } else {
@@ -1120,12 +1118,20 @@ public class ApiConfig {
 
                     sourceIndex++;
                 }
+                if (sourceUrls.isEmpty()) continue;
+                LiveChannelItem liveChannelItem = new LiveChannelItem();
+                liveChannelItem.setChannelName(obj.get("name").getAsString().trim());
+                liveChannelItem.setChannelIndex(channelIndex++);
+                liveChannelItem.setChannelNum(++channelNum);
                 liveChannelItem.setChannelSourceNames(sourceNames);
                 liveChannelItem.setChannelUrls(sourceUrls);
                 liveChannelGroup.getLiveChannels().add(liveChannelItem);
             }
-            mLiveChannelGroupList.add(liveChannelGroup);
-            L.d("live group name:"+liveChannelGroup.getGroupName());
+            if (!liveChannelGroup.getLiveChannels().isEmpty()) {
+                mLiveChannelGroupList.add(liveChannelGroup);
+                groupIndex++;
+                L.d("live group name:"+liveChannelGroup.getGroupName());
+            }
         }
     }
 

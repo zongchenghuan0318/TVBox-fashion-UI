@@ -162,9 +162,12 @@ public class UiHelper {
     public static List<Movie.Video> filterVideoList(AbsXml absXml, String searchWord) {
         List<Movie.Video> videos = new ArrayList<>();
         for (Movie.Video video : absXml.movie.videoList) {
+            if (video == null) {
+                continue;
+            }
             L.d("video.type=" + video.type + "  note=" + video.note);
-            if (video.name.contains(searchWord) || video.actor.contains(searchWord)
-                    || video.director.contains(searchWord) || video.des.contains(searchWord)
+            if (containsSearchText(video.name, searchWord) || containsSearchText(video.actor, searchWord)
+                    || containsSearchText(video.director, searchWord) || containsSearchText(video.des, searchWord)
             ) {
                 if (UiHelper.canPlay(video) && UiHelper.canPlayName(video)) {
                     videos.add(video);
@@ -172,6 +175,10 @@ public class UiHelper {
             }
         }
         return videos;
+    }
+
+    private static boolean containsSearchText(String text, String query) {
+        return text != null && query != null && text.contains(query);
     }
 
     public static HashMap<String, String> getHttpHeader(JSONObject rs){

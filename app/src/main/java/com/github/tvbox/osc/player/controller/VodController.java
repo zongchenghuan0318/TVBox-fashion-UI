@@ -112,6 +112,27 @@ public class VodController extends BaseController {
     private List<VodInfo.VodSeries> mEpisodes = new ArrayList<>();
     private int mCurrentEpisode;
     private Dialog mEpisodeDialog;
+    private View mAutoNextPanel;
+    private TextView mAutoNextEpisode;
+    private TextView mAutoNextCountdown;
+    private TextView mAutoNextCancel;
+    private TextView mAutoNextNow;
+    private static final int AUTO_NEXT_COUNTDOWN_SECONDS = 8;
+    private int mAutoNextSeconds;
+    private boolean mAutoNextPending;
+    private final Runnable mAutoNextTick = new Runnable() {
+        @Override
+        public void run() {
+            if (!mAutoNextPending || mAutoNextPanel == null) return;
+            mAutoNextSeconds--;
+            if (mAutoNextSeconds <= 0) {
+                finishAutoNextCountdown();
+                return;
+            }
+            updateAutoNextCountdownLabel();
+            mBaseHandler.postDelayed(this, 1000L);
+        }
+    };
 
     public VodController(Context context) {
         super(context);
@@ -183,6 +204,11 @@ public class VodController extends BaseController {
         mPlayerTimeStartTV = findViewById(R.id.play_time_start);
         mPlayerTimeSkipTV = findViewById(R.id.play_time_end);
         mPlayerTimeStepTV = findViewById(R.id.play_time_step);
+        mAutoNextPanel = findViewById(R.id.auto_next_panel);
+        mAutoNextEpisode = findViewById(R.id.auto_next_episode);
+        mAutoNextCountdown = findViewById(R.id.auto_next_countdown);
+        mAutoNextCancel = findViewById(R.id.auto_next_cancel);
+        mAutoNextNow = findViewById(R.id.auto_next_now);
         lockImg = findViewById(R.id.lock_img);
         portHorImg = findViewById(R.id.port_img);
 
@@ -203,6 +229,8 @@ public class VodController extends BaseController {
 
     private void initClickListener() {
         mEpisodeBtn.setOnClickListener(view -> showEpisodeSelector());
+        mAutoNextCancel.setOnClickListener(view -> cancelAutoNextCountdown());
+        mAutoNextNow.setOnClickListener(view -> finishAutoNextCountdown());
         findViewWithTag("pause_layout").setOnClickListener(view -> {
             if (bLocked) return;
             togglePlay();
@@ -542,6 +570,7 @@ public class VodController extends BaseController {
     }
 
     public void setEpisodes(List<VodInfo.VodSeries> episodes, int currentEpisode) {
+        cancelAutoNextCountdown();
         mEpisodes = episodes == null ? new ArrayList<>() : episodes;
         mCurrentEpisode = Math.max(0, Math.min(currentEpisode, Math.max(0, mEpisodes.size() - 1)));
         if (mEpisodes.isEmpty()) {
@@ -553,6 +582,7 @@ public class VodController extends BaseController {
     }
 
     public void setCurrentEpisode(int currentEpisode) {
+        cancelAutoNextCountdown();
         mCurrentEpisode = Math.max(0, Math.min(currentEpisode, Math.max(0, mEpisodes.size() - 1)));
         updateEpisodeButton();
     }
@@ -563,6 +593,44 @@ public class VodController extends BaseController {
                     ? "选集"
                     : "选集 " + (mCurrentEpisode + 1) + "/" + mEpisodes.size());
         }
+    }
+
+    private void showAutoNextCountdown() {
+        if (mAutoNextPanel == null || mCurrentEpisode + 1 >= mEpisodes.size()) {
+            if (controlListener != null) controlListener.playNext(true);
+            return;
+        }
+        mBaseHandler.removeCallbacks(mAutoNextTick);
+        mAutoNextPending = true;
+        mAutoNextSeconds = AUTO_NEXT_COUNTDOWN_SECONDS;
+        mAutoNextEpisode.setText(episodeName(mCurrentEpisode + 1));
+        updateAutoNextCountdownLabel();
+        mAutoNextPanel.setVisibility(VISIBLE);
+        mAutoNextNow.requestFocus();
+        mBaseHandler.postDelayed(mAutoNextTick, 1000L);
+    }
+
+    private void updateAutoNextCountdownLabel() {
+        if (mAutoNextCountdown != null) {
+            mAutoNextCountdown.setText("下一集将在 " + mAutoNextSeconds + " 秒后播放");
+        }
+    }
+
+    private void finishAutoNextCountdown() {
+        if (!mAutoNextPending) return;
+        mAutoNextPending = false;
+        mBaseHandler.removeCallbacks(mAutoNextTick);
+        if (mAutoNextPanel != null) mAutoNextPanel.setVisibility(GONE);
+        if (controlListener != null) controlListener.playNext(true);
+    }
+
+    public boolean cancelAutoNextCountdown() {
+        if (!mAutoNextPending) return false;
+        mAutoNextPending = false;
+        mBaseHandler.removeCallbacks(mAutoNextTick);
+        if (mAutoNextPanel != null) mAutoNextPanel.setVisibility(GONE);
+        showBottom();
+        return true;
     }
 
     public void showEpisodeSelector() {
@@ -851,7 +919,11 @@ public class VodController extends BaseController {
                 startProgress();
                 break;
             case VideoView.STATE_PLAYBACK_COMPLETED:
-                controlListener.playNext(true);
+                if (mCurrentEpisode + 1 < mEpisodes.size()) {
+                    showAutoNextCountdown();
+                } else {
+                    controlListener.playNext(true);
+                }
                 break;
         }
     }
@@ -989,6 +1061,7 @@ public class VodController extends BaseController {
 
     public void releaseController() {
         cancelSpeedBoost(false);
+        cancelAutoNextCountdown();
         L.d("releaseController() mTimerMin=" + mTimerMin);
         if (mEpisodeDialog != null) {
             mEpisodeDialog.dismiss();

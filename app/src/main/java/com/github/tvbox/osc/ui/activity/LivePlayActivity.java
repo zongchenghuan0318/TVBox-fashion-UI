@@ -86,6 +86,7 @@ public class LivePlayActivity extends BaseActivity {
     private int channelIndex = -1;
     private int sourceTimes = 0;
     private LiveChannelItem currentLiveChannelItem = null;
+    private boolean liveScreenResumed;
     private LivePlayerManager livePlayerManager;
     private final ArrayList<Integer> mPasswordConfirmedList = new ArrayList<>();
     private long mBegin = 0;
@@ -127,8 +128,13 @@ public class LivePlayActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        liveScreenResumed = true;
         if (mVideoView != null) {
             mVideoView.resume();
+        }
+        if (currentLiveChannelItem != null) {
+            showTime();
+            showNetSpeed();
         }
     }
 
@@ -174,6 +180,11 @@ public class LivePlayActivity extends BaseActivity {
 
     @Override
     protected void onPause() {
+        liveScreenResumed = false;
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mUpdateTimeRun);
+            mHandler.removeCallbacks(mUpdateNetSpeedRun);
+        }
         super.onPause();
         if (mVideoView != null) {
             mVideoView.pause();
@@ -341,6 +352,10 @@ public class LivePlayActivity extends BaseActivity {
             targetChannel = channels.get(channel);
             if (targetChannel == null) return false;
         }
+        if (targetChannel.getSourceNum() <= 0) {
+            Toast.makeText(this, "该频道没有可用线路", Toast.LENGTH_SHORT).show();
+            return false;
+        }
         if ((group == groupIndex && channel == channelIndex && !bChangeSource)
                 || (bChangeSource && targetChannel.getSourceNum() <= 1)) {
             showChannelInfo();
@@ -366,13 +381,20 @@ public class LivePlayActivity extends BaseActivity {
 
     private void playNext() {
         if (!isCurrentLiveChannelValid()) return;
-        Integer[] groupChannels = getNextGroupChannel(1);
-        playChannel(groupChannels[0], groupChannels[1], false);
+        playAdjacentChannel(1);
     }
 
     private void playPrevious() {
         if (!isCurrentLiveChannelValid()) return;
-        Integer[] groupChannels = getNextGroupChannel(-1);
+        playAdjacentChannel(-1);
+    }
+
+    private void playAdjacentChannel(int direction) {
+        Integer[] groupChannels = getNextGroupChannel(direction);
+        if (groupChannels == null) {
+            Toast.makeText(this, "没有其他可播放频道", Toast.LENGTH_SHORT).show();
+            return;
+        }
         playChannel(groupChannels[0], groupChannels[1], false);
     }
 
@@ -526,8 +548,7 @@ public class LivePlayActivity extends BaseActivity {
         sourceTimes++;
         if (currentLiveChannelItem.getSourceNum() <= sourceTimes) {
             sourceTimes = 0;
-            Integer[] groupChannels = getNextGroupChannel(Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false) ? -1 : 1);
-            playChannel(groupChannels[0], groupChannels[1], false);
+            playAdjacentChannel(Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false) ? -1 : 1);
         } else {
             playNextSource();
         }
@@ -896,6 +917,7 @@ public class LivePlayActivity extends BaseActivity {
         L.d("initLiveChannelList()");
         List<LiveChannelGroup> list = ApiConfig.getInstance().getChannelGroupList();
         if (NullUtil.isNull(list)) {
+            showEmpty();
             Toast.makeText(App.getInstance(), "频道列表为空", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -924,16 +946,32 @@ public class LivePlayActivity extends BaseActivity {
             public void onError(Response<String> response) {
                 super.onError(response);
                 if (!isActivityActive()) return;
-                L.d("onError "+response.body());
-                Toast.makeText(App.getInstance(), "加载代理频道错误"+response.body(), Toast.LENGTH_SHORT).show();
+                String error = response == null || response.body() == null
+                        ? "网络连接失败" : String.valueOf(response.body());
+                L.d("onError " + error);
+                showSuccess();
+                Toast.makeText(LivePlayActivity.this,
+                        "代理频道加载失败：" + error, Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onSuccess(Response<String> response) {
                 if (!isActivityActive() || mVideoView == null) return;
                 L.d("onSuccess "+response.body());
-                JsonArray livesArray = new Gson().fromJson(response.body(), JsonArray.class);
-                ApiConfig.getInstance().loadLives(livesArray);
+                JsonArray livesArray;
+                try {
+                    livesArray = new Gson().fromJson(response.body(), JsonArray.class);
+                    if (livesArray == null || livesArray.size() == 0) {
+                        throw new IllegalStateException("代理没有返回频道");
+                    }
+                    ApiConfig.getInstance().loadLives(livesArray);
+                } catch (Exception e) {
+                    showSuccess();
+                    Toast.makeText(LivePlayActivity.this,
+                            "代理频道数据无效：" + (e.getMessage() == null ? "解析失败" : e.getMessage()),
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
                 List<LiveChannelGroup> list = ApiConfig.getInstance().getChannelGroupList();
                 if (list.isEmpty()) {
                     Toast.makeText(App.getInstance(), "频道列表为空", Toast.LENGTH_SHORT).show();
@@ -1043,8 +1081,9 @@ public class LivePlayActivity extends BaseActivity {
 
     void showTime() {
         L.d("showTime()");
+        mHandler.removeCallbacks(mUpdateTimeRun);
         if (Hawk.get(HawkConfig.LIVE_SHOW_TIME, false)) {
-            mHandler.post(mUpdateTimeRun);
+            if (liveScreenResumed) mHandler.post(mUpdateTimeRun);
             tvTime.setVisibility(View.VISIBLE);
         } else {
             mHandler.removeCallbacks(mUpdateTimeRun);
@@ -1061,6 +1100,7 @@ public class LivePlayActivity extends BaseActivity {
     private Runnable mUpdateTimeRun = new Runnable() {
         @Override
         public void run() {
+            if (!liveScreenResumed || !isActivityActive()) return;
             Date day=new Date();
             SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
             tvTime.setText(df.format(day));
@@ -1070,8 +1110,9 @@ public class LivePlayActivity extends BaseActivity {
 
     private void showNetSpeed() {
         L.d("showNetSpeed()");
+        mHandler.removeCallbacks(mUpdateNetSpeedRun);
         if (Hawk.get(HawkConfig.LIVE_SHOW_NET_SPEED, false)) {
-            mHandler.post(mUpdateNetSpeedRun);
+            if (liveScreenResumed) mHandler.post(mUpdateNetSpeedRun);
             tvNetSpeed.setVisibility(View.VISIBLE);
         } else {
             mHandler.removeCallbacks(mUpdateNetSpeedRun);
@@ -1082,7 +1123,7 @@ public class LivePlayActivity extends BaseActivity {
     private Runnable mUpdateNetSpeedRun = new Runnable() {
         @Override
         public void run() {
-            if (mVideoView == null) return;
+            if (mVideoView == null || !liveScreenResumed || !isActivityActive()) return;
             tvNetSpeed.setText(String.format("%.2fMB/s", (float)mVideoView.getTcpSpeed() / 1024.0 / 1024.0));
             mHandler.postDelayed(this, 1000);
         }
@@ -1169,41 +1210,30 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private Integer[] getNextGroupChannel(int direction) {
-        int iGroup = groupIndex;
-        int iChannel = channelIndex;
-
-        //跨选分组模式下跳过加密频道分组（遥控器上下键换台/超时换源）
-        if (direction > 0) {
-            iChannel++;
-            if (iChannel >= getGroupLiveChannels(iGroup).size()) {
-                iChannel = 0;
-                if (Hawk.get(HawkConfig.LIVE_CROSS_GROUP, false)) {
-                    do {
-                        iGroup++;
-                        if (iGroup >= mChannelGroupList.size())
-                            iGroup = 0;
-                    } while (!mChannelGroupList.get(iGroup).getGroupPassword().isEmpty() || iGroup == groupIndex);
-                }
-            }
-        } else {
-            iChannel--;
-            if (iChannel < 0) {
-                if (Hawk.get(HawkConfig.LIVE_CROSS_GROUP, false)) {
-                    do {
-                        iGroup--;
-                        if (iGroup < 0)
-                            iGroup = mChannelGroupList.size() - 1;
-                    } while (!mChannelGroupList.get(iGroup).getGroupPassword().isEmpty() || iGroup == groupIndex);
-                }
-                iChannel = getGroupLiveChannels(iGroup).size() - 1;
-            }
+        if (mChannelGroupList == null || mChannelGroupList.isEmpty()
+                || groupIndex < 0 || groupIndex >= mChannelGroupList.size()) return null;
+        int step = direction >= 0 ? 1 : -1;
+        ArrayList<LiveChannelItem> currentChannels = getGroupLiveChannels(groupIndex);
+        int nextChannel = channelIndex + step;
+        if (currentChannels != null && nextChannel >= 0 && nextChannel < currentChannels.size()) {
+            return new Integer[]{groupIndex, nextChannel};
         }
 
-        Integer[] groupChannelIndex = new Integer[2];
-        groupChannelIndex[0] = iGroup;
-        groupChannelIndex[1] = iChannel;
+        if (!Hawk.get(HawkConfig.LIVE_CROSS_GROUP, false)) {
+            if (currentChannels == null || currentChannels.isEmpty()) return null;
+            return new Integer[]{groupIndex, step > 0 ? 0 : currentChannels.size() - 1};
+        }
 
-        return groupChannelIndex;
+        int groupCount = mChannelGroupList.size();
+        for (int offset = 1; offset <= groupCount; offset++) {
+            int candidateGroup = (groupIndex + step * offset) % groupCount;
+            if (candidateGroup < 0) candidateGroup += groupCount;
+            ArrayList<LiveChannelItem> channels = getGroupLiveChannels(candidateGroup);
+            if (channels != null && !channels.isEmpty()) {
+                return new Integer[]{candidateGroup, step > 0 ? 0 : channels.size() - 1};
+            }
+        }
+        return null;
     }
 
     private int getFirstNoPasswordChannelGroup() {

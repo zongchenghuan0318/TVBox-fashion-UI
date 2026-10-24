@@ -2,8 +2,6 @@ package com.github.tvbox.osc.cache;
 
 import android.text.TextUtils;
 
-import com.github.tvbox.osc.api.ApiConfig;
-import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.data.AppDataManager;
 import com.google.gson.ExclusionStrategy;
@@ -93,8 +91,7 @@ public class RoomDataManger {
                         info = getVodInfoGson().fromJson(record.dataJson, new TypeToken<VodInfo>() {
                         }.getType());
                         info.sourceKey = record.sourceKey;
-                        SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(info.sourceKey);
-                        if (sourceBean == null || info.name == null)
+                        if (info.name == null)
                             info = null;
                     }
                 } catch (Exception e) {
@@ -121,8 +118,18 @@ public class RoomDataManger {
         AppDataManager.get().getVodCollectDao().insert(record);
     }
 
+    public static VodCollect getVodCollect(String sourceKey, String vodId) {
+        return AppDataManager.get().getVodCollectDao().getVodCollect(sourceKey, vodId);
+    }
+
     public static void deleteVodCollect(int id) {
         AppDataManager.get().getVodCollectDao().delete(id);
+    }
+
+    public static void restoreVodCollect(VodCollect record) {
+        if (record != null) {
+            AppDataManager.get().getVodCollectDao().insert(record);
+        }
     }
 
     public static void deleteAllVodCollect() {

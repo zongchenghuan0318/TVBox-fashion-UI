@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
@@ -69,6 +70,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private List<BaseLazyFragment> fragments = new ArrayList<>();
     private boolean bDownOrUp = false;
     private int mCurrentSelected = 0;
+    private int pendingCategoryPosition = -1;
+    private final Runnable switchCategoryRunnable = () -> {
+        if (pendingCategoryPosition == this.mSortFocused && this.mSortFocusView != null && this.mSortFocusView.hasFocus()) {
+            selectCategory(pendingCategoryPosition);
+        }
+    };
     private int mSortFocused = 0;
     public View mSortFocusView = null;
     private Handler mHandler;
@@ -191,10 +198,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 if (view != null && !HomeActivity.this.bDownOrUp) {
                     view.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).start();
                     TextView textView = view.findViewById(R.id.tvTitle);
-                    textView.getPaint().setFakeBoldText(false);
-                    textView.setTextColor(HomeActivity.this.getResources().getColor(R.color.color_rail_text_normal));
+                    textView.getPaint().setFakeBoldText(view.isSelected());
+                    textView.setTextColor(HomeActivity.this.getResources().getColorStateList(R.color.selector_home_rail_text));
                     textView.invalidate();
-                    view.findViewById(R.id.tvFilter).setVisibility(View.GONE);
                 }
             }
 
@@ -207,12 +213,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-                if (itemView != null && mCurrentSelected == position && !sortAdapter.getItem(position).filters.isEmpty()) { // 弹出筛选
-                    BaseLazyFragment baseLazyFragment = fragments.get(mCurrentSelected);
-                    if ((baseLazyFragment instanceof GridFragment)) {
-                        ((GridFragment) baseLazyFragment).showFilter();
-                    }
-                }
+                selectCategory(position);
+                enterSelectedCategoryContent();
             }
         });
     }
@@ -253,12 +255,52 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
         mSortFocusView = view;
         mSortFocused = position;
-        if (mSortFocused != mCurrentSelected) {
-            mCurrentSelected = mSortFocused;
-            mContentViewPager.setCurrentItem(mCurrentSelected, false);
+        mHandler.removeCallbacks(switchCategoryRunnable);
+        pendingCategoryPosition = position;
+        if (position != mCurrentSelected) mHandler.postDelayed(switchCategoryRunnable, 200L);
+    }
+
+    private void selectCategory(int position) {
+        mHandler.removeCallbacks(switchCategoryRunnable);
+        pendingCategoryPosition = -1;
+        if (position < 0 || position >= fragments.size()) return;
+        sortAdapter.setSelectedPosition(position);
+        if (mCurrentSelected != position) {
+            mCurrentSelected = position;
+            mContentViewPager.setCurrentItem(position, false);
         }
-        // 内容页立即切换，首页海报层单独做轻量过渡。
         syncHeroBackdrop();
+    }
+
+    private boolean enterSelectedCategoryContent() {
+        if (mCurrentSelected < 0 || mCurrentSelected >= fragments.size()) return false;
+        BaseLazyFragment page = fragments.get(mCurrentSelected);
+        if (page instanceof GridFragment) return ((GridFragment) page).focusCategoryContent();
+        return mContentViewPager.requestFocus();
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT
+                && mSortFocusView != null && mSortFocusView.hasFocus()) {
+            selectCategory(mSortFocused);
+            if (enterSelectedCategoryContent()) return true;
+        }
+        if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+            if (mSortFocusView != null && mSortFocusView.hasFocus()) selectCategory(mSortFocused);
+            if (mCurrentSelected >= 0 && mCurrentSelected < fragments.size()
+                    && fragments.get(mCurrentSelected) instanceof GridFragment) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    if (((GridFragment) fragments.get(mCurrentSelected)).showFilter()) return true;
+                } else if (event.getAction() == KeyEvent.ACTION_UP
+                        && sortAdapter.getItem(mCurrentSelected) != null
+                        && !sortAdapter.getItem(mCurrentSelected).filters.isEmpty()) {
+                    return true;
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     private void observePages() {
@@ -499,6 +541,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     protected void onPause() {
         if (mHandler != null) {
             mHandler.removeCallbacks(mClockRunnable);
+            mHandler.removeCallbacks(switchCategoryRunnable);
         }
         super.onPause();
     }

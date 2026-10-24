@@ -66,7 +66,7 @@ public class LiveChannelItem {
     }
 
     public String getUrl() {
-        if(NullUtil.isNull(channelUrls)){
+        if (NullUtil.isNull(channelUrls) || sourceIndex < 0 || sourceIndex >= channelUrls.size()) {
             L.d("channelUrls is Null");
             return  "";
         }
@@ -86,6 +86,10 @@ public class LiveChannelItem {
     }
 
     public String getSourceName() {
+        if (NullUtil.isNull(channelSourceNames)
+                || sourceIndex < 0 || sourceIndex >= channelSourceNames.size()) {
+            return "线路不可用";
+        }
         return channelSourceNames.get(sourceIndex);
     }
 

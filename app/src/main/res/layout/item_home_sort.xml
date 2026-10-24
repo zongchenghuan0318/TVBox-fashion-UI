@@ -2,6 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="@dimen/vs_35"
+    android:background="@drawable/selector_home_category_background"
     android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true">
@@ -25,8 +26,10 @@
 
         <TextView
             android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:duplicateParentState="true"
             android:ellipsize="end"
             android:focusable="false"
             android:singleLine="true"

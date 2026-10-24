@@ -26,6 +26,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -54,7 +55,6 @@ import com.google.gson.Gson;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.StringUtil;
-import com.lcstudio.commonsurport.util.UIUtil;
 import com.lzy.okgo.OkGo;
 import com.lzy.okgo.callback.AbsCallback;
 import com.lzy.okgo.model.Response;
@@ -75,6 +75,7 @@ import java.util.concurrent.Executors;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.appcompat.app.AlertDialog;
 import me.jessyan.autosize.AutoSize;
 import xyz.doikki.videoplayer.player.ProgressManager;
 import xyz.doikki.videoplayer.player.VideoView;
@@ -118,7 +119,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private String mCurrentPlayUrl;
     private String mResumeKey;
     private long mResumePosition;
-    private long firstTimes = System.currentTimeMillis();
+    private boolean mHasSavedResumePosition;
+    private boolean mResumePromptShown;
+    private AlertDialog mResumeDialog;
+    private static final long RESUME_PROMPT_MIN_POSITION_MS = 30_000L;
     private boolean playbackStartPending;
     private final Runnable mProgressSaveRunnable = new Runnable() {
         @Override
@@ -216,9 +220,14 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             public void onPlayStateChanged(int playState) {
                 if (playState == VideoView.STATE_PREPARED) {
                     if (mResumePosition > 0) {
-                        mVideoView.seekTo(mResumePosition);
-                        L.d("resume seek key=" + mResumeKey + " position=" + mResumePosition);
+                        long resumePosition = mResumePosition;
                         mResumePosition = 0;
+                        if (mHasSavedResumePosition && !mResumePromptShown
+                                && hasUsefulResumePosition(resumePosition)) {
+                            showResumePrompt(resumePosition);
+                        } else {
+                            mVideoView.seekTo(resumePosition);
+                        }
                     }
                 } else if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
                     showTipsView("缓冲中...", true, false);
@@ -553,6 +562,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             return true;
         } else {
             autoRetryCount = 0;
+            if (mPlayBean == null) return false;
             //最后重试播放url
             String url = null;
             if (!NullUtil.isNull(mPlayBean.playUrl)) {
@@ -757,13 +767,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     @Override
     public void onBackPressed() {
+        if (mController != null && mController.cancelAutoNextCountdown()) return;
         if (mController != null && mController.cancelSpeedBoost(true)) return;
         if (mController != null && mController.lockWarning()) {
-            return;
-        }
-        if (System.currentTimeMillis() - firstTimes > 5000) {
-            firstTimes = System.currentTimeMillis();
-            UIUtil.showToast(this, "再按一次返回键退出");
             return;
         }
         super.onBackPressed();
@@ -791,6 +797,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     @Override
     protected void onPause() {
+        if (mController != null) mController.cancelAutoNextCountdown();
         super.onPause();
         if (mPlaybackOptions != null) mPlaybackOptions.onPause();
         if (mHandler != null) mHandler.removeCallbacks(mProgressSaveRunnable);
@@ -818,8 +825,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void prepareResumePosition() {
+        mResumePromptShown = false;
         mResumeKey = buildEpisodeProgressKey();
         mResumePosition = readSavedProgress(mResumeKey);
+        mHasSavedResumePosition = mResumePosition >= RESUME_PROMPT_MIN_POSITION_MS;
         if (mResumePosition <= 0) {
             int st = 0;
             try {
@@ -832,9 +841,86 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         L.d("resume read key=" + mResumeKey + " position=" + mResumePosition);
     }
 
+    private boolean hasUsefulResumePosition(long position) {
+        if (position < RESUME_PROMPT_MIN_POSITION_MS) return false;
+        long duration = mVideoView == null ? 0L : mVideoView.getDuration();
+        return duration <= 0 || position < duration - 15_000L;
+    }
+
+    private void showResumePrompt(long position) {
+        if (mVideoView == null || !isActivityActive() || mResumePromptShown) return;
+        mResumePromptShown = true;
+        mVideoView.pause();
+        String episodeName = "";
+        try {
+            episodeName = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex).name;
+        } catch (Throwable ignored) {
+        }
+        String episodePrefix = episodeName == null || episodeName.trim().isEmpty()
+                ? "" : episodeName + " · ";
+        mResumeDialog = new AlertDialog.Builder(this, R.style.DarkAlertDialog)
+                .setTitle("继续观看？")
+                .setMessage(episodePrefix + "上次看到 " + formatResumeTime(position))
+                .setPositiveButton("继续播放", (dialog, which) -> {
+                    if (mVideoView != null && isActivityActive()) {
+                        mVideoView.seekTo(position);
+                        mVideoView.start();
+                    }
+                    mResumeDialog = null;
+                })
+                .setNegativeButton("从头播放", (dialog, which) -> {
+                    if (mVideoView != null && isActivityActive()) {
+                        saveProgressValue(mResumeKey, 0L);
+                        long startPosition = getConfiguredStartPosition();
+                        if (startPosition > 0) mVideoView.seekTo(startPosition);
+                        mVideoView.start();
+                    }
+                    mResumeDialog = null;
+                })
+                .setOnCancelListener(dialog -> {
+                    if (mVideoView != null && isActivityActive()) {
+                        mVideoView.seekTo(position);
+                        mVideoView.start();
+                    }
+                    mResumeDialog = null;
+                })
+                .create();
+        mResumeDialog.setCancelable(true);
+        mResumeDialog.setOnShowListener(dialog -> {
+            Button continueButton = mResumeDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (continueButton != null) continueButton.requestFocus();
+        });
+        mResumeDialog.show();
+    }
+
+    private long getConfiguredStartPosition() {
+        try {
+            return mVodPlayerCfgJsonObject == null ? 0L
+                    : Math.max(0, mVodPlayerCfgJsonObject.getInt("st")) * 1000L;
+        } catch (JSONException e) {
+            return 0L;
+        }
+    }
+
+    private String formatResumeTime(long positionMs) {
+        long seconds = Math.max(0L, positionMs / 1000L);
+        long hours = seconds / 3600L;
+        long minutes = (seconds % 3600L) / 60L;
+        long remainingSeconds = seconds % 60L;
+        if (hours > 0) {
+            return String.format(java.util.Locale.getDefault(), "%d:%02d:%02d", hours, minutes, remainingSeconds);
+        }
+        return String.format(java.util.Locale.getDefault(), "%02d:%02d", minutes, remainingSeconds);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (mResumeDialog != null) {
+            mResumeDialog.setOnCancelListener(null);
+            mResumeDialog.dismiss();
+            mResumeDialog = null;
+        }
         if (mHandler != null) {
             mHandler.removeCallbacks(mProgressSaveRunnable);
         }

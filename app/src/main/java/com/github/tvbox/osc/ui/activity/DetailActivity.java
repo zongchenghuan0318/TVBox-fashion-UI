@@ -12,7 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
+import com.github.tvbox.osc.util.PosterImageLoader;
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.BaseActivity;
@@ -21,6 +21,7 @@ import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
+import com.github.tvbox.osc.cache.VodCollect;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.SeriesAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesFlagAdapter;
@@ -72,6 +73,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private TextView tvDirector;
     private TextView tvDes;
     private TextView tvPlay;
+    private TextView tvCollect;
     private TvRecyclerView mFlagGridView;
     private TvRecyclerView mSeriesGridView;
     private LinearLayout mEmptyLayout;
@@ -87,11 +89,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     boolean bSeriesSelect = false;
     /** 进入详情页后，首次加载完成时把焦点落到「当前集」上（否则默认停在左上角返回键） */
     private boolean bNeedFocusSeries = true;
+    private boolean autoPlayFromHistory;
+    private int detailRequestId;
     /** 当前集还没被布局出来时的重试次数，避免滚动/布局未完成导致焦点设置失效 */
     private int mFocusSeriesRetry = 0;
     private View mFocusView = null;
     private String searchTitle = "";
     private boolean bHadQuickStart = false;
+    private int quickSearchRequestId;
     private List<Movie.Video> quickSearchList = new ArrayList<>();
     private List<String> wordList = new ArrayList<>();
     public ExecutorService mExecutorService;
@@ -133,7 +138,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         tvDes = findViewById(R.id.tvDes);
         tvPlay = findViewById(R.id.tvPlay);
         TextView tvSort = findViewById(R.id.tvSort);
-        TextView tvCollect = findViewById(R.id.tvCollect);
+        tvCollect = findViewById(R.id.tvCollect);
         TextView tvQuickSearch = findViewById(R.id.tvQuickSearch);
         mEmptyLayout = findViewById(R.id.mEmptyPlaylist);
 
@@ -161,18 +166,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH, quickSearchList));
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_WORD, wordList));
             quickSearchDialog.show();
-            quickSearchDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                @Override
-                public void onDismiss(DialogInterface dialog) {
-                    OkGo.getInstance().cancelTag("search");
-                }
+            quickSearchDialog.setOnDialogDismissListener(() -> {
+                quickSearchRequestId++;
+                OkGo.getInstance().cancelTag("search");
             });
         });
 
-        tvCollect.setOnClickListener(v -> {
-            RoomDataManger.insertVodCollect(sourceKey, mVodInfo);
-            Toast.makeText(DetailActivity.this, "已加入收藏夹", Toast.LENGTH_SHORT).show();
-        });
+        tvCollect.setEnabled(false);
+        tvCollect.setOnClickListener(v -> toggleCollect());
     }
 
     private void initViewModelObserve() {
@@ -180,6 +181,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         mSourceViewModel.detailResult.observe(this, new Observer<AbsXml>() {
             @Override
             public void onChanged(AbsXml absXml) {
+                if (mSourceViewModel.getLastPostedDetailRequestId() != detailRequestId) return;
                 detailHandler.removeCallbacks(detailTimeout);
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                     showSuccess();
@@ -187,6 +189,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     mVodInfo = new VodInfo();
                     mVodInfo.setVideo(mVideo);
                     mVodInfo.sourceKey = mVideo.sourceKey;
+                    refreshCollectButton();
 
                     tvName.setText(mVideo.name);
                     SiteBean videoSite = ApiConfig.getInstance().getSiteBean(mVideo.sourceKey);
@@ -198,14 +201,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     setTextShow(tvActor, "演员：", mVideo.actor);
                     setTextShow(tvDirector, "导演：", mVideo.director);
                     setTextShow(tvDes, "内容简介：", removeHtmlTag(mVideo.des));
-                    if (!NullUtil.isNull(mVideo.pic)) {
-                        Glide.with(thumpImg.getContext()).load(mVideo.pic)
-                                .placeholder(R.drawable.img_loading_placeholder)
-                                .error(R.drawable.img_loading_placeholder)
-                                .into(thumpImg);
-                    } else {
-                        thumpImg.setImageResource(R.drawable.img_loading_placeholder);
-                    }
+                    PosterImageLoader.bind(thumpImg, mVideo.pic);
 
                     if (mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
                         mFlagGridView.setVisibility(View.VISIBLE);
@@ -246,7 +242,11 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
                         mFlagAdapter.setNewData(mVodInfo.seriesFlags);
                         mFlagGridView.scrollToPosition(flagScrollTo);
-                        refreshList();
+                        refreshList(!autoPlayFromHistory);
+                        if (autoPlayFromHistory) {
+                            autoPlayFromHistory = false;
+                            mSeriesGridView.postDelayed(DetailActivity.this::jumpToPlay, 120L);
+                        }
                     } else {
                         mFlagGridView.setVisibility(View.GONE);
                         mSeriesGridView.setVisibility(View.GONE);
@@ -266,12 +266,36 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         });
     }
 
+    private void refreshCollectButton() {
+        if (tvCollect == null || mVodInfo == null) return;
+        VodCollect record = RoomDataManger.getVodCollect(mVodInfo.sourceKey, mVodInfo.id);
+        boolean collected = record != null;
+        tvCollect.setText(collected ? "已收藏" : "加入收藏");
+        tvCollect.setContentDescription(collected ? "已收藏，按确定取消收藏" : "按确定加入收藏");
+        tvCollect.setEnabled(true);
+    }
+
+    private void toggleCollect() {
+        if (mVodInfo == null) return;
+        VodCollect record = RoomDataManger.getVodCollect(mVodInfo.sourceKey, mVodInfo.id);
+        if (record == null) {
+            RoomDataManger.insertVodCollect(mVodInfo.sourceKey, mVodInfo);
+            Toast.makeText(DetailActivity.this, "已加入收藏夹", Toast.LENGTH_SHORT).show();
+        } else {
+            RoomDataManger.deleteVodCollect(record.getId());
+            Toast.makeText(DetailActivity.this, "已取消收藏", Toast.LENGTH_SHORT).show();
+        }
+        refreshCollectButton();
+        EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_COLLECT_REFRESH));
+    }
+
     private void initData() {
         Intent intent = getIntent();
         if (intent != null && intent.getExtras() != null) {
             Bundle bundle = intent.getExtras();
             noteStr = bundle.getString("note");
             movieName = bundle.getString("movieName");
+            autoPlayFromHistory = bundle.getBoolean("autoPlayFromHistory", false);
             loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
         }
     }
@@ -287,7 +311,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             detailHandler.removeCallbacks(detailTimeout);
             detailHandler.postDelayed(detailTimeout, 20000L);
             L.d("loadDetail()");
-            mSourceViewModel.getDetail(sourceKey, vodId);
+            detailRequestId = mSourceViewModel.getDetail(sourceKey, vodId);
         }
     }
 
@@ -399,6 +423,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     void refreshList() {
+        refreshList(true);
+    }
+
+    private void refreshList(boolean requestFocus) {
         if (mVodInfo.seriesMap.get(mVodInfo.playFlag).size() <= mVodInfo.playIndex) {
             mVodInfo.playIndex = 0;
         }
@@ -408,6 +436,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         }
 
         mSeriesAdapter.setNewData(mVodInfo.seriesMap.get(mVodInfo.playFlag));
+        if (!requestFocus) return;
         mSeriesGridView.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -493,6 +522,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                 switchSearchWord(word);
             }
         } else if (event.type == RefreshEvent.TYPE_QUICK_SEARCH_RESULT) {
+            if (event.requestId != quickSearchRequestId) return;
             try {
                 searchData(event.obj == null ? null : (AbsXml) event.obj);
             } catch (Exception e) {
@@ -565,6 +595,8 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     private void quickSearch() {
+        final int requestId = ++quickSearchRequestId;
+        final String query = searchTitle;
         // 搜索顺序与「搜索源管理」的勾选顺序一致（已过滤掉未勾选与不可搜索的源）
         ArrayList<String> siteKey = new ArrayList<>();
         for (SiteBean bean : ApiConfig.getInstance().getOrderedSearchSiteList()) {
@@ -576,7 +608,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             mExecutorService.submit(new Runnable() {
                 @Override
                 public void run() {
-                    mSourceViewModel.getQuickSearch(key, searchTitle);
+                    mSourceViewModel.getQuickSearch(key, query, requestId);
                 }
             });
         }
@@ -604,7 +636,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         super.onDestroy();
         detailHandler.removeCallbacks(detailTimeout);
         OkGo.getInstance().cancelTag("fenci");
-        OkGo.getInstance().cancelTag("detail");
+        if (mSourceViewModel != null) mSourceViewModel.cancelDetailRequests();
         OkGo.getInstance().cancelTag("search");
         EventBus.getDefault().unregister(this);
         if (mExecutorService != null) {

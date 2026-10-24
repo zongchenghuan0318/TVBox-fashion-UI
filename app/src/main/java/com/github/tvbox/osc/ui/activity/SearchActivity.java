@@ -4,7 +4,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -55,13 +57,16 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.DiffUtil;
 
 public class SearchActivity extends BaseActivity {
     private LinearLayout llLayout;
@@ -73,6 +78,8 @@ public class SearchActivity extends BaseActivity {
     private SourceViewModel sourceViewModel;
     private EditText etSearch;
     private TextView tvSearch;
+    private TextView tvSearchProgress;
+    private TextView tvRetrySearch;
     private TextView tvClear;
     private SearchKeyboard keyboard;
     private SearchResultAdapter searchResultAdapter;
@@ -85,17 +92,28 @@ public class SearchActivity extends BaseActivity {
     private volatile int searchRequestId;
     private int searchSourceCount;
     private int completedSearchSources;
+    private List<SiteBean> activeSearchSites = new ArrayList<>();
+    private final Set<String> respondedSourceKeys = new HashSet<>();
     private volatile boolean searchFinished;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private final Object suggestionTag = new Object();
+    private final Object hotWordsTag = new Object();
+    private int suggestionRequestId;
+    private Runnable suggestionRunnable;
+    private boolean suppressSuggestionWatcher;
+    private static final long SUGGESTION_DEBOUNCE_MS = 250L;
+    private static final int MAX_SEARCH_HISTORY = 20;
     private final Runnable searchTimeout = new Runnable() {
         @Override
         public void run() {
             if (!searchFinished && searchResultAdapter != null) {
                 searchFinished = true;
                 OkGo.getInstance().cancelTag("search");
-                if (searchResultAdapter.getData().isEmpty()) {
-                    showEmpty();
-                    Toast.makeText(SearchActivity.this, "搜索超时，请检查网络或更换搜索源", Toast.LENGTH_SHORT).show();
+                updateSearchProgress(true);
+                List<SiteBean> pending = getUnresponsiveSites();
+                tvRetrySearch.setVisibility(pending.isEmpty() ? View.GONE : View.VISIBLE);
+                if (!searchResultAdapter.getData().isEmpty() && !pending.isEmpty()) {
+                    Toast.makeText(SearchActivity.this, "已显示部分搜索结果，部分来源响应超时", Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -126,6 +144,8 @@ public class SearchActivity extends BaseActivity {
         llWord = findViewById(R.id.llWord);
         etSearch = findViewById(R.id.etSearch);
         tvSearch = findViewById(R.id.tvSearch);
+        tvSearchProgress = findViewById(R.id.tvSearchProgress);
+        tvRetrySearch = findViewById(R.id.tvRetrySearch);
         tvClear = findViewById(R.id.tvClear);
         mSearchResultRV = findViewById(R.id.sortRV);
         keyboard = findViewById(R.id.keyBoardRoot);
@@ -142,6 +162,7 @@ public class SearchActivity extends BaseActivity {
                 searchClick();
             }
         });
+        tvRetrySearch.setOnClickListener(v -> retryUnresponsiveSources());
         tvClear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -170,10 +191,7 @@ public class SearchActivity extends BaseActivity {
                     String text = etSearch.getText().toString().trim();
                     text += key;
                     etSearch.setText(text);
-                    if (text.length() > 0) {
-                        loadPinyinResult(text);
-                        etSearch.setSelection(text.length());
-                    }
+                    etSearch.setSelection(text.length());
                 } else if (pos == 1) {//删除按钮
                     String text = etSearch.getText().toString().trim();
                     if (text.length() > 0) {
@@ -181,11 +199,26 @@ public class SearchActivity extends BaseActivity {
                         etSearch.setText(text);
                     }
                     if (text.length() > 0) {
-                        loadPinyinResult(text);
                         etSearch.setSelection(text.length());
                     }
                 } else if (pos == 0) {//远程搜索
                     etSearch.setText("");
+                }
+            }
+        });
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                if (!suppressSuggestionWatcher) {
+                    loadPinyinResult(editable.toString().trim());
                 }
             }
         });
@@ -279,6 +312,9 @@ public class SearchActivity extends BaseActivity {
         List<String> historyWords = (List<String>) spDataUtil.getObjectValue("histroys");
         if (historyWords == null) {
             historyWords = new ArrayList<>();
+        } else if (historyWords.size() > MAX_SEARCH_HISTORY) {
+            historyWords = new ArrayList<>(historyWords.subList(0, MAX_SEARCH_HISTORY));
+            spDataUtil.saveObjectValue("histroys", historyWords);
         }
         return historyWords;
     }
@@ -297,6 +333,9 @@ public class SearchActivity extends BaseActivity {
             historys = new ArrayList<>();
         }
         historys.add(0, wd);
+        if (historys.size() > MAX_SEARCH_HISTORY) {
+            historys = new ArrayList<>(historys.subList(0, MAX_SEARCH_HISTORY));
+        }
         spDataUtil.saveObjectValue("histroys", historys);
     }
     private void clearHistory() {
@@ -314,64 +353,59 @@ public class SearchActivity extends BaseActivity {
      * 拼音联想
      */
     private void loadPinyinResult(String key) {
-//        OkGo.<String>get("https://s.video.qq.com/smartbox")
-//        OkGo.<String>get("https://node.video.qq.com/smartbox")
-//                .params("plat", 2)
-//                .params("ver", 0)
-//                .params("num", 10)
-//                .params("otype", "json")
-//                .params("query", key)
-//                .execute(new AbsCallback<String>() {
-//                    @Override
-//                    public void onSuccess(Response<String> response) {
-//                        try {
-//                            ArrayList<String> hots = new ArrayList<>();
-//                            String result = response.body();
-//                            L.d(result);
-//                            JsonObject json = JsonParser.parseString(result.substring(result.indexOf("{"), result.lastIndexOf("}") + 1)).getAsJsonObject();
-//                            JsonArray itemList = json.get("item").getAsJsonArray();
-//                            for (JsonElement ele : itemList) {
-//                                JsonObject obj = (JsonObject) ele;
-//                                hots.add(obj.get("word").getAsString().trim());
-//                            }
-//                            wordAdapter.setNewData(hots);
-//                        } catch (Throwable th) {
-//                            th.printStackTrace();
-//                        }
-//                    }
-//
-//                    @Override
-//                    public String convertResponse(okhttp3.Response response) throws Throwable {
-//                        return response.body().string();
-//                    }
-//                });
-        OkGo.<String>get("https://suggest.video.iqiyi.com/")
-                .params("if", "mobile")
-                .params("key", key)
-                .execute(new AbsCallback<String>() {
-                    @Override
-                    public void onSuccess(Response<String> response) {
-                        try {
-                            ArrayList<String> hots = new ArrayList<>();
-                            String result = response.body();
-                            JsonObject json = JsonParser.parseString(result).getAsJsonObject();
-                            JsonArray itemList = json.get("data").getAsJsonArray();
-                            for (JsonElement ele : itemList) {
-                                JsonObject obj = (JsonObject) ele;
-                                hots.add(obj.get("name").getAsString().trim().replaceAll("<|>|《|》|-", ""));
-                            }
-                            wordAdapter.setNewData(hots);
-                            updateHotWordPanel();
-                        } catch (Throwable th) {
-                            th.printStackTrace();
-                        }
-                    }
+        final int requestId = ++suggestionRequestId;
+        if (suggestionRunnable != null) {
+            searchHandler.removeCallbacks(suggestionRunnable);
+            suggestionRunnable = null;
+        }
+        OkGo.getInstance().cancelTag(suggestionTag);
+        if (TextUtils.isEmpty(key)) {
+            wordAdapter.setNewData(new ArrayList<>());
+            updateHotWordPanel();
+            return;
+        }
+        wordAdapter.setNewData(new ArrayList<>());
+        updateHotWordPanel();
 
-                    @Override
-                    public String convertResponse(okhttp3.Response response) throws Throwable {
-                        return response.body().string();
-                    }
-                });
+        suggestionRunnable = () -> {
+            if (requestId != suggestionRequestId || !key.equals(etSearch.getText().toString().trim())) {
+                return;
+            }
+            OkGo.<String>get("https://suggest.video.iqiyi.com/")
+                    .tag(suggestionTag)
+                    .params("if", "mobile")
+                    .params("key", key)
+                    .execute(new AbsCallback<String>() {
+                        @Override
+                        public void onSuccess(Response<String> response) {
+                            if (requestId != suggestionRequestId
+                                    || !key.equals(etSearch.getText().toString().trim())
+                                    || isFinishing() || isDestroyed()) {
+                                return;
+                            }
+                            try {
+                                ArrayList<String> hots = new ArrayList<>();
+                                String result = response.body();
+                                JsonObject json = JsonParser.parseString(result).getAsJsonObject();
+                                JsonArray itemList = json.get("data").getAsJsonArray();
+                                for (JsonElement ele : itemList) {
+                                    JsonObject obj = (JsonObject) ele;
+                                    hots.add(obj.get("name").getAsString().trim().replaceAll("<|>|《|》|-", ""));
+                                }
+                                wordAdapter.setNewData(hots);
+                                updateHotWordPanel();
+                            } catch (Throwable th) {
+                                th.printStackTrace();
+                            }
+                        }
+
+                        @Override
+                        public String convertResponse(okhttp3.Response response) throws Throwable {
+                            return response.body().string();
+                        }
+                    });
+        };
+        searchHandler.postDelayed(suggestionRunnable, SUGGESTION_DEBOUNCE_MS);
     }
 
 
@@ -392,12 +426,16 @@ public class SearchActivity extends BaseActivity {
 
     private void requestHotWords() {
         Initer.init(this);
+        final int generation = suggestionRequestId;
+        if (!canShowHotWords(generation)) return;
         // 加载热词
         OkGo.<String>get("https://node.video.qq.com/x/api/hot_mobilesearch")
+                .tag(hotWordsTag)
                 .params("channdlId", "0")
                 .execute(new AbsCallback<String>() {
                     @Override
                     public void onSuccess(Response<String> response) {
+                        if (!canShowHotWords(generation)) return;
                         try {
                             ArrayList<String> hots = new ArrayList<>();
                             L.d(response.body());
@@ -408,7 +446,7 @@ public class SearchActivity extends BaseActivity {
                             }
                             wordAdapter.setNewData(hots);
                             updateHotWordPanel();
-                            requestHotWords_my();
+                            requestHotWords_my(generation);
                         } catch (Throwable th) {
                             th.printStackTrace();
                         }
@@ -420,7 +458,13 @@ public class SearchActivity extends BaseActivity {
                     }
                 });
     }
-    private void requestHotWords_my() {
+    private boolean canShowHotWords(int generation) {
+        return !isFinishing() && !isDestroyed() && generation == suggestionRequestId
+                && etSearch != null && TextUtils.isEmpty(etSearch.getText().toString().trim())
+                && TextUtils.isEmpty(searchWord);
+    }
+
+    private void requestHotWords_my(int generation) {
         new Thread() {
             @Override
             public void run() {
@@ -431,6 +475,7 @@ public class SearchActivity extends BaseActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            if (!canShowHotWords(generation)) return;
                             if (hotWordsBean != null && !NullUtil.isNull(hotWordsBean.resultData)) {
                                 ArrayList<String> hots = new ArrayList<>();
                                 for (HotWords.Word w : hotWordsBean.resultData) {
@@ -460,7 +505,6 @@ public class SearchActivity extends BaseActivity {
     public void searchEvent(ServerEvent event) {
         if (event.type == ServerEvent.SERVER_SEARCH) {
             String title = (String) event.obj;
-            showLoading();
             search(title);
         }
     }
@@ -471,6 +515,7 @@ public class SearchActivity extends BaseActivity {
             if (event.requestId != searchRequestId || searchFinished) {
                 return;
             }
+            if (event.sourceKey == null || !respondedSourceKeys.add(event.sourceKey)) return;
             try {
                 showSearchData(event.obj == null ? null : (AbsXml) event.obj);
             } catch (Exception e) {
@@ -478,12 +523,11 @@ public class SearchActivity extends BaseActivity {
                 showSearchData(null);
             }
             completedSearchSources++;
+            updateSearchProgress(false);
             if (completedSearchSources >= searchSourceCount) {
                 searchFinished = true;
                 searchHandler.removeCallbacks(searchTimeout);
-                if (searchResultAdapter.getData().isEmpty()) {
-                    showEmpty();
-                }
+                tvRetrySearch.setVisibility(View.GONE);
             }
         }
     }
@@ -500,22 +544,30 @@ public class SearchActivity extends BaseActivity {
 
     private void search(String wd) {
         stopSearchRequests();
+        tvRetrySearch.setVisibility(View.GONE);
+        cancelSuggestions();
+        wordAdapter.setNewData(new ArrayList<>());
+        updateHotWordPanel();
         searchHandler.removeCallbacks(searchTimeout);
         searchRequestId++;
         searchFinished = false;
         completedSearchSources = 0;
         searchSourceCount = 0;
-        showLoading();
+        showSuccess();
         this.searchWord = wd;
-        mSearchResultRV.setVisibility(View.INVISIBLE);
+        tvSearchProgress.setVisibility(View.VISIBLE);
+        tvSearchProgress.setText("正在准备搜索来源…");
+        mSearchResultRV.setVisibility(View.VISIBLE);
         searchResultAdapter.setNewData(new ArrayList<>());
         doSearch();
         if (searchSourceCount > 0) {
             searchHandler.postDelayed(searchTimeout, 15000L);
         }
         if (etSearch != null) {
+            suppressSuggestionWatcher = true;
             etSearch.setText(wd);
             etSearch.setSelection(etSearch.getText().length());
+            suppressSuggestionWatcher = false;
         }
         saveHistoryWords(wd);
         refreshHistoryView();
@@ -545,12 +597,19 @@ public class SearchActivity extends BaseActivity {
         // 站点顺序即「搜索源管理」里的勾选顺序（已过滤掉未勾选与不可搜索的源）
         List<SiteBean> siteBeans = ApiConfig.getInstance().getOrderedSearchSiteList();
         if (siteBeans.isEmpty()) {
-            // 一个源都没勾选时不能一直停在加载中（搜索页没有超时兜底）
-            showEmpty();
+            searchFinished = true;
+            tvSearchProgress.setText("没有启用搜索源，请先在设置中勾选可搜索的来源");
             Toast.makeText(mContext, "未选择任何搜索源，请到 设置 → 设置其他 → 搜索源管理 中勾选", Toast.LENGTH_LONG).show();
             return;
         }
         searchSourceCount = siteBeans.size();
+        activeSearchSites = new ArrayList<>(siteBeans);
+        respondedSourceKeys.clear();
+        updateSearchProgress(false);
+        submitSearchSources(siteBeans);
+    }
+
+    private void submitSearchSources(List<SiteBean> siteBeans) {
         final int requestId = searchRequestId;
         final String query = searchWord;
         for (final SiteBean siteBean : siteBeans) {
@@ -567,6 +626,32 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
+    private List<SiteBean> getUnresponsiveSites() {
+        List<SiteBean> pending = new ArrayList<>();
+        for (SiteBean siteBean : activeSearchSites) {
+            if (!respondedSourceKeys.contains(siteBean.getKey())) pending.add(siteBean);
+        }
+        return pending;
+    }
+
+    private void retryUnresponsiveSources() {
+        List<SiteBean> pending = getUnresponsiveSites();
+        if (pending.isEmpty()) {
+            tvRetrySearch.setVisibility(View.GONE);
+            return;
+        }
+        stopSearchRequests();
+        searchRequestId++;
+        searchFinished = false;
+        completedSearchSources = 0;
+        searchSourceCount = pending.size();
+        activeSearchSites = new ArrayList<>(pending);
+        tvRetrySearch.setVisibility(View.GONE);
+        updateSearchProgress(false);
+        submitSearchSources(pending);
+        searchHandler.postDelayed(searchTimeout, 15000L);
+    }
+
     private void stopSearchRequests() {
         searchFinished = true;
         searchHandler.removeCallbacks(searchTimeout);
@@ -577,16 +662,57 @@ public class SearchActivity extends BaseActivity {
         searchTasks.clear();
     }
 
+    private void cancelSuggestions() {
+        suggestionRequestId++;
+        if (suggestionRunnable != null) {
+            searchHandler.removeCallbacks(suggestionRunnable);
+            suggestionRunnable = null;
+        }
+        OkGo.getInstance().cancelTag(suggestionTag);
+    }
+
+    private void updateSearchProgress(boolean timedOut) {
+        if (tvSearchProgress == null) return;
+        tvSearchProgress.setVisibility(View.VISIBLE);
+        if (timedOut && completedSearchSources < searchSourceCount && !searchResultAdapter.getData().isEmpty()) {
+            tvSearchProgress.setText("已找到 " + searchResultAdapter.getData().size() + " 条，" + completedSearchSources
+                    + "/" + searchSourceCount + " 个来源已响应；其余来源超时");
+        } else if (timedOut && completedSearchSources < searchSourceCount) {
+            tvSearchProgress.setText("搜索超时，没有找到结果；可重试未响应来源");
+        } else if (completedSearchSources >= searchSourceCount && searchSourceCount > 0) {
+            int count = searchResultAdapter.getData().size();
+            tvSearchProgress.setText(count == 0
+                    ? "搜索完成（" + searchSourceCount + " 个来源），没有匹配结果"
+                    : "搜索完成 · " + count + " 条结果 · " + searchSourceCount + " 个来源");
+        } else {
+            tvSearchProgress.setText("正在搜索 · 已收到 " + completedSearchSources + "/" + searchSourceCount + " 个来源的响应");
+        }
+    }
+
     private void showSearchData(AbsXml absXml) {
         if (absXml == null || absXml.movie == null || NullUtil.isNull(absXml.movie.videoList)) return;
         List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
-        List<Movie.Video> old = searchResultAdapter.getData();
+        if (videos == null || videos.isEmpty()) return;
+        List<Movie.Video> old = new ArrayList<>(searchResultAdapter.getData());
         List<Movie.Video> merged = new ArrayList<>(old);
         merged.addAll(videos);
         // 每批搜索结果返回后都重新排序，避免后返回的高优先级源被追加到列表末尾。
         Collections.sort(merged, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
                 - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
-        searchResultAdapter.setNewData(merged);
+        DiffUtil.DiffResult changes = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override public int getOldListSize() { return old.size(); }
+            @Override public int getNewListSize() { return merged.size(); }
+            @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                // Existing results keep their object identity while new source results are inserted.
+                return old.get(oldPosition) == merged.get(newPosition);
+            }
+            @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                return true;
+            }
+        });
+        searchResultAdapter.getData().clear();
+        searchResultAdapter.getData().addAll(merged);
+        changes.dispatchUpdatesTo(searchResultAdapter);
         if (searchResultAdapter.getData().size() >= 1) {
             showSuccess();
             mSearchResultRV.setVisibility(View.VISIBLE);
@@ -597,6 +723,8 @@ public class SearchActivity extends BaseActivity {
     protected void onDestroy() {
         super.onDestroy();
         stopSearchRequests();
+        cancelSuggestions();
+        OkGo.getInstance().cancelTag(hotWordsTag);
         EventBus.getDefault().unregister(this);
         // 释放聚合搜索线程池，避免退出搜索页后仍存活 5 条线程
         if (mExecutorService != null) {

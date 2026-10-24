@@ -9,11 +9,13 @@ import android.widget.Toast;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.github.tvbox.osc.base.BaseActivity;
+import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.HistoryAdapter;
 import com.github.tvbox.osc.ui.dialog.TipDialog;
+import com.github.tvbox.osc.ui.view.UndoBar;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
@@ -37,6 +39,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     private TvRecyclerView mGridView;
     private HistoryAdapter historyAdapter;
     private TipDialog mClearDialog = null;
+    private UndoBar undoBar;
     private boolean delMode = false;
 
     @Override
@@ -52,8 +55,56 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
 
     private void toggleDelMode() {
         delMode = !delMode;
-        tvDelTip.setVisibility(delMode ? View.VISIBLE : View.GONE);
+        updateModeHint();
         tvDel.setTextColor(delMode ? getResources().getColor(R.color.color_FF0057) : Color.WHITE);
+    }
+
+    private void updateModeHint() {
+        boolean hasItems = historyAdapter != null && historyAdapter.getData() != null && !historyAdapter.getData().isEmpty();
+        tvDelTip.setText(delMode ? "确定删除 · 返回退出" : "确定续播 · 长按详情");
+        tvDelTip.setVisibility(hasItems ? View.VISIBLE : View.GONE);
+    }
+
+    private void updateDeleteButtons() {
+        boolean empty = historyAdapter.getData() == null || historyAdapter.getData().isEmpty();
+        tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
+        tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
+        updateModeHint();
+        if (empty && delMode) toggleDelMode();
+    }
+
+    private void deleteHistoryItem(int position) {
+        VodInfo vodInfo = historyAdapter.getData().get(position);
+        if (vodInfo == null) return;
+        historyAdapter.remove(position);
+        RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
+        updateDeleteButtons();
+        getUndoBar().show("已删除观看记录", () -> {
+            RoomDataManger.insertVodRecord(vodInfo.sourceKey, vodInfo);
+            int restorePosition = Math.min(position, historyAdapter.getData().size());
+            historyAdapter.addData(restorePosition, vodInfo);
+            updateDeleteButtons();
+        }, mGridView);
+    }
+
+    private UndoBar getUndoBar() {
+        if (undoBar == null) undoBar = new UndoBar(this);
+        return undoBar;
+    }
+
+    private void openHistoryItem(VodInfo vodInfo, boolean continuePlayback) {
+        if (ApiConfig.getInstance().getSiteBean(vodInfo.sourceKey) == null) {
+            Bundle searchBundle = new Bundle();
+            searchBundle.putString("title", vodInfo.name);
+            Toast.makeText(this, "原片源已移除，正在搜索其他来源", Toast.LENGTH_SHORT).show();
+            jumpActivity(SearchActivity.class, searchBundle);
+            return;
+        }
+        Bundle bundle = new Bundle();
+        bundle.putString("id", vodInfo.id);
+        bundle.putString("sourceKey", vodInfo.sourceKey);
+        bundle.putBoolean("autoPlayFromHistory", continuePlayback);
+        jumpActivity(DetailActivity.class, bundle);
     }
 
     @Override
@@ -122,28 +173,27 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
                 VodInfo vodInfo = historyAdapter.getData().get(position);
                 if (vodInfo != null) {
                     if (delMode) {
-                        historyAdapter.remove(position);
-                        RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
+                        deleteHistoryItem(position);
                     } else {
-                        Bundle bundle = new Bundle();
-                        bundle.putString("id", vodInfo.id);
-                        bundle.putString("sourceKey", vodInfo.sourceKey);
-                        jumpActivity(DetailActivity.class, bundle);
+                        openHistoryItem(vodInfo, true);
                     }
                 }
             }
+        });
+        historyAdapter.setOnItemLongClickListener((adapter, view, position) -> {
+            FastClickCheckUtil.check(view);
+            if (!delMode && position >= 0 && position < historyAdapter.getData().size()) {
+                VodInfo vodInfo = historyAdapter.getData().get(position);
+                if (vodInfo != null) openHistoryItem(vodInfo, false);
+            }
+            return true;
         });
     }
 
     private void initData() {
         List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
         historyAdapter.setNewData(allVodRecord);
-        boolean empty = allVodRecord == null || allVodRecord.isEmpty();
-        tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
-        tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
-        if (empty && delMode) {
-            toggleDelMode();
-        }
+        updateDeleteButtons();
     }
 
     /**
@@ -186,12 +236,14 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
 
     @Override
     protected void onDestroy() {
+        if (undoBar != null) undoBar.dismiss(false);
         super.onDestroy();
         EventBus.getDefault().unregister(this);
     }
 
     @Override
     public void onBackPressed() {
+        if (undoBar != null) undoBar.dismiss(true);
         if (delMode) {
             toggleDelMode();
             return;

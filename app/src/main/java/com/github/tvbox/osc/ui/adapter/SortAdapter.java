@@ -13,6 +13,14 @@ import java.util.ArrayList;
  * @description:
  */
 public class SortAdapter extends BaseQuickAdapter<MovieSort.SortData, BaseViewHolder> {
+    private int selectedPosition = 0;
+
+    public void setSelectedPosition(int position) {
+        int previous = selectedPosition;
+        selectedPosition = position;
+        if (previous >= 0 && previous < getData().size()) notifyItemChanged(previous);
+        if (position != previous && position >= 0 && position < getData().size()) notifyItemChanged(position);
+    }
     public SortAdapter() {
         super(R.layout.item_home_sort, new ArrayList<>());
     }
@@ -20,5 +28,11 @@ public class SortAdapter extends BaseQuickAdapter<MovieSort.SortData, BaseViewHo
     @Override
     protected void convert(BaseViewHolder helper, MovieSort.SortData item) {
         helper.setText(R.id.tvTitle, item.name);
+        boolean selected = getData().indexOf(item) == selectedPosition;
+        helper.itemView.setSelected(selected);
+        android.widget.TextView title = helper.getView(R.id.tvTitle);
+        title.getPaint().setFakeBoldText(selected || helper.itemView.hasFocus());
+        title.setTextColor(title.getResources().getColorStateList(R.color.selector_home_rail_text));
+        helper.setVisible(R.id.tvFilter, item.filters != null && !item.filters.isEmpty());
     }
 }

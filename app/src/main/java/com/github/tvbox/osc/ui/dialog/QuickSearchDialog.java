@@ -36,6 +36,11 @@ public class QuickSearchDialog extends BaseDialog {
     private TvRecyclerView mWordRV;
     private String mSearchWd;
     private Activity mAct;
+    private Runnable mOnDialogDismiss;
+
+    public void setOnDialogDismissListener(Runnable listener) {
+        mOnDialogDismiss = listener;
+    }
 
     public QuickSearchDialog(@NotNull Activity activity, String wd) {
         super(activity, R.style.CustomDialogStyleDim);
@@ -108,6 +113,7 @@ public class QuickSearchDialog extends BaseDialog {
             @Override
             public void onDismiss(DialogInterface dialog) {
                 EventBus.getDefault().unregister(QuickSearchDialog.this);
+                if (mOnDialogDismiss != null) mOnDialogDismiss.run();
             }
         });
         mRv = findViewById(R.id.sortRV);

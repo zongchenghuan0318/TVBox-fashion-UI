@@ -16,6 +16,7 @@ import com.github.tvbox.osc.cache.VodCollect;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.CollectAdapter;
 import com.github.tvbox.osc.ui.dialog.TipDialog;
+import com.github.tvbox.osc.ui.view.UndoBar;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
@@ -35,6 +36,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
     private TvRecyclerView mGridView;
     private CollectAdapter collectAdapter;
     private TipDialog mClearDialog = null;
+    private UndoBar undoBar;
     private boolean delMode = false;
 
     @Override
@@ -57,8 +59,41 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
 
     private void toggleDelMode() {
         delMode = !delMode;
-        tvDelTip.setVisibility(delMode ? View.VISIBLE : View.GONE);
+        updateModeHint();
         tvDel.setTextColor(delMode ? getResources().getColor(R.color.color_FF0057) : Color.WHITE);
+    }
+
+    private void updateModeHint() {
+        boolean hasItems = collectAdapter != null && collectAdapter.getData() != null && !collectAdapter.getData().isEmpty();
+        tvDelTip.setText(delMode ? "确定删除 · 返回退出" : "点按打开收藏");
+        tvDelTip.setVisibility(hasItems ? View.VISIBLE : View.GONE);
+    }
+
+    private void updateDeleteButtons() {
+        boolean empty = collectAdapter.getData() == null || collectAdapter.getData().isEmpty();
+        tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
+        tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
+        updateModeHint();
+        if (empty && delMode) toggleDelMode();
+    }
+
+    private void deleteCollectItem(int position) {
+        VodCollect vodInfo = collectAdapter.getData().get(position);
+        if (vodInfo == null) return;
+        collectAdapter.remove(position);
+        RoomDataManger.deleteVodCollect(vodInfo.getId());
+        updateDeleteButtons();
+        getUndoBar().show("已取消收藏", () -> {
+            RoomDataManger.restoreVodCollect(vodInfo);
+            int restorePosition = Math.min(position, collectAdapter.getData().size());
+            collectAdapter.addData(restorePosition, vodInfo);
+            updateDeleteButtons();
+        }, mGridView);
+    }
+
+    private UndoBar getUndoBar() {
+        if (undoBar == null) undoBar = new UndoBar(this);
+        return undoBar;
     }
 
     private void initView() {
@@ -113,8 +148,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
                 VodCollect vodInfo = collectAdapter.getData().get(position);
                 if (vodInfo != null) {
                     if (delMode) {
-                        collectAdapter.remove(position);
-                        RoomDataManger.deleteVodCollect(vodInfo.getId());
+                        deleteCollectItem(position);
                     } else {
                         if (ApiConfig.getInstance().getSiteBean(vodInfo.sourceKey) != null) {
                             Bundle bundle = new Bundle();
@@ -140,12 +174,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
             vodInfoList.add(vodInfo);
         }
         collectAdapter.setNewData(vodInfoList);
-        boolean empty = vodInfoList.isEmpty();
-        tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
-        tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
-        if (empty && delMode) {
-            toggleDelMode();
-        }
+        updateDeleteButtons();
     }
 
     /**
@@ -181,19 +210,21 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
-        if (event.type == RefreshEvent.TYPE_HISTORY_REFRESH) {
+        if (event.type == RefreshEvent.TYPE_HISTORY_REFRESH || event.type == RefreshEvent.TYPE_COLLECT_REFRESH) {
             initData();
         }
     }
 
     @Override
     protected void onDestroy() {
+        if (undoBar != null) undoBar.dismiss(false);
         super.onDestroy();
         EventBus.getDefault().unregister(this);
     }
 
     @Override
     public void onBackPressed() {
+        if (undoBar != null) undoBar.dismiss(true);
         if (delMode) {
             toggleDelMode();
             return;

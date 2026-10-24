@@ -185,10 +185,46 @@
         android:orientation="vertical"
         android:padding="@dimen/vs_20">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/vs_8"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvSearchProgress"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/color_rail_text_muted"
+                android:textSize="@dimen/ts_16"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvRetrySearch"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/vs_50"
+                android:layout_marginStart="@dimen/vs_10"
+                android:background="@drawable/selector_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="@dimen/vs_120"
+                android:paddingStart="@dimen/vs_12"
+                android:paddingEnd="@dimen/vs_12"
+                android:text="重试未响应来源"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_16"
+                android:visibility="gone" />
+        </LinearLayout>
+
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/sortRV"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:visibility="invisible"

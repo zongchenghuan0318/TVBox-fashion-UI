@@ -1,6 +1,8 @@
 package com.github.tvbox.osc.viewmodel;
 
 import android.text.TextUtils;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.github.catvod.crawler.Spider;
 import com.github.tvbox.osc.api.ApiConfig;
@@ -36,6 +38,7 @@ import org.greenrobot.eventbus.EventBus;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -62,6 +65,13 @@ public class SourceViewModel extends ViewModel {
     private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(2);
     private volatile FutureTask<String> activePlayContentTask;
     private volatile int playRequestId;
+    private volatile int detailRequestId;
+    private volatile int lastPostedDetailRequestId = -1;
+    private volatile int categoryRequestId;
+    private volatile int lastPostedCategoryRequestId = -1;
+    private final Object categoryRequestTag = new Object();
+    private final Object detailRequestTag = new Object();
+    private final Handler resultHandler = new Handler(Looper.getMainLooper());
 
     public interface HomeRecCallback {
         void done(List<Movie.Video> videos);
@@ -80,6 +90,9 @@ public class SourceViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         cancelHomeRequests();
+        cancelCategoryRequests();
+        cancelDetailRequests();
+        resultHandler.removeCallbacksAndMessages(null);
         FutureTask<String> playTask = activePlayContentTask;
         if (playTask != null) {
             playTask.cancel(true);
@@ -98,10 +111,8 @@ public class SourceViewModel extends ViewModel {
     }
 
     public void cancelCategoryRequests() {
-        SiteBean homeSourceBean = ApiConfig.getInstance().getHomeBean();
-        if (homeSourceBean != null && homeSourceBean.getApi() != null) {
-            OkGo.getInstance().cancelTag(homeSourceBean.getApi());
-        }
+        categoryRequestId++;
+        OkGo.getInstance().cancelTag(categoryRequestTag);
     }
 
     public void getSort(String sourceKey) {
@@ -220,16 +231,28 @@ public class SourceViewModel extends ViewModel {
         }
     }
 
-    public void getMovieList(MovieSort.SortData sortData, int page) {
+    public int getMovieList(MovieSort.SortData sortData, int page) {
+        final int requestId = ++categoryRequestId;
+        OkGo.getInstance().cancelTag(categoryRequestTag);
         SiteBean homeSourceBean = ApiConfig.getInstance().getHomeBean();
+        if (homeSourceBean == null || sortData == null) {
+            postCategoryResult(null, requestId);
+            return requestId;
+        }
+        final String categoryId = sortData.id;
+        final HashMap<String, String> selectedFilters = new HashMap<>(sortData.filterSelect);
         int type = homeSourceBean.getType();
         if (type == 3) {
             mExecutorService.execute(() -> {
                 try {
                     Spider sp = ApiConfig.getInstance().getCSP(homeSourceBean);
-                    parseJson(listResult, sp.categoryContent(sortData.id, page + "", true, sortData.filterSelect), homeSourceBean.getKey(), 0);
+                    AbsXml data = parseJson(null,
+                            sp.categoryContent(categoryId, page + "", true, selectedFilters),
+                            homeSourceBean.getKey(), 0);
+                    postCategoryResult(data, requestId);
                 } catch (Throwable th) {
                     L.e(th);
+                    postCategoryResult(null, requestId);
                 }
             });
         } else if (type == 0 || type == 1) {
@@ -248,9 +271,9 @@ public class SourceViewModel extends ViewModel {
 //            });
 
             OkGo.<String>get(homeSourceBean.getApi())
-                    .tag(homeSourceBean.getApi())
+                    .tag(categoryRequestTag)
                     .params("ac", type == 0 ? "videolist" : "detail")
-                    .params("t", sortData.id)
+                    .params("t", categoryId)
                     .params("pg", page)
                     .execute(new AbsCallback<String>() {
 
@@ -267,22 +290,35 @@ public class SourceViewModel extends ViewModel {
                         public void onSuccess(Response<String> response) {
                             if (type == 0) {
                                 String xml = response.body();
-                                parseXml(listResult, xml, homeSourceBean.getKey(), 0);
+                                postCategoryResult(parseXml(null, xml, homeSourceBean.getKey(), 0), requestId);
                             } else {
                                 String json = response.body();
-                                parseJson(listResult, json, homeSourceBean.getKey(), 0);
+                                postCategoryResult(parseJson(null, json, homeSourceBean.getKey(), 0), requestId);
                             }
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            listResult.postValue(null);
+                            postCategoryResult(null, requestId);
                         }
                     });
         } else {
-            listResult.postValue(null);
+            postCategoryResult(null, requestId);
         }
+        return requestId;
+    }
+
+    private void postCategoryResult(AbsXml data, int requestId) {
+        resultHandler.post(() -> {
+            if (requestId != categoryRequestId) return;
+            lastPostedCategoryRequestId = requestId;
+            listResult.setValue(data);
+        });
+    }
+
+    public int getLastPostedCategoryRequestId() {
+        return lastPostedCategoryRequestId;
     }
 
     public void getHomeRecList(SiteBean sourceBean, ArrayList<String> ids, HomeRecCallback callback) {
@@ -375,10 +411,17 @@ public class SourceViewModel extends ViewModel {
         }
     }
 
-    public void getDetail(String sourceKey, String id) {
+    public int getDetail(String sourceKey, String id) {
+        int requestId = ++detailRequestId;
+        requestDetail(sourceKey, id, requestId);
+        return requestId;
+    }
+
+    private void requestDetail(String sourceKey, String id, int requestId) {
+        OkGo.getInstance().cancelTag(detailRequestTag);
         SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
         if (null == sourceBean) {
-            detailResult.postValue(null);
+            postDetailResult(null, requestId);
             return;
         }
         int type = sourceBean.getType();
@@ -392,10 +435,10 @@ public class SourceViewModel extends ViewModel {
                     ids.add(id);
                     String detail = sp.detailContent(ids);
                     L.d("getDetail json="+detail);
-                    parseJson(detailResult, detail, sourceBean.getKey(), 0);
+                    parseJson(detailResult, detail, sourceBean.getKey(), 0, requestId);
                 } catch (Exception th) {
                     L.w("getDetail " + th.getMessage());
-                    detailResult.postValue(null);
+                    postDetailResult(null, requestId);
                 } finally {
                     // 一次性线程池用完即关，否则每次调用都会泄漏一个线程
                     executor.shutdown();
@@ -421,7 +464,7 @@ public class SourceViewModel extends ViewModel {
 //            });
 
             OkGo.<String>get(sourceBean.getApi())
-                    .tag("detail")
+                    .tag(detailRequestTag)
                     .params("ac", type == 0 ? "videolist" : "detail")
                     .params("ids", id)
                     .execute(new AbsCallback<String>() {
@@ -441,11 +484,11 @@ public class SourceViewModel extends ViewModel {
                             if (type == 0) {
                                 String xml = response.body();
                                 L.d("getDetail xml=" + xml);
-                                parseXml(detailResult, xml, sourceBean.getKey(), 0);
+                                parseXml(detailResult, xml, sourceBean.getKey(), 0, requestId);
                             } else {
                                 String json = response.body();
                                 L.d("getDetail json=" + json);
-                                parseJson(detailResult, json, sourceBean.getKey(), 0);
+                                parseJson(detailResult, json, sourceBean.getKey(), 0, requestId);
                             }
                         }
 
@@ -456,12 +499,29 @@ public class SourceViewModel extends ViewModel {
                             if (response != null) {
                                 L.d("  " + response.body());
                             }
-                            detailResult.postValue(null);
+                            postDetailResult(null, requestId);
                         }
                     });
         } else {
-            detailResult.postValue(null);
+            postDetailResult(null, requestId);
         }
+    }
+
+    private void postDetailResult(AbsXml data, int requestId) {
+        resultHandler.post(() -> {
+            if (requestId != detailRequestId) return;
+            lastPostedDetailRequestId = requestId;
+            detailResult.setValue(data);
+        });
+    }
+
+    public void cancelDetailRequests() {
+        detailRequestId++;
+        OkGo.getInstance().cancelTag(detailRequestTag);
+    }
+
+    public int getLastPostedDetailRequestId() {
+        return lastPostedDetailRequestId;
     }
 
     public void getSearch( String sourceKey, String wd) {
@@ -476,6 +536,10 @@ public class SourceViewModel extends ViewModel {
         doSearch(quickSearchResult, sourceKey, wd);
     }
 
+    public void getQuickSearch(String sourceKey, String wd, int requestId) {
+        doSearch(quickSearchResult, sourceKey, wd, requestId);
+    }
+
     private void doSearch(MutableLiveData<AbsXml> searchType, String sourceKey, String wd) {
         doSearch(searchType, sourceKey, wd, -1);
     }
@@ -483,7 +547,7 @@ public class SourceViewModel extends ViewModel {
     private void doSearch(MutableLiveData<AbsXml> searchType, String sourceKey, String wd, int requestId) {
         SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
         if (siteBean == null) {
-            postSearchResult(searchType, null, requestId);
+            postSearchResult(searchType, null, requestId, sourceKey);
             return;
         }
         int type = siteBean.getType();
@@ -508,19 +572,19 @@ public class SourceViewModel extends ViewModel {
                     searchTask.cancel(true);
                 }
                 L.w(sourceKey + " spider search timed out");
-                postSearchResult(searchType, null, requestId);
+                postSearchResult(searchType, null, requestId, sourceKey);
             } catch (InterruptedException e) {
                 if (searchTask != null) {
                     searchTask.cancel(true);
                 }
                 Thread.currentThread().interrupt();
-                postSearchResult(searchType, null, requestId);
+                postSearchResult(searchType, null, requestId, sourceKey);
             } catch (ExecutionException | RuntimeException e) {
                 L.e(sourceKey + " doSearch " + e.getMessage());
-                postSearchResult(searchType, null, requestId);
+                postSearchResult(searchType, null, requestId, sourceKey);
             } catch (Exception e) {
                 L.e(sourceKey + " doSearch " + e.getMessage());
-                postSearchResult(searchType, null, requestId);
+                postSearchResult(searchType, null, requestId, sourceKey);
             }
         } else if (type == 0 || type == 1) {
             final long beginTime = System.currentTimeMillis();
@@ -543,11 +607,11 @@ public class SourceViewModel extends ViewModel {
                             long duration = System.currentTimeMillis() - beginTime;
                             if (type == 0) {
                                 String xml = response.body();
-                                submitSearchParse(searchType, requestId, () ->
+                                submitSearchParse(searchType, requestId, siteBean.getKey(), () ->
                                         parseXml(searchType, xml, siteBean.getKey(), duration, requestId));
                             } else {
                                 String json = response.body();
-                                submitSearchParse(searchType, requestId, () ->
+                                submitSearchParse(searchType, requestId, siteBean.getKey(), () ->
                                         parseJson(searchType, json, siteBean.getKey(), duration, requestId));
                             }
                         }
@@ -555,29 +619,29 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            postSearchResult(searchType, null, requestId);
+                            postSearchResult(searchType, null, requestId, siteBean.getKey());
                         }
 
                     });
         } else {
-            postSearchResult(searchType, null, requestId);
+            postSearchResult(searchType, null, requestId, sourceKey);
         }
     }
 
-    private void postSearchResult(MutableLiveData<AbsXml> result, AbsXml data, int requestId) {
+    private void postSearchResult(MutableLiveData<AbsXml> result, AbsXml data, int requestId, String sourceKey) {
         if (searchResult == result) {
-            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data, requestId));
+            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data, requestId, sourceKey));
         } else if (quickSearchResult == result) {
-            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
+            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data, requestId, sourceKey));
         }
     }
 
-    private void submitSearchParse(MutableLiveData<AbsXml> result, int requestId, Runnable parse) {
+    private void submitSearchParse(MutableLiveData<AbsXml> result, int requestId, String sourceKey, Runnable parse) {
         try {
             mSearchParseExecutor.execute(parse);
         } catch (RejectedExecutionException e) {
             L.e("search parse executor rejected request: " + e.getMessage());
-            postSearchResult(result, null, requestId);
+            postSearchResult(result, null, requestId, sourceKey);
         }
     }
 
@@ -618,7 +682,7 @@ public class SourceViewModel extends ViewModel {
         }
         SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
         if (sourceBean == null) {
-            playResult.postValue(null);
+            postPlayResult(null, requestId);
             return;
         }
         int type = sourceBean.getType();
@@ -648,32 +712,33 @@ public class SourceViewModel extends ViewModel {
                     if (!result.has("flag")) {
                         result.put("flag", playFlag);
                     }
-                    playResult.postValue(result);
+                    postPlayResult(result, requestId);
                 } catch (TimeoutException e) {
                     task.cancel(true);
                     if (requestId == playRequestId) {
                         L.w(sourceKey + " playerContent timed out");
-                        playResult.postValue(null);
+                        postPlayResult(null, requestId);
                     }
                 } catch (InterruptedException e) {
                     task.cancel(true);
                     Thread.currentThread().interrupt();
                     if (requestId == playRequestId) {
-                        playResult.postValue(null);
+                        postPlayResult(null, requestId);
                     }
                 } catch (Exception e) {
                     if (requestId != playRequestId) {
                         return;
                     }
                     L.e("getPlayUrl "+e.getMessage());
-                    playResult.postValue(null);
+                    postPlayResult(null, requestId);
                 }
             });
         } else if (type == 0 || type == 1) {
             try {
                 JSONObject result = new JSONObject();
                 result.put("key", url);
-                String playUrl = sourceBean.getPlayerUrl().trim();
+                String configuredPlayerUrl = sourceBean.getPlayerUrl();
+                String playUrl = configuredPlayerUrl == null ? "" : configuredPlayerUrl.trim();
                 if (DefaultConfig.isVideoFormat(url) && playUrl.isEmpty()) {
                     result.put("parse", 0);
                     result.put("url", url);
@@ -684,14 +749,20 @@ public class SourceViewModel extends ViewModel {
                 result.put("playUrl", playUrl);
                 result.put("flag", playFlag);
                 L.d(sourceKey + " getPlayUrl json=" + new Gson().toJson(result));
-                playResult.postValue(result);
+                postPlayResult(result, requestId);
             } catch (Throwable th) {
                 L.e(th.getMessage());
-                playResult.postValue(null);
+                postPlayResult(null, requestId);
             }
         } else {
-            playResult.postValue(null);
+            postPlayResult(null, requestId);
         }
+    }
+
+    private void postPlayResult(JSONObject data, int requestId) {
+        resultHandler.post(() -> {
+            if (requestId == playRequestId) playResult.setValue(data);
+        });
     }
 
     private MovieSort.SortFilter getSortFilter(JsonObject obj) {
@@ -780,7 +851,7 @@ public class SourceViewModel extends ViewModel {
         }
     }
 
-    private void checkThunder(AbsXml data) {
+    private void checkThunder(AbsXml data, int requestId) {
         boolean bThunderParse = false;
         if (data.movie != null && data.movie.videoList != null && data.movie.videoList.size() == 1) {
             Movie.Video video = data.movie.videoList.get(0);
@@ -795,7 +866,7 @@ public class SourceViewModel extends ViewModel {
                                 L.d(info);
                             } else {
                                 urlInfo.nameUrlBeans.get(0).name = info;
-                                detailResult.postValue(data);
+                                postDetailResult(data, requestId);
                             }
                         }
 
@@ -803,7 +874,7 @@ public class SourceViewModel extends ViewModel {
                         public void list(String urls) {
                             urlInfo.urls = urls;
                             urlInfo.nameUrlBeans = UiHelper.getUrlsList(urls);
-                            detailResult.postValue(data);
+                            postDetailResult(data, requestId);
                         }
 
                         @Override
@@ -814,7 +885,7 @@ public class SourceViewModel extends ViewModel {
             }
         }
         if (!bThunderParse) {
-            detailResult.postValue(data);
+            postDetailResult(data, requestId);
         }
     }
 
@@ -839,12 +910,12 @@ public class SourceViewModel extends ViewModel {
             parseSeriesUrl(absXml, sourceKey);
             if (searchResult == result) {
                 addDuration(duration, absXml);
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId, sourceKey));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml, requestId, sourceKey));
             } else if (result != null) {
                 if (result == detailResult) {
-                    checkThunder(absXml);
+                    if (requestId == detailRequestId) checkThunder(absXml, requestId);
                 } else {
                     result.postValue(absXml);
                 }
@@ -852,11 +923,12 @@ public class SourceViewModel extends ViewModel {
             return absXml;
         } catch (Exception e) {
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId, sourceKey));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null, requestId, sourceKey));
             } else if (result != null) {
-                result.postValue(null);
+                if (result == detailResult) postDetailResult(null, requestId);
+                else result.postValue(null);
             }
             return null;
         }
@@ -893,27 +965,28 @@ public class SourceViewModel extends ViewModel {
                 parseSeriesUrl(absXml, sourceKey);
                 if (searchResult == result) {
                     addDuration(duration, absXml);
-                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId));
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId, sourceKey));
                 } else if (quickSearchResult == result) {
-                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml));
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml, requestId, sourceKey));
                 } else if (result != null) {
                     if (result == detailResult) {
-                        checkThunder(absXml);
+                        if (requestId == detailRequestId) checkThunder(absXml, requestId);
                     } else {
                         result.postValue(absXml);
                     }
                 }
             } else {
-                postSearchResult(result, null, requestId);
+                postSearchResult(result, null, requestId, sourceKey);
             }
             return absXml;
         } catch (Exception e) {
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId, sourceKey));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null, requestId, sourceKey));
             } else if (result != null) {
-                result.postValue(null);
+                if (result == detailResult) postDetailResult(null, requestId);
+                else result.postValue(null);
             }
             return null;
         }
