@@ -41,6 +41,11 @@ import xyz.doikki.videoplayer.player.VideoViewManager;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
+    private static final int MIN_BUFFER_MS = 2_000;
+    private static final int MAX_BUFFER_MS = 30_000;
+    private static final int BUFFER_FOR_PLAYBACK_MS = 1_500;
+    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 1_500;
+
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
     protected MediaSource mMediaSource;
@@ -61,12 +66,22 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void initPlayer() {
+        if (mLoadControl == null) {
+            mLoadControl = new DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                            MIN_BUFFER_MS,
+                            MAX_BUFFER_MS,
+                            BUFFER_FOR_PLAYBACK_MS,
+                            BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .createDefaultLoadControl();
+        }
         mInternalPlayer = new SimpleExoPlayer.Builder(
                 mAppContext,
                 mRenderersFactory == null ? mRenderersFactory = new DefaultRenderersFactory(mAppContext) : mRenderersFactory,
                 mTrackSelector == null ? mTrackSelector = new DefaultTrackSelector(mAppContext) : mTrackSelector,
                 new DefaultMediaSourceFactory(mAppContext),
-                mLoadControl == null ? mLoadControl = new DefaultLoadControl() : mLoadControl,
+                mLoadControl,
                 DefaultBandwidthMeter.getSingletonInstance(mAppContext),
                 new AnalyticsCollector(Clock.DEFAULT))
                 .build();
