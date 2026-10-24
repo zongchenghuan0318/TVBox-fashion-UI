@@ -3,9 +3,19 @@ package com.github.tvbox.osc.ui.fragment;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.text.InputType;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.github.tvbox.osc.api.ApiConfig;
@@ -68,6 +78,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvSubtitleLanguage;
     private TextView tvSubtitleOff;
     private ApiDialog mApiDialog =null;
+    private int easterEggClicks;
+    private long lastEasterEggClick;
 
     public static ModelSettingFragment newInstance() {
         return new ModelSettingFragment().setArguments();
@@ -115,6 +127,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvAudioLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.AUDIO_LANGUAGE, "")));
         tvSubtitleLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.SUBTITLE_LANGUAGE, "")));
         tvSubtitleOff.setText(Hawk.get(HawkConfig.SUBTITLE_OFF, false) ? "关闭" : "自动选择");
+        final View aboutRow = findViewById(R.id.llAbout);
+        final TextView versionView = findViewById(R.id.versionTV);
+        versionView.setOnClickListener(v -> handleEasterEggClick(v, aboutRow, versionView));
         final TextView seniorModeState = findViewById(R.id.tvSeniorModeState);
         View seniorModeRow = findViewById(R.id.llSeniorMode);
         boolean seniorModeEnabled = com.github.tvbox.osc.util.SeniorMode.isEnabled();
@@ -180,9 +195,10 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 SystemUitl.share(getActivity(), "分享", "我发现个很好用的免费视频APP，官网:"+ UiConstans.GO_BROWSER_URL);
             }
         });
-        findViewById(R.id.llAbout).setOnClickListener(new View.OnClickListener() {
+        aboutRow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (handleEasterEggClick(v, aboutRow, versionView)) return;
                 FastClickCheckUtil.check(v);
                 BiQuUpdateInfoGetter.checkUpdate(getActivity(), true);
             }
@@ -749,5 +765,121 @@ public class ModelSettingFragment extends BaseLazyFragment {
             return "全部（" + total + "）";
         }
         return enabled + "/" + total;
+    }
+
+    private boolean handleEasterEggClick(View source, View aboutRow, TextView versionView) {
+        long now = System.currentTimeMillis();
+        if (now - lastEasterEggClick > 2000L) easterEggClicks = 0;
+        lastEasterEggClick = now;
+        easterEggClicks++;
+        source.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+        if (easterEggClicks < 7) return false;
+        easterEggClicks = 0;
+        playEasterEgg(aboutRow, versionView);
+        return true;
+    }
+
+    private void playEasterEgg(View aboutRow, TextView versionView) {
+        AnimatorSet rowAnimation = new AnimatorSet();
+        rowAnimation.playTogether(
+                ObjectAnimator.ofFloat(aboutRow, View.SCALE_X, 1f, 1.04f, 1f),
+                ObjectAnimator.ofFloat(aboutRow, View.SCALE_Y, 1f, 1.04f, 1f),
+                ObjectAnimator.ofFloat(aboutRow, View.ROTATION_Y, 0f, 8f, -8f, 0f),
+                ObjectAnimator.ofFloat(aboutRow, View.ALPHA, 1f, 0.72f, 1f)
+        );
+        rowAnimation.setDuration(900L);
+        rowAnimation.start();
+
+        AnimatorSet versionAnimation = new AnimatorSet();
+        versionAnimation.playTogether(
+                ObjectAnimator.ofFloat(versionView, View.SCALE_X, 1f, 1.3f, 1f),
+                ObjectAnimator.ofFloat(versionView, View.SCALE_Y, 1f, 1.3f, 1f),
+                ObjectAnimator.ofFloat(versionView, View.ROTATION, 0f, 360f)
+        );
+        versionAnimation.setDuration(850L);
+        versionAnimation.start();
+
+        final Dialog dialog = new Dialog(requireContext());
+        FrameLayout root = new FrameLayout(requireContext());
+        root.setBackgroundColor(Color.TRANSPARENT);
+
+        LinearLayout card = new LinearLayout(requireContext());
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(dp(28), dp(24), dp(28), dp(20));
+        GradientDrawable cardBackground = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.rgb(28, 24, 64), Color.rgb(10, 49, 78)});
+        cardBackground.setCornerRadius(dp(24));
+        cardBackground.setStroke(dp(1), Color.argb(180, 102, 232, 255));
+        card.setBackground(cardBackground);
+        card.setElevation(dp(16));
+
+        TextView mark = new TextView(requireContext());
+        mark.setText("*  *  *");
+        mark.setTextColor(Color.rgb(102, 232, 255));
+        mark.setTextSize(18);
+        mark.setGravity(Gravity.CENTER);
+        card.addView(mark, new LinearLayout.LayoutParams(-1, dp(28)));
+
+        TextView title = new TextView(requireContext());
+        title.setText("小宗的隐藏彩蛋");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(24);
+        title.setGravity(Gravity.CENTER);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        card.addView(title, new LinearLayout.LayoutParams(-1, dp(42)));
+
+        TextView message = new TextView(requireContext());
+        message.setText("感谢你使用小宗开发的软件\n\n希望你天天开心，万事如意。\n一定要开心哦！！！");
+        message.setTextColor(Color.rgb(226, 244, 255));
+        message.setTextSize(16);
+        message.setGravity(Gravity.CENTER);
+        message.setLineSpacing(0, 1.15f);
+        card.addView(message, new LinearLayout.LayoutParams(-1, dp(104)));
+
+        TextView close = new TextView(requireContext());
+        close.setText("继续使用");
+        close.setTextColor(Color.rgb(10, 35, 55));
+        close.setTextSize(15);
+        close.setGravity(Gravity.CENTER);
+        GradientDrawable closeBackground = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Color.rgb(102, 232, 255), Color.rgb(173, 133, 255)});
+        closeBackground.setCornerRadius(dp(22));
+        close.setBackground(closeBackground);
+        card.addView(close, new LinearLayout.LayoutParams(dp(148), dp(44)));
+
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
+                dp(330), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        root.addView(card, cardParams);
+        root.setOnClickListener(v -> dialog.dismiss());
+        card.setOnClickListener(v -> dialog.dismiss());
+        close.setOnClickListener(v -> dialog.dismiss());
+        dialog.setContentView(root);
+        dialog.setCanceledOnTouchOutside(true);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            android.view.WindowManager.LayoutParams attributes = window.getAttributes();
+            attributes.dimAmount = 0.72f;
+            window.setAttributes(attributes);
+        }
+        dialog.show();
+
+        card.setScaleX(0.72f);
+        card.setScaleY(0.72f);
+        card.setAlpha(0f);
+        card.setRotation(-4f);
+        card.animate().alpha(1f).scaleX(1f).scaleY(1f).rotation(0f)
+                .setDuration(520L).setInterpolator(new android.view.animation.OvershootInterpolator(1.2f))
+                .start();
+        mark.animate().alpha(0.25f).setDuration(700L).setStartDelay(300L)
+                .withEndAction(() -> mark.animate().alpha(1f).setDuration(700L).start()).start();
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

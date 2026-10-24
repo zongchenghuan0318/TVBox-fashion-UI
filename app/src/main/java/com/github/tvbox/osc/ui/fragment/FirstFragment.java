@@ -356,6 +356,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 stopAutoScroll();
             } else if (event.getActionMasked() == MotionEvent.ACTION_UP
                     || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                if (event.getActionMasked() == MotionEvent.ACTION_UP) {
+                    mHotGridView.post(() -> mHotGridView.snapToCenterCard());
+                }
                 scheduleAutoScroll();
             }
             return false;
@@ -364,6 +367,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                updateCenteredCardState();
                 updateCardDepth();
             }
 
@@ -393,7 +397,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mFocusedCardPosition = position;
         updateCardDepth();
         // 选中的卡始终停在屏幕正中，切换一次就居中一次
-        if (positionChanged) {
+        if (positionChanged && !mHotGridView.isScrolling()) {
             centerCardAt(position, card);
         }
         List<Movie.Video> data = mAdapter.getData();
@@ -401,9 +405,45 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             // 背景海报与节目信息跟随当前选中的卡
             bindHero(data.get(position));
         }
+
         if (!mAutoScrollingCards) {
             scheduleAutoScroll();
         }
+    }
+
+    /**
+     * 手动拖动时，屏幕中央的卡片就是电视光标当前指向的卡片。
+     * 这里不启动额外滚动，只同步选中样式和背景，避免拖动过程被焦点逻辑抢滚动。
+     */
+    private void updateCenteredCardState() {
+        if (mHotGridView == null || mAdapter == null || mHotGridView.getChildCount() == 0) {
+            return;
+        }
+        int centerX = mHotGridView.contentCenterX();
+        View nearest = null;
+        int nearestDistance = Integer.MAX_VALUE;
+        for (int i = 0; i < mHotGridView.getChildCount(); i++) {
+            View child = mHotGridView.getChildAt(i);
+            if (child == null) {
+                continue;
+            }
+            int distance = Math.abs((child.getLeft() + child.getRight()) / 2 - centerX);
+            if (distance < nearestDistance) {
+                nearest = child;
+                nearestDistance = distance;
+            }
+        }
+        if (nearest == null) {
+            return;
+        }
+        int position = mHotGridView.getChildAdapterPosition(nearest);
+        List<Movie.Video> data = mAdapter.getData();
+        if (position < 0 || position >= data.size() || position == mFocusedCardPosition) {
+            return;
+        }
+        mFocusedCardPosition = position;
+        mHotGridView.setSelectedPosition(position);
+        bindHero(data.get(position));
     }
 
     private void updateCardDepth() {

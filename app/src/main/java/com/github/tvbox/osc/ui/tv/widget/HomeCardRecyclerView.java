@@ -23,7 +23,7 @@ import com.owen.tvrecyclerview.widget.TvRecyclerView;
  */
 public class HomeCardRecyclerView extends TvRecyclerView {
     /** 焦点切换时整排滑动的时长（毫秒） */
-    public static final int SCROLL_DURATION = 850;
+    public static final int SCROLL_DURATION = 360;
     /** 缓和进出曲线：起步不急、收尾不顿 */
     private static final Interpolator SCROLL_INTERPOLATOR = new PathInterpolator(0.12f, 0.72f, 0.18f, 1f);
     private boolean userTouching;
@@ -139,6 +139,55 @@ public class HomeCardRecyclerView extends TvRecyclerView {
         } else {
             scrollToPosition(position);
         }
+    }
+
+    /**
+     * 手动滑动结束后，将距离屏幕中心最近的卡片吸附到中心并交还焦点。
+     */
+    public void snapToCenterCard() {
+        post(() -> {
+            if (getChildCount() == 0 || getLayoutManager() == null) {
+                return;
+            }
+            final int centerX = windowCenterInList();
+            View nearest = null;
+            int nearestDistance = Integer.MAX_VALUE;
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                if (child == null) {
+                    continue;
+                }
+                int distance = Math.abs((child.getLeft() + child.getRight()) / 2 - centerX);
+                if (distance < nearestDistance) {
+                    nearest = child;
+                    nearestDistance = distance;
+                }
+            }
+            if (nearest == null) {
+                return;
+            }
+            int position = getChildAdapterPosition(nearest);
+            if (position == NO_POSITION) {
+                return;
+            }
+            int distance = (nearest.getLeft() + nearest.getRight()) / 2 - centerX;
+            if (Math.abs(distance) > 1) {
+                stopScroll();
+                super.smoothScrollBy(distance, 0, SCROLL_INTERPOLATOR, SCROLL_DURATION);
+            }
+            setSelectedPosition(position);
+            View target = nearest;
+            postDelayed(() -> {
+                if (target.getParent() == this) {
+                    target.requestFocus();
+                } else {
+                    View current = getLayoutManager().findViewByPosition(position);
+                    if (current != null) {
+                        current.requestFocus();
+                    }
+                }
+            }, SCROLL_DURATION);
+        });
     }
 
     /**
