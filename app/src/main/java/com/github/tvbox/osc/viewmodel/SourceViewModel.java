@@ -72,6 +72,9 @@ public class SourceViewModel extends ViewModel {
     private final Object categoryRequestTag = new Object();
     private final Object detailRequestTag = new Object();
     private final Handler resultHandler = new Handler(Looper.getMainLooper());
+    private final Object sortRequestTag = new Object();
+    private volatile int sortRequestId;
+    private String lastPostedSortSourceKey;
 
     public interface HomeRecCallback {
         void done(List<Movie.Video> videos);
@@ -92,6 +95,7 @@ public class SourceViewModel extends ViewModel {
         cancelHomeRequests();
         cancelCategoryRequests();
         cancelDetailRequests();
+        cancelSortRequests();
         resultHandler.removeCallbacksAndMessages(null);
         FutureTask<String> playTask = activePlayContentTask;
         if (playTask != null) {
@@ -116,14 +120,16 @@ public class SourceViewModel extends ViewModel {
     }
 
     public void getSort(String sourceKey) {
+        final int requestId = ++sortRequestId;
+        OkGo.getInstance().cancelTag(sortRequestTag);
         L.d("getSort start sourceKey="+sourceKey);
         if (NullUtil.isNull(sourceKey)) {
-            sortResult.postValue(null);
+            postSortResult(null, requestId, sourceKey);
             return;
         }
         SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
         if (sourceBean == null) {
-            sortResult.postValue(null);
+            postSortResult(null, requestId, sourceKey);
             return;
         }
         int type = sourceBean.getType();
@@ -145,25 +151,26 @@ public class SourceViewModel extends ViewModel {
                     L.d("getSort() sortJson="+sortJson);
                     if (sortJson != null) {
                         AbsSortXml sortXml = sortJson(sortResult, sortJson,sourceKey);
+                        postSortResult(sortXml, requestId, sourceKey);
                         if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
                             AbsXml absXml = parseJson(null, sortJson, sourceBean.getKey(), 0);
                             if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                                 sortXml.videoList = absXml.movie.videoList;
-                                sortResult.postValue(sortXml);
+                                postSortResult(sortXml, requestId, sourceKey);
                             } else {
                                 getHomeRecList(sourceBean, null, new HomeRecCallback() {
                                     @Override
                                     public void done(List<Movie.Video> videos) {
                                         sortXml.videoList = videos;
-                                        sortResult.postValue(sortXml);
+                                        postSortResult(sortXml, requestId, sourceKey);
                                     }
                                 });
                             }
                         } else {
-                            sortResult.postValue(sortXml);
+                            postSortResult(sortXml, requestId, sourceKey);
                         }
                     } else {
-                        sortResult.postValue(null);
+                        postSortResult(null, requestId, sourceKey);
                     }
                     try {
                         executor.shutdown();
@@ -176,7 +183,7 @@ public class SourceViewModel extends ViewModel {
         } else if (type == 0 || type == 1) {
             L.d("getSort api=" + sourceBean.getApi());
             OkGo.<String>get(sourceBean.getApi())
-                    .tag(sourceBean.getKey() + "_sort")
+                    .tag(sortRequestTag)
                     .execute(new AbsCallback<String>() {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
@@ -199,9 +206,10 @@ public class SourceViewModel extends ViewModel {
                             }
                             if (sortXml == null) {
                                 L.d("getSort sortXml == null");
-                                sortResult.postValue(null);
+                                postSortResult(null, requestId, sourceKey);
                                 return;
                             }
+                            postSortResult(sortXml, requestId, sourceKey);
                             if (Hawk.get(HawkConfig.HOME_REC, 0) == 1 && sortXml.movie != null
                                     && !NullUtil.isNull(sortXml.movie.videoList)) {
                                 ArrayList<String> ids = new ArrayList<>();
@@ -212,10 +220,10 @@ public class SourceViewModel extends ViewModel {
                                 AbsSortXml finalSortXml = sortXml;
                                 getHomeRecList(sourceBean, ids, videos -> {
                                     finalSortXml.videoList = videos;
-                                    sortResult.postValue(finalSortXml);
+                                    postSortResult(finalSortXml, requestId, sourceKey);
                                 });
                             } else {
-                                sortResult.postValue(sortXml);
+                                postSortResult(sortXml, requestId, sourceKey);
                             }
                         }
 
@@ -223,19 +231,35 @@ public class SourceViewModel extends ViewModel {
                         public void onError(Response<String> response) {
                             super.onError(response);
                             L.d("getSort() 网络请求错误");
-                            sortResult.postValue(null);
+                            postSortResult(null, requestId, sourceKey);
                         }
                     });
         } else {
-            sortResult.postValue(null);
+            postSortResult(null, requestId, sourceKey);
         }
+    }
+
+    private void postSortResult(AbsSortXml data, int requestId, String sourceKey) {
+        resultHandler.post(() -> {
+            if (requestId != sortRequestId) return;
+            lastPostedSortSourceKey = sourceKey;
+            sortResult.setValue(data);
+        });
+    }
+
+    public String getLastPostedSortSourceKey() { return lastPostedSortSourceKey; }
+
+    public void cancelSortRequests() {
+        sortRequestId++;
+        OkGo.getInstance().cancelTag(sortRequestTag);
     }
 
     public int getMovieList(MovieSort.SortData sortData, int page) {
         final int requestId = ++categoryRequestId;
         OkGo.getInstance().cancelTag(categoryRequestTag);
-        SiteBean homeSourceBean = ApiConfig.getInstance().getHomeBean();
-        if (homeSourceBean == null || sortData == null) {
+        SiteBean homeSourceBean = sortData == null || TextUtils.isEmpty(sortData.sourceKey)
+                ? ApiConfig.getInstance().getHomeBean() : ApiConfig.getInstance().getSiteBean(sortData.sourceKey);
+        if (homeSourceBean == null || sortData == null || !sortData.available) {
             postCategoryResult(null, requestId);
             return requestId;
         }

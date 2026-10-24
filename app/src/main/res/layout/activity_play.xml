@@ -63,4 +63,26 @@
         android:paddingRight="@dimen/vs_10"
         android:textColor="@color/color_CCFFFFFF"
         android:textSize="@dimen/ts_22" />
+    <TextView
+        android:id="@+id/resume_restart_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="24dp"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/selector_resume_restart_hint"
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:contentDescription="从头开始，按确定从零秒播放"
+        android:gravity="center"
+        android:minHeight="48dp"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:text="从头开始 · 5秒"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:visibility="gone" />
 </FrameLayout>

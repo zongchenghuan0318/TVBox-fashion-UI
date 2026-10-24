@@ -1408,8 +1408,7 @@ public class ApiConfig {
                     }
                     if (bInit) return;
                     L.w("initHomeBean 探测未成功，沿用上次首页源 " + lastBean.getKey());
-                    bInit = true;
-                    setHomeBean(lastBean);
+                    if (!selectHomeBeanOnce(lastBean)) return;
                     callback.success();
                 }
             }).start();
@@ -1435,11 +1434,9 @@ public class ApiConfig {
                             String sortJson = sp == null ? null : sp.homeContent(true);
                             // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
                             if (classCount(sortJson) >= 2) {
-                                if (bInit) return;//初始过，不再初始
-                                setHomeBean(bean);
+                                if (!selectHomeBeanOnce(bean)) return;
                                 callback.success();
                                 mExecutorService.shutdown();
-                                bInit = true;
                             }
                         } else {
                             OkGo.<String>get(bean.getApi())
@@ -1460,11 +1457,9 @@ public class ApiConfig {
                                             String res = response.body();
                                             L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
                                             if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
-                                                if (bInit) return;//初始过，不再初始
+                                                if (!selectHomeBeanOnce(bean)) return;
                                                 OkGo.getInstance().cancelTag("_initHome");
-                                                setHomeBean(bean);
                                                 callback.success();
-                                                bInit = true;
                                             }
                                         }
 
@@ -1483,6 +1478,13 @@ public class ApiConfig {
     /**
      * 统计站点返回的分类数量：JSON 取 "class"/"classes" 数组长度，解析失败返回 0
      */
+    private synchronized boolean selectHomeBeanOnce(SiteBean bean) {
+        if (bInit) return false;
+        bInit = true;
+        setHomeBean(bean);
+        return true;
+    }
+
     private static int classCount(String json) {
         if (NullUtil.isNull(json)) return 0;
         try {

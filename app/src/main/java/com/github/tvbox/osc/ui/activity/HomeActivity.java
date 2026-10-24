@@ -16,6 +16,7 @@ import com.github.tvbox.osc.base.BaseActivity;
 import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.AbsSortXml;
 import com.github.tvbox.osc.bean.MovieSort;
+import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.HomePageAdapter;
@@ -30,6 +31,8 @@ import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.github.tvbox.osc.util.MD5;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.SPDataUtil;
@@ -53,7 +56,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import me.jessyan.autosize.utils.AutoSizeUtils;
 
@@ -85,6 +87,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private String mSortSignature = "";
     private int mLastSyncedPage = -1;
     private ExecutorService mConfigExecutor;
+    private String categorySourceIdentity = "";
+    private int categoryMetadataAttempts;
+    private boolean categoryMetadataPending;
+    private final Runnable categoryRetry = this::requestCategoryMetadata;
+    private final Runnable categoryMetadataTimeout = this::onCategoryMetadataTimeout;
     private final Runnable mClockRunnable = new Runnable() {
         @Override
         public void run() {
@@ -164,7 +171,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         getConfig(this);
         BiQuUpdateInfoGetter.checkUpdate(this, false);
         // 兜底：加载异常时也不能一直停在打开画面
-        mHandler.postDelayed(this::hideLoading, 15000);
+        mHandler.postDelayed(() -> {
+            hideLoading();
+            if (categorySourceIdentity.isEmpty()) requestCategoryMetadata();
+        }, 15000);
     }
 
     public void getConfig(Context context) {
@@ -230,9 +240,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         // 但结合 NoScrollViewPager 禁止用户切换，实际效果是只有当前页活跃
         mContentViewPager.setOffscreenPageLimit(1);
         mContentViewPager.setCurrentItem(0, true);
-        List<MovieSort.SortData> sortDataList = new ArrayList<>();
-        sortDataList.add(new MovieSort.SortData("my0", "首页"));
+        List<MovieSort.SortData> sortDataList = DefaultConfig.adjustSort("", new ArrayList<>(), true);
         sortAdapter.setNewData(sortDataList);
+        freshViewPager(null);
         mMovieSortRV.setSelection(0);
     }
 
@@ -304,37 +314,121 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void observePages() {
-        L.d("observePages()");
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
-        sourceViewModel.sortResult.observe(this, new Observer<AbsSortXml>() {
-            @Override
-            public void onChanged(AbsSortXml absXml) {
-                L.d(" sortResult success() " + new Gson().toJson(absXml));
-                List<MovieSort.SortData> sortList;
-                if (absXml != null && !NullUtil.isNull(absXml.classes.sortList)) {
-                    sortList = absXml.classes.sortList;
-                } else {
-                    sortList = new ArrayList<>();
+        sourceViewModel.sortResult.observe(this, absXml -> {
+            SiteBean source = ApiConfig.getInstance().getHomeBean();
+            if (source == null || !String.valueOf(source.getKey())
+                    .equals(sourceViewModel.getLastPostedSortSourceKey())) return;
+            categoryMetadataPending = false;
+            mHandler.removeCallbacks(categoryMetadataTimeout);
+            List<MovieSort.SortData> raw = absXml != null && absXml.classes != null
+                    && absXml.classes.sortList != null ? absXml.classes.sortList : new ArrayList<>();
+            List<MovieSort.SortData> mapped = DefaultConfig.adjustSort(source.getKey(), raw, true);
+            List<MovieSort.SortData> cached = readCachedCategories(source);
+            int freshCount = availableCategoryCount(mapped);
+            for (MovieSort.SortData category : mapped) {
+                if (category.available || "my0".equals(category.id)) continue;
+                for (MovieSort.SortData previous : cached) {
+                    if (previous.available && category.name.equals(previous.name)
+                            && String.valueOf(source.getKey()).equals(previous.sourceKey)) {
+                        mapped.set(mapped.indexOf(category), previous);
+                        break;
+                    }
                 }
-                sortList = DefaultConfig.adjustSort(ApiConfig.getInstance().getHomeBean().getKey(), sortList, true);
-                // 分类没变化时（例如从其它页面返回，LiveData 会重新派发上一次的值）
-                // 保持现有页面与已加载内容，不重建、不重新请求
-                String signature = buildSortSignature(sortList);
-                if (!signature.equals(mSortSignature)) {
-                    mSortSignature = signature;
-                    sortAdapter.setNewData(sortList);
-                    freshViewPager(absXml);
-                    mMovieSortRV.setSelection(0);
-                }
-                hideLoading();
             }
+            if (freshCount > 0) Hawk.put(categoryCacheKey(source), new Gson().toJson(mapped));
+            applyCategoryList(mapped, absXml);
+            if (absXml != null && absXml.videoList != null && mFirstFragment != null) {
+                mFirstFragment.setmRecommendVideos(absXml.videoList);
+            }
+            if (freshCount < 5) scheduleCategoryRetry();
+            else mHandler.removeCallbacks(categoryRetry);
+            hideLoading();
         });
+    }
+
+    private String categoryCacheKey(SiteBean source) {
+        return "fixed_categories_v2_" + MD5.string2MD5(source.getKey() + "|" + source.getApi());
+    }
+
+    private List<MovieSort.SortData> readCachedCategories(SiteBean source) {
+        try {
+            String json = Hawk.get(categoryCacheKey(source), "");
+            if (!json.isEmpty()) {
+                List<MovieSort.SortData> cached = new Gson().fromJson(json,
+                        new TypeToken<List<MovieSort.SortData>>() { }.getType());
+                if (cached != null) return cached;
+            }
+        } catch (Exception e) {
+            L.w("分类缓存不可用：" + e.getMessage());
+        }
+        return new ArrayList<>();
+    }
+
+    private int availableCategoryCount(List<MovieSort.SortData> categories) {
+        int count = 0;
+        for (MovieSort.SortData category : categories) {
+            if (category.available && !"my0".equals(category.id)) count++;
+        }
+        return count;
+    }
+
+    private void applyCategoryList(List<MovieSort.SortData> categories, AbsSortXml data) {
+        String signature = buildSortSignature(categories);
+        if (signature.equals(mSortSignature)) return;
+        mSortSignature = signature;
+        sortAdapter.setNewData(categories);
+        freshViewPager(data);
+        mCurrentSelected = Math.max(0, Math.min(mCurrentSelected, categories.size() - 1));
+        sortAdapter.setSelectedPosition(mCurrentSelected);
+        mContentViewPager.setCurrentItem(mCurrentSelected, false);
+    }
+
+    public void retryCategoryMetadata() {
+        if (categoryMetadataPending) return;
+        categoryMetadataAttempts = 0;
+        requestCategoryMetadata();
+    }
+
+    private void requestCategoryMetadata() {
+        if (isFinishing() || isDestroyed() || sourceViewModel == null) return;
+        SiteBean source = ApiConfig.getInstance().getHomeBean();
+        if (source == null || source.getKey() == null
+                || ApiConfig.getInstance().getSiteBean(source.getKey()) == null) return;
+        String identity = source.getKey() + "|" + source.getApi();
+        if (categoryMetadataPending && identity.equals(categorySourceIdentity)) return;
+        if (!identity.equals(categorySourceIdentity)) {
+            categoryMetadataPending = false;
+            sourceViewModel.cancelSortRequests();
+            categorySourceIdentity = identity;
+            categoryMetadataAttempts = 0;
+            applyCategoryList(DefaultConfig.adjustSort(source.getKey(), readCachedCategories(source), true), null);
+        }
+        categoryMetadataPending = true;
+        categoryMetadataAttempts++;
+        mHandler.removeCallbacks(categoryRetry);
+        mHandler.removeCallbacks(categoryMetadataTimeout);
+        mHandler.postDelayed(categoryMetadataTimeout, 20000L);
+        sourceViewModel.getSort(source.getKey());
+    }
+
+    private void scheduleCategoryRetry() {
+        mHandler.removeCallbacks(categoryRetry);
+        if (categoryMetadataAttempts < 3) mHandler.postDelayed(categoryRetry, 2000L);
+    }
+
+    private void onCategoryMetadataTimeout() {
+        if (!categoryMetadataPending) return;
+        categoryMetadataPending = false;
+        sourceViewModel.cancelSortRequests();
+        scheduleCategoryRetry();
     }
 
     private String buildSortSignature(List<MovieSort.SortData> sortList) {
         StringBuilder sb = new StringBuilder();
         for (MovieSort.SortData data : sortList) {
-            sb.append(data.id).append('#').append(data.name).append(';');
+            sb.append(data.sourceKey).append('#').append(data.id).append('#').append(data.name)
+                    .append('#').append(data.available).append('#').append(new Gson().toJson(data.filters)).append(';');
         }
         return sb.toString();
     }
@@ -404,8 +498,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             public void success() {
                 L.d(" initHomeBean success()");
                 runOnUiThread(() -> {
-                    //获取sort列表
-                    sourceViewModel.getSort(ApiConfig.getInstance().getHomeBean().getKey());
+                    if (isFinishing() || isDestroyed()) return;
+                    requestCategoryMetadata();
                 });
             }
         });
@@ -413,6 +507,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void freshViewPager(AbsSortXml absXml) {
         if (sortAdapter.getData().size() > 0) {
+            List<BaseLazyFragment> previousPages = new ArrayList<>(fragments);
             fragments.clear();
             mLastSyncedPage = -1;
             for (MovieSort.SortData data : sortAdapter.getData()) {
@@ -426,7 +521,16 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     }
                     fragments.add(mFirstFragment);
                 } else {
-                    fragments.add(GridFragment.newInstance(data));
+                    GridFragment page = GridFragment.newInstance(data);
+                    for (BaseLazyFragment previous : previousPages) {
+                        if (previous instanceof GridFragment && ((GridFragment) previous).getCategoryIdentity()
+                                .equals(page.getCategoryIdentity())) {
+                            page = (GridFragment) previous;
+                            page.updateCategoryData(data);
+                            break;
+                        }
+                    }
+                    fragments.add(page);
                 }
             }
             mPageAdapter.notifyDataSetChanged();
@@ -548,6 +652,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     @Override
     protected void onDestroy() {
+        if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
         EventBus.getDefault().unregister(this);
 //        AppManager.getInstance().appExit(0);
         ControlManager.get().stopServer();

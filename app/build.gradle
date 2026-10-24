@@ -12,8 +12,8 @@ android {
         applicationId 'com.studio.osc'
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 110
-        versionName '1.1.0'
+        versionCode 112
+        versionName '1.1.2'
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
@@ -104,6 +104,7 @@ repositories {
 }
 
 dependencies {
+    testImplementation 'junit:junit:4.13.2'
     api fileTree(dir: "libs", include: ["*.jar"])
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
     implementation 'com.google.zxing:core:3.4.1'

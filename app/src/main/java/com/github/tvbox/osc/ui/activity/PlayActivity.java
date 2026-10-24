@@ -6,11 +6,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -26,7 +28,6 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
-import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -75,7 +76,6 @@ import java.util.concurrent.Executors;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.appcompat.app.AlertDialog;
 import me.jessyan.autosize.AutoSize;
 import xyz.doikki.videoplayer.player.ProgressManager;
 import xyz.doikki.videoplayer.player.VideoView;
@@ -121,7 +121,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private long mResumePosition;
     private boolean mHasSavedResumePosition;
     private boolean mResumePromptShown;
-    private AlertDialog mResumeDialog;
+    private TextView mResumeRestartHint;
+    private boolean mResumeHintPending;
+    private long mResumeHintDeadline;
+    private int mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
+    private final Runnable mResumeHintTick = this::refreshResumeHintCountdown;
     private static final long RESUME_PROMPT_MIN_POSITION_MS = 30_000L;
     private boolean playbackStartPending;
     private final Runnable mProgressSaveRunnable = new Runnable() {
@@ -209,6 +213,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void initView() {
         mVideoView = findViewById(R.id.mVideoView);
+        mResumeRestartHint = findViewById(R.id.resume_restart_hint);
+        mResumeRestartHint.setOnClickListener(v -> restartFromResumeHint());
         mTimeTV = findViewById(R.id.system_time_tv);
         mPlayLoadTipTV = findViewById(R.id.play_load_tip);
         mMovieNameTV = findViewById(R.id.movie_name_tv);
@@ -218,16 +224,17 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mVideoView.addOnStateChangeListener(new VideoView.SimpleOnStateChangeListener() {
             @Override
             public void onPlayStateChanged(int playState) {
+                if (playState == VideoView.STATE_ERROR || playState == VideoView.STATE_PLAYBACK_COMPLETED
+                        || playState == VideoView.STATE_PAUSED) dismissResumePrompt(false);
                 if (playState == VideoView.STATE_PREPARED) {
                     if (mResumePosition > 0) {
                         long resumePosition = mResumePosition;
                         mResumePosition = 0;
                         if (mHasSavedResumePosition && !mResumePromptShown
                                 && hasUsefulResumePosition(resumePosition)) {
-                            showResumePrompt(resumePosition);
-                        } else {
-                            mVideoView.seekTo(resumePosition);
+                            mResumeHintPending = true;
                         }
+                        mVideoView.seekTo(resumePosition);
                     }
                 } else if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
                     showTipsView("缓冲中...", true, false);
@@ -235,6 +242,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
                     hideTipsView();
+                    if (mResumeHintPending) showResumePrompt();
                 } else if (playState == VideoView.STATE_BUFFERED) {
                     hideTipsView();
                 } else if (playState == VideoView.STATE_PLAYBACK_COMPLETED) {
@@ -350,6 +358,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             return;
         }
         L.d("preGetPlayUrl() start");
+        dismissResumePrompt(false);
         if (mPlaybackOptions != null) {
             mPlaybackOptions.stopSession();
             mPlaybackOptions.setSources(null);
@@ -778,6 +787,26 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event != null) {
+            int keyCode = event.getKeyCode();
+            if (mResumeHintConsumedKey != KeyEvent.KEYCODE_UNKNOWN && keyCode == mResumeHintConsumedKey) {
+                if (event.getAction() == KeyEvent.ACTION_UP) mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
+                return true;
+            }
+            if (isResumeHintVisible() && event.getAction() == KeyEvent.ACTION_DOWN) {
+                boolean volumeKey = keyCode == KeyEvent.KEYCODE_VOLUME_UP
+                        || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_MUTE;
+                if (!volumeKey) {
+                    mResumeHintConsumedKey = keyCode;
+                    if (event.getRepeatCount() == 0 && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                            || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                        restartFromResumeHint();
+                    } else {
+                        dismissResumePrompt(true);
+                    }
+                    return true;
+                }
+                dismissResumePrompt(true);
+            }
             //有按键操作时重新显示已自动收起的节目介绍/时间/右下提示，5 秒后再次收起
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 showOverlaysThenAutoHide();
@@ -796,7 +825,19 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN && isResumeHintVisible()) {
+            Rect bounds = new Rect();
+            mResumeRestartHint.getGlobalVisibleRect(bounds);
+            if (!bounds.contains((int) event.getRawX(), (int) event.getRawY())) dismissResumePrompt(true);
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
     protected void onPause() {
+        dismissResumePrompt(false);
+        mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
         if (mController != null) mController.cancelAutoNextCountdown();
         super.onPause();
         if (mPlaybackOptions != null) mPlaybackOptions.onPause();
@@ -825,6 +866,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void prepareResumePosition() {
+        dismissResumePrompt(false);
         mResumePromptShown = false;
         mResumeKey = buildEpisodeProgressKey();
         mResumePosition = readSavedProgress(mResumeKey);
@@ -847,80 +889,63 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         return duration <= 0 || position < duration - 15_000L;
     }
 
-    private void showResumePrompt(long position) {
+    private void showResumePrompt() {
+        mResumeHintPending = false;
         if (mVideoView == null || !isActivityActive() || mResumePromptShown) return;
         mResumePromptShown = true;
-        mVideoView.pause();
-        String episodeName = "";
-        try {
-            episodeName = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex).name;
-        } catch (Throwable ignored) {
-        }
-        String episodePrefix = episodeName == null || episodeName.trim().isEmpty()
-                ? "" : episodeName + " · ";
-        mResumeDialog = new AlertDialog.Builder(this, R.style.DarkAlertDialog)
-                .setTitle("继续观看？")
-                .setMessage(episodePrefix + "上次看到 " + formatResumeTime(position))
-                .setPositiveButton("继续播放", (dialog, which) -> {
-                    if (mVideoView != null && isActivityActive()) {
-                        mVideoView.seekTo(position);
-                        mVideoView.start();
-                    }
-                    mResumeDialog = null;
-                })
-                .setNegativeButton("从头播放", (dialog, which) -> {
-                    if (mVideoView != null && isActivityActive()) {
-                        saveProgressValue(mResumeKey, 0L);
-                        long startPosition = getConfiguredStartPosition();
-                        if (startPosition > 0) mVideoView.seekTo(startPosition);
-                        mVideoView.start();
-                    }
-                    mResumeDialog = null;
-                })
-                .setOnCancelListener(dialog -> {
-                    if (mVideoView != null && isActivityActive()) {
-                        mVideoView.seekTo(position);
-                        mVideoView.start();
-                    }
-                    mResumeDialog = null;
-                })
-                .create();
-        mResumeDialog.setCancelable(true);
-        mResumeDialog.setOnShowListener(dialog -> {
-            Button continueButton = mResumeDialog.getButton(AlertDialog.BUTTON_POSITIVE);
-            if (continueButton != null) continueButton.requestFocus();
-        });
-        mResumeDialog.show();
+        mResumeHintDeadline = SystemClock.uptimeMillis() + 5000L;
+        mResumeRestartHint.setVisibility(View.VISIBLE);
+        mResumeRestartHint.setAlpha(0f);
+        mResumeRestartHint.animate().alpha(1f).setDuration(150L).start();
+        mResumeRestartHint.requestFocus();
+        refreshResumeHintCountdown();
     }
 
-    private long getConfiguredStartPosition() {
-        try {
-            return mVodPlayerCfgJsonObject == null ? 0L
-                    : Math.max(0, mVodPlayerCfgJsonObject.getInt("st")) * 1000L;
-        } catch (JSONException e) {
-            return 0L;
-        }
+    private boolean isResumeHintVisible() {
+        return mResumeRestartHint != null && mResumeRestartHint.getVisibility() == View.VISIBLE;
     }
 
-    private String formatResumeTime(long positionMs) {
-        long seconds = Math.max(0L, positionMs / 1000L);
-        long hours = seconds / 3600L;
-        long minutes = (seconds % 3600L) / 60L;
-        long remainingSeconds = seconds % 60L;
-        if (hours > 0) {
-            return String.format(java.util.Locale.getDefault(), "%d:%02d:%02d", hours, minutes, remainingSeconds);
+    private void refreshResumeHintCountdown() {
+        if (!isResumeHintVisible()) return;
+        long remaining = mResumeHintDeadline - SystemClock.uptimeMillis();
+        if (remaining <= 0L) {
+            dismissResumePrompt(true);
+            return;
         }
-        return String.format(java.util.Locale.getDefault(), "%02d:%02d", minutes, remainingSeconds);
+        mResumeRestartHint.setText("从头开始 · " + ((remaining + 999L) / 1000L) + "秒");
+        mHandler.removeCallbacks(mResumeHintTick);
+        mHandler.postDelayed(mResumeHintTick, Math.min(1000L, remaining));
+    }
+
+    private void restartFromResumeHint() {
+        if (!isResumeHintVisible()) return;
+        if (SystemClock.uptimeMillis() >= mResumeHintDeadline) {
+            dismissResumePrompt(true);
+            return;
+        }
+        dismissResumePrompt(true);
+        if (mVideoView == null || !isActivityActive()) return;
+        mResumePosition = 0L;
+        mHasSavedResumePosition = false;
+        saveProgressValue(mResumeKey, 0L);
+        mVideoView.seekTo(0L);
+        mVideoView.start();
+    }
+
+    private void dismissResumePrompt(boolean restoreFocus) {
+        mResumeHintPending = false;
+        if (mHandler != null) mHandler.removeCallbacks(mResumeHintTick);
+        if (mResumeRestartHint == null) return;
+        boolean hadFocus = mResumeRestartHint.hasFocus();
+        mResumeRestartHint.animate().cancel();
+        mResumeRestartHint.setVisibility(View.GONE);
+        if (restoreFocus && hadFocus && mController != null && isActivityActive()) mController.requestFocus();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mResumeDialog != null) {
-            mResumeDialog.setOnCancelListener(null);
-            mResumeDialog.dismiss();
-            mResumeDialog = null;
-        }
+        dismissResumePrompt(false);
         if (mHandler != null) {
             mHandler.removeCallbacks(mProgressSaveRunnable);
         }

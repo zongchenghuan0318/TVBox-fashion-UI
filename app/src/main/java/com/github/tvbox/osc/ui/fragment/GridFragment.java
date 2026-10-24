@@ -15,6 +15,7 @@ import com.github.tvbox.osc.bean.AbsXml;
 import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.MovieSort;
 import com.github.tvbox.osc.ui.activity.SearchActivity;
+import com.github.tvbox.osc.ui.activity.HomeActivity;
 import com.github.tvbox.osc.ui.adapter.GridAdapter;
 import com.github.tvbox.osc.ui.dialog.GridFilterDialog;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
@@ -66,6 +67,26 @@ public class GridFragment extends BaseLazyFragment {
         return this;
     }
 
+    public String getCategoryIdentity() {
+        return mSortData == null ? "" : String.valueOf(mSortData.sourceKey)
+                + "|" + mSortData.name + "|" + mSortData.id;
+    }
+
+    public void updateCategoryData(MovieSort.SortData data) {
+        if (mFilterDialog != null && mFilterDialog.isShowing()) mFilterDialog.dismiss();
+        if (mSortData != null && mSortData.filterSelect != null) {
+            for (MovieSort.SortFilter filter : data.filters) {
+                String selected = mSortData.filterSelect.get(filter.key);
+                if (selected != null && filter.values != null && filter.values.containsValue(selected)) {
+                    data.filterSelect.put(filter.key, selected);
+                }
+            }
+        }
+        mSortData = data;
+        mFilterDialog = null;
+        updateFilterSummary();
+    }
+
     @Override
     protected int getLayoutResID() {
         return R.layout.fragment_grid;
@@ -99,6 +120,10 @@ public class GridFragment extends BaseLazyFragment {
         mCategoryRetry = findViewById(R.id.tvCategoryRetry);
         mCategoryRetry.setOnClickListener(v -> {
             if (pageRequestInFlight) return;
+            if (!mSortData.available && mActivity instanceof HomeActivity) {
+                ((HomeActivity) mActivity).retryCategoryMetadata();
+                return;
+            }
             mPage = 1;
             maxPage = 1;
             resetGridPosition();
@@ -231,6 +256,13 @@ public class GridFragment extends BaseLazyFragment {
 
     private void initData() {
         retryWhenResumed = false;
+        if (!mSortData.available) {
+            pageRequestInFlight = false;
+            showEmpty();
+            showCategoryStatus("分类信息暂未就绪，可重新加载分类", true);
+            mCategoryRetry.setText("重新加载分类");
+            return;
+        }
         pageRequestInFlight = true;
         showLoading();
         categoryHandler.removeCallbacks(firstPageTimeout);

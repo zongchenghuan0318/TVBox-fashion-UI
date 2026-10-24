@@ -28,6 +28,8 @@ public class MovieSort implements Serializable {
         @XStreamAsAttribute
         public String id;
         public String name;
+        public String sourceKey;
+        public boolean available = true;
         public int sort = -1;
         public boolean select = false;
         public ArrayList<SortFilter> filters = new ArrayList<>();
