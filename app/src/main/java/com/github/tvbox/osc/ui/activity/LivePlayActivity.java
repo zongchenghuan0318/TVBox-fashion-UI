@@ -34,6 +34,7 @@ import com.github.tvbox.osc.ui.dialog.LivePasswordDialog;
 import com.github.tvbox.osc.ui.tv.widget.ViewObj;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.github.tvbox.osc.util.LiveSourceManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.lcstudio.commonsurport.L;
@@ -52,8 +53,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -875,16 +878,24 @@ public class LivePlayActivity extends BaseActivity {
     private void loadLiveSourceOrDefault() {
         if (!isActivityActive() || mVideoView == null) return;
         ApiConfig apiConfig = ApiConfig.getInstance();
-        String liveSourceUrl = Hawk.get(
-                HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS).trim();
-        if (TextUtils.isEmpty(liveSourceUrl)) {
+        LiveSourceManager.migrateIfNeeded();
+        List<LiveSourceManager.Source> configured = LiveSourceManager.getSources();
+        List<String> sourceContents = new ArrayList<>();
+        Set<String> sourceKeys = new HashSet<>();
+        for (LiveSourceManager.Source source : configured) {
+            if (source.enabled && !TextUtils.isEmpty(source.content)
+                    && sourceKeys.add(LiveSourceManager.key(source.content))) {
+                sourceContents.add(source.content);
+            }
+        }
+        if (sourceContents.isEmpty()) {
             apiConfig.restoreConfiguredLives();
             initLiveChannelList();
             return;
         }
 
         showLoading();
-        apiConfig.loadLiveSources(liveSourceUrl, new ApiConfig.LiveSourceCallback() {
+        apiConfig.loadLiveSourceContents(sourceContents, new ApiConfig.LiveSourceCallback() {
             @Override
             public void success(int loadedSources, int failedSources) {
                 runOnUiThread(() -> {

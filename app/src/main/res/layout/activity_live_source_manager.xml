@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical"
+    android:background="#101014" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:paddingLeft="32dp" android:paddingTop="24dp" android:paddingRight="32dp" android:paddingBottom="20dp">
+    <LinearLayout android:gravity="center_vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <TextView android:id="@+id/liveSourceBack" android:text="‹  直播源管理" android:textColor="#FFFFFFFF"
+            android:textSize="24sp" android:gravity="center_vertical" android:focusable="true" android:clickable="true"
+            android:background="@drawable/selector_setting_back" android:paddingLeft="12dp" android:paddingRight="18dp"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp"/>
+        <TextView android:id="@+id/liveSourceAdd" android:text="+  添加直播源" android:textColor="#FFFFFFFF"
+            android:textSize="16sp" android:gravity="center" android:focusable="true" android:clickable="true"
+            android:background="@drawable/bg_live_source_action" android:paddingLeft="20dp" android:paddingRight="20dp"
+            android:layout_width="wrap_content" android:layout_height="48dp"/>
+    </LinearLayout>
+    <TextView android:id="@+id/liveSourceHint" android:text="统一管理全部直播源 · 可启用、编辑、排序和删除"
+        android:textColor="#FF9AA8BD" android:textSize="14sp" android:layout_marginLeft="12dp"
+        android:layout_marginTop="4dp" android:layout_marginBottom="18dp"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    <ScrollView android:clipToPadding="false" android:fillViewport="true"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <LinearLayout android:id="@+id/liveSourceList" android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    </ScrollView>
+</LinearLayout>

@@ -834,23 +834,32 @@ public class ApiConfig {
     }
 
     public void loadLiveSources(String sourceUrls, LiveSourceCallback callback) {
+        List<String> values = new ArrayList<>();
+        String raw = sourceUrls == null ? "" : sourceUrls.trim();
+        if (raw.startsWith("{") || raw.startsWith("[") || raw.startsWith("#EXTM3U")) {
+            values.add(raw);
+        } else {
+            for (String line : raw.split("\\r?\\n")) if (!line.trim().isEmpty()) values.add(line.trim());
+        }
+        loadLiveSourceContents(values, callback);
+    }
+
+    /** Loads URL, inline TVBox JSON, and inline M3U content in priority order. */
+    public void loadLiveSourceContents(List<String> sourceContents, LiveSourceCallback callback) {
         new Thread(() -> {
             ExecutorService executor = null;
             try {
-                String rawSources = sourceUrls == null ? "" : sourceUrls.trim();
-                if (rawSources.isEmpty()) {
+                if (sourceContents == null || sourceContents.isEmpty()) {
                     throw new IllegalArgumentException("直播源地址为空");
                 }
-                Set<String> seenUrls = new LinkedHashSet<>();
                 List<String> uniqueSources = new ArrayList<>();
-                for (String line : rawSources.split("\\r?\\n")) {
-                    String sourceUrl = line.trim();
-                    if (sourceUrl.isEmpty() || sourceUrl.startsWith("#")) continue;
-                    if (!sourceUrl.startsWith("http://") && !sourceUrl.startsWith("https://")) {
-                        sourceUrl = "http://" + sourceUrl;
-                    }
-                    sourceUrl = normalizeUrl(sourceUrl);
-                    if (seenUrls.add(getLiveSourceDedupKey(sourceUrl))) uniqueSources.add(sourceUrl);
+                Set<String> seen = new LinkedHashSet<>();
+                for (String value : sourceContents) {
+                    if (value == null || value.trim().isEmpty()) continue;
+                    String content = value.trim();
+                    String key = content.startsWith("{") || content.startsWith("[") || content.startsWith("#")
+                            ? content : getLiveSourceDedupKey(normalizeUrl(content.startsWith("http") ? content : "http://" + content));
+                    if (seen.add(key)) uniqueSources.add(content);
                 }
 
                 executor = Executors.newFixedThreadPool(Math.min(uniqueSources.size(), 5));
@@ -899,6 +908,19 @@ public class ApiConfig {
     }
 
     private LiveSourceResult fetchLiveSource(String sourceUrl) {
+        String value = sourceUrl.trim();
+        if (value.startsWith("{") || value.startsWith("[") || value.startsWith("#EXTM3U")) {
+            try {
+                JsonArray lives = parseLiveJson(value);
+                if (lives == null) lives = parseM3uLives(value);
+                if (lives == null || lives.size() == 0) throw new IllegalArgumentException("内联内容中没有频道");
+                return new LiveSourceResult(lives, null);
+            } catch (Exception e) {
+                return new LiveSourceResult(null, e.getMessage() == null ? "内联内容解析失败" : e.getMessage());
+            }
+        }
+        if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value;
+        sourceUrl = normalizeUrl(value);
         HttpResult response = httpGetWithOkhttpUA(sourceUrl, LIVE_SOURCE_READ_TIMEOUT_MS);
         if (!response.ok()) {
             String reason = response.error.isEmpty() ? "HTTP " + response.code : response.error;

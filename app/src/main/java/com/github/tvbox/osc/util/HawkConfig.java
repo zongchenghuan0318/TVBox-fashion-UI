@@ -48,12 +48,16 @@ public class HawkConfig {
     public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 文采秒播最高」
     public static final String LIVE_CHANNEL = "last_live_channel_name";
     public static final String LIVE_SOURCE_URL = "live_source_urls";
+    public static final String LIVE_SOURCE_MANAGER = "live_source_manager_v1";
+    public static final String LIVE_SOURCE_UNIFIED = "live_source_unified_v1";
     public static final String DEFAULT_LIVE_SOURCE_URLS =
             "193.123.86.190:14888/TV/iptv.php\n"
                     + "sub.ottiptv.cc/huyayqk.m3u\n"
                     + "sub.ottiptv.cc/douyuyqk.m3u\n"
                     + "https://iptv-org.github.io/iptv/countries/cn.m3u\n"
-                    + "https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u";
+                    + "https://cdn.jsdelivr.net/gh/Guovin/iptv-api@gd/output/result.m3u\n"
+                    + "https://cdn.jsdelivr.net/gh/Guovin/iptv-api@gd/output/ipv6/result.m3u\n"
+                    + "https://cdn.jsdelivr.net/gh/Guovin/iptv-api@gd/output/ipv4/result.m3u";
     public static final String LIVE_CHANNEL_REVERSE = "live_channel_reverse";
     public static final String LIVE_CROSS_GROUP = "live_cross_group";
     public static final String LIVE_CONNECT_TIMEOUT = "live_connect_timeout";

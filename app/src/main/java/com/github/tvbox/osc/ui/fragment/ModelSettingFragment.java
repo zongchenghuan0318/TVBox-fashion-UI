@@ -24,6 +24,7 @@ import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
+import com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.ApiDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
@@ -163,8 +164,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
         tvParseWebView.setText("系统自带");
         tvApi.setText(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL));
-        tvLiveSource.setText(getLiveSourceSummary(Hawk.get(
-                HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS)));
+        tvLiveSource.setText("打开管理");
         tvDns.setText(OkGoHelper.dnsHttpsList.get(Hawk.get(HawkConfig.DOH_URL, 0)));
         tvHomeRec.setText(getHomeRecName(Hawk.get(HawkConfig.HOME_REC, 0)));
         tvSearchView.setText(getSearchView(Hawk.get(HawkConfig.SEARCH_VIEW, 1)));
@@ -310,7 +310,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 mApiDialog.show();
             }
         });
-        findViewById(R.id.llLiveSource).setOnClickListener(v -> showLiveSourceDialog());
+        findViewById(R.id.llLiveSource).setOnClickListener(v ->
+                startActivity(new Intent(mActivity, LiveSourceManagerActivity.class)));
         findViewById(R.id.llMediaCodec).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

@@ -48,6 +48,10 @@
             android:label="电视直播"
             android:screenOrientation="landscape" />
         <activity
+            android:name="com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity"
+            android:label="直播源管理"
+            android:screenOrientation="landscape" />
+        <activity
             android:name="com.github.tvbox.osc.ui.activity.DetailActivity"
             android:screenOrientation="landscape" />
         <activity
