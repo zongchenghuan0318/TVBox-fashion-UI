@@ -86,6 +86,11 @@ public class VodController extends BaseController {
     private boolean bSimSlideStart = false;
     private int simSeekPosition = 0;
     private long simSlideOffset = 0;
+    private long simSeekAnchor;
+    private boolean mOptionsOpen;
+    private View mOptionsReturnFocus;
+    private int mPendingSeekPosition = -1;
+    private long mPendingSeekTime;
     private VodControlListener controlListener;
     private boolean bSkipEnd = true;
     private TimerMin mTimerMin;
@@ -167,6 +172,7 @@ public class VodController extends BaseController {
         mProgressDeltaTv = findViewById(R.id.tv_progress_delta);
         mProgressLine = findViewById(R.id.tv_progress_line);
         mBottomLayout = findViewById(R.id.bottom_container);
+        mBottomLayout.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> updateSubtitlePlacement());
         mPlayerRetryTv = findViewById(R.id.play_retry);
         mNextBtn = findViewById(R.id.play_next);
         mPreBtn = findViewById(R.id.play_pre);
@@ -208,10 +214,12 @@ public class VodController extends BaseController {
                 if (bLocked) return;
                 if (!fromUser) return;
                 long duration = mControlWrapper.getDuration();
+                if (duration <= 0) return;
                 long newPosition = (duration * progress) / seekBar.getMax();
                 if (mCurrentTimeTV != null) {
                     mCurrentTimeTV.setText(stringForTime((int) newPosition));
                 }
+                updateSeekUI((int) mControlWrapper.getCurrentPosition(), (int) newPosition, duration);
             }
 
             @Override
@@ -220,6 +228,7 @@ public class VodController extends BaseController {
                 mIsDragging = true;
                 mControlWrapper.stopProgress();
                 mControlWrapper.stopFadeOut();
+                mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
             }
 
             @Override
@@ -233,7 +242,9 @@ public class VodController extends BaseController {
                 long duration = mControlWrapper.getDuration();
                 if (duration <= 0) return;
                 long newPosition = (duration * seekBar.getProgress()) / seekBar.getMax();
+                onSeekRequested((int) newPosition);
                 mControlWrapper.seekTo((int) newPosition);
+                onSeekPreviewFinished();
             }
         });
         // 进度条获得焦点时，时间数字转为青色，明确当前可调节进度
@@ -280,6 +291,7 @@ public class VodController extends BaseController {
         });
         mPlayerSpeedBtn.setOnClickListener(view -> {
             if(bLocked) return;
+            cancelSpeedBoost(false);
             try {
                 float speed = (float) mJsonObject.getDouble("sp");
                 float[] speeds = {0.5f, 1.0f, 1.5f, 2.0f, 3.0f};
@@ -392,6 +404,14 @@ public class VodController extends BaseController {
             Hawk.put(HawkConfig.PLAY_TIME_STEP, step);
             updatePlayerCfgView();
         });
+        mPlayerTimeStartTV.setOnLongClickListener(view -> resetSkip("st"));
+        mPlayerTimeSkipTV.setOnLongClickListener(view -> resetSkip("et"));
+        findViewById(R.id.play_subtitle).setOnClickListener(view -> {
+            if (!bLocked && controlListener != null) controlListener.showSubtitles();
+        });
+        findViewById(R.id.play_audio).setOnClickListener(view -> {
+            if (!bLocked && controlListener != null) controlListener.showAudioTracks();
+        });
         mPlayingBtn.setImageResource(R.drawable.ic_player_pause);
         mPlayingBtn.setOnClickListener(view -> {
             if(bLocked) return;
@@ -403,6 +423,7 @@ public class VodController extends BaseController {
             togglePlay();
         });
         lockImg.setOnClickListener(view -> {
+            cancelSpeedBoost(false);
             bLocked = !bLocked;
             //setLocked(bLocked);
             if (bLocked) {
@@ -428,6 +449,45 @@ public class VodController extends BaseController {
         bReexPlayerExist = ReexPlayer.getPackageInfo() != null;
     }
 
+    private boolean resetSkip(String key) {
+        if (bLocked || mJsonObject == null || controlListener == null) return true;
+        try {
+            mJsonObject.put(key, 0);
+            updatePlayerCfgView();
+            controlListener.updatePlayerCfg();
+        } catch (JSONException e) {
+            L.e(e);
+        }
+        return true;
+    }
+
+    public void setOptionsOpen(boolean open) {
+        if (open) cancelSpeedBoost(false);
+        if (open) mOptionsReturnFocus = findFocus();
+        mOptionsOpen = open;
+        if (mControlWrapper == null) return;
+        mControlWrapper.stopFadeOut();
+        mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
+        if (!open) {
+            showBottom();
+            mControlWrapper.startFadeOut();
+            if (mOptionsReturnFocus != null) mOptionsReturnFocus.requestFocus();
+        }
+    }
+
+    private void updateSubtitlePlacement() {
+        View subtitles = findViewById(R.id.player_subtitle_text);
+        if (subtitles == null) return;
+        android.widget.FrameLayout.LayoutParams params = (android.widget.FrameLayout.LayoutParams) subtitles.getLayoutParams();
+        int margin = mBottomLayout.getVisibility() == VISIBLE
+                ? mBottomLayout.getHeight() + getResources().getDimensionPixelSize(R.dimen.vs_10)
+                : getResources().getDimensionPixelSize(R.dimen.vs_50);
+        if (params.bottomMargin != margin) {
+            params.bottomMargin = margin;
+            subtitles.setLayoutParams(params);
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     void updatePlayerCfgView() {
         try {
@@ -440,9 +500,9 @@ public class VodController extends BaseController {
             String speedText = String.format(java.util.Locale.US, "x%.1f", mJsonObject.getDouble("sp"));
             mPlayerSpeedBtn.setText(speedText);
             mPlayerSpeedBtn.setContentDescription("播放速度 " + speedText);
-            mPlayerTimeStartTV.setText(PlayerUtils.stringForTime(mJsonObject.getInt("st") * 1000));
-            mPlayerTimeSkipTV.setText(PlayerUtils.stringForTime(mJsonObject.getInt("et") * 1000));
-            mPlayerTimeStepTV.setText(Hawk.get(HawkConfig.PLAY_TIME_STEP, 5) + "s");
+            mPlayerTimeStartTV.setText("片头 " + PlayerUtils.stringForTime(mJsonObject.getInt("st") * 1000));
+            mPlayerTimeSkipTV.setText("片尾 " + PlayerUtils.stringForTime(mJsonObject.getInt("et") * 1000));
+            mPlayerTimeStepTV.setText("步长 " + Hawk.get(HawkConfig.PLAY_TIME_STEP, 5) + "秒");
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -453,6 +513,7 @@ public class VodController extends BaseController {
     }
 
     public void resetSpeed() {
+        cancelSpeedBoost(false);
         bSkipEnd = true;
         mBaseHandler.removeMessages(1004);
         mBaseHandler.sendEmptyMessageDelayed(1004, 100);
@@ -468,6 +529,12 @@ public class VodController extends BaseController {
         } catch (JSONException e) {
             return 1f;
         }
+    }
+
+    @Override
+    public void onLongPress(MotionEvent event) {
+        super.onLongPress(event);
+        if (isSpeedBoostActive()) hideBottom();
     }
 
     public void setControlListener(VodControlListener controlListener) {
@@ -571,11 +638,24 @@ public class VodController extends BaseController {
     @Override
     protected void setProgress(int duration, int position) {
         //拖动进度条或遥控快进时，播放位置不要回头覆盖进度条
-        if (mIsDragging || bSimSlideStart) {
+        if (mIsDragging || bSimSlideStart || isGestureSeeking()) {
             return;
         }
+        duration = Math.max(0, duration);
+        position = duration > 0 ? Math.max(0, Math.min(position, duration)) : Math.max(0, position);
+        boolean pendingSeek = false;
+        if (mPendingSeekPosition >= 0 && duration > 0) {
+            if (Math.abs(position - mPendingSeekPosition) <= 1500
+                    || android.os.SystemClock.uptimeMillis() - mPendingSeekTime >= 2000) {
+                mPendingSeekPosition = -1;
+            } else {
+                position = Math.min(duration, mPendingSeekPosition);
+                pendingSeek = true;
+            }
+        }
         super.setProgress(duration, position);
-        if (bSkipEnd && position != 0 && duration != 0) {
+        mDualtion = duration > 0 ? PlayerUtils.stringForTime(duration) : "--:--";
+        if (bSkipEnd && !pendingSeek && position > 0 && duration > 0 && mControlWrapper.isPlaying()) {
             int et = 0;
             if (mJsonObject != null) {
                 try {
@@ -584,37 +664,35 @@ public class VodController extends BaseController {
                     e.printStackTrace();
                 }
             }
-            if (et > 0 && position + (et * 1000) >= duration) {
+            if (controlListener != null && et > 0 && et * 1000L < duration
+                    && position + (et * 1000L) >= duration) {
                 bSkipEnd = false;
                 controlListener.playNext(true);
+                return;
             }
         }
         mCurrentTimeTV.setText(PlayerUtils.stringForTime(position));
-        mTotalTimeTV.setText(PlayerUtils.stringForTime(duration));
+        mTotalTimeTV.setText(mDualtion);
         if (duration > 0) {
             mSeekBar.setEnabled(true);
             int pos = (int) (position * 1.0 / duration * mSeekBar.getMax());
             mSeekBar.setProgress(pos);
         } else {
+            mSeekBar.setProgress(0);
             mSeekBar.setEnabled(false);
         }
-        int percent = mControlWrapper.getBufferedPercentage();
-        if (percent >= 95) {
-            mSeekBar.setSecondaryProgress(mSeekBar.getMax());
-        } else {
-            mSeekBar.setSecondaryProgress(percent * 10);
-        }
+        int percent = Math.max(0, Math.min(100, mControlWrapper.getBufferedPercentage()));
+        mSeekBar.setSecondaryProgress(duration > 0 ? percent * mSeekBar.getMax() / 100 : 0);
     }
 
     public void slideStop() {
         if (!bSimSlideStart) return;
+        onSeekRequested(simSeekPosition);
         mControlWrapper.seekTo(simSeekPosition);
-        if (!mControlWrapper.isPlaying()) {
-            mControlWrapper.start();
-        }
         bSimSlideStart = false;
         simSeekPosition = 0;
         simSlideOffset = 0;
+        onSeekPreviewFinished();
     }
 
     public void slideStart(int iFoward) {
@@ -622,10 +700,12 @@ public class VodController extends BaseController {
         if (duration <= 0) return;
         if (!bSimSlideStart) {
             bSimSlideStart = true;
+            simSeekAnchor = mControlWrapper.getCurrentPosition();
         }
+        mBaseHandler.removeMessages(MSG_WHAT_SEEK_PLAY);
         // 快进算法
         simSlideOffset += (10000.0f * mSeekSpeedMultiplier * iFoward);
-        int currentPosition = (int) mControlWrapper.getCurrentPosition();
+        int currentPosition = (int) simSeekAnchor;
         int position = (int) (simSlideOffset + currentPosition);
         if (position > duration) position = (int) duration;
         if (position < 0) position = 0;
@@ -642,16 +722,44 @@ public class VodController extends BaseController {
         mProgressImg.setImageResource(forward ? R.drawable.icon_pre : R.drawable.icon_back);
         mProgressTv.setText(PlayerUtils.stringForTime(seekTo));
         if (mProgressTotalTv != null) {
-            mProgressTotalTv.setText("/ " + mDualtion);
+            mProgressTotalTv.setText("/ " + (duration > 0 ? PlayerUtils.stringForTime((int) duration) : "--:--"));
         }
         if (mProgressDeltaTv != null) {
             int delta = Math.abs(seekTo - curr) / 1000;
-            mProgressDeltaTv.setText((forward ? "+" : "-") + PlayerUtils.stringForTime(delta));
+            mProgressDeltaTv.setText((forward ? "+" : "-") + PlayerUtils.stringForTime(delta * 1000));
+        }
+        if (duration > 0) {
+            mSeekBar.setProgress((int) (Math.max(0, Math.min(seekTo, duration)) * (long) mSeekBar.getMax() / duration));
+            mCurrentTimeTV.setText(PlayerUtils.stringForTime(seekTo));
+            mTotalTimeTV.setText(PlayerUtils.stringForTime((int) duration));
         }
         updateSeekLine(seekTo, duration);
         mBaseHandler.sendEmptyMessage(MSG_WHAT_SHOW_SEEK);
         mBaseHandler.removeMessages(MSG_WHAT_HIDE_SEEK);
         mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_HIDE_SEEK, 1000);
+    }
+
+    @Override
+    protected void onSeekRequested(int position) {
+        mPendingSeekPosition = Math.max(0, position);
+        mPendingSeekTime = android.os.SystemClock.uptimeMillis();
+    }
+
+    @Override
+    protected void onSeekPreviewFinished() {
+        mBaseHandler.removeMessages(MSG_WHAT_HIDE_SEEK);
+        mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_HIDE_SEEK, 500);
+        startProgress();
+        // Native seeks finish asynchronously. Refresh both immediately and after settlement.
+        refreshProgressNow();
+        mBaseHandler.removeCallbacks(mRefreshAfterSeek);
+        mBaseHandler.postDelayed(mRefreshAfterSeek, 350);
+    }
+
+    private final Runnable mRefreshAfterSeek = () -> refreshProgressNow();
+
+    private void refreshProgressNow() {
+        if (mControlWrapper != null) setProgress((int) mControlWrapper.getDuration(), (int) mControlWrapper.getCurrentPosition());
     }
 
     /**
@@ -705,12 +813,28 @@ public class VodController extends BaseController {
         mDualtion = PlayerUtils.stringForTime(duration);
         switch (playState) {
             case VideoView.STATE_IDLE:
+            case VideoView.STATE_PREPARING:
+                mPendingSeekPosition = -1;
+                mIsDragging = false;
+                bSimSlideStart = false;
+                simSlideOffset = 0;
+                mBaseHandler.removeMessages(MSG_WHAT_SEEK_PLAY);
+                showProgressOverlay(false);
+                setProgress(0, 0);
                 break;
             case VideoView.STATE_PLAYING:
+                mPlayingBtn.setImageResource(R.drawable.ic_player_pause);
+                mPlayingBtn.setContentDescription("暂停");
                 startProgress();
+                if (isBottomVisible()) showBottom();
                 break;
             case VideoView.STATE_PAUSED:
+                mPlayingBtn.setImageResource(R.drawable.ic_player_play);
+                mPlayingBtn.setContentDescription("播放");
+                startProgress();
+                refreshProgressNow();
                 mBottomLayout.setVisibility(VISIBLE);
+                updateSubtitlePlacement();
                 if (!bLocked) {
                     mPlayingBtn.requestFocus();
                 }
@@ -720,9 +844,11 @@ public class VodController extends BaseController {
                 break;
             case VideoView.STATE_PREPARED:
             case VideoView.STATE_BUFFERED:
+                startProgress();
+                refreshProgressNow();
                 break;
-            case VideoView.STATE_PREPARING:
             case VideoView.STATE_BUFFERING:
+                startProgress();
                 break;
             case VideoView.STATE_PLAYBACK_COMPLETED:
                 controlListener.playNext(true);
@@ -741,26 +867,28 @@ public class VodController extends BaseController {
     void showBottom() {
         boolean wasVisible = mBottomLayout.getVisibility() == VISIBLE;
         mBottomLayout.setVisibility(VISIBLE);
+        updateSubtitlePlacement();
+        refreshProgressNow();
+        if (isInPlaybackState()) startProgress();
         if (!wasVisible && !bLocked && mPlayingBtn != null) {
             mPlayingBtn.requestFocus();
         }
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
-        if (com.github.tvbox.osc.util.SeniorMode.isEnabled()) {
-            mBaseHandler.postDelayed(mSeniorModeHideBottomRunnable, 10000L);
-        }
+        if (!mOptionsOpen && !mIsDragging) mBaseHandler.postDelayed(mSeniorModeHideBottomRunnable,
+                com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000L : 6000L);
     }
 
     void hideBottom() {
+        if (mOptionsOpen || mIsDragging || bSimSlideStart || !mControlWrapper.isPlaying()) return;
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
         mBottomLayout.setVisibility(GONE);
+        updateSubtitlePlacement();
     }
 
     private final Runnable mSeniorModeHideBottomRunnable = new Runnable() {
         @Override
         public void run() {
-            if (com.github.tvbox.osc.util.SeniorMode.isEnabled()) {
-                hideBottom();
-            }
+            hideBottom();
         }
     };
 
@@ -791,10 +919,8 @@ public class VodController extends BaseController {
                     togglePlay();
                     return true;
                 }
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                if (!bLocked) {
+                if (!bLocked && !hasFocusedControl()) {
                     mDownLongHandled = false;
                     mDownNextPending = false;
                     mBaseHandler.removeCallbacks(mDownNextRunnable);
@@ -802,22 +928,19 @@ public class VodController extends BaseController {
                     if (mSeekBar != null && mSeekBar.isEnabled()) {
                         mSeekBar.requestFocus();
                     }
+                    return true;
                 }
-                return true;
             }
         } else if (action == KeyEvent.ACTION_UP) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                return true;
-            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                if (!seekBarFocused) {
+                if (!seekBarFocused && !bSimSlideStart) {
                     return false;
                 }
                 mTimeSpeed = 1;
                 mSeekSpeedMultiplier = 1;
                 if (isInPlayback) {
                     mBaseHandler.removeMessages(MSG_WHAT_SEEK_PLAY);
-                    mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_SEEK_PLAY, 1000);
+                    mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_SEEK_PLAY, 300);
                     return true;
                 }
             }
@@ -865,6 +988,7 @@ public class VodController extends BaseController {
     }
 
     public void releaseController() {
+        cancelSpeedBoost(false);
         L.d("releaseController() mTimerMin=" + mTimerMin);
         if (mEpisodeDialog != null) {
             mEpisodeDialog.dismiss();
@@ -874,6 +998,8 @@ public class VodController extends BaseController {
             mTimerMin.cancelTimer();
             mTimerMin = null;
         }
+        stopProgress();
+        mBaseHandler.removeCallbacksAndMessages(null);
     }
 
     public interface VodControlListener {
@@ -884,6 +1010,8 @@ public class VodController extends BaseController {
         void updatePlayerCfg();
         void replay();
         void errReplay();
+        void showSubtitles();
+        void showAudioTracks();
     }
 
 }

@@ -5,12 +5,42 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 
 import java.util.Map;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 抽象的播放器，继承此接口扩展自己的播放器
  * Created by Doikki on 2017/12/21.
  */
 public abstract class AbstractPlayer {
+    private SubtitleTextListener mSubtitleTextListener;
+
+    public interface SubtitleTextListener {
+        void onSubtitleText(String text);
+    }
+
+    public void setSubtitleTextListener(SubtitleTextListener listener) {
+        mSubtitleTextListener = listener;
+    }
+
+    protected final void dispatchSubtitleText(String text) {
+        SubtitleTextListener listener = mSubtitleTextListener;
+        if (listener != null) listener.onSubtitleText(text == null ? "" : text);
+    }
+
+    /** Clear the current cue and detach the screen before resetting/releasing a core. */
+    protected final void clearSubtitleTextListener() {
+        dispatchSubtitleText("");
+        mSubtitleTextListener = null;
+    }
+
+    public boolean supportsMediaTracks() { return false; }
+
+    public List<MediaTrack> getMediaTracks(int type) { return Collections.emptyList(); }
+
+    public boolean selectMediaTrack(MediaTrack track) { return false; }
+
+    public boolean disableSubtitleTrack() { return false; }
 
     /**
      * 视频/音频开始渲染

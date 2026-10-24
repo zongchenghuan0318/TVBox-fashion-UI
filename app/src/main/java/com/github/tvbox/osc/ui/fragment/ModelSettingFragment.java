@@ -61,6 +61,12 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvHomeRec;
     private TextView tvSearchView;
     private TextView tvSearchSite;
+    private TextView tvPlayTimeStep;
+    private TextView tvPlayTimeStart;
+    private TextView tvPlayTimeEnd;
+    private TextView tvAudioLanguage;
+    private TextView tvSubtitleLanguage;
+    private TextView tvSubtitleOff;
     private ApiDialog mApiDialog =null;
 
     public static ModelSettingFragment newInstance() {
@@ -96,7 +102,19 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvHomeRec = findViewById(R.id.tvHomeRec);
         tvSearchView = findViewById(R.id.tvSearchView);
         tvSearchSite = findViewById(R.id.tvSearchSite);
+        tvPlayTimeStep = findViewById(R.id.tvPlayTimeStep);
+        tvPlayTimeStart = findViewById(R.id.tvPlayTimeStart);
+        tvPlayTimeEnd = findViewById(R.id.tvPlayTimeEnd);
+        tvAudioLanguage = findViewById(R.id.tvAudioLanguage);
+        tvSubtitleLanguage = findViewById(R.id.tvSubtitleLanguage);
+        tvSubtitleOff = findViewById(R.id.tvSubtitleOff);
         tvSearchSite.setText(getSearchSiteSummary());
+        tvPlayTimeStep.setText(getPlayTimeStepSummary(Hawk.get(HawkConfig.PLAY_TIME_STEP, 5)));
+        tvPlayTimeStart.setText(getPlayTimeSummary(Hawk.get(HawkConfig.PLAY_TIME_START, 0)));
+        tvPlayTimeEnd.setText(getPlayTimeSummary(Hawk.get(HawkConfig.PLAY_TIME_END, 0)));
+        tvAudioLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.AUDIO_LANGUAGE, "")));
+        tvSubtitleLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.SUBTITLE_LANGUAGE, "")));
+        tvSubtitleOff.setText(Hawk.get(HawkConfig.SUBTITLE_OFF, false) ? "关闭" : "自动选择");
         final TextView seniorModeState = findViewById(R.id.tvSeniorModeState);
         View seniorModeRow = findViewById(R.id.llSeniorMode);
         boolean seniorModeEnabled = com.github.tvbox.osc.util.SeniorMode.isEnabled();
@@ -320,6 +338,20 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 }, ijkCodes, defaultPos);
                 dialog.show();
             }
+        });
+        findViewById(R.id.llPlayTimeStep).setOnClickListener(v -> showPlayTimeStepDialog());
+        findViewById(R.id.llPlayTimeStart).setOnClickListener(
+                v -> showPlayTimeDialog(HawkConfig.PLAY_TIME_START, tvPlayTimeStart, "片头跳过时间"));
+        findViewById(R.id.llPlayTimeEnd).setOnClickListener(
+                v -> showPlayTimeDialog(HawkConfig.PLAY_TIME_END, tvPlayTimeEnd, "片尾跳过时间"));
+        findViewById(R.id.llAudioLanguage).setOnClickListener(
+                v -> showLanguageDialog(HawkConfig.AUDIO_LANGUAGE, tvAudioLanguage, "默认音轨语言"));
+        findViewById(R.id.llSubtitleLanguage).setOnClickListener(
+                v -> showLanguageDialog(HawkConfig.SUBTITLE_LANGUAGE, tvSubtitleLanguage, "默认字幕语言"));
+        findViewById(R.id.llSubtitleOff).setOnClickListener(v -> {
+            boolean off = !Hawk.get(HawkConfig.SUBTITLE_OFF, false);
+            Hawk.put(HawkConfig.SUBTITLE_OFF, off);
+            tvSubtitleOff.setText(off ? "关闭" : "自动选择");
         });
         findViewById(R.id.llScale).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -583,6 +615,117 @@ public class ModelSettingFragment extends BaseLazyFragment {
             return "使用默认";
         }
         return url.trim();
+    }
+
+    private String getPlayTimeStepSummary(int step) {
+        return step + " 秒";
+    }
+
+    private String getPlayTimeSummary(int seconds) {
+        return seconds == 0 ? "关闭" : seconds + " 秒";
+    }
+
+    private String getLanguageSummary(String language) {
+        return language == null || language.trim().isEmpty() ? "自动选择" : language;
+    }
+
+    private void showLanguageDialog(String key, TextView summary, String title) {
+        EditText input = new EditText(mActivity);
+        input.setSingleLine(true);
+        input.setHint("例如 zh、en、ja；留空为自动选择");
+        input.setText(Hawk.get(key, ""));
+        input.setSelection(input.length());
+        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(
+                mActivity, R.style.DarkAlertDialog))
+                .setTitle(title)
+                .setView(input)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String value = input.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
+                    Hawk.put(key, value);
+                    summary.setText(getLanguageSummary(value));
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showPlayTimeDialog(String key, TextView summary, String title) {
+        FastClickCheckUtil.check(summary);
+        ArrayList<Integer> values = new ArrayList<>();
+        values.add(0);
+        for (int seconds = 5; seconds <= 600; seconds += 5) values.add(seconds);
+        int current = Hawk.get(key, 0);
+        int defaultPos = values.indexOf(current);
+        if (defaultPos < 0) defaultPos = 0;
+        SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
+        dialog.setTip(title + "（0 秒为关闭）");
+        dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+            @Override
+            public void click(Integer value, int pos) {
+                Hawk.put(key, value);
+                summary.setText(getPlayTimeSummary(value));
+                dialog.dismiss();
+            }
+
+            @Override
+            public String getDisplay(Integer value) {
+                return getPlayTimeSummary(value);
+            }
+        }, new DiffUtil.ItemCallback<Integer>() {
+            @Override
+            public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem,
+                                           @NonNull @NotNull Integer newItem) {
+                return oldItem.equals(newItem);
+            }
+
+            @Override
+            public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem,
+                                              @NonNull @NotNull Integer newItem) {
+                return oldItem.equals(newItem);
+            }
+        }, values, defaultPos);
+        dialog.show();
+    }
+
+    private void showPlayTimeStepDialog() {
+        FastClickCheckUtil.check(tvPlayTimeStep);
+        ArrayList<Integer> steps = new ArrayList<>();
+        steps.add(5);
+        steps.add(10);
+        steps.add(15);
+        steps.add(20);
+        steps.add(30);
+        int current = Hawk.get(HawkConfig.PLAY_TIME_STEP, 5);
+        int defaultPos = steps.indexOf(current);
+        if (defaultPos < 0) defaultPos = 0;
+
+        SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
+        dialog.setTip("请选择片头片尾调整步长");
+        dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+            @Override
+            public void click(Integer value, int pos) {
+                Hawk.put(HawkConfig.PLAY_TIME_STEP, value);
+                tvPlayTimeStep.setText(getPlayTimeStepSummary(value));
+                dialog.dismiss();
+            }
+
+            @Override
+            public String getDisplay(Integer value) {
+                return getPlayTimeStepSummary(value);
+            }
+        }, new DiffUtil.ItemCallback<Integer>() {
+            @Override
+            public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem,
+                                           @NonNull @NotNull Integer newItem) {
+                return oldItem.equals(newItem);
+            }
+
+            @Override
+            public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem,
+                                              @NonNull @NotNull Integer newItem) {
+                return oldItem.equals(newItem);
+            }
+        }, steps, defaultPos);
+        dialog.show();
     }
 
     /** 搜索源管理入口右侧摘要：全部 / 已选 x/y / 未勾选 */

@@ -50,6 +50,7 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
     private Boolean mHasCutout;  //是否有刘海
     private int mCutoutHeight;  //刘海的高度
     private boolean mIsStartProgress;  //是否开始刷新进度
+    private int mProgressPlayState = VideoView.STATE_IDLE;
     protected LinkedHashMap<IControlComponent, Boolean> mControlComponents = new LinkedHashMap<>(); //保存了所有的控制组件
     private Animation mShowAnim;
     private Animation mHideAnim;
@@ -176,6 +177,7 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
      */
     @CallSuper
     public void setPlayState(int playState) {
+        mProgressPlayState = playState;
         handlePlayStateChanged(playState);
     }
 
@@ -290,11 +292,14 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
     protected Runnable mShowProgress = new Runnable() {
         @Override
         public void run() {
-            int pos = setProgress();
-            if (mControlWrapper.isPlaying()) {
-                postDelayed(this, (long) ((1000 - pos % 1000) / mControlWrapper.getSpeed()));
-            } else {
-                mIsStartProgress = false;
+            if (!mIsStartProgress || mControlWrapper == null) return;
+            setProgress();
+            // Buffering and paused seeks can change position without a new PLAYING event.
+            // Keep one bounded ticker until an explicit stop, rather than losing updates.
+            // setProgress may synchronously release the player or start the next episode.
+            if (mIsStartProgress && mControlWrapper != null) {
+                removeCallbacks(this);
+                postDelayed(this, mControlWrapper.isPlaying() ? 250L : 500L);
             }
         }
     };
@@ -317,6 +322,15 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         checkCutout();
+        if (mControlWrapper != null && (mProgressPlayState == VideoView.STATE_PLAYING
+                || mProgressPlayState == VideoView.STATE_PAUSED || mProgressPlayState == VideoView.STATE_BUFFERING
+                || mProgressPlayState == VideoView.STATE_BUFFERED || mProgressPlayState == VideoView.STATE_PREPARED)) startProgress();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        stopProgress();
+        super.onDetachedFromWindow();
     }
 
     /**
@@ -551,6 +565,7 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
     protected void onPlayStateChanged(int playState) {
         switch (playState) {
             case VideoView.STATE_IDLE:
+                stopProgress();
                 mOrientationHelper.disable();
                 mOrientation = 0;
                 mIsLocked = false;
@@ -560,10 +575,12 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
                 removeAllDissociateComponents();
                 break;
             case VideoView.STATE_PLAYBACK_COMPLETED:
+                stopProgress();
                 mIsLocked = false;
                 mShowing = false;
                 break;
             case VideoView.STATE_ERROR:
+                stopProgress();
                 mShowing = false;
                 break;
         }

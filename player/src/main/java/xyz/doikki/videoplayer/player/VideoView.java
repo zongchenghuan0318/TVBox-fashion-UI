@@ -45,6 +45,12 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
     private static final String TAG = VideoView.class.getSimpleName();
 
     protected P mMediaPlayer;//播放器
+
+    /** Current core, or null before preparation/after release. Track IDs are media-local. */
+    @Nullable
+    public AbstractPlayer getMediaPlayer() {
+        return mMediaPlayer;
+    }
     protected PlayerFactory<P> mPlayerFactory;//工厂类，用于实例化播放核心
     @Nullable
     protected BaseVideoController mVideoController;//控制器

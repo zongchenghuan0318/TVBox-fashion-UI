@@ -8,6 +8,10 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
+import android.view.HapticFeedbackConstants;
+import android.view.ViewConfiguration;
+
+import com.github.tvbox.osc.player.view.SpeedBoostView;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,22 +37,24 @@ public abstract class BaseController extends BaseVideoController implements Gest
     private boolean mIsGestureEnabled = true;
     private int mStreamVolume;
     private float mBrightness;
-    private int mSeekPosition;
+    private int mSeekPosition = -1;
+    private long mGestureStartPosition;
     private boolean bFirstTouch;
     private boolean bChangePosition;
     private boolean bChangeBrightness;
     private boolean bChangeVolume;
-    private boolean mTouchSpeedActive;
-    private boolean mTouchSpeedBoosted;
-    private float mTouchSpeedOriginal = 1f;
-    private float mTouchSpeedDownX;
+    private final SpeedGestureState mSpeedGesture = new SpeedGestureState();
+    private SpeedBoostView mSpeedBoostView;
+    private boolean mConsumeSpeedGesture;
+    private boolean mSpeedTouchMoved;
+    private float mSpeedDownX;
+    private float mSpeedDownY;
     private boolean bCanChangePosition = true;
     private boolean bEnableInNormal;
     private boolean bCanSlide;
     private int mCurPlayState;
     public boolean bLocked = false;
     private TextView mSlideInfoTV;
-    private TextView mTouchSpeedTV;
     private ProgressBar mLoadingPB;
     private ViewGroup mPauseRootView;
     private TextView mPauseTimeTV;
@@ -73,7 +79,11 @@ public abstract class BaseController extends BaseVideoController implements Gest
         mGestureDetector = new GestureDetector(getContext(), this);
         setOnTouchListener(this);
         mSlideInfoTV = findViewWithTag("vod_control_slide_info");
-        mTouchSpeedTV = findViewWithTag("vod_control_touch_speed");
+        mSpeedBoostView = findViewWithTag("vod_control_speed_boost");
+        if (mSpeedBoostView != null) {
+            mSpeedBoostView.setOnClickListener(view -> cancelSpeedBoost(true));
+            mSpeedBoostView.setOnTouchListener((view, event) -> handleSpeedOverlayTouch(event));
+        }
         mLoadingPB = findViewWithTag("vod_control_loading");
         mPauseRootView = findViewWithTag("vod_control_pause");
         mPauseTimeTV = findViewWithTag("vod_control_pause_t");
@@ -110,6 +120,11 @@ public abstract class BaseController extends BaseVideoController implements Gest
     protected void onPlayStateChanged(int playState) {
         super.onPlayStateChanged(playState);
         baseDuration = mControlWrapper.getDuration();
+        if (playState == VideoView.STATE_IDLE || playState == VideoView.STATE_PREPARING
+                || playState == VideoView.STATE_ERROR || playState == VideoView.STATE_PAUSED
+                || playState == VideoView.STATE_START_ABORT || playState == VideoView.STATE_PLAYBACK_COMPLETED) {
+            cancelSpeedBoost(false);
+        }
         switch (playState) {
             case VideoView.STATE_IDLE:
                 mLoadingPB.setVisibility(GONE);
@@ -157,6 +172,7 @@ public abstract class BaseController extends BaseVideoController implements Gest
      */
     public void setGestureEnabled(boolean gestureEnabled) {
         mIsGestureEnabled = gestureEnabled;
+        if (!gestureEnabled) cancelSpeedBoost(false);
     }
 
     @Override
@@ -187,17 +203,77 @@ public abstract class BaseController extends BaseVideoController implements Gest
 
     @Override
     public boolean onTouch(View v, MotionEvent event) {
+        if (handleSpeedTouch(event, false)) return true;
         boolean handled = mGestureDetector.onTouchEvent(event);
-        if (event.getActionMasked() == MotionEvent.ACTION_MOVE
-                && mTouchSpeedActive
-                && event.getX() - mTouchSpeedDownX > 8f) {
-            setTouchSpeed(3f);
-        }
         if (event.getActionMasked() == MotionEvent.ACTION_UP
                 || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-            restoreTouchSpeed();
+            finishPositionGesture(event.getActionMasked() == MotionEvent.ACTION_UP);
         }
         return handled;
+    }
+
+    private float speedHorizontalThreshold() {
+        return Math.max(ViewConfiguration.get(getContext()).getScaledTouchSlop() * 3f, getWidth() * 0.035f);
+    }
+
+    private float speedVerticalThreshold() {
+        return Math.max(ViewConfiguration.get(getContext()).getScaledTouchSlop() * 4f, getHeight() * 0.07f);
+    }
+
+    /** Speed locking is separate from the screen lock and never persists to the next media. */
+    private boolean handleSpeedTouch(MotionEvent event, boolean overlay) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            mSpeedDownX = event.getRawX();
+            mSpeedDownY = event.getRawY();
+            mSpeedTouchMoved = false;
+            mConsumeSpeedGesture = mSpeedGesture.isActive();
+            mSpeedGesture.pointerDown(mSpeedDownX, mSpeedDownY);
+        }
+        if (!mSpeedGesture.isActive() && !mConsumeSpeedGesture) return false;
+        if (action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_CANCEL) {
+            cancelSpeedBoost(false);
+            cancelGestureDetector(event);
+            mConsumeSpeedGesture = action != MotionEvent.ACTION_CANCEL;
+            return true;
+        }
+        if (action == MotionEvent.ACTION_MOVE && mSpeedGesture.isActive()) {
+            if (Math.abs(event.getRawX() - mSpeedDownX) > speedHorizontalThreshold() / 2
+                    || Math.abs(event.getRawY() - mSpeedDownY) > speedVerticalThreshold() / 2) mSpeedTouchMoved = true;
+            SpeedGestureState.Change change = mSpeedGesture.move(event.getRawX(), event.getRawY(),
+                    speedHorizontalThreshold(), speedVerticalThreshold());
+            if (change == SpeedGestureState.Change.UNLOCKED) {
+                restoreSpeedFeedback(true);
+            } else if (change != SpeedGestureState.Change.NONE) {
+                mControlWrapper.setSpeed(mSpeedGesture.getSpeed());
+                showSpeedFeedback(true);
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            }
+        } else if (action == MotionEvent.ACTION_UP) {
+            boolean wasLocked = mSpeedGesture.isLocked();
+            if (mSpeedGesture.pointerUp()) restoreSpeedFeedback(true);
+            else if (mSpeedGesture.isActive()) showSpeedFeedback(false);
+            cancelGestureDetector(event);
+            mConsumeSpeedGesture = false;
+            // A tap on the picture still exposes controls while speed is locked.
+            if (!overlay && wasLocked && !mSpeedTouchMoved) onSingleTapConfirmed(event);
+        }
+        return true;
+    }
+
+    private boolean handleSpeedOverlayTouch(MotionEvent event) {
+        boolean active = mSpeedGesture.isActive();
+        boolean tap = event.getActionMasked() == MotionEvent.ACTION_UP && active && !mSpeedTouchMoved;
+        boolean handled = handleSpeedTouch(event, true);
+        if (tap && mSpeedBoostView != null) mSpeedBoostView.performClick();
+        return handled || active;
+    }
+
+    private void cancelGestureDetector(MotionEvent source) {
+        MotionEvent cancel = MotionEvent.obtain(source);
+        cancel.setAction(MotionEvent.ACTION_CANCEL);
+        mGestureDetector.onTouchEvent(cancel);
+        cancel.recycle();
     }
 
     /**
@@ -222,7 +298,11 @@ public abstract class BaseController extends BaseVideoController implements Gest
         bChangePosition = false;
         bChangeBrightness = false;
         bChangeVolume = false;
-        mTouchSpeedDownX = e.getX();
+        mSeekPosition = -1;
+        mGestureStartPosition = mControlWrapper.getCurrentPosition();
+        mSpeedDownX = e.getRawX();
+        mSpeedDownY = e.getRawY();
+        mSpeedGesture.pointerDown(mSpeedDownX, mSpeedDownY);
         return true;
     }
 
@@ -257,12 +337,7 @@ public abstract class BaseController extends BaseVideoController implements Gest
             return true;
         float deltaX = e1.getX() - e2.getX();
         float deltaY = e1.getY() - e2.getY();
-        if (mTouchSpeedActive) {
-            if (deltaX < -12f) {
-                setTouchSpeed(3f);
-            }
-            return true;
-        }
+        if (mSpeedGesture.isActive() || mConsumeSpeedGesture) return true;
         if (bFirstTouch) {
             bChangePosition = Math.abs(distanceX) >= Math.abs(distanceY);
             if (!bChangePosition) {
@@ -302,7 +377,9 @@ public abstract class BaseController extends BaseVideoController implements Gest
 
     protected void slideToChangePosition(float deltaX) {
         deltaX = -deltaX;
-        int currentPosition = (int) mControlWrapper.getCurrentPosition();
+        baseDuration = mControlWrapper.getDuration();
+        if (baseDuration <= 0) return;
+        int currentPosition = (int) mGestureStartPosition;
         int position = (int) (deltaX * baseDuration / 5400f + currentPosition);
         if (position >= baseDuration) position = (int) baseDuration;
         if (position <= 0) position = 0;
@@ -375,19 +452,36 @@ public abstract class BaseController extends BaseVideoController implements Gest
             int action = event.getAction();
             switch (action) {
                 case MotionEvent.ACTION_UP:
-                    stopSlide();
-                    if (mSeekPosition > 0) {
-                        mControlWrapper.seekTo(mSeekPosition);
-                        mSeekPosition = 0;
-                    }
+                    finishPositionGesture(true);
                     break;
                 case MotionEvent.ACTION_CANCEL:
-                    stopSlide();
-                    mSeekPosition = 0;
+                    finishPositionGesture(false);
                     break;
             }
         }
         return super.onTouchEvent(event);
+    }
+
+    protected boolean isGestureSeeking() {
+        return bChangePosition && mSeekPosition >= 0;
+    }
+
+    private void finishPositionGesture(boolean commit) {
+        boolean wasSeeking = isGestureSeeking();
+        if (wasSeeking && commit && !bLocked) {
+            onSeekRequested(mSeekPosition);
+            mControlWrapper.seekTo(mSeekPosition);
+        }
+        mSeekPosition = -1;
+        bChangePosition = false;
+        stopSlide();
+        if (wasSeeking) onSeekPreviewFinished();
+    }
+
+    protected void onSeekPreviewFinished() {
+    }
+
+    protected void onSeekRequested(int position) {
     }
 
     private void stopSlide() {
@@ -406,43 +500,51 @@ public abstract class BaseController extends BaseVideoController implements Gest
 
     @Override
     public void onLongPress(MotionEvent e) {
-        if (bLocked || !isInPlaybackState() || !mIsGestureEnabled || isLocked()) {
-            return;
-        }
-        mTouchSpeedOriginal = getConfiguredSpeed();
-        mTouchSpeedActive = true;
-        mTouchSpeedBoosted = false;
-        setTouchSpeed(2f);
+        if (mSpeedBoostView == null || bLocked || !isInPlaybackState() || !mIsGestureEnabled
+                || isLocked() || PlayerUtils.isEdge(getContext(), e)
+                || !mControlWrapper.isPlaying() || mConsumeSpeedGesture) return;
+        if (!mSpeedGesture.begin(getConfiguredSpeed())) return;
+        mConsumeSpeedGesture = true;
+        mSeekPosition = -1;
+        bChangePosition = false;
+        mControlWrapper.setSpeed(mSpeedGesture.getSpeed());
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        showSpeedFeedback(true);
     }
 
     protected float getConfiguredSpeed() {
         return 1f;
     }
 
-    private void setTouchSpeed(float speed) {
-        if (mControlWrapper == null) {
-            return;
-        }
-        mControlWrapper.setSpeed(speed);
-        mTouchSpeedBoosted = speed >= 3f;
-        if (mTouchSpeedTV != null) {
-            mTouchSpeedTV.setText("临时 " + speed + "x");
-            mTouchSpeedTV.setVisibility(VISIBLE);
+    protected boolean isSpeedBoostActive() {
+        return mSpeedGesture.isActive();
+    }
+
+    private void showSpeedFeedback(boolean emphasize) {
+        if (mSpeedBoostView != null) {
+            mSpeedBoostView.showSpeed(mSpeedGesture.getSpeed(), mSpeedGesture.isLocked(), emphasize);
         }
     }
 
-    private void restoreTouchSpeed() {
-        if (!mTouchSpeedActive) {
-            return;
+    private void restoreSpeedFeedback(boolean feedback) {
+        if (mControlWrapper != null) mControlWrapper.setSpeed(mSpeedGesture.getOriginalSpeed());
+        if (mSpeedBoostView != null) {
+            if (feedback) mSpeedBoostView.showRestored(mSpeedGesture.getOriginalSpeed());
+            else mSpeedBoostView.dismissImmediately();
         }
-        mTouchSpeedActive = false;
-        mTouchSpeedBoosted = false;
-        if (mControlWrapper != null) {
-            mControlWrapper.setSpeed(mTouchSpeedOriginal);
-        }
-        if (mTouchSpeedTV != null) {
-            mTouchSpeedTV.setVisibility(GONE);
-        }
+    }
+
+    public boolean cancelSpeedBoost(boolean feedback) {
+        boolean active = mSpeedGesture.cancel();
+        if (active) restoreSpeedFeedback(feedback);
+        else if (!feedback && mSpeedBoostView != null) mSpeedBoostView.dismissImmediately();
+        return active;
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        cancelSpeedBoost(false);
+        super.onDetachedFromWindow();
     }
 
     @Override

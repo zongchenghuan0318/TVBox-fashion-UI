@@ -33,6 +33,11 @@ public class HawkConfig {
      */
     public static final int PLAY_SCALE_DEFAULT = 5;
     public static final String PLAY_TIME_STEP = "play_time_step"; //0 texture 2
+    public static final String PLAY_TIME_START = "play_time_start";
+    public static final String PLAY_TIME_END = "play_time_end";
+    public static final String AUDIO_LANGUAGE = "audio_language";
+    public static final String SUBTITLE_LANGUAGE = "subtitle_language";
+    public static final String SUBTITLE_OFF = "subtitle_off";
     public static final String DOH_URL = "doh_url";
     public static final String HOME_REC = "home_rec"; // 0 豆瓣热播 1 数据源推荐 2 历史
     public static final String HOME_DOUBAN_CACHE = "home_douban_cache"; // 最近一次成功的豆瓣热播列表，限流时兜底

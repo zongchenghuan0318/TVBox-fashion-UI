@@ -10,12 +10,15 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
 import tv.danmaku.ijk.media.player.misc.ITrackInfo;
 import tv.danmaku.ijk.media.player.misc.IjkTrackInfo;
 import xyz.doikki.videoplayer.player.AbstractPlayer;
+import xyz.doikki.videoplayer.player.MediaTrack;
 import xyz.doikki.videoplayer.player.VideoViewManager;
 
 public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorListener,
@@ -44,11 +47,84 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
         mMediaPlayer.setOnPreparedListener(this);
         mMediaPlayer.setOnVideoSizeChangedListener(this);
         mMediaPlayer.setOnNativeInvokeListener(this);
+        mMediaPlayer.setOnTimedTextListener((player, text) ->
+                dispatchSubtitleText(text == null ? "" : text.getText()));
     }
 
 
     @Override
     public void setOptions() {
+        // IJK disables subtitle decoding unless this option is enabled.
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "subtitle", 1);
+        }
+    }
+
+    @Override
+    public boolean supportsMediaTracks() {
+        return mMediaPlayer != null;
+    }
+
+    @Override
+    public List<MediaTrack> getMediaTracks(int type) {
+        List<MediaTrack> tracks = new ArrayList<>();
+        if (mMediaPlayer == null || (type != MediaTrack.TYPE_AUDIO && type != MediaTrack.TYPE_SUBTITLE)) {
+            return tracks;
+        }
+        try {
+            IjkTrackInfo[] infos = mMediaPlayer.getTrackInfo();
+            if (infos == null) return tracks;
+            int selected = mMediaPlayer.getSelectedTrack(type == MediaTrack.TYPE_AUDIO
+                    ? ITrackInfo.MEDIA_TRACK_TYPE_AUDIO : ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT);
+            for (int i = 0; i < infos.length; i++) {
+                IjkTrackInfo info = infos[i];
+                if (info == null) continue;
+                int trackType = info.getTrackType();
+                boolean matches = type == MediaTrack.TYPE_AUDIO
+                        ? trackType == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO
+                        : trackType == ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT
+                            || trackType == ITrackInfo.MEDIA_TRACK_TYPE_SUBTITLE;
+                if (!matches) continue;
+                String language = info.getLanguage();
+                String label = (type == MediaTrack.TYPE_AUDIO ? "音轨 " : "字幕 ")
+                        + (tracks.size() + 1);
+                if (!TextUtils.isEmpty(language) && !"und".equals(language)) label += " · " + language;
+                tracks.add(new MediaTrack(type, i, language, label, selected == i));
+            }
+        } catch (RuntimeException ignored) {
+            // The core may already have been released or still be preparing.
+        }
+        return tracks;
+    }
+
+    @Override
+    public boolean selectMediaTrack(MediaTrack track) {
+        if (track == null || mMediaPlayer == null) return false;
+        for (MediaTrack available : getMediaTracks(track.type)) {
+            if (available.index != track.index) continue;
+            try {
+                if (track.type == MediaTrack.TYPE_SUBTITLE) dispatchSubtitleText("");
+                mMediaPlayer.selectTrack(track.index);
+                return mMediaPlayer.getSelectedTrack(track.type == MediaTrack.TYPE_AUDIO
+                        ? ITrackInfo.MEDIA_TRACK_TYPE_AUDIO : ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT) == track.index;
+            } catch (RuntimeException ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean disableSubtitleTrack() {
+        if (mMediaPlayer == null) return false;
+        try {
+            int selected = mMediaPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT);
+            if (selected >= 0) mMediaPlayer.deselectTrack(selected);
+            dispatchSubtitleText("");
+            return mMediaPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT) < 0;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     @Override
@@ -122,6 +198,7 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
 
     @Override
     public void reset() {
+        clearSubtitleTextListener();
         mMediaPlayer.reset();
         mMediaPlayer.setOnVideoSizeChangedListener(this);
         setOptions();
@@ -143,17 +220,23 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
 
     @Override
     public void release() {
+        clearSubtitleTextListener();
+        if (mMediaPlayer == null) return;
+        mMediaPlayer.setOnTimedTextListener(null);
+        mMediaPlayer.setOnNativeInvokeListener(null);
         mMediaPlayer.setOnErrorListener(null);
         mMediaPlayer.setOnCompletionListener(null);
         mMediaPlayer.setOnInfoListener(null);
         mMediaPlayer.setOnBufferingUpdateListener(null);
         mMediaPlayer.setOnPreparedListener(null);
         mMediaPlayer.setOnVideoSizeChangedListener(null);
+        final IjkMediaPlayer releasingPlayer = mMediaPlayer;
+        mMediaPlayer = null;
         new Thread() {
             @Override
             public void run() {
                 try {
-                    mMediaPlayer.release();
+                    releasingPlayer.release();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

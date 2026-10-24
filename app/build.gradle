@@ -73,6 +73,13 @@ android {
         }
     }
 
+    // 编译产物统一命名为 Z影视.apk
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "Z影视.apk"
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
