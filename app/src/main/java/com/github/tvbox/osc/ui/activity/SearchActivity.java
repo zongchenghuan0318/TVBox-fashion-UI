@@ -583,28 +583,14 @@ public class SearchActivity extends BaseActivity {
         List<Movie.Video> old = searchResultAdapter.getData();
         List<Movie.Video> merged = new ArrayList<>(old);
         merged.addAll(videos);
-        // 展示顺序与「搜索源管理」的勾选顺序一致；Collections.sort 是稳定排序，
-        // 同一个源内部仍保持返回顺序
+        // 每批搜索结果返回后都重新排序，避免后返回的高优先级源被追加到列表末尾。
         Collections.sort(merged, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
                 - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
-        if (old.size() > 0 && isSamePrefix(old, merged)) {
-            // 新结果本来就落在末尾，增量追加即可，避免整表刷新打断焦点
-            searchResultAdapter.addData(videos);
-        } else {
-            searchResultAdapter.setNewData(merged);
-        }
+        searchResultAdapter.setNewData(merged);
         if (searchResultAdapter.getData().size() >= 1) {
             showSuccess();
             mSearchResultRV.setVisibility(View.VISIBLE);
         }
-    }
-
-    /** merged 的前缀是否与原列表完全一致（同一批对象、同一顺序） */
-    private boolean isSamePrefix(List<Movie.Video> old, List<Movie.Video> merged) {
-        for (int i = 0; i < old.size(); i++) {
-            if (old.get(i) != merged.get(i)) return false;
-        }
-        return true;
     }
 
     @Override

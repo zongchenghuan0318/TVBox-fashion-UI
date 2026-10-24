@@ -116,8 +116,20 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private String mLegacyProgressKey;
     /** 本次实际播放地址：旧版本以播放 URL 作为进度 key，用它兜底读取老进度 */
     private String mCurrentPlayUrl;
+    private String mResumeKey;
+    private long mResumePosition;
     private long firstTimes = System.currentTimeMillis();
     private boolean playbackStartPending;
+    private final Runnable mProgressSaveRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isActivityActive() || mVideoView == null) return;
+            saveCurrentProgress();
+            if (mHandler != null) {
+                mHandler.postDelayed(this, 5000L);
+            }
+        }
+    };
     private final Runnable playbackStartTimeout = new Runnable() {
         @Override
         public void run() {
@@ -181,6 +193,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             mVideoView.resume();
         }
         if (mPlaybackOptions != null) mPlaybackOptions.onResume();
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mProgressSaveRunnable);
+            mHandler.postDelayed(mProgressSaveRunnable, 5000L);
+        }
     }
 
     private boolean isActivityActive() {
@@ -198,7 +214,13 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mVideoView.addOnStateChangeListener(new VideoView.SimpleOnStateChangeListener() {
             @Override
             public void onPlayStateChanged(int playState) {
-                if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
+                if (playState == VideoView.STATE_PREPARED) {
+                    if (mResumePosition > 0) {
+                        mVideoView.seekTo(mResumePosition);
+                        L.d("resume seek key=" + mResumeKey + " position=" + mResumePosition);
+                        mResumePosition = 0;
+                    }
+                } else if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
                     showTipsView("缓冲中...", true, false);
                 } else if (playState == VideoView.STATE_PLAYING) {
                     playbackStartPending = false;
@@ -206,6 +228,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     hideTipsView();
                 } else if (playState == VideoView.STATE_BUFFERED) {
                     hideTipsView();
+                } else if (playState == VideoView.STATE_PLAYBACK_COMPLETED) {
+                    if (mResumeKey != null) {
+                        saveProgressValue(mResumeKey, 0);
+                    }
                 } else if (playState == VideoView.STATE_ERROR && playbackStartPending) {
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
@@ -434,34 +460,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void addProcessMng(){
-        ProgressManager progressManager = new ProgressManager() {
-            @Override
-            public void saveProgress(String url, long progress) {
-                CacheManager.save(MD5.string2MD5(url), progress);
-            }
-            @Override
-            public long getSavedProgress(String url) {
-                int st = 0;
-                try {
-                    if (mVodPlayerCfgJsonObject != null) {
-                        st = mVodPlayerCfgJsonObject.getInt("st");
-                    }
-                } catch (JSONException e) {
-                    L.e(e);
-                }
-                long skip = st * 1000;
-                //按 稳定key → 站点proKey → 旧版播放URL 依次回退，任一命中即用
-                long progress = readSavedProgress(url);
-                if (progress <= 0) progress = readSavedProgress(buildLegacyProgressKey());
-                if (progress <= 0) progress = readSavedProgress(mCurrentPlayUrl);
-                L.d("getSavedProgress stable=" + buildStableProgressKey()
-                        + " legacy=" + buildLegacyProgressKey()
-                        + " playUrl=" + mCurrentPlayUrl
-                        + " progress=" + progress);
-                return progress > 0 ? progress : skip;
-            }
-        };
-        mVideoView.setProgressManager(progressManager);
+        mVideoView.setProgressManager(null);
     }
 
     private long readSavedProgress(String key) {
@@ -481,6 +480,28 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         String source = mSourceKeyStr;
         if (source == null || source.trim().isEmpty()) source = mVodInfo.sourceKey;
         return "resume|v2|" + source + "|" + mVodInfo.id + "|" + mVodInfo.playFlag + "|" + mVodInfo.playIndex;
+    }
+
+    private String buildEpisodeProgressKey() {
+        if (mVodInfo == null || mVodInfo.seriesMap == null || mVodInfo.playFlag == null) {
+            return buildStableProgressKey();
+        }
+        java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (episodes == null || mVodInfo.playIndex < 0 || mVodInfo.playIndex >= episodes.size()) {
+            return buildStableProgressKey();
+        }
+        VodInfo.VodSeries episode = episodes.get(mVodInfo.playIndex);
+        String episodeIdentity = episode.url;
+        if (episodeIdentity == null || episodeIdentity.trim().isEmpty()) {
+            episodeIdentity = episode.name;
+        }
+        if (episodeIdentity == null || episodeIdentity.trim().isEmpty()) {
+            return buildStableProgressKey();
+        }
+        String source = mSourceKeyStr;
+        if (source == null || source.trim().isEmpty()) source = mVodInfo.sourceKey;
+        return "resume|v3|" + source + "|" + mVodInfo.id + "|" + mVodInfo.playFlag
+                + "|" + episodeIdentity;
     }
 
     private String buildLegacyProgressKey() {
@@ -570,6 +591,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 return;
             }
             //停止播放， 再开始
+            saveCurrentProgress();
             mVideoView.release();
             if (mPlaybackOptions != null) mPlaybackOptions.stopSession();
             String playUrl = url;
@@ -611,7 +633,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     L.d("调用自带播放器播放");
                     PlayerHelper.updateCfg(mVideoView, mVodPlayerCfgJsonObject);
                     mLegacyProgressKey = mPlayBean.progressKeyStr;
-                    mVideoView.setProgressKey(buildStableProgressKey());
+                    prepareResumePosition();
+                    mVideoView.setProgressKey(null);
                     if (headers != null) {
                         mVideoView.setUrl(playUrl, headers);
                     } else {
@@ -770,11 +793,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     protected void onPause() {
         super.onPause();
         if (mPlaybackOptions != null) mPlaybackOptions.onPause();
-        //pause 之前保存：部分退出路径不会走到 onStop（进程被回收），这里是最可靠的落点
-        saveCurrentProgress();
+        if (mHandler != null) mHandler.removeCallbacks(mProgressSaveRunnable);
         if (mVideoView != null) {
             mVideoView.pause();
         }
+        saveCurrentProgress();
     }
 
     @Override
@@ -789,15 +812,32 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         long position = mVideoView.getCurrentPosition();
         long duration = mVideoView.getDuration();
         if (position <= 0 || (duration > 0 && position >= duration - 1000)) return;
-        //稳定 key + 站点 proKey + 旧版播放 URL 同时写，任何入口都能读回
-        saveProgressValue(buildStableProgressKey(), position);
-        saveProgressValue(buildLegacyProgressKey(), position);
-        saveProgressValue(mCurrentPlayUrl, position);
+        String key = buildEpisodeProgressKey();
+        saveProgressValue(key, position);
+        L.d("resume save key=" + key + " position=" + position);
+    }
+
+    private void prepareResumePosition() {
+        mResumeKey = buildEpisodeProgressKey();
+        mResumePosition = readSavedProgress(mResumeKey);
+        if (mResumePosition <= 0) {
+            int st = 0;
+            try {
+                if (mVodPlayerCfgJsonObject != null) st = mVodPlayerCfgJsonObject.getInt("st");
+            } catch (JSONException e) {
+                L.e(e);
+            }
+            mResumePosition = st * 1000L;
+        }
+        L.d("resume read key=" + mResumeKey + " position=" + mResumePosition);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mProgressSaveRunnable);
+        }
         if (mPlaybackOptions != null) {
             mPlaybackOptions.release();
             mPlaybackOptions = null;
