@@ -20,7 +20,8 @@ public class LivePlayerManager {
             defaultPlayerConfig.put("pl", Hawk.get(HawkConfig.PLAY_TYPE, 0));
             defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
             defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
-            defaultPlayerConfig.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT));
+            // 直播默认画面比例固定为「原始」，不跟随点播的裁剪设置
+            defaultPlayerConfig.put("sc", VideoView.SCREEN_SCALE_ORIGINAL);
         } catch (JSONException e) {
             e.printStackTrace();
         }
