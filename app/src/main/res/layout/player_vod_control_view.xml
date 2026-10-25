@@ -75,10 +75,11 @@
                 android:text="选集" android:contentDescription="选择剧集" android:layout_marginRight="8dp" />
                 <ImageButton android:id="@+id/play_scale" style="@style/PlayerOverlayIcon"
                     android:src="@drawable/ic_player_aspect" android:contentDescription="画面比例" android:layout_marginRight="8dp" />
-            <ImageView android:id="@+id/port_img" style="@style/PlayerOverlayIcon"
-                android:src="@drawable/ic_player_rotate" android:contentDescription="切换横竖屏" />
                 </LinearLayout>
             </HorizontalScrollView>
+            <ImageView android:id="@+id/port_img" style="@style/PlayerOverlayIcon"
+                android:src="@drawable/ic_player_rotate" android:contentDescription="切换横竖屏"
+                android:layout_marginLeft="8dp" />
         </LinearLayout>
         <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:fillViewport="false" android:focusable="false" android:scrollbars="none">
