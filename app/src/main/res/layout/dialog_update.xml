@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:padding="@dimen/vs_28"
+    android:background="@drawable/shape_dialog_bg_main">
+    <TextView android:id="@+id/updateTitle"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="检查更新" android:textSize="@dimen/ts_26"
+        android:textStyle="bold" android:textColor="#FFFFFF" />
+    <ScrollView android:id="@+id/updateScroll"
+        android:layout_width="match_parent" android:layout_height="@dimen/vs_180"
+        android:layout_marginTop="@dimen/vs_16" android:focusable="true"
+        android:nextFocusDown="@id/updateAction">
+        <TextView android:id="@+id/updateNotes"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="@dimen/ts_20" android:textColor="#DDFFFFFF" />
+    </ScrollView>
+    <ProgressBar android:id="@+id/updateProgress" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="@dimen/vs_10"
+        android:layout_marginTop="@dimen/vs_16" android:max="100" />
+    <TextView android:id="@+id/updateStatus"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="@dimen/vs_50" android:gravity="center_vertical"
+        android:textSize="@dimen/ts_20" android:textColor="#DDFFFFFF"
+        android:accessibilityLiveRegion="polite" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="end">
+        <TextView android:id="@+id/updateBrowser"
+            android:layout_width="wrap_content" android:layout_height="@dimen/vs_50"
+            android:paddingLeft="@dimen/vs_16" android:paddingRight="@dimen/vs_16"
+            android:layout_marginRight="@dimen/vs_12" android:visibility="gone"
+            android:text="浏览器下载" android:textSize="@dimen/ts_20" android:textColor="#FFFFFF"
+            android:focusable="true" android:clickable="true" android:gravity="center"
+            android:background="@drawable/bg_live_source_action" />
+        <TextView android:id="@+id/updateCancel"
+            android:layout_width="wrap_content" android:layout_height="@dimen/vs_50"
+            android:paddingLeft="@dimen/vs_16" android:paddingRight="@dimen/vs_16"
+            android:layout_marginRight="@dimen/vs_12" android:text="取消"
+            android:textSize="@dimen/ts_20" android:textColor="#FFFFFF"
+            android:focusable="true" android:clickable="true" android:gravity="center"
+            android:background="@drawable/bg_live_source_action" />
+        <TextView android:id="@+id/updateAction"
+            android:layout_width="wrap_content" android:layout_height="@dimen/vs_50"
+            android:paddingLeft="@dimen/vs_16" android:paddingRight="@dimen/vs_16"
+            android:text="立即更新" android:textSize="@dimen/ts_20" android:textColor="#FFFFFF"
+            android:focusable="true" android:clickable="true" android:gravity="center"
+            android:background="@drawable/bg_live_source_action" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,5 +1,20 @@
 # Local JVM regressions
 
+Online update regressions:
+
+```powershell
+./tools/tests/run-update.ps1
+```
+
+This compiles the current production `UpdateClient.java` and runs its JUnit
+tests using the project's cached dependencies. It avoids the older Gradle
+test worker's class-loading failure in Unicode Windows paths. It covers
+numeric version comparisons, invalid manifests, route fallback, timeouts,
+HTML responses, truncated/corrupt downloads, package-verifier rejection,
+and cancellation without fallback or leftover files. No actual network or
+installation is performed by these tests. First resolve the existing Gradle
+test dependencies if JUnit is not cached.
+
 Run from the project root:
 
 ```powershell

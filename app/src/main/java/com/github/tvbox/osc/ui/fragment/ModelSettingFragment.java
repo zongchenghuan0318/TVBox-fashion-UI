@@ -40,7 +40,7 @@ import com.lcstudio.commonsurport.util.SystemUitl;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 import com.uisupport.UiConstans;
-import com.uisupport.update.BiQuUpdateInfoGetter;
+import com.github.tvbox.osc.util.UpdateManager;
 
 import org.greenrobot.eventbus.EventBus;
 import org.jetbrains.annotations.NotNull;
@@ -96,6 +96,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     }
 
     public void activityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == UpdateManager.INSTALL_PERMISSION_REQUEST) return;
         L.d("onActivityResult（）");
         mApiDialog.onActivityResult(requestCode, resultCode, data);
     }
@@ -200,7 +201,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
             public void onClick(View v) {
                 if (handleEasterEggClick(v, aboutRow, versionView)) return;
                 FastClickCheckUtil.check(v);
-                BiQuUpdateInfoGetter.checkUpdate(getActivity(), true);
+                UpdateManager.check(getActivity(), true);
             }
         });
         ((TextView) findViewById(R.id.versionTV)).setText(PhoneParams.getAppSelfVersionName(getContext()));
@@ -578,6 +579,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
 
     @Override
     public void onDestroyView() {
+        UpdateManager.cancelFor(getActivity());
         super.onDestroyView();
         SettingActivity.callback = null;
     }

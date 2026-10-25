@@ -238,7 +238,7 @@
 
                             <TextView
                                 style="@style/SettingRowTitle"
-                                android:text="关于" />
+                                android:text="检查更新" />
 
                             <TextView
                                 android:id="@+id/versionTV"

@@ -94,6 +94,9 @@ lint/tmp/
 *.jks
 *.keystore
 *.pepk
+.signing/
+release-signing.properties
+dist/
 
 # 本地 IDE 配置
 .idea/

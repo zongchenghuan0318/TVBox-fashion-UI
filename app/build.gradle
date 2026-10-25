@@ -1,6 +1,26 @@
 apply plugin: 'com.android.application'
 apply plugin: 'com.chaquo.python'
 
+def releaseSigning = new Properties()
+def releaseSigningFile = rootProject.file('release-signing.properties')
+if (releaseSigningFile.exists()) releaseSigningFile.withInputStream { releaseSigning.load(it) }
+
+task verifyReleaseSigning {
+    doLast {
+        if (!['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every { releaseSigning[it] }) {
+            throw new GradleException('Release signing is missing. Configure release-signing.properties first.')
+        }
+        def store = java.security.KeyStore.getInstance(rootProject.file(releaseSigning.storeFile),
+                releaseSigning.storePassword.toCharArray())
+        def certificate = store.getCertificate(releaseSigning.keyAlias)
+        def fingerprint = certificate == null ? '' : java.security.MessageDigest.getInstance('SHA-256')
+                .digest(certificate.encoded).encodeHex().toString()
+        if (fingerprint != '195cc65bd18f8e04184423ad84306a9ed9582f4f0be5cf7d26b19371e4bcba62') {
+            throw new GradleException('Release certificate differs from the installed ZMovie certificate.')
+        }
+    }
+}
+
 android {
     compileSdkVersion 30
     buildToolsVersion "30.0.3"
@@ -12,8 +32,8 @@ android {
         applicationId 'com.studio.osc'
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 112
-        versionName '1.1.2'
+        versionCode 113
+        versionName '1.1.3'
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
@@ -54,6 +74,17 @@ android {
         exclude 'META-INF/DEPENDENCIES'
     }
 
+    signingConfigs {
+        release {
+            if (releaseSigning['storeFile']) {
+                storeFile rootProject.file(releaseSigning.storeFile)
+                storePassword releaseSigning.storePassword
+                keyAlias releaseSigning.keyAlias
+                keyPassword releaseSigning.keyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -64,6 +95,7 @@ android {
             }
         }
         release {
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             minifyEnabled false
 
@@ -95,6 +127,10 @@ android {
         additionalParameters += '--set-max-idx-number=48000'
         additionalParameters += '--minimal-main-dex'
     }
+}
+
+tasks.whenTaskAdded { task ->
+    if (task.name == 'preReleaseBuild') task.dependsOn verifyReleaseSigning
 }
 
 repositories {

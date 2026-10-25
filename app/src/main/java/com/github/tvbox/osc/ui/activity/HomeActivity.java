@@ -42,7 +42,7 @@ import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 import com.studio.osc.R;
 import com.uisupport.UiConstans;
-import com.uisupport.update.BiQuUpdateInfoGetter;
+import com.github.tvbox.osc.util.UpdateManager;
 import com.uisupport.update.HttpUtil;
 import com.uisupport.update.ReportConfig;
 import com.uisupport.update.RspReportConfig;
@@ -169,7 +169,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         initSiteFile();
         showTime();
         getConfig(this);
-        BiQuUpdateInfoGetter.checkUpdate(this, false);
+        UpdateManager.check(this, false);
         // 兜底：加载异常时也不能一直停在打开画面
         mHandler.postDelayed(() -> {
             hideLoading();
