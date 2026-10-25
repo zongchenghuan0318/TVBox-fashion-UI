@@ -94,7 +94,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private final Runnable mHideOverlaysRunnable = new Runnable() {
         @Override
         public void run() {
-            setOverlaysVisible(false);
+            if (mController == null || !mController.isBottomVisible()) setOverlaysVisible(false);
         }
     };
     private ImageView mPlayErrImg;
@@ -257,6 +257,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             }
         });
         mMovieNameTV.setOnClickListener(this);
+        findViewById(R.id.player_back).setOnClickListener(this);
         //触摸屏幕（手机/平板）时同样重新显示，但不拦截手势
         mVideoView.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
@@ -411,6 +412,12 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mController.setFocusableInTouchMode(true);
         mController.setGestureEnabled(true);
         mController.setControlListener(new VodController.VodControlListener() {
+            @Override
+            public void onControlsVisibilityChanged(boolean visible) {
+                if (mHandler != null) mHandler.removeCallbacks(mHideOverlaysRunnable);
+                setOverlaysVisible(visible);
+            }
+
             @Override
             public void playNext(boolean rmProgress) {
                 String preProgressKey = buildStableProgressKey();
@@ -762,6 +769,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
+            case R.id.player_back:
             case R.id.movie_name_tv:
                 if (mController != null && mController.bLocked) {
                     mController.showLockImg();
@@ -1153,6 +1161,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
      */
     private void setOverlaysVisible(boolean visible) {
         int vis = visible ? View.VISIBLE : View.GONE;
+        View topBar = findViewById(R.id.player_top_bar);
+        if (topBar != null) topBar.setVisibility(vis);
         if (mMovieNameTV != null) mMovieNameTV.setVisibility(vis);
         if (mTimeTV != null) mTimeTV.setVisibility(vis);
         if (mAdTipTV != null) mAdTipTV.setVisibility(vis);

@@ -609,7 +609,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
         input.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint("每行填写一个直播配置地址（可带端口）");
-        input.setText(Hawk.get(HawkConfig.LIVE_SOURCE_URL, HawkConfig.DEFAULT_LIVE_SOURCE_URLS));
+        String liveSources = getMigratedLiveSources();
+        input.setText(liveSources);
         input.setSelection(input.length());
 
         new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(mActivity, R.style.DarkAlertDialog))
@@ -627,6 +628,35 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private String getMigratedLiveSources() {
+        String saved = Hawk.get(HawkConfig.LIVE_SOURCE_URL, "");
+        StringBuilder result = new StringBuilder();
+        String firstSource = "193.123.86.190:14888/TV/iptv.php";
+        result.append(firstSource);
+        if (saved != null) {
+            for (String line : saved.split("\\r?\\n")) {
+                String value = line.trim();
+                if (value.isEmpty()
+                        || value.equals("https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u")
+                        || value.equals(firstSource)
+                        || result.toString().contains(value)) {
+                    continue;
+                }
+                if (result.length() > 0) result.append('\n');
+                result.append(value);
+            }
+        }
+        for (String line : HawkConfig.DEFAULT_LIVE_SOURCE_URLS.split("\\r?\\n")) {
+            String value = line.trim();
+            if (value.isEmpty() || result.toString().contains(value)) continue;
+            if (result.length() > 0) result.append('\n');
+            result.append(value);
+        }
+        String migrated = result.toString();
+        Hawk.put(HawkConfig.LIVE_SOURCE_URL, migrated);
+        return migrated;
     }
 
     private String getLiveSourceSummary(String url) {

@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 焦点态：青色填充 + 发丝描边（settings 设计系统主色 #00D9FF） -->
+    <!-- 设置行的焦点和触控反馈。 -->
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_15" />
-            <solid android:color="#2600D9FF" />
+            <solid android:color="#34334F" />
             <stroke
-                android:width="@dimen/vs_1"
-                android:color="#8000D9FF" />
+                android:width="2mm"
+                android:color="@color/settings_focus" />
         </shape>
     </item>
+    <item android:state_pressed="true"><shape>
+        <corners android:radius="15mm" /><solid android:color="#303B55" />
+    </shape></item>
     <item>
         <shape>
             <corners android:radius="@dimen/vs_15" />

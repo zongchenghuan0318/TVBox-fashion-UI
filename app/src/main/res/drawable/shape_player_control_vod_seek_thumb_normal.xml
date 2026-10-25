@@ -5,16 +5,16 @@
         <shape android:shape="oval">
             <solid android:color="#2EFFFFFF" />
             <size
-                android:width="@dimen/vs_20"
-                android:height="@dimen/vs_20" />
+                android:width="12dp"
+                android:height="12dp" />
         </shape>
     </item>
     <!-- 内芯 -->
     <item
-        android:bottom="@dimen/vs_5"
-        android:left="@dimen/vs_5"
-        android:right="@dimen/vs_5"
-        android:top="@dimen/vs_5">
+        android:bottom="2dp"
+        android:left="2dp"
+        android:right="2dp"
+        android:top="2dp">
         <shape android:shape="oval">
             <solid android:color="#F2FFFFFF" />
         </shape>

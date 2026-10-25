@@ -5,26 +5,26 @@
         <shape android:shape="oval">
             <solid android:color="#3D02F8E1" />
             <size
-                android:width="@dimen/vs_24"
-                android:height="@dimen/vs_24" />
+                android:width="20dp"
+                android:height="20dp" />
         </shape>
     </item>
     <item
-        android:bottom="@dimen/vs_4"
-        android:left="@dimen/vs_4"
-        android:right="@dimen/vs_4"
-        android:top="@dimen/vs_4">
+        android:bottom="3dp"
+        android:left="3dp"
+        android:right="3dp"
+        android:top="3dp">
         <shape android:shape="oval">
             <solid android:color="#4D02F8E1" />
         </shape>
     </item>
     <item
-        android:bottom="@dimen/vs_6"
-        android:left="@dimen/vs_6"
-        android:right="@dimen/vs_6"
-        android:top="@dimen/vs_6">
+        android:bottom="5dp"
+        android:left="5dp"
+        android:right="5dp"
+        android:top="5dp">
         <shape android:shape="oval">
-            <solid android:color="@color/color_02F8E1" />
+            <solid android:color="@color/player_overlay_accent" />
         </shape>
     </item>
 </layer-list>

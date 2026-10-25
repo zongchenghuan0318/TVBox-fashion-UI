@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/player_top_bar" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:layout_gravity="top" android:orientation="horizontal" android:gravity="center_vertical"
+    android:background="@drawable/shape_player_top" android:paddingLeft="24dp" android:paddingRight="24dp"
+    android:paddingTop="8dp" android:paddingBottom="16dp">
+    <ImageButton android:id="@+id/player_back" style="@style/PlayerOverlayIcon"
+        android:src="@drawable/ic_player_back" android:contentDescription="返回" />
+    <TextView android:id="@+id/movie_name_tv" android:layout_width="0dp" android:layout_height="48dp"
+        android:layout_weight="1" android:layout_marginLeft="8dp" android:layout_marginRight="20dp"
+        android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end"
+        android:textSize="18sp" android:textColor="#FFFFFF" android:fontFamily="sans-serif-medium" />
+    <TextView android:id="@+id/system_time_tv" android:layout_width="wrap_content" android:layout_height="48dp"
+        android:gravity="center_vertical" android:fontFamily="sans-serif" android:textSize="14sp"
+        android:textColor="#D9FFFFFF" android:singleLine="true" />
+</LinearLayout>

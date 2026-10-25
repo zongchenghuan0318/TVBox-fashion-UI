@@ -193,6 +193,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void initSortView(){
         this.sortAdapter = new SortAdapter();
+        if (this.mMovieSortRV == null) {
+            L.e("initSortView() skipped because sortRV is missing from activity_home");
+            return;
+        }
         // 分类列表纵向排列：首页在最上，热播电影等依次堆在下面
         // 行距压到刚好让 6 个分类完整落在列表可视区内（无滚动范围 → 触摸滑动时整块固定不动）
         this.mMovieSortRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
@@ -243,7 +247,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         List<MovieSort.SortData> sortDataList = DefaultConfig.adjustSort("", new ArrayList<>(), true);
         sortAdapter.setNewData(sortDataList);
         freshViewPager(null);
-        mMovieSortRV.setSelection(0);
+        if (mMovieSortRV != null) {
+            mMovieSortRV.setSelection(0);
+        }
     }
 
     private void showTime() {

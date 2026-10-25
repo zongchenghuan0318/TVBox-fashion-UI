@@ -78,7 +78,7 @@ public final class UpdateManager {
             if (waitingPermission) {
                 waitingPermission = false;
                 if (Build.VERSION.SDK_INT < 26 || activity.getPackageManager().canRequestPackageInstalls()) install();
-                else if (dialog != null) dialog.result("未获得安装授权，可授权后重试", "继续安装", this::install);
+                else if (dialog != null) dialog.installNotice("未获得安装授权，可授权后重试", "继续安装", this::install);
             } else if (pendingResult != null) {
                 Runnable result = pendingResult;
                 pendingResult = null;
@@ -192,7 +192,7 @@ public final class UpdateManager {
         try {
             if (Build.VERSION.SDK_INT >= 26 && !activity.getPackageManager().canRequestPackageInstalls()) {
                 waitingPermission = true;
-                dialog.result("请在系统设置中允许本应用安装更新", "打开安装授权", this::install);
+                dialog.installNotice("请在系统设置中允许本应用安装更新", "打开安装授权", this::install);
                 activity.startActivityForResult(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:" + activity.getPackageName())), INSTALL_PERMISSION_REQUEST);
                 return;
@@ -205,7 +205,7 @@ public final class UpdateManager {
             finish(true);
         } catch (ActivityNotFoundException | SecurityException | IllegalArgumentException e) {
             waitingPermission = false;
-            dialog.result("无法打开系统安装界面，请重试或使用浏览器下载", "继续安装", this::install);
+            dialog.installNotice("无法打开系统安装界面，请重试或使用浏览器下载", "继续安装", this::install);
         }
     }
 

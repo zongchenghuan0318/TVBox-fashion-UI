@@ -1,49 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:orientation="vertical" android:padding="@dimen/vs_28"
-    android:background="@drawable/shape_dialog_bg_main">
-    <TextView android:id="@+id/updateTitle"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="检查更新" android:textSize="@dimen/ts_26"
-        android:textStyle="bold" android:textColor="#FFFFFF" />
-    <ScrollView android:id="@+id/updateScroll"
-        android:layout_width="match_parent" android:layout_height="@dimen/vs_180"
-        android:layout_marginTop="@dimen/vs_16" android:focusable="true"
-        android:nextFocusDown="@id/updateAction">
-        <TextView android:id="@+id/updateNotes"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textSize="@dimen/ts_20" android:textColor="#DDFFFFFF" />
-    </ScrollView>
-    <ProgressBar android:id="@+id/updateProgress" style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent" android:layout_height="@dimen/vs_10"
-        android:layout_marginTop="@dimen/vs_16" android:max="100" />
-    <TextView android:id="@+id/updateStatus"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:minHeight="@dimen/vs_50" android:gravity="center_vertical"
-        android:textSize="@dimen/ts_20" android:textColor="#DDFFFFFF"
-        android:accessibilityLiveRegion="polite" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:gravity="end">
-        <TextView android:id="@+id/updateBrowser"
-            android:layout_width="wrap_content" android:layout_height="@dimen/vs_50"
-            android:paddingLeft="@dimen/vs_16" android:paddingRight="@dimen/vs_16"
-            android:layout_marginRight="@dimen/vs_12" android:visibility="gone"
-            android:text="浏览器下载" android:textSize="@dimen/ts_20" android:textColor="#FFFFFF"
-            android:focusable="true" android:clickable="true" android:gravity="center"
-            android:background="@drawable/bg_live_source_action" />
-        <TextView android:id="@+id/updateCancel"
-            android:layout_width="wrap_content" android:layout_height="@dimen/vs_50"
-            android:paddingLeft="@dimen/vs_16" android:paddingRight="@dimen/vs_16"
-            android:layout_marginRight="@dimen/vs_12" android:text="取消"
-            android:textSize="@dimen/ts_20" android:textColor="#FFFFFF"
-            android:focusable="true" android:clickable="true" android:gravity="center"
-            android:background="@drawable/bg_live_source_action" />
-        <TextView android:id="@+id/updateAction"
-            android:layout_width="wrap_content" android:layout_height="@dimen/vs_50"
-            android:paddingLeft="@dimen/vs_16" android:paddingRight="@dimen/vs_16"
-            android:text="立即更新" android:textSize="@dimen/ts_20" android:textColor="#FFFFFF"
-            android:focusable="true" android:clickable="true" android:gravity="center"
-            android:background="@drawable/bg_live_source_action" />
+    android:background="@drawable/shape_update_panel" android:fillViewport="false"
+    android:padding="28mm" android:scrollbars="none">
+    <LinearLayout android:id="@+id/updateSheetContent" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <ImageView android:id="@+id/updateIcon" android:layout_width="72mm"
+                android:layout_height="72mm" android:padding="20mm"
+                android:src="@drawable/ic_update_download" android:tint="@color/settings_accent"
+                android:background="@drawable/shape_update_glyph" android:importantForAccessibility="no" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginLeft="22mm" android:orientation="vertical">
+                <TextView android:id="@+id/updateBadge" style="@style/UpdateCaption"
+                    android:text="Z影视 · 软件更新" android:textColor="@color/settings_accent"
+                    android:fontFamily="sans-serif-medium" />
+                <TextView android:id="@+id/updateTitle" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="6mm"
+                    android:text="检查更新" android:textSize="30mm" android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/settings_text" />
+                <TextView android:id="@+id/updateSubtitle" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="8mm"
+                    android:textSize="18mm" android:textColor="@color/settings_text_secondary"
+                    android:lineSpacingExtra="4mm" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/updateVersions" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="24mm"
+            android:orientation="horizontal" android:gravity="center_vertical" android:visibility="gone">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:padding="16mm"
+                android:background="@drawable/shape_settings_inset" android:orientation="vertical">
+                <TextView style="@style/UpdateCaption" android:text="当前版本" />
+                <TextView android:id="@+id/updateCurrentVersion" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:layout_marginTop="6mm"
+                    android:textSize="24mm" android:textColor="@color/settings_text"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+            <TextView android:layout_width="52mm" android:layout_height="wrap_content"
+                android:text="→" android:gravity="center" android:textSize="26mm"
+                android:textColor="@color/settings_text_muted" android:importantForAccessibility="no" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:padding="16mm"
+                android:background="@drawable/shape_settings_inset" android:orientation="vertical">
+                <TextView style="@style/UpdateCaption" android:text="新版本" />
+                <TextView android:id="@+id/updateTargetVersion" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:layout_marginTop="6mm"
+                    android:textSize="24mm" android:textColor="@color/settings_accent"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/updateNotesPanel" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="22mm"
+            android:orientation="vertical" android:visibility="gone">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="本次更新" android:textSize="18mm" android:fontFamily="sans-serif-medium"
+                android:textColor="@color/settings_text" />
+            <ScrollView android:id="@+id/updateScroll" android:layout_width="match_parent"
+                android:layout_height="128mm" android:layout_marginTop="10mm" android:padding="16mm"
+                android:background="@drawable/shape_settings_inset" android:focusable="true"
+                android:nextFocusDown="@id/updateAction">
+                <TextView android:id="@+id/updateNotes" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:textSize="18mm"
+                    android:lineSpacingExtra="5mm" android:textColor="@color/settings_text_secondary" />
+            </ScrollView>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/updateStatusPanel" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="22mm" android:padding="18mm"
+            android:orientation="vertical" android:background="@drawable/shape_settings_inset">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <TextView android:id="@+id/updateStatus" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:minHeight="28mm" android:gravity="center_vertical"
+                    android:textSize="18mm" android:lineSpacingExtra="4mm"
+                    android:textColor="@color/settings_text_secondary" android:accessibilityLiveRegion="polite" />
+                <TextView android:id="@+id/updatePercent" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:layout_marginLeft="14mm"
+                    android:textSize="24mm" android:textColor="@color/settings_accent"
+                    android:fontFamily="sans-serif-medium" android:visibility="gone" />
+            </LinearLayout>
+            <ProgressBar android:id="@+id/updateProgress" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="6mm" android:layout_marginTop="14mm"
+                android:progressDrawable="@drawable/progress_update" android:indeterminateTint="@color/settings_accent"
+                android:max="100" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24mm" android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/updateBrowser" style="@style/SettingsButton"
+                android:background="@drawable/selector_setting_row" android:minWidth="0mm"
+                android:paddingLeft="10mm" android:paddingRight="10mm" android:textSize="18mm"
+                android:textColor="@color/settings_text_secondary" android:visibility="gone"
+                android:text="浏览器下载" />
+            <Space android:layout_width="0dp" android:layout_height="1mm" android:layout_weight="1" />
+            <TextView android:id="@+id/updateCancel" style="@style/SettingsButton" android:text="取消" />
+            <TextView android:id="@+id/updateAction" style="@style/SettingsButton.Primary"
+                android:layout_marginLeft="12mm" android:text="下载更新" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</ScrollView>

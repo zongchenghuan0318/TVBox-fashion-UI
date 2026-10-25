@@ -1,609 +1,196 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingLeft="@dimen/vs_120"
-    android:paddingTop="@dimen/vs_10"
-    android:paddingRight="@dimen/vs_120"
-    android:paddingBottom="@dimen/vs_30">
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="top|center_horizontal"
-        android:clipToPadding="false"
-        android:focusable="false"
-        android:focusableInTouchMode="false"
-        android:scrollbars="none">
-
-        <!-- 双列控制台：左列偏「数据源」，右列偏「使用偏好」，一屏内完成设置 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:focusable="false"
-            android:focusableInTouchMode="false"
-            android:orientation="horizontal"
-            android:baselineAligned="false">
-
-            <!-- 左列 -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:clipChildren="false"
-                android:orientation="vertical"
-                android:paddingRight="@dimen/vs_10">
-
-                <!--调试模式：连按 4 次 0 后显示，默认隐藏-->
-                <LinearLayout
-                    android:id="@+id/llDebug"
-                    style="@style/SettingRow"
-                    android:layout_marginBottom="@dimen/vs_6"
-                    android:visibility="gone">
-
-                    <TextView
-                        style="@style/SettingRowTitle"
-                        android:text="调试模式" />
-
-                    <TextView
-                        android:id="@+id/tvDebugOpen"
-                        style="@style/SettingRowValue"
-                        android:ellipsize="none" />
-
-                    <TextView style="@style/SettingRowArrow" />
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:paddingLeft="64mm" android:paddingRight="64mm">
+    <ScrollView android:id="@+id/settingsScroll" android:layout_width="match_parent"
+        android:layout_height="match_parent" android:fillViewport="true"
+        android:clipToPadding="false" android:paddingBottom="36mm" android:scrollbars="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:paddingTop="8mm" android:clipChildren="false">
+            <LinearLayout android:id="@+id/llAbout" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:minHeight="102mm"
+                android:padding="22mm" android:gravity="center_vertical"
+                android:orientation="horizontal" android:focusable="true" android:clickable="true"
+                android:nextFocusDown="@id/llApi" android:background="@drawable/selector_settings_update">
+                <ImageView android:layout_width="52mm" android:layout_height="52mm"
+                    android:padding="13mm" android:background="@drawable/shape_update_glyph"
+                    android:src="@drawable/ic_update_download" android:tint="@color/settings_accent"
+                    android:importantForAccessibility="no" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_marginLeft="18mm" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="软件更新" android:textSize="24mm" android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/settings_text" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="6mm" android:text="新功能与体验优化，及时获取"
+                        android:textSize="16mm" android:textColor="@color/settings_text_secondary" />
                 </LinearLayout>
-
-                <LinearLayout style="@style/SettingSectionHeader">
-
-                    <View
-                        android:layout_width="@dimen/vs_6"
-                        android:layout_height="@dimen/vs_6"
-                        android:background="@drawable/shape_setting_section_dot" />
-
-                    <TextView
-                        style="@style/SettingSectionTitle"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:text="接口与数据源" />
-                </LinearLayout>
-
-                <LinearLayout style="@style/SettingGroup">
-
-                    <LinearLayout
-                        android:id="@+id/llApi"
-                        style="@style/SettingRow"
-                        android:nextFocusRight="@id/llHomeRec"
-                        android:nextFocusDown="@id/llLiveSource">
-
-                        <TextView
-                            style="@style/SettingRowTitle"
-                            android:text="设置配置文件" />
-
-                        <TextView
-                            android:id="@+id/tvApi"
-                            style="@style/SettingRowValue" />
-
-                        <TextView style="@style/SettingRowArrow" />
-                    </LinearLayout>
-
-                    <View style="@style/SettingDivider" />
-
-                    <LinearLayout
-                        android:id="@+id/llLiveSource"
-                        style="@style/SettingRow"
-                        android:nextFocusRight="@id/llSearchView"
-                        android:nextFocusUp="@id/llApi"
-                        android:nextFocusDown="@id/llHomeApi">
-
-                        <TextView
-                            style="@style/SettingRowTitle"
-                            android:text="直播源地址" />
-
-                        <TextView
-                            android:id="@+id/tvLiveSource"
-                            style="@style/SettingRowValue"
-                            android:ellipsize="end"
-                            android:maxLines="1" />
-
-                        <TextView style="@style/SettingRowArrow" />
-                    </LinearLayout>
-
-                    <View style="@style/SettingDivider" />
-
-                    <LinearLayout
-                        android:id="@+id/llHomeApi"
-                        style="@style/SettingRow"
-                        android:nextFocusRight="@id/llSearchSite"
-                        android:nextFocusUp="@id/llLiveSource"
-                        android:nextFocusDown="@id/llSeniorMode">
-
-                        <TextView
-                            style="@style/SettingRowTitle"
-                            android:text="默认网站" />
-
-                        <TextView
-                            android:id="@+id/tvHomeApi"
-                            style="@style/SettingRowValue" />
-
-                        <TextView style="@style/SettingRowArrow" />
-                    </LinearLayout>
-                </LinearLayout>
-
-                <LinearLayout style="@style/SettingSectionHeader">
-                    <View
-                        android:layout_width="@dimen/vs_6"
-                        android:layout_height="@dimen/vs_6"
-                        android:background="@drawable/shape_setting_section_dot" />
-                    <TextView
-                        style="@style/SettingSectionTitle"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:text="显示与无障碍" />
-                </LinearLayout>
-
-                <LinearLayout style="@style/SettingGroup">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-                        <LinearLayout
-                            android:id="@+id/llSeniorMode"
-                            style="@style/SettingRow"
-                            android:nextFocusUp="@id/llSearchSite"
-                            android:nextFocusDown="@id/llPlay"
-                            android:nextFocusRight="@id/llPlay"
-                            android:nextFocusLeft="@id/llApi">
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="长辈模式" />
-                            <TextView
-                                android:id="@+id/tvSeniorModeState"
-                                style="@style/SettingRowValue"
-                                android:textColor="@color/color_FFFFFF"
-                                android:text="已关闭" />
-                        </LinearLayout>
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginLeft="@dimen/vs_24"
-                            android:layout_marginTop="@dimen/vs_2"
-                            android:layout_marginRight="@dimen/vs_24"
-                            android:layout_marginBottom="@dimen/vs_6"
-                            android:text="开启后文字更大、焦点更清晰、操作更方便"
-                            android:textColor="@color/color_6CFFFFFF"
-                            android:textSize="@dimen/ts_16"
-                            android:maxLines="2"
-                            android:ellipsize="end" />
-                    </LinearLayout>
-                </LinearLayout>
-
-                <LinearLayout style="@style/SettingSectionHeader">
-
-                    <View
-                        android:layout_width="@dimen/vs_6"
-                        android:layout_height="@dimen/vs_6"
-                        android:background="@drawable/shape_setting_section_dot" />
-
-                    <TextView
-                        style="@style/SettingSectionTitle"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:text="其他" />
-                </LinearLayout>
-
-                <LinearLayout style="@style/SettingGroup">
-
-                    <LinearLayout
-                        style="@style/SettingRowPair"
-                        android:paddingLeft="@dimen/vs_4"
-                        android:paddingRight="@dimen/vs_4">
-
-                        <LinearLayout
-                            android:id="@+id/llBackup"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginEnd="@dimen/vs_4"
-                            android:layout_marginRight="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusRight="@id/llAbout"
-                            android:nextFocusDown="@id/llHomeRec">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="分享给好友" />
-
-                            <Space
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/llAbout"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginStart="@dimen/vs_4"
-                            android:layout_marginLeft="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llBackup"
-                            android:nextFocusDown="@id/llHomeRec">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="检查更新" />
-
-                            <TextView
-                                android:id="@+id/versionTV"
-                                style="@style/SettingRowValue" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-                    </LinearLayout>
-                </LinearLayout>
+                <TextView android:id="@+id/versionTV" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:layout_marginRight="22mm"
+                    android:textSize="18mm" android:textColor="@color/settings_text_secondary" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="检查更新  ›" android:textSize="20mm" android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/settings_accent" />
             </LinearLayout>
-
-            <!-- 右列 -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_10"
-                android:layout_marginStart="@dimen/vs_10"
-                android:layout_weight="1"
-                android:clipChildren="false"
-                android:orientation="vertical"
-                android:paddingLeft="@dimen/vs_10">
-
-                <LinearLayout style="@style/SettingSectionHeader">
-
-                    <View
-                        android:layout_width="@dimen/vs_6"
-                        android:layout_height="@dimen/vs_6"
-                        android:background="@drawable/shape_setting_section_dot" />
-
-                    <TextView
-                        style="@style/SettingSectionTitle"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:text="首页与搜索" />
-                </LinearLayout>
-
-                <LinearLayout style="@style/SettingGroup">
-
-                    <LinearLayout
-                        style="@style/SettingRowPair"
-                        android:paddingLeft="@dimen/vs_4"
-                        android:paddingRight="@dimen/vs_4">
-
-                        <LinearLayout
-                            android:id="@+id/llHomeRec"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginEnd="@dimen/vs_4"
-                            android:layout_marginRight="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llAbout"
-                            android:nextFocusUp="@id/llAbout">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="首页推荐" />
-
-                            <TextView
-                                android:id="@+id/tvHomeRec"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/llSearchView"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginStart="@dimen/vs_4"
-                            android:layout_marginLeft="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llHomeRec">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="搜索展示" />
-
-                            <TextView
-                                android:id="@+id/tvSearchView"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:baselineAligned="false" android:clipChildren="false">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_marginRight="12mm" android:orientation="vertical"
+                    android:clipChildren="false">
+                    <LinearLayout android:id="@+id/llDebug" style="@style/SettingRow" android:visibility="gone">
+                        <TextView style="@style/SettingRowTitle" android:text="调试模式" />
+                        <TextView android:id="@+id/tvDebugOpen" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
-
+                <TextView style="@style/SettingSectionTitle"
+                    android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
+                    android:text="内容来源" />
+                <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout android:id="@+id/llApi" style="@style/SettingRow" android:nextFocusUp="@id/llAbout">
+                        <TextView style="@style/SettingRowTitle" android:text="配置接口" />
+                        <TextView android:id="@+id/tvApi" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
                     <View style="@style/SettingDivider" />
-
-                    <LinearLayout
-                        android:id="@+id/llSearchSite"
-                        style="@style/SettingRow"
-                        android:nextFocusLeft="@id/llHomeApi">
-
-                        <TextView
-                            style="@style/SettingRowTitle"
-                            android:text="搜索源管理" />
-
-                        <TextView
-                            android:id="@+id/tvSearchSite"
-                            style="@style/SettingRowValue" />
-
+                    <LinearLayout android:id="@+id/llLiveSource" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="直播源管理" />
+                        <TextView android:id="@+id/tvLiveSource" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llHomeApi" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="默认网站" />
+                        <TextView android:id="@+id/tvHomeApi" style="@style/SettingRowValue" />
                         <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
                 </LinearLayout>
-
-                <LinearLayout style="@style/SettingSectionHeader">
-
-                    <View
-                        android:layout_width="@dimen/vs_6"
-                        android:layout_height="@dimen/vs_6"
-                        android:background="@drawable/shape_setting_section_dot" />
-
-                    <TextView
-                        style="@style/SettingSectionTitle"
-                        android:layout_marginLeft="@dimen/vs_10"
-                        android:layout_marginStart="@dimen/vs_10"
-                        android:text="播放" />
-                </LinearLayout>
-
+                <TextView style="@style/SettingSectionTitle"
+                    android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
+                    android:text="首页与搜索" />
                 <LinearLayout style="@style/SettingGroup">
-
-                    <LinearLayout
-                        style="@style/SettingRowPair"
-                        android:paddingLeft="@dimen/vs_4"
-                        android:paddingRight="@dimen/vs_4">
-
-                        <LinearLayout
-                            android:id="@+id/llPlay"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginEnd="@dimen/vs_4"
-                            android:layout_marginRight="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llSeniorMode"
-                            android:nextFocusUp="@id/llSearchSite">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="播放器" />
-
-                            <TextView
-                                android:id="@+id/tvPlay"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/llMediaCodec"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginStart="@dimen/vs_4"
-                            android:layout_marginLeft="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusLeft="@id/llPlay">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="IJK解码方式" />
-
-                            <TextView
-                                android:id="@+id/tvMediaCodec"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <LinearLayout
-                        style="@style/SettingRowPair"
-                        android:paddingLeft="@dimen/vs_4"
-                        android:paddingRight="@dimen/vs_4">
-                        <LinearLayout
-                            android:id="@+id/llPlayTimeStart"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginEnd="@dimen/vs_4"
-                            android:layout_marginRight="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusUp="@id/llMediaCodec">
-                            <TextView style="@style/SettingRowTitle" android:text="片头跳过" />
-                            <TextView
-                                android:id="@+id/tvPlayTimeStart"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-                        <LinearLayout
-                            android:id="@+id/llPlayTimeEnd"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginStart="@dimen/vs_4"
-                            android:layout_marginLeft="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain"
-                            android:nextFocusUp="@id/llMediaCodec">
-                            <TextView style="@style/SettingRowTitle" android:text="片尾跳过" />
-                            <TextView
-                                android:id="@+id/tvPlayTimeEnd"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-                    </LinearLayout>
-                    <LinearLayout
-                        android:id="@+id/llPlayTimeStep"
-                        style="@style/SettingRow"
-                        android:nextFocusDown="@id/llHomeRec">
-                        <TextView style="@style/SettingRowTitle" android:text="片头片尾步长" />
-                        <TextView
-                            android:id="@+id/tvPlayTimeStep"
-                            style="@style/SettingRowValue"
-                            android:ellipsize="none" />
+                    <LinearLayout android:id="@+id/llHomeRec" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="首页推荐" />
+                        <TextView android:id="@+id/tvHomeRec" style="@style/SettingRowValue" />
                         <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
-                    <LinearLayout
-                        android:id="@+id/llAudioLanguage"
-                        style="@style/SettingRow"
-                        android:nextFocusDown="@id/llSubtitleLanguage">
-                        <TextView style="@style/SettingRowTitle" android:text="默认音轨语言" />
-                        <TextView
-                            android:id="@+id/tvAudioLanguage"
-                            style="@style/SettingRowValue"
-                            android:ellipsize="none" />
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llSearchView" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="搜索展示" />
+                        <TextView android:id="@+id/tvSearchView" style="@style/SettingRowValue" />
                         <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
-                    <LinearLayout
-                        android:id="@+id/llSubtitleLanguage"
-                        style="@style/SettingRow"
-                        android:nextFocusUp="@id/llAudioLanguage"
-                        android:nextFocusDown="@id/llSubtitleOff">
-                        <TextView style="@style/SettingRowTitle" android:text="默认字幕语言" />
-                        <TextView
-                            android:id="@+id/tvSubtitleLanguage"
-                            style="@style/SettingRowValue"
-                            android:ellipsize="none" />
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llSearchSite" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="搜索源管理" />
+                        <TextView android:id="@+id/tvSearchSite" style="@style/SettingRowValue" />
                         <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
-                    <LinearLayout
-                        android:id="@+id/llSubtitleOff"
-                        style="@style/SettingRow"
-                        android:nextFocusUp="@id/llSubtitleLanguage">
-                        <TextView style="@style/SettingRowTitle" android:text="默认字幕" />
-                        <TextView
-                            android:id="@+id/tvSubtitleOff"
-                            style="@style/SettingRowValue"
-                            android:ellipsize="none" />
+                </LinearLayout>
+                <TextView style="@style/SettingSectionTitle"
+                    android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
+                    android:text="辅助与分享" />
+                <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout android:id="@+id/llSeniorMode" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="长辈模式" />
+                        <TextView android:id="@+id/tvSeniorModeState" style="@style/SettingRowValue" />
                         <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
-
-                    <LinearLayout
-                        style="@style/SettingRowPair"
-                        android:paddingLeft="@dimen/vs_4"
-                        android:paddingRight="@dimen/vs_4"
-                        android:visibility="gone">
-
-                        <LinearLayout
-                            android:id="@+id/llRender"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginEnd="@dimen/vs_4"
-                            android:layout_marginRight="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="渲染方式" />
-
-                            <TextView
-                                android:id="@+id/tvRenderType"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/llScale"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginStart="@dimen/vs_4"
-                            android:layout_marginLeft="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="画面缩放" />
-
-                            <TextView
-                                android:id="@+id/tvScaleType"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llBackup" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="分享给好友" />
+                        <Space android:layout_width="0dp" android:layout_height="1mm" android:layout_weight="1" />
+                        <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
-
-                    <LinearLayout
-                        style="@style/SettingRowPair"
-                        android:paddingLeft="@dimen/vs_4"
-                        android:paddingRight="@dimen/vs_4"
-                        android:visibility="gone">
-
-                        <LinearLayout
-                            android:id="@+id/llParseWebVew"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginEnd="@dimen/vs_4"
-                            android:layout_marginRight="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="嗅探Webview" />
-
-                            <TextView
-                                android:id="@+id/tvParseWebView"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none"
-                                android:text="系统自带" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/llDns"
-                            style="@style/SettingRow"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/vs_50"
-                            android:layout_marginStart="@dimen/vs_4"
-                            android:layout_marginLeft="@dimen/vs_4"
-                            android:layout_weight="1"
-                            android:background="@drawable/selector_setting_row_plain">
-
-                            <TextView
-                                style="@style/SettingRowTitle"
-                                android:text="安全DNS" />
-
-                            <TextView
-                                android:id="@+id/tvDns"
-                                style="@style/SettingRowValue"
-                                android:ellipsize="none" />
-
-                            <TextView style="@style/SettingRowArrow" />
-                        </LinearLayout>
+                </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="14mm" android:paddingLeft="10mm" android:paddingRight="10mm"
+                        android:text="长辈模式可放大文字，并增强遥控器焦点。"
+                        android:textSize="16mm" android:lineSpacingExtra="4mm" android:textColor="@color/settings_text_muted" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_marginLeft="12mm" android:orientation="vertical"
+                    android:clipChildren="false">
+                <TextView style="@style/SettingSectionTitle"
+                    android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
+                    android:text="播放体验" />
+                <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout android:id="@+id/llPlay" style="@style/SettingRow" android:nextFocusUp="@id/llAbout">
+                        <TextView style="@style/SettingRowTitle" android:text="播放器" />
+                        <TextView android:id="@+id/tvPlay" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llMediaCodec" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="IJK 解码" />
+                        <TextView android:id="@+id/tvMediaCodec" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llRender" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="画面渲染" />
+                        <TextView android:id="@+id/tvRenderType" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llScale" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="画面比例" />
+                        <TextView android:id="@+id/tvScaleType" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                </LinearLayout>
+                <TextView style="@style/SettingSectionTitle"
+                    android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
+                    android:text="字幕与音轨" />
+                <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout android:id="@+id/llAudioLanguage" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="默认音轨" />
+                        <TextView android:id="@+id/tvAudioLanguage" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llSubtitleLanguage" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="字幕语言" />
+                        <TextView android:id="@+id/tvSubtitleLanguage" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llSubtitleOff" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="字幕显示" />
+                        <TextView android:id="@+id/tvSubtitleOff" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                </LinearLayout>
+                <TextView style="@style/SettingSectionTitle"
+                    android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
+                    android:text="片头与片尾" />
+                <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout android:id="@+id/llPlayTimeStart" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="跳过片头" />
+                        <TextView android:id="@+id/tvPlayTimeStart" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llPlayTimeEnd" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="跳过片尾" />
+                        <TextView android:id="@+id/tvPlayTimeEnd" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
+                    <LinearLayout android:id="@+id/llPlayTimeStep" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="调整步长" />
+                        <TextView android:id="@+id/tvPlayTimeStep" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                </LinearLayout>
+                    <LinearLayout android:id="@+id/llParseWebVew" style="@style/SettingRow" android:visibility="gone">
+                        <TextView style="@style/SettingRowTitle" android:text="嗅探 WebView" />
+                        <TextView android:id="@+id/tvParseWebView" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/llDns" style="@style/SettingRow" android:visibility="gone">
+                        <TextView style="@style/SettingRowTitle" android:text="安全 DNS" />
+                        <TextView android:id="@+id/tvDns" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

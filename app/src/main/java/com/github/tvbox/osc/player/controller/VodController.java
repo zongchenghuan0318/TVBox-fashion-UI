@@ -57,7 +57,7 @@ public class VodController extends BaseController {
     private SeekBar mSeekBar;
     private TextView mCurrentTimeTV;
     private TextView mTotalTimeTV;
-    private ImageButton mEpisodeBtn;
+    private View mEpisodeBtn;
     private boolean mIsDragging;
     private LinearLayout mProgressLayout;
     private TextView mProgressTv;
@@ -444,9 +444,9 @@ public class VodController extends BaseController {
         mPlayingBtn.setOnClickListener(view -> {
             if(bLocked) return;
             if (!mControlWrapper.isPlaying()) {
-                mPlayingBtn.setImageResource(R.drawable.vod_pause);
+                mPlayingBtn.setImageResource(R.drawable.ic_player_pause);
             }else{
-                mPlayingBtn.setImageResource(R.drawable.vod_play);
+                mPlayingBtn.setImageResource(R.drawable.ic_player_play);
             }
             togglePlay();
         });
@@ -455,9 +455,9 @@ public class VodController extends BaseController {
             bLocked = !bLocked;
             //setLocked(bLocked);
             if (bLocked) {
-                lockImg.setImageResource(R.drawable.icon_locked);
+                lockImg.setImageResource(R.drawable.ic_player_locked);
             } else {
-                lockImg.setImageResource(R.drawable.icon_unlock);
+                lockImg.setImageResource(R.drawable.ic_player_unlock);
             }
         });
 
@@ -901,8 +901,7 @@ public class VodController extends BaseController {
                 mPlayingBtn.setContentDescription("播放");
                 startProgress();
                 refreshProgressNow();
-                mBottomLayout.setVisibility(VISIBLE);
-                updateSubtitlePlacement();
+                setControlsVisible(true);
                 if (!bLocked) {
                     mPlayingBtn.requestFocus();
                 }
@@ -928,7 +927,7 @@ public class VodController extends BaseController {
         }
     }
 
-    boolean isBottomVisible() {
+    public boolean isBottomVisible() {
         return mBottomLayout.getVisibility() == VISIBLE;
     }
 
@@ -938,8 +937,7 @@ public class VodController extends BaseController {
 
     void showBottom() {
         boolean wasVisible = mBottomLayout.getVisibility() == VISIBLE;
-        mBottomLayout.setVisibility(VISIBLE);
-        updateSubtitlePlacement();
+        setControlsVisible(true);
         refreshProgressNow();
         if (isInPlaybackState()) startProgress();
         if (!wasVisible && !bLocked && mPlayingBtn != null) {
@@ -951,10 +949,21 @@ public class VodController extends BaseController {
     }
 
     void hideBottom() {
-        if (mOptionsOpen || mIsDragging || bSimSlideStart || !mControlWrapper.isPlaying()) return;
+        hideBottom(false);
+    }
+
+    private void hideBottom(boolean force) {
+        if (mOptionsOpen || mIsDragging || bSimSlideStart || (!force && !mControlWrapper.isPlaying())) return;
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
-        mBottomLayout.setVisibility(GONE);
+        setControlsVisible(false);
+    }
+
+    private void setControlsVisible(boolean visible) {
+        mBottomLayout.setVisibility(visible ? VISIBLE : GONE);
+        if (visible && !bLocked) showLockImg();
+        else if (!bLocked) hideLockImg();
         updateSubtitlePlacement();
+        if (controlListener != null) controlListener.onControlsVisibilityChanged(visible);
     }
 
     private final Runnable mSeniorModeHideBottomRunnable = new Runnable() {
@@ -1031,21 +1040,12 @@ public class VodController extends BaseController {
      */
     @Override
     public boolean onSingleTapConfirmed(MotionEvent e) {
-        if (!isBottomVisible()) {
-            showBottom();
-        } else {
-            hideBottom();
-        }
         if (bLocked) {
-            //锁定，则出现提示
             showLockImg();
-        } else {
-            if (isLockVisible()) {
-                hideLockImg();
-            } else {
-                showLockImg();
-            }
+            return true;
         }
+        if (!isBottomVisible()) showBottom();
+        else hideBottom(true);
         // 触摸端由自定义底部控制栏管理显隐，避免父控制器再次切换可见状态，
         // 导致暂停时进度条刚显示又被隐藏。
         return true;
@@ -1076,6 +1076,7 @@ public class VodController extends BaseController {
     }
 
     public interface VodControlListener {
+        void onControlsVisibilityChanged(boolean visible);
         void playNext(boolean rmProgress);
         void playPre();
         void playEpisode(int index);
