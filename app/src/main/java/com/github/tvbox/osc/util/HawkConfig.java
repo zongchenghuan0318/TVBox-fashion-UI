@@ -28,10 +28,10 @@ public class HawkConfig {
     public static final String PLAY_RENDER = "play_render"; //0 texture 2
     public static final String PLAY_SCALE = "play_scale"; //0 texture 2
     /**
-     * 画面比例默认值：4 = 原始（按视频原始比例显示），与 SCREEN_SCALE_ORIGINAL 对应；
-     * 未设置过的机器上播放默认就是原始
+     * 画面比例默认值：5 = 裁剪，与 SCREEN_SCALE_CENTER_CROP 对应；
+     * 未设置过的机器上播放默认就是裁剪
      */
-    public static final int PLAY_SCALE_DEFAULT = 4;
+    public static final int PLAY_SCALE_DEFAULT = 5;
     public static final String PLAY_TIME_STEP = "play_time_step"; //0 texture 2
     public static final String PLAY_TIME_START = "play_time_start";
     public static final String PLAY_TIME_END = "play_time_end";
