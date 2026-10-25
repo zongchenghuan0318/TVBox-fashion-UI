@@ -19,7 +19,6 @@ import androidx.lifecycle.LifecycleEventObserver;
 import androidx.lifecycle.LifecycleOwner;
 
 import com.github.tvbox.osc.ui.dialog.UpdateDialog;
-import com.orhanobut.hawk.Hawk;
 import com.studio.osc.BuildConfig;
 
 import java.io.File;
@@ -59,10 +58,6 @@ public final class UpdateManager {
             if (manual) Toast.makeText(activity, "正在检查或下载更新，请稍候", Toast.LENGTH_SHORT).show();
             return;
         }
-        long now = System.currentTimeMillis();
-        long last = Hawk.get(HawkConfig.UPDATE_LAST_CHECK, 0L);
-        if (!manual && now >= last && now - last < TimeUnit.HOURS.toMillis(24)) return;
-        Hawk.put(HawkConfig.UPDATE_LAST_CHECK, now);
         UpdateManager session = new UpdateManager(activity);
         active = session;
         session.lifecycle.addObserver(session.observer);

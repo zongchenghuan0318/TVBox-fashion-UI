@@ -47,7 +47,6 @@ public class HawkConfig {
     public static final String SEARCH_SITE_ORDER = "search_site_order"; // 参与搜索的站点 key 顺序：勾选先后即所有搜索界面的展示顺序
     public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 文采秒播最高」
     public static final String LIVE_CHANNEL = "last_live_channel_name";
-    public static final String UPDATE_LAST_CHECK = "update_last_check";
     public static final String LIVE_SOURCE_URL = "live_source_urls";
     public static final String LIVE_SOURCE_MANAGER = "live_source_manager_v1";
     public static final String LIVE_SOURCE_UNIFIED = "live_source_unified_v1";

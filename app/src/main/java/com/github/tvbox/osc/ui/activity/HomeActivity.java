@@ -169,7 +169,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         initSiteFile();
         showTime();
         getConfig(this);
-        UpdateManager.check(this, false);
         // 兜底：加载异常时也不能一直停在打开画面
         mHandler.postDelayed(() -> {
             hideLoading();
@@ -461,6 +460,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     mMovieSortRV.setSelection(0);
                     mMovieSortRV.requestFocus();
                 }
+                // 每次启动首页就绪后检查一次更新
+                UpdateManager.check(HomeActivity.this, false);
             }
         }).start();
     }
