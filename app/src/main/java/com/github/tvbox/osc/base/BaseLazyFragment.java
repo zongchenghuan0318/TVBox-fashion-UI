@@ -21,7 +21,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
-import me.jessyan.autosize.AutoSize;
 import me.jessyan.autosize.internal.CustomAdapt;
 
 /**
@@ -64,7 +63,7 @@ public abstract class BaseLazyFragment extends Fragment implements CustomAdapt {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        AutoSize.autoConvertDensity(getActivity(), getSizeInDp(), isBaseOnWidth());
+        getActivity().getResources(); // BaseActivity 统一同步窗口尺寸并适配，避免复用 Application 的旧尺寸。
         if (null == rootView) {
             rootView = inflater.inflate(getLayoutResID(), container, false);
         }
@@ -198,7 +197,7 @@ public abstract class BaseLazyFragment extends Fragment implements CustomAdapt {
      */
     @Override
     public void onResume() {
-        AutoSize.autoConvertDensity(getActivity(), getSizeInDp(), isBaseOnWidth());
+        getActivity().getResources();
         super.onResume();
         // 如果不是第一次可见
         if (!mIsFirstVisible) {

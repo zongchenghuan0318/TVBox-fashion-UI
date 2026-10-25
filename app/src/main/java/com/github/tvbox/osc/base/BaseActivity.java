@@ -3,6 +3,7 @@ package com.github.tvbox.osc.base;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetManager;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.Bundle;
@@ -26,6 +27,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.PermissionChecker;
 import me.jessyan.autosize.AutoSizeCompat;
+import me.jessyan.autosize.AutoSizeConfig;
 import me.jessyan.autosize.internal.CustomAdapt;
 
 /**
@@ -81,10 +83,28 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
 
     @Override
     public Resources getResources() {
+        Resources resources = super.getResources();
         if (Looper.myLooper() == Looper.getMainLooper()) {
-            AutoSizeCompat.autoConvertDensityOfCustomAdapt(super.getResources(), this);
+            if (getWindowManager() != null) {
+                // Application 的尺寸可能仍属于启动前的竖屏；用当前 Activity 的窗口重新同步。
+                DisplayMetrics metrics = new DisplayMetrics();
+                getWindowManager().getDefaultDisplay().getMetrics(metrics);
+                int width = metrics.widthPixels;
+                int height = metrics.heightPixels;
+                int orientation = resources.getConfiguration().orientation;
+                if ((orientation == Configuration.ORIENTATION_LANDSCAPE && width < height)
+                        || (orientation == Configuration.ORIENTATION_PORTRAIT && width > height)) {
+                    int previousWidth = width;
+                    width = height;
+                    height = previousWidth;
+                }
+                if (width > 0 && height > 0) {
+                    AutoSizeConfig.getInstance().setScreenWidth(width).setScreenHeight(height);
+                }
+            }
+            AutoSizeCompat.autoConvertDensityOfCustomAdapt(resources, this);
         }
-        return super.getResources();
+        return resources;
     }
 
     public boolean hasPermission(String permission) {
