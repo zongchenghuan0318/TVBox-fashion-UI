@@ -20,9 +20,9 @@ public class LivePlayerManager {
             defaultPlayerConfig.put("pl", Hawk.get(HawkConfig.PLAY_TYPE, 0));
             defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
             defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
-            // 直播默认画面比例固定为「裁剪」，频道仍可单独修改。
-            defaultPlayerConfig.put("sc", VideoView.SCREEN_SCALE_CENTER_CROP);
-            defaultPlayerConfig.put("scv", 1);
+            // 直播默认画面比例为自适应的「默认」，频道仍可单独修改。
+            defaultPlayerConfig.put("sc", VideoView.SCREEN_SCALE_DEFAULT);
+            defaultPlayerConfig.put("scv", 2);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -46,13 +46,10 @@ public class LivePlayerManager {
                 getDefaultLiveChannelPlayer(videoView);
             return;
         }
-        if (playerConfig.optInt("scv", 0) < 1) {
+        if (playerConfig.optInt("scv", 0) < 2) {
             try {
-                if (!playerConfig.has("sc")
-                        || playerConfig.optInt("sc", -1) == VideoView.SCREEN_SCALE_ORIGINAL) {
-                    playerConfig.put("sc", VideoView.SCREEN_SCALE_CENTER_CROP);
-                }
-                playerConfig.put("scv", 1);
+                playerConfig.put("sc", VideoView.SCREEN_SCALE_DEFAULT);
+                playerConfig.put("scv", 2);
                 Hawk.put(channelName, playerConfig);
             } catch (JSONException e) {
                 e.printStackTrace();

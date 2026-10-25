@@ -23,6 +23,13 @@ public class IjkMediaPlayer extends IjkPlayer {
     @Override
     public void setOptions() {
         super.setOptions();
+        // Apply latency defaults first; source-specific options below retain priority.
+        // Keep packet buffering and full stream discovery for unstable sources/subtitles.
+        mMediaPlayer.setOption(4, "skip-calc-frame-rate", 1L);
+        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 500L);
+        mMediaPlayer.setOption(4, "last-high-water-mark-ms", 2000L);
+        // Only takes effect when a source enables accurate seeking; avoid the native 5s wait.
+        mMediaPlayer.setOption(4, "accurate-seek-timeout", 1000L);
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
         LinkedHashMap<String, String> options = codecTmp.getOption();
         if (options != null) {

@@ -318,13 +318,12 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             if (!mVodPlayerCfgJsonObject.has("ijk")) {
                 mVodPlayerCfgJsonObject.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, ""));
             }
-            // 旧记录沿用的「原始」比例迁移到新的默认值；其它比例和迁移后的手动选择保持不变。
-            if (mVodPlayerCfgJsonObject.optInt("scv", 0) < 3) {
-                if (!mVodPlayerCfgJsonObject.has("sc")
-                        || mVodPlayerCfgJsonObject.optInt("sc", -1) == VideoView.SCREEN_SCALE_ORIGINAL) {
-                    mVodPlayerCfgJsonObject.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT));
-                }
-                mVodPlayerCfgJsonObject.put("scv", 3);
+            // 已有影片统一恢复一次默认比例，此后的手动选择不再重置。
+            if (mVodPlayerCfgJsonObject.optInt("scv", 0) < 4) {
+                int scale = mVodPlayerCfgJsonObject.has("sc") ? VideoView.SCREEN_SCALE_DEFAULT
+                        : Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);
+                mVodPlayerCfgJsonObject.put("sc", scale);
+                mVodPlayerCfgJsonObject.put("scv", 4);
             }
             if (!mVodPlayerCfgJsonObject.has("sc")) {
                 mVodPlayerCfgJsonObject.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT));

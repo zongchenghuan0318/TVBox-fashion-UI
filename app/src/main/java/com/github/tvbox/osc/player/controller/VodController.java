@@ -1021,7 +1021,7 @@ public class VodController extends BaseController {
                 mSeekSpeedMultiplier = 1;
                 if (isInPlayback) {
                     mBaseHandler.removeMessages(MSG_WHAT_SEEK_PLAY);
-                    mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_SEEK_PLAY, 300);
+                    mBaseHandler.sendEmptyMessageDelayed(MSG_WHAT_SEEK_PLAY, 150);
                     return true;
                 }
             }
