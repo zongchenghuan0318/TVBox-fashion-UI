@@ -74,6 +74,10 @@
             android:name="com.github.tvbox.osc.ui.activity.CollectActivity"
             android:screenOrientation="landscape" />
 
+        <receiver
+            android:name="com.github.tvbox.osc.receiver.UpdateInstallReceiver"
+            android:exported="false" />
+
         <receiver android:name="com.github.tvbox.osc.receiver.SearchReceiver">
             <intent-filter>
                 <action android:name="android.content.movie.search.Action" />

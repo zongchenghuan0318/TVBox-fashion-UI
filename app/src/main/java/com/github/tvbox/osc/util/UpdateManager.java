@@ -1,8 +1,12 @@
 package com.github.tvbox.osc.util;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.ClipData;
+import android.content.res.Configuration;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -19,9 +23,12 @@ import androidx.lifecycle.LifecycleEventObserver;
 import androidx.lifecycle.LifecycleOwner;
 
 import com.github.tvbox.osc.ui.dialog.UpdateDialog;
+import com.github.tvbox.osc.receiver.UpdateInstallReceiver;
 import com.studio.osc.BuildConfig;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -44,7 +51,7 @@ public final class UpdateManager {
     private File apk;
     private boolean busy;
     private boolean waitingPermission;
-    private boolean closed;
+    private volatile boolean closed;
     private Runnable pendingResult;
 
     private UpdateManager(Activity activity) {
@@ -183,7 +190,7 @@ public final class UpdateManager {
     }
 
     private void install() {
-        if (closed || apk == null) return;
+        if (closed || apk == null || busy) return;
         try {
             if (Build.VERSION.SDK_INT >= 26 && !activity.getPackageManager().canRequestPackageInstalls()) {
                 waitingPermission = true;
@@ -192,15 +199,100 @@ public final class UpdateManager {
                         Uri.parse("package:" + activity.getPackageName())), INSTALL_PERMISSION_REQUEST);
                 return;
             }
+            boolean television = (activity.getResources().getConfiguration().uiMode
+                    & Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION;
+            if (television || "TCL".equalsIgnoreCase(Build.MANUFACTURER)
+                    || "TCL".equalsIgnoreCase(Build.BRAND)) {
+                installSession();
+            } else {
+                installFile();
+            }
+        } catch (ActivityNotFoundException | SecurityException | IllegalArgumentException e) {
+            waitingPermission = false;
+            dialog.installNotice("无法打开系统安装界面，请重试或使用浏览器下载", "继续安装", this::install);
+        }
+    }
+
+    /** TV installers may reject FileProvider URIs. Stage the verified APK in system-owned storage. */
+    private void installSession() {
+        busy = true;
+        dialog.installNotice("正在将已校验的安装包交给系统，请稍候…", null, null);
+        final File source = apk;
+        final PackageInstaller installer = activity.getPackageManager().getPackageInstaller();
+        WORKER.execute(() -> {
+            int sessionId = -1;
+            try {
+                PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
+                        PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                params.setAppPackageName(activity.getPackageName());
+                params.setSize(source.length());
+                sessionId = installer.createSession(params);
+                try (PackageInstaller.Session session = installer.openSession(sessionId);
+                     FileInputStream input = new FileInputStream(source);
+                     OutputStream output = session.openWrite("base.apk", 0, source.length())) {
+                    byte[] buffer = new byte[32768];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) {
+                        if (closed) throw new IOException("安装已取消");
+                        output.write(buffer, 0, count);
+                    }
+                    session.fsync(output);
+                }
+                final int readySession = sessionId;
+                main.post(() -> {
+                    if (closed) {
+                        abandonSession(installer, readySession);
+                        return;
+                    }
+                    try (PackageInstaller.Session session = installer.openSession(readySession)) {
+                        Intent callback = new Intent(activity, UpdateInstallReceiver.class);
+                        // Mutable: PackageInstaller must fill in status and the user-confirmation Intent.
+                        PendingIntent result = PendingIntent.getBroadcast(activity, readySession, callback,
+                                PendingIntent.FLAG_UPDATE_CURRENT);
+                        session.commit(result.getIntentSender());
+                        busy = false;
+                        finish(true);
+                    } catch (IOException | RuntimeException e) {
+                        abandonSession(installer, readySession);
+                        sessionFailed(e);
+                    }
+                });
+            } catch (IOException | RuntimeException e) {
+                if (sessionId >= 0) abandonSession(installer, sessionId);
+                main.post(() -> sessionFailed(e));
+            }
+        });
+    }
+
+    private static void abandonSession(PackageInstaller installer, int sessionId) {
+        try {
+            installer.abandonSession(sessionId);
+        } catch (RuntimeException e) {
+            android.util.Log.w("UpdateInstall", "Cannot abandon install session", e);
+        }
+    }
+
+    private void sessionFailed(Exception error) {
+        android.util.Log.e("UpdateInstall", "Cannot prepare install session", error);
+        if (closed) return;
+        busy = false;
+        dialog.installNotice("系统安装会话准备失败，可尝试普通安装；若仍无法打开，请通过电视卫士使用 U 盘安装。",
+                "尝试普通安装", this::installFile);
+    }
+
+    private void installFile() {
+        if (closed || apk == null) return;
+        try {
+            Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", apk);
             Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", apk),
-                    "application/vnd.android.package-archive");
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.setClipData(ClipData.newRawUri("update.apk", uri));
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             activity.startActivity(intent);
             finish(true);
         } catch (ActivityNotFoundException | SecurityException | IllegalArgumentException e) {
-            waitingPermission = false;
-            dialog.installNotice("无法打开系统安装界面，请重试或使用浏览器下载", "继续安装", this::install);
+            android.util.Log.e("UpdateInstall", "Cannot open APK installer", e);
+            dialog.installNotice("无法打开系统安装界面，请通过电视卫士使用 U 盘安装。", "重试", this::install);
         }
     }
 
