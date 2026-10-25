@@ -15,8 +15,8 @@ function Write-Utf8([string]$Path, [string]$Text) {
 function Invoke-GitHub([string]$Method, [string]$Url, $Body = $null) {
     if ($Body) {
         Invoke-RestMethod -Method $Method -Uri $Url -Headers $taskHeaders `
-            -ContentType 'application/json; charset=utf-8' -Body ($taskUtf8.GetBytes(($Body | ConvertTo-Json -Depth 8)))
-    } else { Invoke-RestMethod -Method $Method -Uri $Url -Headers $taskHeaders }
+            -ContentType 'application/json; charset=utf-8' -Body ($taskUtf8.GetBytes(($Body | ConvertTo-Json -Depth 8))) -DisableKeepAlive
+    } else { Invoke-RestMethod -Method $Method -Uri $Url -Headers $taskHeaders -DisableKeepAlive }
 }
 
 Push-Location $taskProject
@@ -95,7 +95,10 @@ try {
     foreach ($taskRelease in $taskReleases | Where-Object { !$_.draft -and !$_.prerelease }) {
         $taskOldManifest = @($taskRelease.assets | Where-Object { $_.name -eq 'update.json' })
         if ($taskOldManifest.Count -eq 1) {
-            $taskOldInfo = Invoke-RestMethod -Uri $taskOldManifest[0].browser_download_url -Headers @{ 'User-Agent' = 'ZMovie-Release' }
+            $taskOldResponse = Invoke-WebRequest -Uri $taskOldManifest[0].browser_download_url -Headers @{ 'User-Agent' = 'ZMovie-Release' }
+            $taskOldJson = if ($taskOldResponse.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($taskOldResponse.Content) } else { [string]$taskOldResponse.Content }
+            $taskOldInfo = $taskOldJson | ConvertFrom-Json
+            if (!$taskOldInfo.versionCode) { throw 'Published version metadata is invalid.' }
             if ($taskVersionCode -le [long]$taskOldInfo.versionCode) { throw 'versionCode must exceed all published stable versions.' }
         }
     }
@@ -113,9 +116,9 @@ try {
     $taskUpload = ($taskDraft.upload_url -split '\{')[0]
     foreach ($taskName in @('Z.apk', 'update.json', 'SHA256SUMS.txt')) {
         $taskFile = Join-Path $taskOutput $taskName
-        $taskContentType = if ($taskName -eq 'Z.apk') { 'application/vnd.android.package-archive' } else { 'application/octet-stream' }
+        $taskContentType = if ($taskName -eq 'Z.apk') { 'application/vnd.android.package-archive' } elseif ($taskName -eq 'update.json') { 'application/json; charset=utf-8' } else { 'text/plain; charset=utf-8' }
         $taskUploaded = Invoke-RestMethod -Method Post -Uri ($taskUpload + '?name=' + [Uri]::EscapeDataString($taskName)) `
-            -Headers $taskHeaders -ContentType $taskContentType -InFile $taskFile
+            -Headers $taskHeaders -ContentType $taskContentType -InFile $taskFile -DisableKeepAlive
         $taskAssetHash = (Get-FileHash -LiteralPath $taskFile -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($taskUploaded.state -ne 'uploaded' -or $taskUploaded.size -ne (Get-Item -LiteralPath $taskFile).Length `
                 -or $taskUploaded.digest -ne "sha256:$taskAssetHash") {

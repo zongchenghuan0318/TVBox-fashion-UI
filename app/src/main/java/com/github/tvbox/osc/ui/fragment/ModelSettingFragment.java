@@ -130,8 +130,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvSubtitleLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.SUBTITLE_LANGUAGE, "")));
         tvSubtitleOff.setText(Hawk.get(HawkConfig.SUBTITLE_OFF, false) ? "关闭" : "自动选择");
         final View aboutRow = findViewById(R.id.llAbout);
-        final TextView versionView = findViewById(R.id.versionTV);
-        versionView.setOnClickListener(v -> handleEasterEggClick(v, aboutRow, versionView));
+        final View easterEggTrigger = requireActivity().findViewById(R.id.settingEasterEggTrigger);
+        final TextView easterEggTitle = requireActivity().findViewById(R.id.settingEasterEggTitle);
+        easterEggTrigger.setOnClickListener(v -> handleEasterEggClick(v, easterEggTrigger, easterEggTitle));
         final TextView seniorModeState = findViewById(R.id.tvSeniorModeState);
         View seniorModeRow = findViewById(R.id.llSeniorMode);
         boolean seniorModeEnabled = com.github.tvbox.osc.util.SeniorMode.isEnabled();
@@ -199,7 +200,6 @@ public class ModelSettingFragment extends BaseLazyFragment {
         aboutRow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (handleEasterEggClick(v, aboutRow, versionView)) return;
                 FastClickCheckUtil.check(v);
                 UpdateManager.check(getActivity(), true);
             }
@@ -770,34 +770,33 @@ public class ModelSettingFragment extends BaseLazyFragment {
         return enabled + "/" + total;
     }
 
-    private boolean handleEasterEggClick(View source, View aboutRow, TextView versionView) {
+    private void handleEasterEggClick(View source, View trigger, TextView triggerTitle) {
         long now = System.currentTimeMillis();
         if (now - lastEasterEggClick > 2000L) easterEggClicks = 0;
         lastEasterEggClick = now;
         easterEggClicks++;
         source.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
-        if (easterEggClicks < 7) return false;
+        if (easterEggClicks < 7) return;
         easterEggClicks = 0;
-        playEasterEgg(aboutRow, versionView);
-        return true;
+        playEasterEgg(trigger, triggerTitle);
     }
 
-    private void playEasterEgg(View aboutRow, TextView versionView) {
+    private void playEasterEgg(View trigger, TextView triggerTitle) {
         AnimatorSet rowAnimation = new AnimatorSet();
         rowAnimation.playTogether(
-                ObjectAnimator.ofFloat(aboutRow, View.SCALE_X, 1f, 1.04f, 1f),
-                ObjectAnimator.ofFloat(aboutRow, View.SCALE_Y, 1f, 1.04f, 1f),
-                ObjectAnimator.ofFloat(aboutRow, View.ROTATION_Y, 0f, 8f, -8f, 0f),
-                ObjectAnimator.ofFloat(aboutRow, View.ALPHA, 1f, 0.72f, 1f)
+                ObjectAnimator.ofFloat(trigger, View.SCALE_X, 1f, 1.04f, 1f),
+                ObjectAnimator.ofFloat(trigger, View.SCALE_Y, 1f, 1.04f, 1f),
+                ObjectAnimator.ofFloat(trigger, View.ROTATION_Y, 0f, 8f, -8f, 0f),
+                ObjectAnimator.ofFloat(trigger, View.ALPHA, 1f, 0.72f, 1f)
         );
         rowAnimation.setDuration(900L);
         rowAnimation.start();
 
         AnimatorSet versionAnimation = new AnimatorSet();
         versionAnimation.playTogether(
-                ObjectAnimator.ofFloat(versionView, View.SCALE_X, 1f, 1.3f, 1f),
-                ObjectAnimator.ofFloat(versionView, View.SCALE_Y, 1f, 1.3f, 1f),
-                ObjectAnimator.ofFloat(versionView, View.ROTATION, 0f, 360f)
+                ObjectAnimator.ofFloat(triggerTitle, View.SCALE_X, 1f, 1.3f, 1f),
+                ObjectAnimator.ofFloat(triggerTitle, View.SCALE_Y, 1f, 1.3f, 1f),
+                ObjectAnimator.ofFloat(triggerTitle, View.ROTATION, 0f, 360f)
         );
         versionAnimation.setDuration(850L);
         versionAnimation.start();

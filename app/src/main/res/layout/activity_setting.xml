@@ -40,6 +40,7 @@
             android:background="@drawable/selector_setting_back"
             android:clickable="true"
             android:focusable="true"
+            android:nextFocusRight="@id/settingEasterEggTrigger"
             android:focusableInTouchMode="true">
 
             <ImageView
@@ -51,12 +52,19 @@
         </FrameLayout>
 
         <LinearLayout
+            android:id="@+id/settingEasterEggTrigger"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginLeft="@dimen/vs_22"
+            android:background="@drawable/selector_setting_back"
+            android:clickable="true"
+            android:focusable="true"
+            android:nextFocusLeft="@id/title_setting_tv"
+            android:nextFocusDown="@id/llApi"
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/settingEasterEggTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:singleLine="true"
