@@ -39,6 +39,7 @@ public class HawkConfig {
     public static final String SUBTITLE_LANGUAGE = "subtitle_language";
     public static final String SUBTITLE_OFF = "subtitle_off";
     public static final String DOH_URL = "doh_url";
+    public static final String HOME_LOW_POWER = "home_low_power"; // false 当前首页，true 低压力首页
     public static final String HOME_REC = "home_rec"; // 0 豆瓣热播 1 数据源推荐 2 历史
     public static final String HOME_DOUBAN_CACHE = "home_douban_cache"; // 最近一次成功的豆瓣热播列表，限流时兜底
     public static final String DOU_BAN_BID = "dou_ban_bid"; // 豆瓣 bid Cookie，首次生成后固定，降低被判定异常请求的概率

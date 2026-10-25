@@ -68,6 +68,12 @@
                     android:layout_marginTop="24mm" android:layout_marginBottom="12mm" android:layout_marginLeft="8mm"
                     android:text="首页与搜索" />
                 <LinearLayout style="@style/SettingGroup">
+                    <LinearLayout android:id="@+id/llHomeMode" style="@style/SettingRow" >
+                        <TextView style="@style/SettingRowTitle" android:text="首页模式" />
+                        <TextView android:id="@+id/tvHomeMode" style="@style/SettingRowValue" />
+                        <TextView style="@style/SettingRowArrow" />
+                    </LinearLayout>
+                    <View style="@style/SettingDivider" />
                     <LinearLayout android:id="@+id/llHomeRec" style="@style/SettingRow" >
                         <TextView style="@style/SettingRowTitle" android:text="首页推荐" />
                         <TextView android:id="@+id/tvHomeRec" style="@style/SettingRowValue" />

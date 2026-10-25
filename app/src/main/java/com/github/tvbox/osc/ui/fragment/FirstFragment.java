@@ -97,6 +97,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private boolean mHeroShown = false;
     /** 当前卡片的背景已准备好；背景未就绪时不启动自动轮播，避免首屏卡片空转。 */
     private boolean mHeroReady;
+    private boolean mLowPowerHome;
     /** 背景推镜的起止比例：每张图接着上一张的当前比例继续推，淡入时画面不会突然缩放 */
     private static final float HERO_ZOOM_MIN = 1.03f;
     private static final float HERO_ZOOM_MAX = 1.08f;
@@ -194,6 +195,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 显隐首页大背景海报。背景层属于 Activity，不随 ViewPager 页面裁剪。
      */
     public void setHeroVisible(boolean visible) {
+        refreshHomeMode();
         if (mHeroVisible == visible && mHeroLayer != null
                 && mHeroLayer.getVisibility() == (visible ? View.VISIBLE : View.GONE)) {
             if (visible) {
@@ -231,6 +233,32 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         } else {
             scheduleAutoScroll();
         }
+    }
+
+    private void refreshHomeMode() {
+        boolean lowPower = Hawk.get(HawkConfig.HOME_LOW_POWER, false);
+        if (mLowPowerHome == lowPower) return;
+        mLowPowerHome = lowPower;
+        ++mHeroSeq;
+        mHeroHandler.removeCallbacksAndMessages(null);
+        stopAutoScroll();
+        cancelHeroAnim();
+        if (mHeroBackdrop != null) {
+            Glide.clear(mHeroBackdrop);
+            mHeroBackdrop.setImageDrawable(null);
+            mHeroBackdrop.setScaleX(1f);
+            mHeroBackdrop.setScaleY(1f);
+        }
+        if (mHeroBackdropAlt != null) {
+            Glide.clear(mHeroBackdropAlt);
+            mHeroBackdropAlt.setImageDrawable(null);
+            mHeroBackdropAlt.setAlpha(0f);
+            mHeroBackdropAlt.setScaleX(1f);
+            mHeroBackdropAlt.setScaleY(1f);
+        }
+        mHeroFront = null;
+        mHeroPic = null;
+        if (mHeroVod != null) bindHero(mHeroVod);
     }
 
     @Override
@@ -501,6 +529,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     @Override
     protected void onFragmentResume() {
         mViewActive = true;
+        refreshHomeMode();
         if (mFeedCancelled && mAdapter != null && mAdapter.getData().isEmpty()) {
             getVideos();
         }
@@ -563,7 +592,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void scheduleAutoScroll() {
         mAutoScrollHandler.removeCallbacks(mAutoScrollRun);
-        if (mAutoScrollingCards) {
+        if (mAutoScrollingCards || mLowPowerHome) {
             return;
         }
         mUserOperatingCards = false;
@@ -1117,10 +1146,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         mHeroReady = false;
-        mHeroHandler.postDelayed(mHeroImageRun, HERO_IMAGE_SETTLE_DELAY);
+        mHeroHandler.postDelayed(mHeroImageRun, mLowPowerHome ? 300L : HERO_IMAGE_SETTLE_DELAY);
         // 顺手把下一张卡的海报预热好：轮播隔 6 秒才切，这段时间足够把它解码进内存缓存，
         // 到时那一次切换就是纯淡入，不会出现「等大图」的空档
-        preloadHeroNext(vod);
+        if (!mLowPowerHome) preloadHeroNext(vod);
     }
 
     /**
@@ -1191,19 +1220,20 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         final int seq = ++mHeroSeq;
         final String pic = vod.pic;
         final ImageView outgoing = mHeroFront;
-        final ImageView incoming = outgoing == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
+        final ImageView incoming = mLowPowerHome ? mHeroBackdrop
+                : outgoing == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
         // 上一轮可能还在淡入：先停手，并让正在显示的那层回到全亮。
         // 两层同时半透明会让整个背景变暗，那正是「中间闪一下」的来源
         cancelHeroAnim();
-        incoming.setAlpha(0f);
+        incoming.setAlpha(mLowPowerHome ? 1f : 0f);
         if (outgoing != null && outgoing.getDrawable() != null) {
             outgoing.setAlpha(1f);
             // 新图接上旧图当前的推镜比例，淡入时画面不会突然缩放
             incoming.setScaleX(outgoing.getScaleX());
             incoming.setScaleY(outgoing.getScaleY());
         } else {
-            incoming.setScaleX(HERO_ZOOM_MIN);
-            incoming.setScaleY(HERO_ZOOM_MIN);
+            incoming.setScaleX(mLowPowerHome ? 1f : HERO_ZOOM_MIN);
+            incoming.setScaleY(mLowPowerHome ? 1f : HERO_ZOOM_MIN);
         }
         mHeroShown = false;
 
@@ -1212,9 +1242,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         DrawableRequestBuilder<Object> request = Glide.with(mContext)
                 .load(GlideImg.model(pic))
                 .error(R.drawable.shape_home_hero_placeholder)
-                .bitmapTransform(new SharpenTransformation(mContext))
                 .dontAnimate();
-        if (width > 0 && height > 0) {
+        if (mLowPowerHome) {
+            request = request.override(960, 540).centerCrop();
+        } else {
+            request = request.bitmapTransform(new SharpenTransformation(mContext));
+        }
+        if (!mLowPowerHome && width > 0 && height > 0) {
             // 和预热请求用同一尺寸，才能命中同一份缓存，切换时不用现解码
             request = request.override(width, height);
         }
@@ -1244,6 +1278,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     }
                 })
                 .into(incoming);
+
+        if (mLowPowerHome) return;
 
         // 高清图还没好就先用低清预览把背景跟上：只淡入一次，等高清到了就地变清晰
         mHeroHandler.postDelayed(new Runnable() {
@@ -1293,6 +1329,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHeroShown = true;
         mHeroReady = true;
         mHeroFront = incoming;
+        if (mLowPowerHome) {
+            incoming.setAlpha(1f);
+            incoming.setScaleX(1f);
+            incoming.setScaleY(1f);
+            return;
+        }
         float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
         float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
         startHeroAnim(ObjectAnimator.ofFloat(incoming, "alpha", incoming.getAlpha(), 1f), HERO_FADE_DURATION);
