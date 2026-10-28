@@ -13,10 +13,12 @@ import xyz.doikki.videoplayer.ijk.IjkPlayer;
 
 public class IjkMediaPlayer extends IjkPlayer {
 
-    /** 播放中最多向前缓冲的时长 */
-    private static final long BUFFER_AHEAD_MS = 45000L;
-    /** 缓冲区字节上限（需同步放宽，否则时长上限会被字节上限提前截断） */
-    private static final long BUFFER_BYTES = 48 * 1024 * 1024L;
+    /** 播放中最多向前缓冲的时长：尽量往前预读，5 分钟内不设更细的停顿 */
+    private static final long BUFFER_AHEAD_MS = 300000L;
+    /** 缓冲区字节下限，也是低内存设备上的实际取值 */
+    private static final long BUFFER_BYTES_MIN = 64 * 1024 * 1024L;
+    /** 缓冲区字节上限，避免单个播放器把堆吃满 */
+    private static final long BUFFER_BYTES_CAP = 256 * 1024 * 1024L;
 
     private IJKCode codec = null;
 
@@ -39,8 +41,8 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
         mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1200L); // 首播起播蓄水 1.2 秒（约 0.2~0.3 秒下载完成，快速出画）
         mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2500L);  // 重新缓冲时蓄水 2.5 秒，避免 500ms 短暂循环卡顿
-        mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS); // 播放中最多向前缓冲 45 秒，进度条缓冲段更长
-        mMediaPlayer.setOption(4, "max-buffer-size", BUFFER_BYTES); // 48MB 缓冲区，避免字节上限先于时长上限生效
+        mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS); // 播放中最多向前缓冲 5 分钟，能拉多少拉多少
+        mMediaPlayer.setOption(4, "max-buffer-size", bufferBytes()); // 字节上限随堆大小动态放宽，避免先于时长上限截断
         mMediaPlayer.setOption(4, "accurate-seek-timeout", 1000L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
@@ -66,9 +68,15 @@ public class IjkMediaPlayer extends IjkPlayer {
                 }
                 // 片源配置可能把缓冲调得很小，这里只对“小于安全值”的项兜底，配置更大的值仍然生效
                 applyBufferFloor(options, "4|last-high-water-mark-ms", BUFFER_AHEAD_MS);
-                applyBufferFloor(options, "4|max-buffer-size", BUFFER_BYTES);
+                applyBufferFloor(options, "4|max-buffer-size", bufferBytes());
             }
         }
+    }
+
+    /** 按堆上限动态放宽缓冲字节数：取堆的 1/4，夹在 64MB~256MB 之间（已开启 largeHeap） */
+    private static long bufferBytes() {
+        long quarter = Runtime.getRuntime().maxMemory() / 4;
+        return Math.max(BUFFER_BYTES_MIN, Math.min(BUFFER_BYTES_CAP, quarter));
     }
 
     /** 配置值低于安全值时改回安全值；配置未提供或更大则保持现状 */

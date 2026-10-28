@@ -1,9 +1,9 @@
 {
-    "versionCode":  133,
-    "versionName":  "1.1.23",
-    "changelog":  "调大播放缓冲，播放时进度条的“已缓冲”段更长。\n\n- IJK 内核最多向前缓冲从 15 秒提升到 45 秒，缓冲区字节上限从 20MB 提升到 48MB（字节上限不同步放宽的话，时长上限会被提前截断）。\n- 起播与重缓冲策略保持不变：首播蓄水 1.2 秒即可出画，重缓冲蓄水 2.5 秒，不会拖慢起播速度。\n- 新增缓冲下限保护：若片源配置把 `last-high-water-mark-ms` / `max-buffer-size` 配得更小，会按安全值生效；配置更大的值保持用户设置。\n- Exo 等其它内核的缓冲参数未改动，本次只调 IJK。\n\n发布构建已完成签名校验；实际缓冲时长与卡顿表现需在设备上验证。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.23/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.23/Z.apk",
-    "sha256":  "a9a8bcdc00358be49b4fea0fe21a3103da3994249e56ba1ff32c3db026a603c4",
-    "size":  24829488
+    "versionCode":  134,
+    "versionName":  "1.1.24",
+    "changelog":  "播放缓冲改为“能拉多少拉多少”，上限随设备内存自动放宽。\n\n- 向前预读时长从 45 秒提升到 5 分钟，网络有余量时进度条缓冲段会长很多。\n- 缓冲字节上限不再固定 48MB，改为取应用可用堆的 1/4，并夹在 64MB~256MB 之间（应用已开启 largeHeap）。\n  2GB 内存盒子约 128MB，1GB 盒子约 64MB，避免把堆吃满后播放器被系统杀掉。\n- 起播仍然只等 1.2 秒，重缓冲仍为 2.5 秒，不影响出画速度。\n- 片源配置若把缓冲参数配得比上述安全值更大，仍以配置为准。\n- 说明：缓冲只存在内存里，前进拖动会丢弃已缓冲内容；网速不足时也拉不满，属于正常现象。\n\n发布构建已完成签名校验；实际缓冲表现与内存占用需在设备上验证。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.24/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.24/Z.apk",
+    "sha256":  "892a58a25bf315c0649d6a4e292ce6960f89a306cd7d0a6c8b0266732d2f772f",
+    "size":  24829591
 }
