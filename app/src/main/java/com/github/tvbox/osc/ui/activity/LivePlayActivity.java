@@ -120,6 +120,8 @@ public class LivePlayActivity extends BaseActivity {
 
         setLoadSir(findViewById(R.id.live_root));
         mVideoView = findViewById(R.id.mVideoView);
+        // 直播不写磁盘缓存，避免流式数据无限占用存储
+        xyz.doikki.videoplayer.exo.ExoMediaSourceHelper.getInstance(this).setCacheEnabled(false);
         llLeftChannelListLayout = findViewById(R.id.tvLeftChannnelListLayout);
         mChannelRV = findViewById(R.id.mGroupGridView);
         mLiveRV = findViewById(R.id.mChannelGridView);

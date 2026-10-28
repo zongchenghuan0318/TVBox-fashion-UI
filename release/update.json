@@ -1,9 +1,9 @@
 {
-    "versionCode":  134,
-    "versionName":  "1.1.24",
-    "changelog":  "播放缓冲改为“能拉多少拉多少”，上限随设备内存自动放宽。\n\n- 向前预读时长从 45 秒提升到 5 分钟，网络有余量时进度条缓冲段会长很多。\n- 缓冲字节上限不再固定 48MB，改为取应用可用堆的 1/4，并夹在 64MB~256MB 之间（应用已开启 largeHeap）。\n  2GB 内存盒子约 128MB，1GB 盒子约 64MB，避免把堆吃满后播放器被系统杀掉。\n- 起播仍然只等 1.2 秒，重缓冲仍为 2.5 秒，不影响出画速度。\n- 片源配置若把缓冲参数配得比上述安全值更大，仍以配置为准。\n- 说明：缓冲只存在内存里，前进拖动会丢弃已缓冲内容；网速不足时也拉不满，属于正常现象。\n\n发布构建已完成签名校验；实际缓冲表现与内存占用需在设备上验证。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.24/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.24/Z.apk",
-    "sha256":  "892a58a25bf315c0649d6a4e292ce6960f89a306cd7d0a6c8b0266732d2f772f",
-    "size":  24829591
+    "versionCode":  135,
+    "versionName":  "1.1.25",
+    "changelog":  "Exo 内核启用磁盘缓存：拖动、回看命中本地缓存，秒开且不重复走网络。\n\n- 此前播放器已经内置了 SimpleCache 与 CacheDataSource，但点播路径一直按\"不缓存\"创建媒体源，等于缓存代码没被启用；本版改为启用。\n- 边播边写缓存目录 `exo-video-cache`（外置缓存目录不可用时回落到内置缓存目录），上限 512MB，超出按 LRU 淘汰。\n- 看完即释放：播放到结尾后删除该视频的缓存；换集时删除上一集的缓存，不会长期堆在磁盘里。\n- 直播不写缓存，避免流式数据无限占用存储。\n- 缓存失败不阻断播放（CacheDataSource 忽略缓存错误，回落到直连）。\n\n注意：该缓存只对 Exo 内核生效，需在设置里把播放器切到 exo（或配置源指定 pl=2）。\n\n发布构建已完成签名校验；拖动复用与实际内存/存储占用需在设备上验证。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.25/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.25/Z.apk",
+    "sha256":  "42011068401bf91eae3dc8a8206e33defd5fd9c0b178f47bed59e70a5a479862",
+    "size":  24830070
 }

@@ -56,6 +56,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     private PlaybackParameters mSpeedPlaybackParameters;
 
     private boolean mIsPreparing;
+    /** 当前播放地址，用于播放结束/换集时释放磁盘缓存 */
+    private String mCacheUri;
 
     private LoadControl mLoadControl;
     private RenderersFactory mRenderersFactory;
@@ -217,7 +219,24 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void setDataSource(String path, Map<String, String> headers) {
-        mMediaSource = mMediaSourceHelper.getMediaSource(path, headers);
+        String previous = mCacheUri;
+        mCacheUri = path;
+        // 换集时释放上一集占用的磁盘缓存，避免缓存越滚越大
+        if (previous != null && !previous.equals(path)) {
+            evictCacheAsync(previous);
+        }
+        mMediaSource = mMediaSourceHelper.getMediaSource(path, headers, mMediaSourceHelper.isCacheEnabled());
+    }
+
+    /** 后台线程删除缓存，避免在播放线程做磁盘删除 */
+    private void evictCacheAsync(final String uri) {
+        if (uri == null || uri.length() == 0) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                mMediaSourceHelper.removeCache(uri);
+            }
+        }, "exo-cache-evict").start();
     }
 
     @Override
@@ -409,6 +428,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
                 mPlayerEventListener.onInfo(MEDIA_INFO_BUFFERING_END, getBufferedPercentage());
                 break;
             case Player.STATE_ENDED:
+                // 看完即释放该视频的磁盘缓存
+                evictCacheAsync(mCacheUri);
                 mPlayerEventListener.onCompletion();
                 break;
         }

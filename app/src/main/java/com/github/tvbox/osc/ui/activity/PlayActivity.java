@@ -214,6 +214,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void initView() {
         mVideoView = findViewById(R.id.mVideoView);
+        // 点播开启磁盘缓存：边看边存，拖动/回看命中本地缓存（看完即释放由播放器负责）
+        xyz.doikki.videoplayer.exo.ExoMediaSourceHelper.getInstance(this).setCacheEnabled(true);
         mResumeRestartHint = findViewById(R.id.resume_restart_hint);
         mResumeRestartHint.setOnClickListener(v -> restartFromResumeHint());
         mTimeTV = findViewById(R.id.system_time_tv);

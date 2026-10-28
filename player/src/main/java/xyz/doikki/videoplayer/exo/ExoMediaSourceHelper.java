@@ -36,6 +36,8 @@ public final class ExoMediaSourceHelper {
     private final Context mAppContext;
     private OkHttpClient mOkClient = null;
     private Cache mCache;
+    /** 是否把播放数据写入磁盘缓存（直播场景关闭，避免无限写入） */
+    private volatile boolean mCacheEnabled = true;
 
     private ExoMediaSourceHelper(Context context) {
         mAppContext = context.getApplicationContext();
@@ -55,6 +57,23 @@ public final class ExoMediaSourceHelper {
 
     public void setOkClient(OkHttpClient client) {
         mOkClient = client;
+    }
+
+    public boolean isCacheEnabled() {
+        return mCacheEnabled;
+    }
+
+    public void setCacheEnabled(boolean enabled) {
+        mCacheEnabled = enabled;
+    }
+
+    /** 释放某条视频占用的磁盘缓存（看完即释放、换集即释放），失败不影响播放 */
+    public synchronized void removeCache(String uri) {
+        if (uri == null || uri.length() == 0 || mCache == null) return;
+        try {
+            mCache.removeResource(uri);
+        } catch (Throwable ignored) {
+        }
     }
 
     public MediaSource getMediaSource(String uri) {
@@ -120,9 +139,11 @@ public final class ExoMediaSourceHelper {
     }
 
     private Cache newCache() {
+        File base = mAppContext.getExternalCacheDir();
+        if (base == null) base = mAppContext.getCacheDir();
         return new SimpleCache(
-                new File(mAppContext.getExternalCacheDir(), "exo-video-cache"),//缓存目录
-                new LeastRecentlyUsedCacheEvictor(512 * 1024 * 1024),//缓存大小，默认512M，使用LRU算法实现
+                new File(base, "exo-video-cache"),//缓存目录
+                new LeastRecentlyUsedCacheEvictor(512 * 1024 * 1024),//缓存上限 512M，超出按 LRU 淘汰
                 new ExoDatabaseProvider(mAppContext));
     }
 
