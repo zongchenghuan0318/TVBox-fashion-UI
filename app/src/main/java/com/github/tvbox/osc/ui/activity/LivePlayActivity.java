@@ -720,11 +720,18 @@ public class LivePlayActivity extends BaseActivity {
                         mHandler.post(mConnectTimeoutChangeSourceRun);
                         break;
                     case VideoView.STATE_PREPARING:
+                        L.d("case VideoView.STATE_PREPARING");
+                        mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
+                        mBegin = System.currentTimeMillis();
+                        // 首次建立连接起播采用 3.5s 快速探测超时，死链或不可达流快速换源，消除换台黑屏长久等待
+                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, 3500L);
+                        break;
                     case VideoView.STATE_BUFFERING:
                         L.d("case VideoView.STATE_BUFFERING");
                         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
-                        mBegin  =System.currentTimeMillis();
-                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, (Hawk.get(HawkConfig.LIVE_CONNECT_TIMEOUT, 1) + 1) * 3000);
+                        mBegin = System.currentTimeMillis();
+                        // 播放中途卡顿缓冲保留设定超时，容忍网络短暂抖动恢复
+                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, (Hawk.get(HawkConfig.LIVE_CONNECT_TIMEOUT, 1) + 1) * 3000L);
                         break;
                 }
             }

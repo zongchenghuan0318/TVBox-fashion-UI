@@ -325,7 +325,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 mVodPlayerCfgJsonObject.put("pl", globalPlayType);
             }
             if (!mVodPlayerCfgJsonObject.has("pr")) {
-                mVodPlayerCfgJsonObject.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
+                mVodPlayerCfgJsonObject.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT));
             }
             if (!mVodPlayerCfgJsonObject.has("ijk")) {
                 mVodPlayerCfgJsonObject.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, ""));

@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 轨道：一条极淡的白线，不做描边，交给上下层次区分 -->
+    <!-- 轨道：深色半透明基底 -->
     <item android:id="@android:id/background">
         <shape android:shape="rectangle">
             <corners android:radius="4mm" />
-            <solid android:color="#1FFFFFFF" />
+            <solid android:color="#2EFFFFFF" />
         </shape>
     </item>
-    <!-- 缓冲：半透明白 -->
+    <!-- 缓冲：明亮高可视度半透明白（蓄水库清晰可辨） -->
     <item android:id="@android:id/secondaryProgress">
         <clip>
             <shape android:shape="rectangle">
                 <corners android:radius="4mm" />
-                <solid android:color="#47FFFFFF" />
+                <solid android:color="#99FFFFFF" />
             </shape>
         </clip>
     </item>

@@ -23,7 +23,7 @@ public class LivePlayerManager {
             if (playType == HawkConfig.PLAY_TYPE_EXO) playType = HawkConfig.PLAY_TYPE_IJK;
             defaultPlayerConfig.put("pl", playType);
             defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
-            defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
+            defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT));
             // 直播默认画面比例为自适应的「默认」，频道仍可单独修改。
             defaultPlayerConfig.put("sc", VideoView.SCREEN_SCALE_DEFAULT);
             defaultPlayerConfig.put("scv", 2);

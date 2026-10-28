@@ -28,7 +28,7 @@ public class PlayerHelper {
         }
         L.d("updateCfg()");
         int playerType = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
-        int renderType = Hawk.get(HawkConfig.PLAY_RENDER, 0);
+        int renderType = Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT);
         String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
         int scale = Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);
         try {
@@ -116,7 +116,7 @@ public class PlayerHelper {
         } else {
             playerFactory = AndroidMediaPlayerFactory.create();
         }
-        int renderType = Hawk.get(HawkConfig.PLAY_RENDER, 0);
+        int renderType = Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT);
         RenderViewFactory renderViewFactory = null;
         switch (renderType) {
             case 0:

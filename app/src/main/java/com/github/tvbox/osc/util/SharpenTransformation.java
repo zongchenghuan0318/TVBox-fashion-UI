@@ -37,23 +37,28 @@ public class SharpenTransformation extends BitmapTransformation {
                 || toTransform.getWidth() <= 0 || toTransform.getHeight() <= 0) {
             return toTransform;
         }
-        Bitmap scaled = centerCrop(toTransform, outWidth, outHeight);
+        Bitmap scaled = centerCrop(pool, toTransform, outWidth, outHeight);
         if (scaled == null) {
             return toTransform;
         }
         int w = scaled.getWidth();
         int h = scaled.getHeight();
-        Bitmap sharpened = pool.get(w, h, Bitmap.Config.ARGB_8888);
+        Bitmap.Config config = Bitmap.Config.RGB_565; // 背景大图无透明通道，RGB_565 内存直降 50%，极大缓解电视 GC 停顿
+        Bitmap sharpened = pool != null ? pool.get(w, h, config) : null;
         if (sharpened == null) {
-            sharpened = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            sharpened = Bitmap.createBitmap(w, h, config);
         }
         applySharpen(scaled, sharpened, w, h);
-        scaled.recycle();
+        if (pool != null) {
+            pool.put(scaled); // 归还中间位图到内存池复用，杜绝频繁触发全屏 GC
+        } else {
+            scaled.recycle();
+        }
         return sharpened;
     }
 
-    /** 按 centerCrop 规则裁切并缩放到目标尺寸（放大时保留双线性过滤） */
-    private Bitmap centerCrop(Bitmap src, int outWidth, int outHeight) {
+    /** 按 centerCrop 规则裁切并缩放到目标尺寸（放大时保留双线性过滤，复用 BitmapPool） */
+    private Bitmap centerCrop(BitmapPool pool, Bitmap src, int outWidth, int outHeight) {
         int sw = src.getWidth();
         int sh = src.getHeight();
         //以填满目标框为准算缩放比，再居中裁掉多余部分
@@ -63,7 +68,11 @@ public class SharpenTransformation extends BitmapTransformation {
         int left = (sw - cropW) / 2;
         int top = (sh - cropH) / 2;
 
-        Bitmap out = Bitmap.createBitmap(outWidth, outHeight, Bitmap.Config.ARGB_8888);
+        Bitmap.Config config = Bitmap.Config.RGB_565;
+        Bitmap out = pool != null ? pool.get(outWidth, outHeight, config) : null;
+        if (out == null) {
+            out = Bitmap.createBitmap(outWidth, outHeight, config);
+        }
         Canvas canvas = new Canvas(out);
         Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
         canvas.drawBitmap(src, new Rect(left, top, left + cropW, top + cropH),
