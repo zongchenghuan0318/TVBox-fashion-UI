@@ -1,9 +1,9 @@
 {
-    "versionCode":  136,
-    "versionName":  "1.1.26",
-    "changelog":  "点播默认改用 Exo 内核（磁盘缓存生效），Exo 放不了的老片源自动回退 IJK。\n\n- 点播默认内核改为 Exo：装好即用，不需要再手动切内核；磁盘缓存 `exo-video-cache` 随之生效，拖动、回看命中本地缓存秒开。\n- 自动回退 IJK：Exo 起播失败、起播超时或播放中报错时，自动切换到 IJK 用同一地址续播（保留当前进度），不会卡在错误页。\n  回退只对点播生效、同一部片只回退一次；回退后本片内核记为 IJK，后续集数直接用 IJK，不再重复报错。\n  在播放器菜单里手动把内核切回 Exo 后，仍会重新走一次回退判断。\n- 老版本升级迁移：此前停在默认 IJK 的配置只迁移一次到 Exo；手动选过系统播放器 / MXPlayer / Reex 的保持不动，设置里随时可以改。\n- 直播仍然默认 IJK：flv/ts 等老流兼容性更好，且直播不写磁盘缓存；单个频道可在直播设置里单独切 Exo。\n- Exo 播放失败时清掉该片写了一半的缓存，失败片源不会留下无用磁盘占用。\n\n验证情况：发布构建完成签名校验；Exo 默认内核、失败回退与缓存实际占用需在设备上验证。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.26/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.26/Z.apk",
-    "sha256":  "de2260062beef2e20e924cc06935839c9b7d3b028da8269499f5a3c6e50594d7",
-    "size":  24830883
+    "versionCode":  137,
+    "versionName":  "1.1.27",
+    "changelog":  "修复升级后老片仍停在 IJK 导致拖动就重新加载的问题，并加大 Exo 预读。\n\n- 老影片内核跟随全局默认：只有你在播放器菜单里主动选过内核（或本片 Exo 失败自动回退过）才会锁定，其余影片一律跟随设置里的默认内核，避免升级到 Exo 后老记录还在跑 IJK、一拖就清空缓冲重新拉流。\n- Exo 预读加大：向前预读从 45 秒提升到 2 分钟，同时加 128MB 内存硬上限，到顶先暂停拉流、播掉再继续，大码率片源不会把内存拉爆。\n- 缓存命中范围说明：磁盘缓存只能加速已经下载过的区间，往回拖到看过的位置会直接读本地缓存；往前拖到没下载过的位置仍需要临时拉流。\n\n验证情况：发布构建通过签名校验，并解包确认新逻辑已进入 APK；实际缓存命中与拖动体验需在设备上验证。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.27/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.27/Z.apk",
+    "sha256":  "3e17d8a78ea7036345f7c906ae47dae7a03cd0391c449f42bec3cd3bc5fd3569",
+    "size":  24831170
 }

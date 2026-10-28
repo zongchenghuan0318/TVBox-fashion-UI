@@ -362,6 +362,8 @@ public class VodController extends BaseController {
                     }
                 } while (!playerVail);
                 mJsonObject.put("pl", playerType);
+                // 记住这是用户主动选的内核，之后打开本片不再被全局默认覆盖
+                mJsonObject.put("pl_pinned", true);
                 updatePlayerCfgView();
                 controlListener.updatePlayerCfg();
                 controlListener.replay();
