@@ -1051,7 +1051,7 @@ public class VodController extends BaseController {
     }
 
     public long getCurrentOrPendingPosition() {
-        if (bSimSlideStart && simSeekPosition > 0) {
+        if (bSimSlideStart) {
             return simSeekPosition;
         }
         if (mPendingSeekPosition >= 0) {

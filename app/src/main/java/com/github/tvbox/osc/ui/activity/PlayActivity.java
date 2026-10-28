@@ -432,7 +432,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 PlayActivity.this.playNext();
                 if (rmProgress && preProgressKey != null) {
                     final String k = preProgressKey;
-                    AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                    AsyncTask.SERIAL_EXECUTOR.execute(() -> {
                         try {
                             CacheManager.delete(MD5.string2MD5(k), 0);
                         } catch (Throwable ignored) {
@@ -496,7 +496,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         // 异步持久化配置，避免切换设置时阻塞主线程导致画面卡顿
         final VodInfo info = mVodInfo;
         final String sKey = mSourceKeyStr;
-        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        AsyncTask.SERIAL_EXECUTOR.execute(() -> {
             try {
                 RoomDataManger.insertVodRecord(sKey, info);
             } catch (Throwable ignored) {
@@ -518,7 +518,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private void saveProgressValue(String key, long position) {
         if (key == null || key.trim().isEmpty()) return;
         // 播放进度高频保存改走异步线程，消除主线程每 5 秒同步写库导致的微卡顿
-        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        AsyncTask.SERIAL_EXECUTOR.execute(() -> {
             try {
                 CacheManager.save(MD5.string2MD5(key), position);
             } catch (Throwable ignored) {
@@ -710,7 +710,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         } catch (Throwable th) {
             vodInfo.playNote = "";
         }
-        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        AsyncTask.SERIAL_EXECUTOR.execute(() -> {
             try {
                 RoomDataManger.insertVodRecord(sourceKey, vodInfo);
             } catch (Throwable ignored) {
