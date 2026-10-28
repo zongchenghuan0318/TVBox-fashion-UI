@@ -35,7 +35,8 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(1, "reconnect", 1L);
         mMediaPlayer.setOption(1, "reconnect_streamed", 1L);
         mMediaPlayer.setOption(1, "reconnect_delay_max", 3L);
-        mMediaPlayer.setOption(4, "framedrop", 1L);              // 丢帧保音画同步
+        mMediaPlayer.setOption(1, "fflags", "fastseek");              // 拖动时跳过冗余逐帧解码，快速定位关键帧
+        mMediaPlayer.setOption(4, "framedrop", 1L);                  // 丢帧保音画同步
         mMediaPlayer.setOption(4, "skip-calc-frame-rate", 1L);
         // 核心缓冲配置：确保首播起播快且之后不出现“刚播一下就微卡”的蓄水断层
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
@@ -43,7 +44,7 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2500L);  // 重新缓冲时蓄水 2.5 秒，避免 500ms 短暂循环卡顿
         mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS); // 播放中最多向前缓冲 5 分钟，能拉多少拉多少
         mMediaPlayer.setOption(4, "max-buffer-size", bufferBytes()); // 字节上限随堆大小动态放宽，避免先于时长上限截断
-        mMediaPlayer.setOption(4, "accurate-seek-timeout", 1000L);
+        mMediaPlayer.setOption(4, "accurate-seek-timeout", 300L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
         if (codecTmp != null) {

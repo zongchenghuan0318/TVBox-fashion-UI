@@ -1641,8 +1641,10 @@ public class ApiConfig {
         hardOpt.put("4|packet-buffering", "1");
         hardOpt.put("4|first-high-water-mark-ms", "1200");
         hardOpt.put("4|next-high-water-mark-ms", "2500");
-        hardOpt.put("4|last-high-water-mark-ms", "45000");   // 最多向前缓冲 45 秒
-        hardOpt.put("4|max-buffer-size", "50331648");        // 48MB，避免字节上限提前截断时长上限
+        hardOpt.put("4|last-high-water-mark-ms", "300000");  // 点播最多向前预读 5 分钟
+        hardOpt.put("4|max-buffer-size", "100663296");       // 96MB 内存水库
+        hardOpt.put("4|accurate-seek-timeout", "300");
+        hardOpt.put("1|fflags", "fastseek");
         hardOpt.put("1|dns_cache_clear", "1");
         hardOpt.put("1|reconnect", "1");
         hardCodec.setOption(hardOpt);
@@ -1656,8 +1658,10 @@ public class ApiConfig {
         softOpt.put("4|packet-buffering", "1");
         softOpt.put("4|first-high-water-mark-ms", "1200");
         softOpt.put("4|next-high-water-mark-ms", "2500");
-        softOpt.put("4|last-high-water-mark-ms", "45000");   // 最多向前缓冲 45 秒
-        softOpt.put("4|max-buffer-size", "50331648");        // 48MB，避免字节上限提前截断时长上限
+        softOpt.put("4|last-high-water-mark-ms", "300000");  // 点播最多向前预读 5 分钟
+        softOpt.put("4|max-buffer-size", "100663296");       // 96MB 内存水库
+        softOpt.put("4|accurate-seek-timeout", "300");
+        softOpt.put("1|fflags", "fastseek");
         softOpt.put("1|dns_cache_clear", "1");
         softOpt.put("1|reconnect", "1");
         softCodec.setOption(softOpt);

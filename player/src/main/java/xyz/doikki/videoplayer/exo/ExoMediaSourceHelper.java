@@ -77,11 +77,11 @@ public final class ExoMediaSourceHelper {
     }
 
     public MediaSource getMediaSource(String uri) {
-        return getMediaSource(uri, null, false);
+        return getMediaSource(uri, null, mCacheEnabled);
     }
 
     public MediaSource getMediaSource(String uri, Map<String, String> headers) {
-        return getMediaSource(uri, headers, false);
+        return getMediaSource(uri, headers, mCacheEnabled);
     }
 
     public MediaSource getMediaSource(String uri, boolean isCache) {

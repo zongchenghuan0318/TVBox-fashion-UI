@@ -1,9 +1,9 @@
 {
-    "versionCode":  137,
-    "versionName":  "1.1.27",
-    "changelog":  "修复升级后老片仍停在 IJK 导致拖动就重新加载的问题，并加大 Exo 预读。\n\n- 老影片内核跟随全局默认：只有你在播放器菜单里主动选过内核（或本片 Exo 失败自动回退过）才会锁定，其余影片一律跟随设置里的默认内核，避免升级到 Exo 后老记录还在跑 IJK、一拖就清空缓冲重新拉流。\n- Exo 预读加大：向前预读从 45 秒提升到 2 分钟，同时加 128MB 内存硬上限，到顶先暂停拉流、播掉再继续，大码率片源不会把内存拉爆。\n- 缓存命中范围说明：磁盘缓存只能加速已经下载过的区间，往回拖到看过的位置会直接读本地缓存；往前拖到没下载过的位置仍需要临时拉流。\n\n验证情况：发布构建通过签名校验，并解包确认新逻辑已进入 APK；实际缓存命中与拖动体验需在设备上验证。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.27/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.27/Z.apk",
-    "sha256":  "3e17d8a78ea7036345f7c906ae47dae7a03cd0391c449f42bec3cd3bc5fd3569",
-    "size":  24831170
+    "versionCode":  138,
+    "versionName":  "1.1.28",
+    "changelog":  "拖动秒开与更大预读：双内核拖动改为关键帧极速定位，Exo 预读提到 5 分钟。\n\n- 拖动极速出画：IJK 与 Exo 拖动都改为直接定位到最近关键帧（IJK 用 fastseek，Exo 用 CLOSEST_SYNC），不再从上一个关键帧逐帧补解码，拖动落点瞬间出画；IJK 精确拖动超时从 1000ms 收紧到 300ms。\n  代价：拖动落点会落在最近的关键帧上，与手指位置最多差几秒，用这点误差换秒开。\n- Exo 预读再加码：最多向前预读从 2 分钟提到 5 分钟，内存硬上限 128MB 提到 192MB；向后回退保留从 15 秒提到 2 分钟，倒退回看 2 分钟内全在内存里，瞬时出画。\n- IJK 默认配置同步：点播向前预读 5 分钟、96MB 内存水库、开启 fastseek，回退到 IJK 的老片源也能吃到同样的拖动与预读优化。\n- 其他调用 Exo 媒体源的入口统一走磁盘缓存开关，不再有绕过缓存的路径。\n\n验证情况：发布构建通过签名校验，并解包确认新逻辑已进入 APK；实际拖动手感与预读水位需在设备上验证。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.28/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.28/Z.apk",
+    "sha256":  "c331d40503a2033ae782d648c85e758d0fdf8cfeea3800415b82203b604c88cd",
+    "size":  24831324
 }

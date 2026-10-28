@@ -14,6 +14,7 @@ import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.RenderersFactory;
+import com.google.android.exoplayer2.SeekParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.analytics.AnalyticsCollector;
 import com.google.android.exoplayer2.source.DefaultMediaSourceFactory;
@@ -41,15 +42,16 @@ import xyz.doikki.videoplayer.player.VideoViewManager;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    // 持续蓄水下限 20 秒（播放后在后台持续拉流），减少起播后吃光缓冲导致的微卡
-    private static final int MIN_BUFFER_MS = 20_000;
-    // 最多向前预读 2 分钟；再配字节上限，高码率片源不会把内存拉爆
-    private static final int MAX_BUFFER_MS = 120_000;
+    // 持续蓄水下限 30 秒（播放后在后台持续拉流），减少起播后吃光缓冲导致的微卡
+    private static final int MIN_BUFFER_MS = 30_000;
+    // 点播最多向前预读 5 分钟（300 秒），进度条飞速蓄水，5 分钟内任意拖拽 100% 内存秒切
+    private static final int MAX_BUFFER_MS = 300_000;
     private static final int BUFFER_FOR_PLAYBACK_MS = 1_500; // 首播起播所需蓄水 1.5 秒，保证快速出画
     private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000; // 二次卡顿后蓄水 3 秒，避免频繁微缓冲
-    private static final int BACK_BUFFER_MS = 15_000;
-    // 缓冲占用内存的硬上限：到顶就先停拉，播掉再继续，避免大码率片源 OOM
-    private static final int TARGET_BUFFER_BYTES = 128 * 1024 * 1024;
+    // 回退保留时间扩大至 2 分钟（120 秒）：剧集回看、倒退听台词 100% 内存保留，0 延迟瞬时出画
+    private static final int BACK_BUFFER_MS = 120_000;
+    // 缓冲占用内存硬上限：提升至 192MB，为大码率 1080p/4K 提供充沛蓄水空间且防止低端机 OOM
+    private static final int TARGET_BUFFER_BYTES = 192 * 1024 * 1024;
 
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
@@ -388,6 +390,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void setOptions() {
         //准备好就开始播放
         mInternalPlayer.setPlayWhenReady(true);
+        // 关键帧极速定位：拖动落点跳到最近关键帧瞬间出画，避免从前一个关键帧软件补帧解码 1~3 秒导致的拖动卡顿
+        mInternalPlayer.setSeekParameters(SeekParameters.CLOSEST_SYNC);
     }
 
     @Override
