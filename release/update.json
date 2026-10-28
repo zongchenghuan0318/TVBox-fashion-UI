@@ -1,9 +1,9 @@
 {
-    "versionCode":  132,
-    "versionName":  "1.1.22",
-    "changelog":  "实验版：用于验证从 1.1.21 检测并升级到 1.1.22。\n\n- 版本号提升到 1.1.22（versionCode 132），功能与 1.1.21 相同，仅用于实测应用内更新流程。\n- 1.1.21 客户端读取 Gitee 清单（Gitee 主地址、GitHub 备用），应能检测到本版本并从 Gitee 发行版附件下载安装。\n- 1.1.19 及更早版本读取 GitHub 清单（只写 GitHub 地址），同样应能检测到本版本。\n- 清单与 APK 均通过 SHA-256、包名、签名校验后才会进入安装流程。\n\n发布构建已完成签名校验；实际升级效果需在设备上验证。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.22/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.22/Z.apk",
-    "sha256":  "dbe6123f9cd6f5033bbc1becff842321508e74c533eb765e8b756234c2a5cb53",
-    "size":  24829063
+    "versionCode":  133,
+    "versionName":  "1.1.23",
+    "changelog":  "调大播放缓冲，播放时进度条的“已缓冲”段更长。\n\n- IJK 内核最多向前缓冲从 15 秒提升到 45 秒，缓冲区字节上限从 20MB 提升到 48MB（字节上限不同步放宽的话，时长上限会被提前截断）。\n- 起播与重缓冲策略保持不变：首播蓄水 1.2 秒即可出画，重缓冲蓄水 2.5 秒，不会拖慢起播速度。\n- 新增缓冲下限保护：若片源配置把 `last-high-water-mark-ms` / `max-buffer-size` 配得更小，会按安全值生效；配置更大的值保持用户设置。\n- Exo 等其它内核的缓冲参数未改动，本次只调 IJK。\n\n发布构建已完成签名校验；实际缓冲时长与卡顿表现需在设备上验证。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.23/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.23/Z.apk",
+    "sha256":  "a9a8bcdc00358be49b4fea0fe21a3103da3994249e56ba1ff32c3db026a603c4",
+    "size":  24829488
 }

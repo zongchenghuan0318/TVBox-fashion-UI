@@ -28,7 +28,7 @@ Z影视 是一款多源聚合的影视客户端。它自己不提供片源，而
 - 默认配置地址：`https://tv.xn--yhqu5zs87a.top`
 - 包名：`com.studio.osc`
 - 支持 Android 5.0 及以上（minSdk 21 / targetSdk 28）
-- 当前版本：`v1.1.22`（versionCode 132），支持应用内检查更新（Gitee 优先、GitHub 备用），发布方式见 [在线更新发布说明](docs/在线更新发布.md)
+- 当前版本：`v1.1.23`（versionCode 133），支持应用内检查更新（Gitee 优先、GitHub 备用），发布方式见 [在线更新发布说明](docs/在线更新发布.md)
 
 ## 主要功能
 

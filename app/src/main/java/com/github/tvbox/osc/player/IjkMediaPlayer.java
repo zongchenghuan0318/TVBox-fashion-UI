@@ -13,6 +13,11 @@ import xyz.doikki.videoplayer.ijk.IjkPlayer;
 
 public class IjkMediaPlayer extends IjkPlayer {
 
+    /** 播放中最多向前缓冲的时长 */
+    private static final long BUFFER_AHEAD_MS = 45000L;
+    /** 缓冲区字节上限（需同步放宽，否则时长上限会被字节上限提前截断） */
+    private static final long BUFFER_BYTES = 48 * 1024 * 1024L;
+
     private IJKCode codec = null;
 
     public IjkMediaPlayer(Context context, IJKCode codec) {
@@ -34,8 +39,8 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
         mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1200L); // 首播起播蓄水 1.2 秒（约 0.2~0.3 秒下载完成，快速出画）
         mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2500L);  // 重新缓冲时蓄水 2.5 秒，避免 500ms 短暂循环卡顿
-        mMediaPlayer.setOption(4, "last-high-water-mark-ms", 15000L); // 允许后台最大缓冲到 15 秒，提供充裕安全裕量
-        mMediaPlayer.setOption(4, "max-buffer-size", 20 * 1024 * 1024L); // 20MB 缓冲区
+        mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS); // 播放中最多向前缓冲 45 秒，进度条缓冲段更长
+        mMediaPlayer.setOption(4, "max-buffer-size", BUFFER_BYTES); // 48MB 缓冲区，避免字节上限先于时长上限生效
         mMediaPlayer.setOption(4, "accurate-seek-timeout", 1000L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
@@ -59,7 +64,25 @@ public class IjkMediaPlayer extends IjkPlayer {
                     } catch (Exception ignored) {
                     }
                 }
+                // 片源配置可能把缓冲调得很小，这里只对“小于安全值”的项兜底，配置更大的值仍然生效
+                applyBufferFloor(options, "4|last-high-water-mark-ms", BUFFER_AHEAD_MS);
+                applyBufferFloor(options, "4|max-buffer-size", BUFFER_BYTES);
             }
+        }
+    }
+
+    /** 配置值低于安全值时改回安全值；配置未提供或更大则保持现状 */
+    private void applyBufferFloor(LinkedHashMap<String, String> options, String key, long floor) {
+        String value = options.get(key);
+        if (value == null) return;
+        try {
+            if (Long.parseLong(value.trim()) >= floor) return;
+        } catch (Exception ignored) {
+        }
+        String[] opt = key.split("\\|");
+        try {
+            mMediaPlayer.setOption(Integer.parseInt(opt[0].trim()), opt[1].trim(), floor);
+        } catch (Exception ignored) {
         }
     }
 
