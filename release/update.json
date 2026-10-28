@@ -1,9 +1,9 @@
 {
-    "versionCode":  130,
-    "versionName":  "1.1.20",
-    "changelog":  "更新源改为 Gitee 优先、GitHub 备用。\n\n- 检查更新先读取 Gitee 仓库里的更新清单，国内可直连；失败后按 gh-proxy、ghfast、GitHub 直连依次重试。\n- 安装包下载优先使用 Gitee 发行版附件，Gitee 不可用时自动切换到 GitHub 发行版，仍沿用原来的三条加速线路。\n- 更新清单新增备用安装包地址字段；主地址与备用地址都必须是 gitee.com 或 github.com 上对应版本、文件名为 Z.apk 的 HTTPS 地址。\n- 兼容旧版只含 GitHub 地址的更新清单，已安装的旧版本仍可正常收到本次更新。\n\n已完成发布构建和签名校验。真实电视上的更新检查与下载切换仍需验证。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.20/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.20/Z.apk",
-    "sha256":  "833f4e17db63468accf54a9475a3138656d10984ccce5308bec7e9e3c9c8fb57",
-    "size":  24873649
+    "versionCode":  131,
+    "versionName":  "1.1.21",
+    "changelog":  "修复 1.1.19 及更早版本无法检查到更新。\n\n- 上一版把 GitHub 附件里的更新清单主地址改写成了 Gitee，而 1.1.19 及更早的客户端只接受 GitHub 主地址，会直接判定清单格式错误，导致更新检查失败。\n- 现在同一版本发布两份清单：GitHub 附件里的清单只写 GitHub 地址，Gitee 仓库与 Gitee 附件仍以 Gitee 地址为主地址、GitHub 地址为备用。\n- 客户端接受任意顺序的主地址与备用地址，Gitee 地址直连一次，GitHub 地址自动展开 gh-proxy、ghfast、直连三条线路。\n- 更新清单带 UTF-8 BOM 时也能正常解析。\n\n已完成发布构建和签名校验。真实电视上的更新检查与下载切换仍需验证。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.21/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.21/Z.apk",
+    "sha256":  "1fdad181aa1bb32dfb5fcc5ee90bc2cf83b500f49f894a777bfa71233d2afcea",
+    "size":  24829090
 }

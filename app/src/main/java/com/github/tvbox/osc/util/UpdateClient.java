@@ -53,7 +53,7 @@ public final class UpdateClient {
                         || !info.sha256.matches("(?i)[0-9a-f]{64}")
                         || !isReleaseApk(info.apkUrl, info.versionName)
                         || (info.apkUrlFallback != null && !info.apkUrlFallback.isEmpty()
-                        && !isGithubApk(info.apkUrlFallback, info.versionName))) {
+                        && !isReleaseApk(info.apkUrlFallback, info.versionName))) {
                     throw new IllegalArgumentException();
                 }
                 return info;
@@ -151,14 +151,20 @@ public final class UpdateClient {
         }
     }
 
-    /** Gitee 优先；清单带备用地址时再依次尝试 GitHub 的三条线路，旧清单则只走 GitHub。 */
+    /** 先走主地址，再走备用地址；Gitee 直连，GitHub 地址展开成三条加速线路。 */
     private static List<String> downloadRoutes(Info info) {
         List<String> routes = new ArrayList<>();
-        boolean hasFallback = info.apkUrlFallback != null && !info.apkUrlFallback.isEmpty();
-        if (hasFallback) routes.add(info.apkUrl);
-        String github = hasFallback ? info.apkUrlFallback : info.apkUrl;
-        for (String prefix : GITHUB_PREFIXES) routes.add(prefix + github);
+        addRoutes(routes, info.apkUrl);
+        if (info.apkUrlFallback != null && !info.apkUrlFallback.isEmpty()) addRoutes(routes, info.apkUrlFallback);
         return routes;
+    }
+
+    private static void addRoutes(List<String> routes, String url) {
+        if (url.startsWith(GITHUB_REPOSITORY + "/")) {
+            for (String prefix : GITHUB_PREFIXES) routes.add(prefix + url);
+        } else {
+            routes.add(url);
+        }
     }
 
     public File download(Info info, File directory, Progress progress, PackageVerifier verifier) throws IOException {

@@ -102,24 +102,33 @@ try {
     $taskReleaseApk = Join-Path $taskOutput 'Z.apk'
     Copy-Item -LiteralPath $taskApk -Destination $taskReleaseApk -Force
     $taskHash = (Get-FileHash -LiteralPath $taskReleaseApk -Algorithm SHA256).Hash.ToLowerInvariant()
-    # Gitee 是主更新源，附件地址可预测；GitHub 作为备用地址。清单同时提交到仓库 release/update.json。
-    $taskInfo = [ordered]@{
+    # Gitee 是主更新源，GitHub 作为备用地址；仓库 release/ 与 Gitee 附件用这份清单。
+    $taskGiteeApk = "$taskGiteeBase/releases/download/$taskTag/Z.apk"
+    $taskGithubApk = "https://github.com/$taskRepo/releases/download/$taskTag/Z.apk"
+    $taskSize = (Get-Item -LiteralPath $taskReleaseApk).Length
+    $taskGiteeManifest = (([ordered]@{
         versionCode = $taskVersionCode; versionName = $taskVersionName; changelog = $taskNotes.Trim()
-        apkUrl = "$taskGiteeBase/releases/download/$taskTag/Z.apk"
-        apkUrlFallback = "https://github.com/$taskRepo/releases/download/$taskTag/Z.apk"
-        sha256 = $taskHash; size = (Get-Item -LiteralPath $taskReleaseApk).Length
-    }
-    $taskManifest = ($taskInfo | ConvertTo-Json) + "`n"
-    Write-Utf8 (Join-Path $taskOutput 'update.json') $taskManifest
+        apkUrl = $taskGiteeApk
+        apkUrlFallback = $taskGithubApk
+        sha256 = $taskHash; size = $taskSize
+    } | ConvertTo-Json) + "`n")
+    # GitHub 附件必须让 1.1.19 及更早客户端能解析：它们只认 GitHub 主地址，因此这里只写 GitHub 地址。
+    $taskGithubManifest = (([ordered]@{
+        versionCode = $taskVersionCode; versionName = $taskVersionName; changelog = $taskNotes.Trim()
+        apkUrl = $taskGithubApk
+        sha256 = $taskHash; size = $taskSize
+    } | ConvertTo-Json) + "`n")
+    Write-Utf8 (Join-Path $taskOutput 'update.json') $taskGiteeManifest
+    Write-Utf8 (Join-Path $taskOutput 'github-update.json') $taskGithubManifest
     Write-Utf8 (Join-Path $taskOutput 'SHA256SUMS.txt') "$taskHash  Z.apk`n"
     $taskRepoManifestDir = Join-Path $taskProject 'release'
     $taskRepoManifest = Join-Path $taskRepoManifestDir 'update.json'
     if ($PrepareOnly) {
         New-Item -ItemType Directory -Path $taskRepoManifestDir -Force | Out-Null
-        Write-Utf8 $taskRepoManifest $taskManifest
+        Write-Utf8 $taskRepoManifest $taskGiteeManifest
     } elseif (!(Test-Path -LiteralPath $taskRepoManifest)) {
         throw 'release/update.json is missing. Run -PrepareOnly and commit it before publishing.'
-    } elseif ([System.IO.File]::ReadAllText($taskRepoManifest, [Text.Encoding]::UTF8) -ne $taskManifest) {
+    } elseif ([System.IO.File]::ReadAllText($taskRepoManifest, [Text.Encoding]::UTF8) -ne $taskGiteeManifest) {
         throw 'release/update.json does not match this build. Run -PrepareOnly and commit the refreshed manifest.'
     }
     Write-Output "Prepared $taskTag ($taskVersionCode): $taskOutput"
@@ -174,8 +183,15 @@ try {
         body = $taskNotes.Trim(); draft = $true; prerelease = $false
     }
     $taskUpload = ($taskDraft.upload_url -split '\{')[0]
-    foreach ($taskName in @('Z.apk', 'update.json', 'SHA256SUMS.txt')) {
-        $taskFile = Join-Path $taskOutput $taskName
+    # update.json 上传的是 GitHub 主地址版本，保证旧客户端仍能解析；本地文件名不影响附件名。
+    $taskAssets = @(
+        @{ name = 'Z.apk'; file = 'Z.apk' }
+        @{ name = 'update.json'; file = 'github-update.json' }
+        @{ name = 'SHA256SUMS.txt'; file = 'SHA256SUMS.txt' }
+    )
+    foreach ($taskAsset in $taskAssets) {
+        $taskName = $taskAsset.name
+        $taskFile = Join-Path $taskOutput $taskAsset.file
         $taskContentType = if ($taskName -eq 'Z.apk') { 'application/vnd.android.package-archive' } elseif ($taskName -eq 'update.json') { 'application/json; charset=utf-8' } else { 'text/plain; charset=utf-8' }
         $taskUploaded = Invoke-RestMethod -Method Post -Uri ($taskUpload + '?name=' + [Uri]::EscapeDataString($taskName)) `
             -Headers $taskHeaders -ContentType $taskContentType -InFile $taskFile

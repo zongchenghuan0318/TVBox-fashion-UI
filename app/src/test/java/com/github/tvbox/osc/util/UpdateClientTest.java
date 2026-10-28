@@ -43,6 +43,15 @@ public class UpdateClientTest {
                 + UpdateClient.hex(UpdateClient.sha256().digest(apk)) + "\"}";
     }
 
+    /** GitHub 附件里的清单：主地址必须是 GitHub，旧客户端（1.1.19 及更早）只认这种写法。 */
+    private static String githubPrimaryManifest(byte[] apk) {
+        return "{\"versionCode\":114,\"versionName\":\"1.1.4\",\"changelog\":\"修复与改进\","
+                + "\"apkUrl\":\"" + UpdateClient.GITHUB_REPOSITORY + "/releases/download/v1.1.4/Z.apk\","
+                + "\"apkUrlFallback\":\"" + UpdateClient.GITEE_REPOSITORY + "/releases/download/v1.1.4/Z.apk\","
+                + "\"size\":" + apk.length + ",\"sha256\":\""
+                + UpdateClient.hex(UpdateClient.sha256().digest(apk)) + "\"}";
+    }
+
     private static UpdateClient client(Interceptor interceptor) {
         return new UpdateClient(new OkHttpClient.Builder().addInterceptor(interceptor).build());
     }
@@ -116,6 +125,24 @@ public class UpdateClientTest {
         assertTrue(file.isFile());
         assertEquals(UpdateClient.GITEE_REPOSITORY + "/releases/download/v1.1.4/Z.apk", urls.get(0));
         assertEquals("https://gh-proxy.com/" + UpdateClient.GITHUB_REPOSITORY + "/releases/download/v1.1.4/Z.apk", urls.get(1));
+    }
+
+    @Test public void githubPrimaryManifestKeepsGiteeAsLastResort() throws Exception {
+        List<String> urls = new ArrayList<>();
+        AtomicInteger calls = new AtomicInteger();
+        UpdateClient client = client(chain -> {
+            urls.add(chain.request().url().toString());
+            return response(chain, calls.incrementAndGet() <= 3 ? new byte[APK.length] : APK);
+        });
+        File directory = temp.newFolder();
+        File file = client.download(UpdateClient.Info.parse(githubPrimaryManifest(APK)), directory,
+                (received, total, route) -> { }, apk -> { });
+        assertTrue(file.isFile());
+        String github = UpdateClient.GITHUB_REPOSITORY + "/releases/download/v1.1.4/Z.apk";
+        assertEquals("https://gh-proxy.com/" + github, urls.get(0));
+        assertEquals("https://ghfast.top/" + github, urls.get(1));
+        assertEquals(github, urls.get(2));
+        assertEquals(UpdateClient.GITEE_REPOSITORY + "/releases/download/v1.1.4/Z.apk", urls.get(3));
     }
 
     @Test public void legacyGithubManifestStillUsesThreeMirrorRoutes() throws Exception {
