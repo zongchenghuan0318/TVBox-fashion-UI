@@ -1290,6 +1290,7 @@ public class ApiConfig {
 
     public void setSearchSiteOrder(List<String> keys) {
         Hawk.put(HawkConfig.SEARCH_SITE_ORDER, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
+        invalidateSearchSiteOrderCache();
     }
 
     /**
@@ -1344,17 +1345,34 @@ public class ApiConfig {
         return ordered;
     }
 
-    /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按站点表顺序接在最后 */
+    private final ConcurrentHashMap<String, Integer> mSearchSiteOrderIndexCache = new ConcurrentHashMap<>();
+
+    public void invalidateSearchSiteOrderCache() {
+        mSearchSiteOrderIndexCache.clear();
+    }
+
+    /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按站点表顺序接在最后（O(1) 缓存查询，消除排序时的遍历开销） */
     public int getSearchSiteOrderIndex(String key) {
         if (NullUtil.isNull(key)) return Integer.MAX_VALUE;
+        Integer cached = mSearchSiteOrderIndexCache.get(key);
+        if (cached != null) return cached;
+
         List<String> order = getSearchSiteOrderOrDefault();
         int index = order.indexOf(key);
-        if (index >= 0) return index;
+        if (index >= 0) {
+            mSearchSiteOrderIndexCache.put(key, index);
+            return index;
+        }
         int pos = 0;
         for (SiteBean bean : mSiteBeanMap.values()) {
-            if (key.equals(bean.getKey())) return order.size() + pos;
+            if (key.equals(bean.getKey())) {
+                int res = order.size() + pos;
+                mSearchSiteOrderIndexCache.put(key, res);
+                return res;
+            }
             pos++;
         }
+        mSearchSiteOrderIndexCache.put(key, Integer.MAX_VALUE);
         return Integer.MAX_VALUE;
     }
 
@@ -1620,13 +1638,13 @@ public class ApiConfig {
         hardOpt.put("4|mediacodec-handle-resolution-change", "1");
         hardOpt.put("4|mediacodec-hevc", "1");
         hardOpt.put("4|framedrop", "1");
-        hardOpt.put("4|start-on-prepared", "1");
-        hardOpt.put("1|http-detect-range-support", "0");
+        hardOpt.put("4|packet-buffering", "1");
+        hardOpt.put("4|first-high-water-mark-ms", "1200");
+        hardOpt.put("4|next-high-water-mark-ms", "2500");
+        hardOpt.put("4|last-high-water-mark-ms", "15000");
+        hardOpt.put("4|max-buffer-size", "20971520");
         hardOpt.put("1|dns_cache_clear", "1");
         hardOpt.put("1|reconnect", "1");
-        hardOpt.put("4|max-buffer-size", "15728640");
-        hardOpt.put("1|analyzeduration", "2000000");
-        hardOpt.put("1|probesize", "1048576");
         hardCodec.setOption(hardOpt);
 
         // 软解码 (Software decoding with low-latency and anti-stutter defaults)
@@ -1635,13 +1653,13 @@ public class ApiConfig {
         LinkedHashMap<String, String> softOpt = new LinkedHashMap<>();
         softOpt.put("4|mediacodec", "0");
         softOpt.put("4|framedrop", "1");
-        softOpt.put("4|start-on-prepared", "1");
-        softOpt.put("1|http-detect-range-support", "0");
+        softOpt.put("4|packet-buffering", "1");
+        softOpt.put("4|first-high-water-mark-ms", "1200");
+        softOpt.put("4|next-high-water-mark-ms", "2500");
+        softOpt.put("4|last-high-water-mark-ms", "15000");
+        softOpt.put("4|max-buffer-size", "20971520");
         softOpt.put("1|dns_cache_clear", "1");
         softOpt.put("1|reconnect", "1");
-        softOpt.put("4|max-buffer-size", "15728640");
-        softOpt.put("1|analyzeduration", "2000000");
-        softOpt.put("1|probesize", "1048576");
         softCodec.setOption(softOpt);
 
         if ("硬解码".equals(selectedName)) {

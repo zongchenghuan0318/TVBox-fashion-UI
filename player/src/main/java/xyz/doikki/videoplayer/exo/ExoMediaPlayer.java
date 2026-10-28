@@ -41,10 +41,11 @@ import xyz.doikki.videoplayer.player.VideoViewManager;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    private static final int MIN_BUFFER_MS = 2_500;
-    private static final int MAX_BUFFER_MS = 30_000;
-    private static final int BUFFER_FOR_PLAYBACK_MS = 500;
-    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 1_000;
+    // 持续蓄水下限设为 15 秒（播放后在后台持续拉流），彻底消除刚起播 1~2 秒吃光缓冲导致的短暂微卡
+    private static final int MIN_BUFFER_MS = 15_000;
+    private static final int MAX_BUFFER_MS = 45_000;
+    private static final int BUFFER_FOR_PLAYBACK_MS = 1_500; // 首播起播所需蓄水 1.5 秒，保证快速出画
+    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000; // 二次卡顿后蓄水 3 秒，避免频繁微缓冲
     private static final int BACK_BUFFER_MS = 10_000;
 
     protected Context mAppContext;

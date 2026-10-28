@@ -18,6 +18,8 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
 
 import okhttp3.Cache;
+import okhttp3.ConnectionPool;
+import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.dnsoverhttps.DnsOverHttps;
@@ -43,7 +45,7 @@ public class OkGoHelper {
         builder.retryOnConnectionFailure(true);
         builder.followRedirects(true);
         builder.followSslRedirects(true);
-
+        builder.connectionPool(new ConnectionPool(16, 5, TimeUnit.MINUTES));
 
         try {
             setOkHttpSsl(builder);
@@ -131,6 +133,13 @@ public class OkGoHelper {
         builder.readTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS);
         builder.writeTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS);
         builder.connectTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS);
+
+        // 优化连接池与并发调度：避免聚搜和封面高频连接时被单 host 5 个连接挤爆、反复握手
+        builder.connectionPool(new ConnectionPool(32, 5, TimeUnit.MINUTES));
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.setMaxRequests(64);
+        dispatcher.setMaxRequestsPerHost(16);
+        builder.dispatcher(dispatcher);
 
         builder.dns(dnsOverHttps);
         try {

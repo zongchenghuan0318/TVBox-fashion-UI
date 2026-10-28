@@ -23,21 +23,19 @@ public class IjkMediaPlayer extends IjkPlayer {
     @Override
     public void setOptions() {
         super.setOptions();
-        // 1. 基础默认性能与缓冲调优（秒开与防卡顿）
-        mMediaPlayer.setOption(1, "analyzeduration", 2000000L); // 2秒分析时长，大幅加速初始缓冲
-        mMediaPlayer.setOption(1, "probesize", 1024 * 1024L);    // 1MB 探测大小
-        mMediaPlayer.setOption(1, "http-detect-range-support", 0L); // 避免重复发送 HEAD 请求
+        // 网络选项先设置，片源的自定义选项仍可覆盖。
         mMediaPlayer.setOption(1, "dns_cache_clear", 1L);
         mMediaPlayer.setOption(1, "reconnect", 1L);
         mMediaPlayer.setOption(1, "reconnect_streamed", 1L);
         mMediaPlayer.setOption(1, "reconnect_delay_max", 3L);
-        mMediaPlayer.setOption(4, "max-buffer-size", 15 * 1024 * 1024L); // 15MB 适中缓冲，避免低端机 OOM
-        mMediaPlayer.setOption(4, "min-frames", 2L);
         mMediaPlayer.setOption(4, "framedrop", 1L);              // 丢帧保音画同步
-        mMediaPlayer.setOption(4, "start-on-prepared", 1L);
         mMediaPlayer.setOption(4, "skip-calc-frame-rate", 1L);
-        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 500L);
-        mMediaPlayer.setOption(4, "last-high-water-mark-ms", 2000L);
+        // 核心缓冲配置：确保首播起播快且之后不出现“刚播一下就微卡”的蓄水断层
+        mMediaPlayer.setOption(4, "packet-buffering", 1L);
+        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1200L); // 首播起播蓄水 1.2 秒（约 0.2~0.3 秒下载完成，快速出画）
+        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2500L);  // 重新缓冲时蓄水 2.5 秒，避免 500ms 短暂循环卡顿
+        mMediaPlayer.setOption(4, "last-high-water-mark-ms", 15000L); // 允许后台最大缓冲到 15 秒，提供充裕安全裕量
+        mMediaPlayer.setOption(4, "max-buffer-size", 20 * 1024 * 1024L); // 20MB 缓冲区
         mMediaPlayer.setOption(4, "accurate-seek-timeout", 1000L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
