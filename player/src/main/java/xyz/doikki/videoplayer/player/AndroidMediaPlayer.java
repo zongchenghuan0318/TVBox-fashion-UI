@@ -107,11 +107,17 @@ public class AndroidMediaPlayer extends AbstractPlayer implements MediaPlayer.On
 
     @Override
     public boolean isPlaying() {
-        return mMediaPlayer.isPlaying();
+        if (mMediaPlayer == null) return false;
+        try {
+            return mMediaPlayer.isPlaying();
+        } catch (IllegalStateException e) {
+            return false;
+        }
     }
 
     @Override
     public void seekTo(long time) {
+        if (mMediaPlayer == null) return;
         try {
             mMediaPlayer.seekTo((int) time);
         } catch (IllegalStateException e) {
@@ -121,6 +127,7 @@ public class AndroidMediaPlayer extends AbstractPlayer implements MediaPlayer.On
 
     @Override
     public void release() {
+        if (mMediaPlayer == null) return;
         mMediaPlayer.setOnErrorListener(null);
         mMediaPlayer.setOnCompletionListener(null);
         mMediaPlayer.setOnInfoListener(null);
@@ -144,12 +151,22 @@ public class AndroidMediaPlayer extends AbstractPlayer implements MediaPlayer.On
 
     @Override
     public long getCurrentPosition() {
-        return mMediaPlayer.getCurrentPosition();
+        if (mMediaPlayer == null) return 0;
+        try {
+            return mMediaPlayer.getCurrentPosition();
+        } catch (IllegalStateException e) {
+            return 0;
+        }
     }
 
     @Override
     public long getDuration() {
-        return mMediaPlayer.getDuration();
+        if (mMediaPlayer == null) return 0;
+        try {
+            return mMediaPlayer.getDuration();
+        } catch (IllegalStateException e) {
+            return 0;
+        }
     }
 
     @Override

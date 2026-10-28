@@ -86,10 +86,33 @@ public class BaseLoader {
     }
 
     /**
-     * 本地代理请求分发：jar 走 Proxy.proxy 反射，js/py 走各自 proxyLocal
+     * 本地代理请求分发：
+     * 若请求参数中指定了 site 或 key，优先精确路由到对应爬虫实例，
+     * 解决多源并发搜索或后台预加载时全局 recentSpider 被竞争踩踏、导致切片代理路由错误的问题；
+     * 未指定 site 时兼容降级到 recentSpider。
      */
     public Object[] proxy(Map<String, String> params) {
         try {
+            if (params != null) {
+                String site = params.get("site");
+                if (site == null) {
+                    site = params.get("key");
+                }
+                if (site != null) {
+                    Spider sp = jsSpiders.get(site);
+                    if (sp != null) {
+                        return sp.proxyLocal(params);
+                    }
+                    sp = pyLoader.getSpiderByKey(site);
+                    if (sp != null) {
+                        return sp.proxyLocal(params);
+                    }
+                    sp = jarLoader.getSpiderByKey(site);
+                    if (sp != null) {
+                        return jarLoader.proxyInvoke(params);
+                    }
+                }
+            }
             Spider spider = recentSpider;
             if (spider == null) return null;
             if (recentIsJar) return jarLoader.proxyInvoke(params);
@@ -109,7 +132,14 @@ public class BaseLoader {
     }
 
     public void clear() {
-        jsSpiders.values().forEach(Spider::destroy);
+        for (Spider spider : jsSpiders.values()) {
+            if (spider != null) {
+                try {
+                    spider.destroy();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
         jsSpiders.clear();
         pyLoader.clear();
         recentSpider = null;

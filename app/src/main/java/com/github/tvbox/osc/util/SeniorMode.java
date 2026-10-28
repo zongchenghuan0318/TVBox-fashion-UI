@@ -50,14 +50,22 @@ public final class SeniorMode {
         if (root.getTag(R.id.senior_mode_layout_listener) == null) {
             ViewTreeObserver.OnGlobalLayoutListener layoutListener =
                     new ViewTreeObserver.OnGlobalLayoutListener() {
+                        private boolean isApplying = false;
+
                         @Override
                         public void onGlobalLayout() {
+                            if (isApplying) return;
                             if (!isEnabled()) {
                                 apply(root);
                                 return;
                             }
-                            applyToTree(root, true);
-                            updateFocus(root.findFocus(), true);
+                            try {
+                                isApplying = true;
+                                applyToTree(root, true);
+                                updateFocus(root.findFocus(), true);
+                            } finally {
+                                isApplying = false;
+                            }
                         }
                     };
             root.setTag(R.id.senior_mode_layout_listener, layoutListener);

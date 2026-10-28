@@ -634,7 +634,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        detailHandler.removeCallbacks(detailTimeout);
+        detailHandler.removeCallbacksAndMessages(null);
         OkGo.getInstance().cancelTag("fenci");
         if (mSourceViewModel != null) mSourceViewModel.cancelDetailRequests();
         OkGo.getInstance().cancelTag("search");

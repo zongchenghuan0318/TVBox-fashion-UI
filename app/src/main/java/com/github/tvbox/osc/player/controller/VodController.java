@@ -91,6 +91,7 @@ public class VodController extends BaseController {
     private View mOptionsReturnFocus;
     private int mPendingSeekPosition = -1;
     private long mPendingSeekTime;
+    private int mLastValidDuration = 0;
     private VodControlListener controlListener;
     private boolean bSkipEnd = true;
     private TimerMin mTimerMin;
@@ -709,12 +710,19 @@ public class VodController extends BaseController {
         if (mIsDragging || bSimSlideStart || isGestureSeeking()) {
             return;
         }
+        if (duration > 0) {
+            mLastValidDuration = duration;
+        } else if (mLastValidDuration > 0) {
+            duration = mLastValidDuration;
+        }
         duration = Math.max(0, duration);
         position = duration > 0 ? Math.max(0, Math.min(position, duration)) : Math.max(0, position);
         boolean pendingSeek = false;
         if (mPendingSeekPosition >= 0 && duration > 0) {
-            if (Math.abs(position - mPendingSeekPosition) <= 1500
-                    || android.os.SystemClock.uptimeMillis() - mPendingSeekTime >= 2000) {
+            long elapsed = android.os.SystemClock.uptimeMillis() - mPendingSeekTime;
+            // Native player decoders take 150-400ms to seek. Within 400ms, always keep the target position.
+            // After 400ms, only clear once player caught up or on timeout (4000ms).
+            if (elapsed > 400 && (Math.abs(position - mPendingSeekPosition) <= 2000 || elapsed >= 4000)) {
                 mPendingSeekPosition = -1;
             } else {
                 position = Math.min(duration, mPendingSeekPosition);
@@ -743,7 +751,7 @@ public class VodController extends BaseController {
         mTotalTimeTV.setText(mDualtion);
         if (duration > 0) {
             mSeekBar.setEnabled(true);
-            int pos = (int) (position * 1.0 / duration * mSeekBar.getMax());
+            int pos = (int) Math.round((double) position / duration * mSeekBar.getMax());
             mSeekBar.setProgress(pos);
         } else {
             mSeekBar.setProgress(0);
@@ -755,24 +763,30 @@ public class VodController extends BaseController {
 
     public void slideStop() {
         if (!bSimSlideStart) return;
-        onSeekRequested(simSeekPosition);
-        mControlWrapper.seekTo(simSeekPosition);
+        int target = simSeekPosition;
         bSimSlideStart = false;
         simSeekPosition = 0;
         simSlideOffset = 0;
+        onSeekRequested(target);
+        mControlWrapper.seekTo(target);
         onSeekPreviewFinished();
     }
 
     public void slideStart(int iFoward) {
         long duration = mControlWrapper.getDuration();
+        if (duration <= 0 && mLastValidDuration > 0) {
+            duration = mLastValidDuration;
+        }
         if (duration <= 0) return;
         if (!bSimSlideStart) {
             bSimSlideStart = true;
-            simSeekAnchor = mControlWrapper.getCurrentPosition();
+            simSeekAnchor = mPendingSeekPosition >= 0 ? mPendingSeekPosition : mControlWrapper.getCurrentPosition();
         }
         mBaseHandler.removeMessages(MSG_WHAT_SEEK_PLAY);
-        // 快进算法
-        simSlideOffset += (10000.0f * mSeekSpeedMultiplier * iFoward);
+        // 快进算法: 尊重用户设置的步长 (5s, 10s, 15s, 30s)
+        int stepSec = Hawk.get(HawkConfig.PLAY_TIME_STEP, 10);
+        if (stepSec <= 0) stepSec = 10;
+        simSlideOffset += (stepSec * 1000.0f * mSeekSpeedMultiplier * iFoward);
         int currentPosition = (int) simSeekAnchor;
         int position = (int) (simSlideOffset + currentPosition);
         if (position > duration) position = (int) duration;
@@ -780,7 +794,7 @@ public class VodController extends BaseController {
         updateSeekUI(currentPosition, position, duration);
         simSeekPosition = position;
         //把遥控快进的落点同步到进度条，操作结果可见
-        mSeekBar.setProgress((int) (position * 1.0 / duration * mSeekBar.getMax()));
+        mSeekBar.setProgress((int) Math.round((double) position / duration * mSeekBar.getMax()));
         mCurrentTimeTV.setText(PlayerUtils.stringForTime(position));
     }
 
@@ -882,6 +896,7 @@ public class VodController extends BaseController {
         switch (playState) {
             case VideoView.STATE_IDLE:
             case VideoView.STATE_PREPARING:
+                mLastValidDuration = 0;
                 mPendingSeekPosition = -1;
                 mIsDragging = false;
                 bSimSlideStart = false;
@@ -987,15 +1002,21 @@ public class VodController extends BaseController {
         int action = event.getAction();
         boolean seekBarFocused = mSeekBar != null && mSeekBar.hasFocus();
         if (action == KeyEvent.ACTION_DOWN) {
-            showBottom();
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                if (isInPlayback && seekBarFocused) {
+                boolean canDirectSeek = !isBottomVisible() || seekBarFocused || (mPlayingBtn != null && mPlayingBtn.hasFocus());
+                if (isInPlayback && canDirectSeek) {
+                    showBottom();
+                    if (mSeekBar != null && mSeekBar.isEnabled() && !seekBarFocused) {
+                        mSeekBar.requestFocus();
+                    }
                     int repeatCount = event.getRepeatCount();
                     mSeekSpeedMultiplier = repeatCount >= 6 ? 3 : repeatCount >= 2 ? 2 : 1;
                     slideStart(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
                     return true;
                 }
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            }
+            showBottom();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
                 if (isInPlayback && !hasFocusedControl()) {
                     togglePlay();
                     return true;
@@ -1027,6 +1048,16 @@ public class VodController extends BaseController {
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    public long getCurrentOrPendingPosition() {
+        if (bSimSlideStart && simSeekPosition > 0) {
+            return simSeekPosition;
+        }
+        if (mPendingSeekPosition >= 0) {
+            return mPendingSeekPosition;
+        }
+        return mControlWrapper != null ? mControlWrapper.getCurrentPosition() : 0L;
     }
 
     private boolean hasFocusedControl() {

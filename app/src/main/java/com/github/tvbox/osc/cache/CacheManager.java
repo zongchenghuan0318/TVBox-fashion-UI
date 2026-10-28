@@ -66,11 +66,15 @@ public class CacheManager {
         return new byte[0];
     }
 
-    public static <T> void delete(String key, T body) {
+    public static void delete(String key) {
+        if (key == null) return;
         Cache cache = new Cache();
         cache.key = key;
-        cache.data = toByteArray(body);
         AppDataManager.get().getCacheDao().delete(cache);
+    }
+
+    public static <T> void delete(String key, T body) {
+        delete(key);
     }
 
     public static <T> void save(String key, T body) {

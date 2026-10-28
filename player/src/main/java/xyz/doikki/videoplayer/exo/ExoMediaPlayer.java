@@ -41,10 +41,11 @@ import xyz.doikki.videoplayer.player.VideoViewManager;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    private static final int MIN_BUFFER_MS = 2_000;
+    private static final int MIN_BUFFER_MS = 2_500;
     private static final int MAX_BUFFER_MS = 30_000;
-    private static final int BUFFER_FOR_PLAYBACK_MS = 1_500;
-    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 1_500;
+    private static final int BUFFER_FOR_PLAYBACK_MS = 500;
+    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 1_000;
+    private static final int BACK_BUFFER_MS = 10_000;
 
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
@@ -73,6 +74,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
+                    .setBackBuffer(BACK_BUFFER_MS, true)
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .createDefaultLoadControl();
         }

@@ -8,6 +8,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.net.http.SslError;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -430,7 +431,13 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 String preProgressKey = buildStableProgressKey();
                 PlayActivity.this.playNext();
                 if (rmProgress && preProgressKey != null) {
-                    CacheManager.delete(MD5.string2MD5(preProgressKey), 0);
+                    final String k = preProgressKey;
+                    AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                        try {
+                            CacheManager.delete(MD5.string2MD5(k), 0);
+                        } catch (Throwable ignored) {
+                        }
+                    });
                 }
             }
 
@@ -486,8 +493,15 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private void savePlayerConfig() {
         if (mVodInfo == null || mVodPlayerCfgJsonObject == null) return;
         mVodInfo.playerCfg = mVodPlayerCfgJsonObject.toString();
-        // Persist at the moment a setting changes, including when the user exits before replay.
-        RoomDataManger.insertVodRecord(mSourceKeyStr, mVodInfo);
+        // 异步持久化配置，避免切换设置时阻塞主线程导致画面卡顿
+        final VodInfo info = mVodInfo;
+        final String sKey = mSourceKeyStr;
+        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            try {
+                RoomDataManger.insertVodRecord(sKey, info);
+            } catch (Throwable ignored) {
+            }
+        });
         EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, mVodPlayerCfgJsonObject));
     }
 
@@ -503,7 +517,13 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void saveProgressValue(String key, long position) {
         if (key == null || key.trim().isEmpty()) return;
-        CacheManager.save(MD5.string2MD5(key), position);
+        // 播放进度高频保存改走异步线程，消除主线程每 5 秒同步写库导致的微卡顿
+        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            try {
+                CacheManager.save(MD5.string2MD5(key), position);
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     private String buildStableProgressKey() {
@@ -684,12 +704,18 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void insertVod(String sourceKey, VodInfo vodInfo) {
+        if (vodInfo == null) return;
         try {
             vodInfo.playNote = vodInfo.seriesMap.get(vodInfo.playFlag).get(vodInfo.playIndex).name;
         } catch (Throwable th) {
             vodInfo.playNote = "";
         }
-        RoomDataManger.insertVodRecord(sourceKey, vodInfo);
+        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            try {
+                RoomDataManger.insertVodRecord(sourceKey, vodInfo);
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     private void playNext() {
@@ -872,7 +898,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void saveCurrentProgress() {
         if (mVideoView == null || mVodInfo == null) return;
-        long position = mVideoView.getCurrentPosition();
+        long position = mController != null ? mController.getCurrentOrPendingPosition() : mVideoView.getCurrentPosition();
         long duration = mVideoView.getDuration();
         if (position <= 0 || (duration > 0 && position >= duration - 1000)) return;
         String key = buildEpisodeProgressKey();
@@ -1140,6 +1166,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 mSysWebView.stopLoading();
                 mSysWebView.loadUrl("about:blank");
                 if (bDestroy) {
+                    if (mSysWebView.getParent() instanceof ViewGroup) {
+                        ((ViewGroup) mSysWebView.getParent()).removeView(mSysWebView);
+                    }
                     mSysWebView.clearCache(true);
                     mSysWebView.removeAllViews();
                     mSysWebView.destroy();
@@ -1219,10 +1248,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         /* 添加webView配置 */
         final WebSettings settings = webView.getSettings();
         settings.setNeedInitialFocus(false);
-        settings.setAllowContentAccess(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
-        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccess(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
+        settings.setAllowFileAccessFromFileURLs(false);
         settings.setDatabaseEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setJavaScriptEnabled(true);

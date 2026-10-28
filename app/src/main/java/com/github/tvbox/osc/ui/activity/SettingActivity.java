@@ -17,6 +17,7 @@ import com.github.tvbox.osc.ui.adapter.SettingPageAdapter;
 import com.github.tvbox.osc.ui.fragment.ModelSettingFragment;
 import com.github.tvbox.osc.util.AppManager;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.github.tvbox.osc.util.OkGoHelper;
 import com.lcstudio.commonsurport.util.SPDataUtil;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
@@ -204,6 +205,12 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
                 || !oldApiConfig.equals(new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, ""))
                 || homeRec != Hawk.get(HawkConfig.HOME_REC, 0)
                 || dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
+            if (dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
+                try {
+                    OkGoHelper.init();
+                } catch (Throwable ignored) {
+                }
+            }
             AppManager.getInstance().finishAllActivity();
             jumpActivity(HomeActivity.class);
         } else {

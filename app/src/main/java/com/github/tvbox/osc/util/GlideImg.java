@@ -15,13 +15,33 @@ import java.util.regex.Pattern;
 public class GlideImg {
 
     private static final String DOUBAN_REFERER = "https://movie.douban.com/";
+    private static final Pattern S_RATIO_POSTER = Pattern.compile("/s_ratio_poster/");
+    private static final String MEDIUM_SIZE_PATH = "/m_ratio_poster/";
     private static final Pattern RATIO_POSTER_SIZE = Pattern.compile("/(?:s|m|l)_ratio_poster/");
     private static final String LARGE_SIZE_PATH = "/l_ratio_poster/";
 
     /**
-     * 把图片地址转换成 Glide 可用的加载模型
+     * 把图片地址转换成 Glide 可用的加载模型（用于列表、卡片缩略图）
+     * 豆瓣小图升级为 m 档（540x810），在 TV 卡片上清晰细腻，且体积远小于 l 档，防范内存雪崩与解码卡顿
      */
     public static Object model(String url) {
+        if (url == null || url.isEmpty()) {
+            return url;
+        }
+        String host = url.toLowerCase();
+        if (host.contains("doubanio.com") || host.contains("douban.com")) {
+            String sharpUrl = S_RATIO_POSTER.matcher(url).replaceAll(MEDIUM_SIZE_PATH);
+            return new GlideUrl(sharpUrl, new LazyHeaders.Builder()
+                    .addHeader("Referer", DOUBAN_REFERER)
+                    .build());
+        }
+        return url;
+    }
+
+    /**
+     * 针对全屏大背景 Hero 区域的高清加载模型（升级为 l 档 1080x1620）
+     */
+    public static Object heroModel(String url) {
         if (url == null || url.isEmpty()) {
             return url;
         }

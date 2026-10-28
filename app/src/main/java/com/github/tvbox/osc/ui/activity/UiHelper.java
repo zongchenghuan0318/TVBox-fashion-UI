@@ -29,6 +29,7 @@ import com.uisupport.update.HttpUtil;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +38,18 @@ import java.util.List;
 import xyz.doikki.videoplayer.util.PrintUtil;
 
 public class UiHelper {
+    private static final Gson GSON = new Gson();
+    private static final Type ABS_SORT_JSON_TYPE = new TypeToken<AbsSortJson>() {}.getType();
+
+    private static XStream createSortXmlXStream() {
+        XStream xstream = new XStream(new DomDriver());
+        xstream.autodetectAnnotations(true);
+        xstream.processAnnotations(AbsSortXml.class);
+        xstream.ignoreUnknownElements();
+        return xstream;
+    }
+
+    private static final XStream SORT_XML_XSTREAM = createSortXmlXStream();
 
 
     public static String clanToAddress(String lanLink) {
@@ -110,11 +123,7 @@ public class UiHelper {
 
     public static boolean xmlHasClasses(String xml) {
         try {
-            XStream xstream = new XStream(new DomDriver());//创建Xstram对象
-            xstream.autodetectAnnotations(true);
-            xstream.processAnnotations(AbsSortXml.class);
-            xstream.ignoreUnknownElements();
-            AbsSortXml absXml = (AbsSortXml) xstream.fromXML(xml);
+            AbsSortXml absXml = (AbsSortXml) SORT_XML_XSTREAM.fromXML(xml);
             if (null != absXml && null != absXml.classes && !NullUtil.isNull(absXml.classes.sortList))    return true;
         } catch (Exception e) {
             return false;
@@ -125,8 +134,7 @@ public class UiHelper {
     public static boolean jsonHasClasses(String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            AbsSortJson sortJson = new Gson().fromJson(obj, new TypeToken<AbsSortJson>() {
-            }.getType());
+            AbsSortJson sortJson = GSON.fromJson(obj, ABS_SORT_JSON_TYPE);
             if (sortJson != null && !NullUtil.isNull(sortJson.classes)) {
                 return true;
             }

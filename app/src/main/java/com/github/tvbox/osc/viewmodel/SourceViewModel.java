@@ -37,6 +37,7 @@ import com.thoughtworks.xstream.io.xml.DomDriver;
 import org.greenrobot.eventbus.EventBus;
 import org.json.JSONObject;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -55,6 +56,29 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 public class SourceViewModel extends ViewModel {
+    private static final Gson GSON = new Gson();
+    private static final Type ABS_JSON_TYPE = new TypeToken<AbsJson>() {}.getType();
+    private static final Type ABS_SORT_JSON_TYPE = new TypeToken<AbsSortJson>() {}.getType();
+
+    private static XStream createSortXmlXStream() {
+        XStream xstream = new XStream(new DomDriver());
+        xstream.autodetectAnnotations(true);
+        xstream.processAnnotations(AbsSortXml.class);
+        xstream.ignoreUnknownElements();
+        return xstream;
+    }
+
+    private static XStream createAbsXmlXStream() {
+        XStream xstream = new XStream(new DomDriver());
+        xstream.autodetectAnnotations(true);
+        xstream.processAnnotations(AbsXml.class);
+        xstream.ignoreUnknownElements();
+        return xstream;
+    }
+
+    private static final XStream SORT_XML_XSTREAM = createSortXmlXStream();
+    private static final XStream ABS_XML_XSTREAM = createAbsXmlXStream();
+
     public MutableLiveData<AbsSortXml> sortResult;
     public MutableLiveData<AbsXml> listResult;
     public MutableLiveData<AbsXml> searchResult;
@@ -173,7 +197,7 @@ public class SourceViewModel extends ViewModel {
                         postSortResult(null, requestId, sourceKey);
                     }
                     try {
-                        executor.shutdown();
+                        executor.shutdownNow();
                     } catch (Throwable th) {
                          L.e(th);
                     }
@@ -376,7 +400,7 @@ public class SourceViewModel extends ViewModel {
                         callback.done(null);
                     }
                     try {
-                        executor.shutdown();
+                        executor.shutdownNow();
                     } catch (Throwable th) {
                         L.e(th);
                     }
@@ -451,8 +475,8 @@ public class SourceViewModel extends ViewModel {
         int type = sourceBean.getType();
         L.d("getDetail() type=" + type +" sourceKey="+sourceKey);
         if (type == 3) {
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            executor.execute(() -> {
+            if (mExecutorService == null || mExecutorService.isShutdown()) return;
+            mExecutorService.execute(() -> {
                 try {
                     Spider sp = ApiConfig.getInstance().getCSP(sourceBean);
                     List<String> ids = new ArrayList<>();
@@ -463,9 +487,6 @@ public class SourceViewModel extends ViewModel {
                 } catch (Exception th) {
                     L.w("getDetail " + th.getMessage());
                     postDetailResult(null, requestId);
-                } finally {
-                    // 一次性线程池用完即关，否则每次调用都会泄漏一个线程
-                    executor.shutdown();
                 }
             });
         } else if (type == 0 || type == 1) {
@@ -808,7 +829,7 @@ public class SourceViewModel extends ViewModel {
         try {
             L.d(soureKey+" sortJson() json="+json);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            AbsSortJson sortJson = new Gson().fromJson(obj, new TypeToken<AbsSortJson>() {}.getType());
+            AbsSortJson sortJson = GSON.fromJson(obj, ABS_SORT_JSON_TYPE);
             AbsSortXml absSortXml = sortJson.toAbsSortXml();
             try {
                 if (obj.has("filters")) {
@@ -845,11 +866,7 @@ public class SourceViewModel extends ViewModel {
     private AbsSortXml sortXml(MutableLiveData<AbsSortXml> result, String xml, String soureKey) {
         try {
             L.d(soureKey + " sortXml() xml=" + xml);
-            XStream xstream = new XStream(new DomDriver());//创建Xstram对象
-            xstream.autodetectAnnotations(true);
-            xstream.processAnnotations(AbsSortXml.class);
-            xstream.ignoreUnknownElements();
-            AbsSortXml absXml = (AbsSortXml) xstream.fromXML(xml);
+            AbsSortXml absXml = (AbsSortXml) SORT_XML_XSTREAM.fromXML(xml);
             for (MovieSort.SortData sort : absXml.classes.sortList) {
                 if (sort.filters == null) {
                     sort.filters = new ArrayList<>();
@@ -920,17 +937,13 @@ public class SourceViewModel extends ViewModel {
     private AbsXml parseXml(MutableLiveData<AbsXml> result, String xml, String sourceKey, long duration, int requestId) {
         try {
             L.d(sourceKey + " parseXml length=" + (xml == null ? -1 : xml.length()));
-            XStream xstream = new XStream(new DomDriver());//创建Xstram对象
-            xstream.autodetectAnnotations(true);
-            xstream.processAnnotations(AbsXml.class);
-            xstream.ignoreUnknownElements();
             if (xml.contains("<year></year>")) {
                 xml = xml.replace("<year></year>", "<year>2020</year>");
             }
             if (xml.contains("<state></state>")) {
                 xml = xml.replace("<state></state>", "<state>0</state>");
             }
-            AbsXml absXml = (AbsXml) xstream.fromXML(xml);
+            AbsXml absXml = (AbsXml) ABS_XML_XSTREAM.fromXML(xml);
             parseSeriesUrl(absXml, sourceKey);
             if (searchResult == result) {
                 addDuration(duration, absXml);
@@ -982,7 +995,7 @@ public class SourceViewModel extends ViewModel {
     private AbsXml parseJson(MutableLiveData<AbsXml> result, String json, String sourceKey, long duration, int requestId) {
         try {
             AbsXml absXml = null;
-            AbsJson absJson = new Gson().fromJson(json, new TypeToken<AbsJson>() {}.getType());
+            AbsJson absJson = GSON.fromJson(json, ABS_JSON_TYPE);
             L.d(sourceKey + " parseJson length=" + (json == null ? -1 : json.length()));
             if (absJson != null) {
                 absXml = absJson.toAbsXml();

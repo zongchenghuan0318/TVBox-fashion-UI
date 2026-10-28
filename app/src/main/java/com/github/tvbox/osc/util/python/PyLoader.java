@@ -15,18 +15,29 @@ public class PyLoader {
     private volatile String recent;
 
     public Spider getSpider(String key, String api, String ext) {
-        Spider spider = spiders.computeIfAbsent(key, k -> {
-            try {
-                Spider pySpider = loader.spider(App.getInstance(), key, api);
-                pySpider.init(App.getInstance(), ext);
-                recent = key;
-                return pySpider;
-            } catch (Throwable e) {
-                e.printStackTrace();
-                return new SpiderNull();
+        Spider spider = spiders.get(key);
+        if (spider == null) {
+            synchronized (spiders) {
+                spider = spiders.get(key);
+                if (spider == null) {
+                    try {
+                        Spider pySpider = loader.spider(App.getInstance(), key, api);
+                        pySpider.init(App.getInstance(), ext);
+                        spider = pySpider;
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                        spider = new SpiderNull();
+                    }
+                    spiders.put(key, spider);
+                }
             }
-        });
+        }
+        recent = key;
         return spider;
+    }
+
+    public Spider getSpiderByKey(String key) {
+        return key == null ? null : spiders.get(key);
     }
 
     public Object[] proxyLocal(Map<String, String> params) {
@@ -35,7 +46,14 @@ public class PyLoader {
     }
 
     public void clear() {
-        spiders.values().forEach(Spider::destroy);
+        for (Spider spider : spiders.values()) {
+            if (spider != null) {
+                try {
+                    spider.destroy();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
         spiders.clear();
         recent = null;
     }

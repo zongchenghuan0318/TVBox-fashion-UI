@@ -103,12 +103,17 @@ final class AudioFocusHelper implements AudioManager.OnAudioFocusChangeListener 
      * Requests the system to drop the audio focus
      */
     void abandonFocus() {
+        if (mHandler != null) {
+            mHandler.removeCallbacksAndMessages(null);
+        }
+        mCurrentFocus = 0;
+        mStartRequested = false;
+        mPausedForLoss = false;
 
         if (mAudioManager == null) {
             return;
         }
 
-        mStartRequested = false;
         mAudioManager.abandonAudioFocus(this);
     }
 }

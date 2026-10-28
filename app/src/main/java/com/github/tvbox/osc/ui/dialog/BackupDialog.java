@@ -93,7 +93,13 @@ public class BackupDialog extends BaseDialog {
         try {
             String root = Environment.getExternalStorageDirectory().getAbsolutePath();
             File file = new File(root + "/tvbox_backup/");
+            if (!file.exists()) {
+                return result;
+            }
             File[] list = file.listFiles();
+            if (list == null || list.length == 0) {
+                return result;
+            }
             Arrays.sort(list, new Comparator<File>() {
                 @Override
                 public int compare(File o1, File o2) {
@@ -101,15 +107,13 @@ public class BackupDialog extends BaseDialog {
                     return o1.isFile() && o2.isDirectory() ? 1 : o2.getName().compareTo(o1.getName());
                 }
             });
-            if (file.exists()) {
-                for (File f : list) {
-                    if (result.size() > 10) {
-                        FileUtils.recursiveDelete(f);
-                        continue;
-                    }
-                    if (f.isDirectory()) {
-                        result.add(f.getName());
-                    }
+            for (File f : list) {
+                if (result.size() > 10) {
+                    FileUtils.recursiveDelete(f);
+                    continue;
+                }
+                if (f.isDirectory()) {
+                    result.add(f.getName());
                 }
             }
         } catch (Throwable e) {

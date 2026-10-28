@@ -86,14 +86,14 @@ public final class ExoMediaSourceHelper {
         } else {
             factory = getDataSourceFactory();
         }
-        if (mHttpDataSourceFactory != null) {
-            setHeaders(headers);
-        }
+        setHeaders(headers);
         switch (contentType) {
             case C.TYPE_DASH:
                 return new DashMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
             case C.TYPE_HLS:
-                return new HlsMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
+                return new HlsMediaSource.Factory(factory)
+                        .setAllowChunklessPreparation(true)
+                        .createMediaSource(MediaItem.fromUri(contentUri));
             default:
             case C.TYPE_OTHER:
                 return new ProgressiveMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
@@ -152,6 +152,7 @@ public final class ExoMediaSourceHelper {
     }
 
     private void setHeaders(Map<String, String> headers) {
+        if (mHttpDataSourceFactory == null) return;
         if (headers != null && headers.size() > 0) {
             //如果发现用户通过header传递了UA，则强行将HttpDataSourceFactory里面的userAgent字段替换成用户的
             if (headers.containsKey("User-Agent")) {
@@ -174,6 +175,8 @@ public final class ExoMediaSourceHelper {
                     headers.put(k, v.trim());
             }
             mHttpDataSourceFactory.setDefaultRequestProperties(headers);
+        } else {
+            mHttpDataSourceFactory.setDefaultRequestProperties(java.util.Collections.emptyMap());
         }
     }
 

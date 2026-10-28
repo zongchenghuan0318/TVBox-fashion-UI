@@ -1,7 +1,7 @@
 package com.github.tvbox.osc.util;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -12,13 +12,15 @@ import java.io.OutputStream;
 public class FileUtils {
 
     public static boolean writeSimple(byte[] data, File dst) {
+        if (data == null || dst == null) return false;
         try {
             if (dst.exists())
                 dst.delete();
-            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(dst));
-            bos.write(data);
-            bos.close();
-            return true;
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(dst))) {
+                bos.write(data);
+                bos.flush();
+                return true;
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -26,13 +28,15 @@ public class FileUtils {
     }
 
     public static byte[] readSimple(File src) {
-        try {
-            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(src));
-            int len = bis.available();
-            byte[] data = new byte[len];
-            bis.read(data);
-            bis.close();
-            return data;
+        if (src == null || !src.exists() || !src.isFile()) return null;
+        try (FileInputStream fis = new FileInputStream(src);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = fis.read(buffer)) != -1) {
+                baos.write(buffer, 0, read);
+            }
+            return baos.toByteArray();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -40,28 +44,25 @@ public class FileUtils {
     }
 
     public static void copyFile(File source, File dest) throws IOException {
-        InputStream is = null;
-        OutputStream os = null;
-        try {
-            is = new FileInputStream(source);
-            os = new FileOutputStream(dest);
-            byte[] buffer = new byte[1024];
+        try (InputStream is = new FileInputStream(source);
+             OutputStream os = new FileOutputStream(dest)) {
+            byte[] buffer = new byte[8192];
             int length;
             while ((length = is.read(buffer)) > 0) {
                 os.write(buffer, 0, length);
             }
-        } finally {
-            is.close();
-            os.close();
         }
     }
 
     public static void recursiveDelete(File file) {
-        if (!file.exists())
+        if (file == null || !file.exists())
             return;
         if (file.isDirectory()) {
-            for (File f : file.listFiles()) {
-                recursiveDelete(f);
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    recursiveDelete(f);
+                }
             }
         }
         file.delete();

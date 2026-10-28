@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,13 +20,10 @@ import java.util.List;
  * @description:
  */
 public class RoomDataManger {
-    static ExclusionStrategy vodInfoStrategy = new ExclusionStrategy() {
+    private static final ExclusionStrategy vodInfoStrategy = new ExclusionStrategy() {
         @Override
         public boolean shouldSkipField(FieldAttributes field) {
-            if (field.getDeclaringClass() == VodInfo.class && field.getName().equals("seriesFlags")) {
-                return true;
-            }
-            if (field.getDeclaringClass() == VodInfo.class && field.getName().equals("seriesMap")) {
+            if (field.getDeclaringClass() == VodInfo.class && ("seriesFlags".equals(field.getName()) || "seriesMap".equals(field.getName()))) {
                 return true;
             }
             return false;
@@ -37,8 +35,11 @@ public class RoomDataManger {
         }
     };
 
+    private static final Gson VOD_INFO_GSON = new GsonBuilder().addSerializationExclusionStrategy(vodInfoStrategy).create();
+    private static final Type VOD_INFO_TYPE = new TypeToken<VodInfo>() {}.getType();
+
     private static Gson getVodInfoGson() {
-        return new GsonBuilder().addSerializationExclusionStrategy(vodInfoStrategy).create();
+        return VOD_INFO_GSON;
     }
 
     public static void insertVodRecord(String sourceKey, VodInfo vodInfo) {
@@ -57,8 +58,7 @@ public class RoomDataManger {
         VodRecord record = AppDataManager.get().getVodRecordDao().getVodRecord(sourceKey, vodId);
         try {
             if (record != null && record.dataJson != null && !TextUtils.isEmpty(record.dataJson)) {
-                VodInfo vodInfo = getVodInfoGson().fromJson(record.dataJson, new TypeToken<VodInfo>() {
-                }.getType());
+                VodInfo vodInfo = getVodInfoGson().fromJson(record.dataJson, VOD_INFO_TYPE);
                 if (vodInfo.name == null)
                     return null;
                 return vodInfo;
@@ -88,8 +88,7 @@ public class RoomDataManger {
                 VodInfo info = null;
                 try {
                     if (record.dataJson != null && !TextUtils.isEmpty(record.dataJson)) {
-                        info = getVodInfoGson().fromJson(record.dataJson, new TypeToken<VodInfo>() {
-                        }.getType());
+                        info = getVodInfoGson().fromJson(record.dataJson, VOD_INFO_TYPE);
                         info.sourceKey = record.sourceKey;
                         if (info.name == null)
                             info = null;

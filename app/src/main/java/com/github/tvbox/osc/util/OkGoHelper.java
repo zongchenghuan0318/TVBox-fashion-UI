@@ -58,6 +58,14 @@ public class OkGoHelper {
     public static DnsOverHttps dnsOverHttps = null;
 
     public static ArrayList<String> dnsHttpsList = new ArrayList<>();
+    private static Cache dohCache = null;
+
+    private static synchronized Cache getDohCache() {
+        if (dohCache == null) {
+            dohCache = new Cache(new File(App.getInstance().getCacheDir().getAbsolutePath(), "dohcache"), 10 * 1024 * 1024);
+        }
+        return dohCache;
+    }
 
 
     public static String getDohUrl(int type) {
@@ -76,6 +84,7 @@ public class OkGoHelper {
     }
 
     static void initDnsOverHttps() {
+        dnsHttpsList.clear();
         dnsHttpsList.add("关闭");
         dnsHttpsList.add("腾讯");
         dnsHttpsList.add("阿里");
@@ -95,7 +104,7 @@ public class OkGoHelper {
         } catch (Throwable th) {
             th.printStackTrace();
         }
-        builder.cache(new Cache(new File(App.getInstance().getCacheDir().getAbsolutePath(), "dohcache"), 10 * 1024 * 1024));
+        builder.cache(getDohCache());
         OkHttpClient dohClient = builder.build();
         String dohUrl = getDohUrl(Hawk.get(HawkConfig.DOH_URL, 0));
         dnsOverHttps = new DnsOverHttps.Builder().client(dohClient).url(dohUrl.isEmpty() ? null : HttpUrl.get(dohUrl)).build();

@@ -199,18 +199,21 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
     @Override
     public void reset() {
         clearSubtitleTextListener();
-        mMediaPlayer.reset();
-        mMediaPlayer.setOnVideoSizeChangedListener(this);
-        setOptions();
+        if (mMediaPlayer != null) {
+            mMediaPlayer.reset();
+            mMediaPlayer.setOnVideoSizeChangedListener(this);
+            setOptions();
+        }
     }
 
     @Override
     public boolean isPlaying() {
-        return mMediaPlayer.isPlaying();
+        return mMediaPlayer != null && mMediaPlayer.isPlaying();
     }
 
     @Override
     public void seekTo(long time) {
+        if (mMediaPlayer == null) return;
         try {
             mMediaPlayer.seekTo((int) time);
         } catch (IllegalStateException e) {
@@ -246,12 +249,12 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
 
     @Override
     public long getCurrentPosition() {
-        return mMediaPlayer.getCurrentPosition();
+        return mMediaPlayer == null ? 0 : mMediaPlayer.getCurrentPosition();
     }
 
     @Override
     public long getDuration() {
-        return mMediaPlayer.getDuration();
+        return mMediaPlayer == null ? 0 : mMediaPlayer.getDuration();
     }
 
     @Override
@@ -261,37 +264,47 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
 
     @Override
     public void setSurface(Surface surface) {
-        mMediaPlayer.setSurface(surface);
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setSurface(surface);
+        }
     }
 
     @Override
     public void setDisplay(SurfaceHolder holder) {
-        mMediaPlayer.setDisplay(holder);
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setDisplay(holder);
+        }
     }
 
     @Override
     public void setVolume(float v1, float v2) {
-        mMediaPlayer.setVolume(v1, v2);
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setVolume(v1, v2);
+        }
     }
 
     @Override
     public void setLooping(boolean isLooping) {
-        mMediaPlayer.setLooping(isLooping);
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setLooping(isLooping);
+        }
     }
 
     @Override
     public void setSpeed(float speed) {
-        mMediaPlayer.setSpeed(speed);
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setSpeed(speed);
+        }
     }
 
     @Override
     public float getSpeed() {
-        return mMediaPlayer.getSpeed(0);
+        return mMediaPlayer == null ? 1f : mMediaPlayer.getSpeed(0);
     }
 
     @Override
     public long getTcpSpeed() {
-        return mMediaPlayer.getTcpSpeed();
+        return mMediaPlayer == null ? 0 : mMediaPlayer.getTcpSpeed();
     }
 
     @Override

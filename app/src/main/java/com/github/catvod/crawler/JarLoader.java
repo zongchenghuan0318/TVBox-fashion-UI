@@ -89,6 +89,10 @@ public class JarLoader {
         return false;
     }
 
+    public Spider getSpiderByKey(String key) {
+        return key == null ? null : spidersMap.get(key);
+    }
+
     public Spider getSpider(String key, String cls, String ext) {
         return getSpider(key, cls, ext, "");
     }

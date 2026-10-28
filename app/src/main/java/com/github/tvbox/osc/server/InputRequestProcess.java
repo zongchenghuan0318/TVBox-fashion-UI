@@ -38,16 +38,25 @@ public class InputRequestProcess implements RequestProcess {
 
                     switch (action) {
                         case "search": {
-                            mDataReceiver.onTextReceived(params.get("word").trim());
+                            String word = params.get("word");
+                            if (word != null) {
+                                mDataReceiver.onTextReceived(word.trim());
+                            }
                             break;
                         }
                         case "api": {
-                            mDataReceiver.onApiReceived(params.get("url").trim());
+                            String url = params.get("url");
+                            if (url != null) {
+                                mDataReceiver.onApiReceived(url.trim());
+                            }
                             break;
                         }
                         case "push": {
                             // 暂未实现
-                            mDataReceiver.onPushReceived(params.get("url").trim());
+                            String url = params.get("url");
+                            if (url != null) {
+                                mDataReceiver.onPushReceived(url.trim());
+                            }
                             break;
                         }
                     }

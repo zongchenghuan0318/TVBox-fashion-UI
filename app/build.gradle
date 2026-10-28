@@ -47,7 +47,7 @@ android {
         // Chaquopy Python 引擎（对齐 v6.1.7 的 Python 爬虫载荷）
         python {
             // host 构建用 Python 3.8（便携免安装版，仅存于 E 盘）
-            buildPython "E:/TraeREA/Python38/tools/python.exe"
+            buildPython "E:/code-tools/TraeREA/Python38/tools/python.exe"
             pip {
                 install "requests==2.32.4"
                 install "urllib3==2.2.3"
@@ -171,15 +171,9 @@ dependencies {
     implementation 'com.owen:tv-recyclerview:3.0.0'
     implementation 'com.github.getActivity:XXPermissions:13.6'
 
-    compile "com.github.bumptech.glide:glide:3.7.0"
-
-    compile 'com.liulishuo.filedownloader:library:1.7.7'//downloader
-
-    //添加Room依赖
-    implementation 'androidx.room:room-runtime:2.2.5'
-    annotationProcessor 'androidx.room:room-compiler:2.2.5'
-
-    compile 'com.lzy.net:okgo:3.0.4'
+    implementation "com.github.bumptech.glide:glide:3.7.0"
+    implementation 'com.liulishuo.filedownloader:library:1.7.7'//downloader
+    implementation 'com.lzy.net:okgo:3.0.4'
 
     // QuickJS JS 引擎（对齐 v6.1.7 的 JS 爬虫，包名 com.whl.quickjs.wrapper）
     implementation 'wang.harlon.quickjs:wrapper-android:2.4.5'

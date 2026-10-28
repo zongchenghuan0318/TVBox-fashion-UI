@@ -1176,7 +1176,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         Glide.with(mContext)
-                .load(GlideImg.model(nextVod.pic))
+                .load(GlideImg.heroModel(nextVod.pic))
                 .override(width, height)
                 .bitmapTransform(new SharpenTransformation(mContext))
                 .preload(width, height);
@@ -1240,7 +1240,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         final int width = mHeroBackdrop.getWidth();
         final int height = mHeroBackdrop.getHeight();
         DrawableRequestBuilder<Object> request = Glide.with(mContext)
-                .load(GlideImg.model(pic))
+                .load(GlideImg.heroModel(pic))
                 .error(R.drawable.shape_home_hero_placeholder)
                 .dontAnimate();
         if (mLowPowerHome) {

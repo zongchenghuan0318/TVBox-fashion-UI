@@ -695,6 +695,9 @@ public class ApiConfig {
         L.d("parseSiteFile() start");
         try {
             mSiteBeanMap.clear();
+            AdBlocker.clear();
+            mBaseLoader.clear();
+            mSiteJarPaths.clear();
             JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
             mSpider = DefaultConfig.safeJsonString(jsonObject, "spider", "");
             L.d("mSpider=" + mSpider);
@@ -817,7 +820,10 @@ public class ApiConfig {
                 mIjkCodes.add(codec);
                 L.d("IJK name=" + codec.getName());
             }
-            if (!foundOldSelect && mIjkCodes.size() > 0) {
+            if (mIjkCodes.isEmpty()) {
+                mIjkCodes.addAll(getDefaultIjkCodes(ijkCodec));
+                foundOldSelect = true;
+            } else if (!foundOldSelect && mIjkCodes.size() > 0) {
                 mIjkCodes.get(0).selected(true);
             }
         } catch (Exception e) {
@@ -1602,23 +1608,74 @@ public class ApiConfig {
         return mLiveChannelGroupList;
     }
 
+    public List<IJKCode> getDefaultIjkCodes(String selectedName) {
+        List<IJKCode> list = new ArrayList<>();
+
+        // 硬解码 (Hardware decoding with low-latency and anti-stutter defaults)
+        IJKCode hardCodec = new IJKCode();
+        hardCodec.setName("硬解码");
+        LinkedHashMap<String, String> hardOpt = new LinkedHashMap<>();
+        hardOpt.put("4|mediacodec", "1");
+        hardOpt.put("4|mediacodec-auto-rotate", "1");
+        hardOpt.put("4|mediacodec-handle-resolution-change", "1");
+        hardOpt.put("4|mediacodec-hevc", "1");
+        hardOpt.put("4|framedrop", "1");
+        hardOpt.put("4|start-on-prepared", "1");
+        hardOpt.put("1|http-detect-range-support", "0");
+        hardOpt.put("1|dns_cache_clear", "1");
+        hardOpt.put("1|reconnect", "1");
+        hardOpt.put("4|max-buffer-size", "15728640");
+        hardOpt.put("1|analyzeduration", "2000000");
+        hardOpt.put("1|probesize", "1048576");
+        hardCodec.setOption(hardOpt);
+
+        // 软解码 (Software decoding with low-latency and anti-stutter defaults)
+        IJKCode softCodec = new IJKCode();
+        softCodec.setName("软解码");
+        LinkedHashMap<String, String> softOpt = new LinkedHashMap<>();
+        softOpt.put("4|mediacodec", "0");
+        softOpt.put("4|framedrop", "1");
+        softOpt.put("4|start-on-prepared", "1");
+        softOpt.put("1|http-detect-range-support", "0");
+        softOpt.put("1|dns_cache_clear", "1");
+        softOpt.put("1|reconnect", "1");
+        softOpt.put("4|max-buffer-size", "15728640");
+        softOpt.put("1|analyzeduration", "2000000");
+        softOpt.put("1|probesize", "1048576");
+        softCodec.setOption(softOpt);
+
+        if ("硬解码".equals(selectedName)) {
+            hardCodec.selected(true);
+            softCodec.selected(false);
+        } else {
+            softCodec.selected(true);
+            hardCodec.selected(false);
+        }
+        list.add(hardCodec);
+        list.add(softCodec);
+        return list;
+    }
+
     public List<IJKCode> getmIjkCodes() {
+        if (NullUtil.isNull(mIjkCodes) || mIjkCodes.isEmpty()) {
+            mIjkCodes = getDefaultIjkCodes(Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
+        }
         return mIjkCodes;
     }
 
     public IJKCode getCurrentIJKCode() {
-        String codeName = Hawk.get(HawkConfig.IJK_CODEC, "");
+        String codeName = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
         return getIJKCodec(codeName);
     }
 
     public IJKCode getIJKCodec(String name) {
-        if(NullUtil.isNull(mIjkCodes)){
-            return new IJKCode();
+        if (NullUtil.isNull(mIjkCodes) || mIjkCodes.isEmpty()) {
+            mIjkCodes = getDefaultIjkCodes(name);
         }
         for (IJKCode code : mIjkCodes) {
-            if (code.getName().equals(name))
+            if (code != null && code.getName() != null && code.getName().equals(name))
                 return code;
         }
-        return mIjkCodes.get(0);
+        return mIjkCodes.isEmpty() ? new IJKCode() : mIjkCodes.get(0);
     }
 }
