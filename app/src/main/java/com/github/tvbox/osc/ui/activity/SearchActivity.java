@@ -57,7 +57,9 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -89,6 +91,12 @@ public class SearchActivity extends BaseActivity {
     private SPDataUtil spDataUtil = null;
     public ExecutorService mExecutorService;
     private final List<Future<?>> searchTasks = new ArrayList<>();
+    private final ExecutorService resultExecutor = Executors.newSingleThreadExecutor();
+    private final List<Movie.Video> pendingResults = new ArrayList<>();
+    private final Map<String, Integer> sourceOrder = new HashMap<>();
+    private boolean resultMergeRunning;
+    private int resultGeneration;
+    private final Runnable mergeResults = this::mergePendingResults;
     private volatile int searchRequestId;
     private int searchSourceCount;
     private int completedSearchSources;
@@ -127,7 +135,9 @@ public class SearchActivity extends BaseActivity {
     @Override
     protected void init() {
         spDataUtil = new SPDataUtil(SearchActivity.this);
-        mExecutorService = Executors.newFixedThreadPool(5);
+        // 扩大到 12 线程：避免多源并发时慢速源把所有槽位占满，饿死后续高速源
+        int cores = Runtime.getRuntime().availableProcessors();
+        mExecutorService = Executors.newFixedThreadPool(Math.min(12, Math.max(8, cores * 2)));
         initView();
         initViewModel();
         initData();
@@ -604,6 +614,8 @@ public class SearchActivity extends BaseActivity {
         }
         searchSourceCount = siteBeans.size();
         activeSearchSites = new ArrayList<>(siteBeans);
+        sourceOrder.clear();
+        for (int i = 0; i < siteBeans.size(); i++) sourceOrder.put(siteBeans.get(i).getKey(), i);
         respondedSourceKeys.clear();
         updateSearchProgress(false);
         submitSearchSources(siteBeans);
@@ -635,6 +647,17 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void retryUnresponsiveSources() {
+        if (resultMergeRunning || !pendingResults.isEmpty()) {
+            if (!resultMergeRunning) {
+                searchHandler.removeCallbacks(mergeResults);
+                mergePendingResults();
+            }
+            final int generation = resultGeneration;
+            searchHandler.postDelayed(() -> {
+                if (generation == resultGeneration) retryUnresponsiveSources();
+            }, 100L);
+            return;
+        }
         List<SiteBean> pending = getUnresponsiveSites();
         if (pending.isEmpty()) {
             tvRetrySearch.setVisibility(View.GONE);
@@ -654,6 +677,10 @@ public class SearchActivity extends BaseActivity {
 
     private void stopSearchRequests() {
         searchFinished = true;
+        resultGeneration++;
+        pendingResults.clear();
+        resultMergeRunning = false;
+        searchHandler.removeCallbacks(mergeResults);
         searchHandler.removeCallbacks(searchTimeout);
         OkGo.getInstance().cancelTag("search");
         for (Future<?> task : searchTasks) {
@@ -693,30 +720,48 @@ public class SearchActivity extends BaseActivity {
         if (absXml == null || absXml.movie == null || NullUtil.isNull(absXml.movie.videoList)) return;
         List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
         if (videos == null || videos.isEmpty()) return;
-        List<Movie.Video> old = new ArrayList<>(searchResultAdapter.getData());
-        List<Movie.Video> merged = new ArrayList<>(old);
-        merged.addAll(videos);
-        // 每批搜索结果返回后都重新排序，避免后返回的高优先级源被追加到列表末尾。
-        Collections.sort(merged, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
-                - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
-        DiffUtil.DiffResult changes = DiffUtil.calculateDiff(new DiffUtil.Callback() {
-            @Override public int getOldListSize() { return old.size(); }
-            @Override public int getNewListSize() { return merged.size(); }
-            @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
-                // Existing results keep their object identity while new source results are inserted.
-                return old.get(oldPosition) == merged.get(newPosition);
-            }
-            @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
-                return true;
-            }
-        });
-        searchResultAdapter.getData().clear();
-        searchResultAdapter.getData().addAll(merged);
-        changes.dispatchUpdatesTo(searchResultAdapter);
-        if (searchResultAdapter.getData().size() >= 1) {
-            showSuccess();
-            mSearchResultRV.setVisibility(View.VISIBLE);
+        pendingResults.addAll(videos);
+        if (!resultMergeRunning) {
+            searchHandler.removeCallbacks(mergeResults);
+            searchHandler.postDelayed(mergeResults, 200L);
         }
+    }
+
+    private void mergePendingResults() {
+        if (resultMergeRunning || pendingResults.isEmpty() || isFinishing() || isDestroyed() || resultExecutor.isShutdown()) return;
+        resultMergeRunning = true;
+        final int generation = resultGeneration;
+        final List<Movie.Video> old = new ArrayList<>(searchResultAdapter.getData());
+        final List<Movie.Video> merged = new ArrayList<>(old);
+        merged.addAll(pendingResults);
+        pendingResults.clear();
+        final Map<String, Integer> order = new HashMap<>(sourceOrder);
+        resultExecutor.execute(() -> {
+            Collections.sort(merged, (a, b) -> Integer.compare(
+                    order.containsKey(a.sourceKey) ? order.get(a.sourceKey) : Integer.MAX_VALUE,
+                    order.containsKey(b.sourceKey) ? order.get(b.sourceKey) : Integer.MAX_VALUE));
+            DiffUtil.DiffResult changes = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+                @Override public int getOldListSize() { return old.size(); }
+                @Override public int getNewListSize() { return merged.size(); }
+                @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                    return old.get(oldPosition) == merged.get(newPosition);
+                }
+                @Override public boolean areContentsTheSame(int oldPosition, int newPosition) { return true; }
+            });
+            searchHandler.post(() -> {
+                if (generation != resultGeneration || isFinishing() || isDestroyed()) return;
+                searchResultAdapter.getData().clear();
+                searchResultAdapter.getData().addAll(merged);
+                changes.dispatchUpdatesTo(searchResultAdapter);
+                resultMergeRunning = false;
+                if (!merged.isEmpty()) {
+                    showSuccess();
+                    mSearchResultRV.setVisibility(View.VISIBLE);
+                }
+                updateSearchProgress(searchFinished && completedSearchSources < searchSourceCount);
+                if (!pendingResults.isEmpty()) searchHandler.postDelayed(mergeResults, 200L);
+            });
+        });
     }
 
     @Override
@@ -730,5 +775,6 @@ public class SearchActivity extends BaseActivity {
         if (mExecutorService != null) {
             mExecutorService.shutdownNow();
         }
+        resultExecutor.shutdownNow();
     }
 }

@@ -3,7 +3,7 @@ package com.github.tvbox.osc.ui.activity;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
-import android.view.animation.BounceInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,6 +41,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     private TipDialog mClearDialog = null;
     private UndoBar undoBar;
     private boolean delMode = false;
+    private int loadGeneration;
 
     @Override
     protected int getLayoutResID() {
@@ -74,12 +75,14 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     }
 
     private void deleteHistoryItem(int position) {
+        loadGeneration++;
         VodInfo vodInfo = historyAdapter.getData().get(position);
         if (vodInfo == null) return;
         historyAdapter.remove(position);
         RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
         updateDeleteButtons();
         getUndoBar().show("已删除观看记录", () -> {
+            loadGeneration++;
             RoomDataManger.insertVodRecord(vodInfo.sourceKey, vodInfo);
             int restorePosition = Math.min(position, historyAdapter.getData().size());
             historyAdapter.addData(restorePosition, vodInfo);
@@ -154,12 +157,14 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
 
             @Override
@@ -191,9 +196,15 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     }
 
     private void initData() {
-        List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
-        historyAdapter.setNewData(allVodRecord);
-        updateDeleteButtons();
+        final int generation = ++loadGeneration;
+        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            List<VodInfo> records = RoomDataManger.getAllVodRecord(100);
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || generation != loadGeneration) return;
+                historyAdapter.setNewData(records);
+                updateDeleteButtons();
+            });
+        });
     }
 
     /**

@@ -23,8 +23,7 @@ import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 import com.google.android.exoplayer2.util.Util;
 
 import java.io.File;
-import java.lang.reflect.Field;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.Map;
 
 import okhttp3.OkHttpClient;
@@ -35,7 +34,6 @@ public final class ExoMediaSourceHelper {
 
     private final String mUserAgent;
     private final Context mAppContext;
-    private OkHttpDataSource.Factory mHttpDataSourceFactory;
     private OkHttpClient mOkClient = null;
     private Cache mCache;
 
@@ -80,13 +78,13 @@ public final class ExoMediaSourceHelper {
             return new RtspMediaSource.Factory().createMediaSource(MediaItem.fromUri(contentUri));
         }
         int contentType = inferContentType(uri);
+        DataSource.Factory upstream = getDataSourceFactory(headers);
         DataSource.Factory factory;
         if (isCache) {
-            factory = getCacheDataSourceFactory();
+            factory = getCacheDataSourceFactory(upstream);
         } else {
-            factory = getDataSourceFactory();
+            factory = upstream;
         }
-        setHeaders(headers);
         switch (contentType) {
             case C.TYPE_DASH:
                 return new DashMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
@@ -111,13 +109,13 @@ public final class ExoMediaSourceHelper {
         }
     }
 
-    private DataSource.Factory getCacheDataSourceFactory() {
+    private synchronized DataSource.Factory getCacheDataSourceFactory(DataSource.Factory upstream) {
         if (mCache == null) {
             mCache = newCache();
         }
         return new CacheDataSource.Factory()
                 .setCache(mCache)
-                .setUpstreamDataSourceFactory(getDataSourceFactory())
+                .setUpstreamDataSourceFactory(upstream)
                 .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
     }
 
@@ -133,8 +131,8 @@ public final class ExoMediaSourceHelper {
      *
      * @return A new DataSource factory.
      */
-    private DataSource.Factory getDataSourceFactory() {
-        return new DefaultDataSourceFactory(mAppContext, getHttpDataSourceFactory());
+    private DataSource.Factory getDataSourceFactory(Map<String, String> headers) {
+        return new DefaultDataSourceFactory(mAppContext, getHttpDataSourceFactory(headers));
     }
 
     /**
@@ -142,45 +140,28 @@ public final class ExoMediaSourceHelper {
      *
      * @return A new HttpDataSource factory.
      */
-    private DataSource.Factory getHttpDataSourceFactory() {
-        if (mHttpDataSourceFactory == null) {
-            mHttpDataSourceFactory = new OkHttpDataSource.Factory(mOkClient)
-                    .setUserAgent(mUserAgent)/*
-                    .setAllowCrossProtocolRedirects(true)*/;
-        }
-        return mHttpDataSourceFactory;
-    }
-
-    private void setHeaders(Map<String, String> headers) {
-        if (mHttpDataSourceFactory == null) return;
-        if (headers != null && headers.size() > 0) {
-            //如果发现用户通过header传递了UA，则强行将HttpDataSourceFactory里面的userAgent字段替换成用户的
-            if (headers.containsKey("User-Agent")) {
-                String value = headers.remove("User-Agent");
-                if (!TextUtils.isEmpty(value)) {
-                    try {
-                        Field userAgentField = mHttpDataSourceFactory.getClass().getDeclaredField("userAgent");
-                        userAgentField.setAccessible(true);
-                        userAgentField.set(mHttpDataSourceFactory, value.trim());
-                    } catch (Exception e) {
-                        //ignore
-                    }
+    private DataSource.Factory getHttpDataSourceFactory(Map<String, String> headers) {
+        String userAgent = mUserAgent;
+        Map<String, String> properties = new HashMap<>();
+        if (headers != null) {
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                if (key == null || value == null) continue;
+                if ("User-Agent".equalsIgnoreCase(key)) {
+                    if (!TextUtils.isEmpty(value.trim())) userAgent = value.trim();
+                } else {
+                    properties.put(key, value.trim());
                 }
             }
-            Iterator<String> iter = headers.keySet().iterator();
-            while (iter.hasNext()) {
-                String k = iter.next();
-                String v = headers.get(k);
-                if (v != null)
-                    headers.put(k, v.trim());
-            }
-            mHttpDataSourceFactory.setDefaultRequestProperties(headers);
-        } else {
-            mHttpDataSourceFactory.setDefaultRequestProperties(java.util.Collections.emptyMap());
         }
+        okhttp3.Call.Factory callFactory = mOkClient != null ? mOkClient : new OkHttpClient();
+        return new OkHttpDataSource.Factory(callFactory)
+                .setUserAgent(userAgent)
+                .setDefaultRequestProperties(properties);
     }
 
-    public void setCache(Cache cache) {
+    public synchronized void setCache(Cache cache) {
         this.mCache = cache;
     }
 }

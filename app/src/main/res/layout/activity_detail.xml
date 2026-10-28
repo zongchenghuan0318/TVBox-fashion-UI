@@ -244,6 +244,19 @@
             app:tv_selectedItemIsCentered="true" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/seriesRangeRV"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_45"
+            android:layout_marginLeft="@dimen/vs_50"
+            android:layout_marginTop="@dimen/vs_8"
+            android:layout_marginRight="@dimen/vs_50"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:visibility="gone"
+            app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
+            app:tv_selectedItemIsCentered="true" />
+
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/seriesRV"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

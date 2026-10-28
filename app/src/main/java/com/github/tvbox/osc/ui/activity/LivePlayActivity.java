@@ -88,12 +88,23 @@ public class LivePlayActivity extends BaseActivity {
     private int groupIndex = 0;
     private int channelIndex = -1;
     private int sourceTimes = 0;
+    private int pendingGroupIndex = -1;
+    private int pendingChannelIndex = -1;
     private LiveChannelItem currentLiveChannelItem = null;
     private boolean liveScreenResumed;
     private LivePlayerManager livePlayerManager;
     private final ArrayList<Integer> mPasswordConfirmedList = new ArrayList<>();
     private long mBegin = 0;
     private long firstTimes = 0;
+
+    private TextView tvDigitalNum;
+    private final StringBuilder mDigitChannelBuffer = new StringBuilder();
+    private final Runnable mCommitDigitalTuneRun = new Runnable() {
+        @Override
+        public void run() {
+            commitDigitalTune();
+        }
+    };
 
     @Override
     protected int getLayoutResID() {
@@ -116,6 +127,7 @@ public class LivePlayActivity extends BaseActivity {
         mSettingRV = findViewById(R.id.mSettingGroupView);
         mSettingItemRV = findViewById(R.id.mSettingItemView);
         tvChannelInfo = findViewById(R.id.tvChannel);
+        tvDigitalNum = findViewById(R.id.tvDigitalNum);
         tvTime = findViewById(R.id.tvTime);
         tvNetSpeed = findViewById(R.id.tvNetSpeed);
 
@@ -146,37 +158,66 @@ public class LivePlayActivity extends BaseActivity {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
             if (keyCode == KeyEvent.KEYCODE_MENU) {
+                if (mDigitChannelBuffer.length() > 0) {
+                    cancelDigitalTune();
+                }
                 showSettingGroup();
             } else if (!isListOrSettingLayoutVisible()) {
+                if (isNumberKey(keyCode)) {
+                    handleNumberInput(getNumberFromKey(keyCode));
+                    return true;
+                }
                 switch (keyCode) {
                     case KeyEvent.KEYCODE_DPAD_UP:
-                        if (Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false)) {
-                            playNext();
-                        } else {
-                            playPrevious();
+                        if (mDigitChannelBuffer.length() > 0) {
+                            cancelDigitalTune();
                         }
-                        break;
+                        if (Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false)) {
+                            queueAdjacentChannel(1);
+                        } else {
+                            queueAdjacentChannel(-1);
+                        }
+                        return true;
                     case KeyEvent.KEYCODE_DPAD_DOWN:
-                        if (Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false)) {
-                            playPrevious();
-                        } else {
-                            playNext();
+                        if (mDigitChannelBuffer.length() > 0) {
+                            cancelDigitalTune();
                         }
-                        break;
+                        if (Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false)) {
+                            queueAdjacentChannel(-1);
+                        } else {
+                            queueAdjacentChannel(1);
+                        }
+                        return true;
                     case KeyEvent.KEYCODE_DPAD_LEFT:
+                        if (mDigitChannelBuffer.length() > 0) {
+                            cancelDigitalTune();
+                        }
                         playPreSource();
-                        break;
+                        return true;
                     case KeyEvent.KEYCODE_DPAD_RIGHT:
+                        if (mDigitChannelBuffer.length() > 0) {
+                            cancelDigitalTune();
+                        }
                         playNextSource();
-                        break;
+                        return true;
                     case KeyEvent.KEYCODE_DPAD_CENTER:
                     case KeyEvent.KEYCODE_ENTER:
+                        if (mDigitChannelBuffer.length() > 0) {
+                            commitDigitalTune();
+                            return true;
+                        }
+                        showChannelList();
+                        return true;
                     case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                         showChannelList();
-                        break;
+                        return true;
                 }
             }
         } else if (event.getAction() == KeyEvent.ACTION_UP) {
+            int keyCode = event.getKeyCode();
+            if (isNumberKey(keyCode)) {
+                return true;
+            }
         }
         return super.dispatchKeyEvent(event);
     }
@@ -184,6 +225,9 @@ public class LivePlayActivity extends BaseActivity {
     @Override
     protected void onPause() {
         liveScreenResumed = false;
+        cancelPendingChannel();
+        cancelDigitalTune();
+        if (tvChannelInfo != null) tvChannelInfo.setVisibility(View.INVISIBLE);
         if (mHandler != null) {
             mHandler.removeCallbacks(mUpdateTimeRun);
             mHandler.removeCallbacks(mUpdateNetSpeedRun);
@@ -196,6 +240,10 @@ public class LivePlayActivity extends BaseActivity {
 
     @Override
     public void onBackPressed() {
+        if (mDigitChannelBuffer.length() > 0) {
+            cancelDigitalTune();
+            return;
+        }
         if (llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelListRun);
             mHandler.post(mHideChannelListRun);
@@ -234,6 +282,7 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private void showChannelList() {
+        if (pendingGroupIndex >= 0) playPendingChannel.run();
         if (rightSettingLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideSettingLayoutRun);
             mHandler.post(mHideSettingLayoutRun);
@@ -307,14 +356,18 @@ public class LivePlayActivity extends BaseActivity {
 
     @SuppressLint("RtlHardcoded")
     private void showChannelInfo() {
+        showChannelInfo(currentLiveChannelItem);
+    }
+
+    private void showChannelInfo(LiveChannelItem channel) {
         L.d("showChannelInfo()");
-        if(null == currentLiveChannelItem) return;
-        tvChannelInfo.setText(String.format(Locale.getDefault(), "%d %s %s(%d/%d)",
-                currentLiveChannelItem.getChannelNum(),
-                currentLiveChannelItem.getChannelName(),
-                currentLiveChannelItem.getSourceName(),
-                currentLiveChannelItem.getSourceIndex() + 1,
-                currentLiveChannelItem.getSourceNum()));
+        if (channel == null) return;
+        tvChannelInfo.setText(String.format(Locale.getDefault(), "%03d  %s  %s(%d/%d)",
+                channel.getChannelNum(),
+                channel.getChannelName(),
+                channel.getSourceName(),
+                channel.getSourceIndex() + 1,
+                channel.getSourceNum()));
 
         FrameLayout.LayoutParams lParams = new FrameLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         if (rightSettingLayout.getVisibility() == View.VISIBLE) {
@@ -340,10 +393,129 @@ public class LivePlayActivity extends BaseActivity {
         }
     };
 
+    private boolean isNumberKey(int keyCode) {
+        return (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9)
+                || (keyCode >= KeyEvent.KEYCODE_NUMPAD_0 && keyCode <= KeyEvent.KEYCODE_NUMPAD_9);
+    }
+
+    private int getNumberFromKey(int keyCode) {
+        if (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9) {
+            return keyCode - KeyEvent.KEYCODE_0;
+        } else if (keyCode >= KeyEvent.KEYCODE_NUMPAD_0 && keyCode <= KeyEvent.KEYCODE_NUMPAD_9) {
+            return keyCode - KeyEvent.KEYCODE_NUMPAD_0;
+        }
+        return -1;
+    }
+
+    private void handleNumberInput(int digit) {
+        if (digit < 0) return;
+        cancelPendingChannel();
+        if (mDigitChannelBuffer.length() >= 4) {
+            mDigitChannelBuffer.setLength(0);
+        }
+        mDigitChannelBuffer.append(digit);
+        try {
+            int targetNum = Integer.parseInt(mDigitChannelBuffer.toString());
+            LiveChannelItem candidate = findChannelItemByNum(targetNum);
+            if (tvDigitalNum != null) {
+                if (candidate != null) {
+                    tvDigitalNum.setText(String.format(Locale.getDefault(), "%s  %s", mDigitChannelBuffer.toString(), candidate.getChannelName()));
+                } else {
+                    tvDigitalNum.setText(mDigitChannelBuffer.toString());
+                }
+                tvDigitalNum.setVisibility(View.VISIBLE);
+            }
+            if (tvChannelInfo != null) {
+                tvChannelInfo.setVisibility(View.INVISIBLE);
+            }
+        } catch (Exception ignored) {
+        }
+        mHandler.removeCallbacks(mCommitDigitalTuneRun);
+        mHandler.postDelayed(mCommitDigitalTuneRun, 1500L);
+    }
+
+    private void cancelDigitalTune() {
+        mDigitChannelBuffer.setLength(0);
+        mHandler.removeCallbacks(mCommitDigitalTuneRun);
+        if (tvDigitalNum != null) {
+            tvDigitalNum.setVisibility(View.GONE);
+        }
+    }
+
+    private void commitDigitalTune() {
+        mHandler.removeCallbacks(mCommitDigitalTuneRun);
+        if (tvDigitalNum != null) {
+            tvDigitalNum.setVisibility(View.GONE);
+        }
+        if (mDigitChannelBuffer.length() == 0) return;
+        int targetNum;
+        try {
+            targetNum = Integer.parseInt(mDigitChannelBuffer.toString());
+        } catch (Exception e) {
+            mDigitChannelBuffer.setLength(0);
+            return;
+        }
+        mDigitChannelBuffer.setLength(0);
+
+        Integer[] target = findChannelByNum(targetNum);
+        if (target != null) {
+            int targetGroup = target[0];
+            int targetChannel = target[1];
+            liveGroupAdapter.setSelectedGroupIndex(targetGroup);
+            if (isNeedInputPassword(targetGroup)) {
+                showPasswordDialog(targetGroup, targetChannel);
+            } else {
+                loadChannelGroupDataAndPlay(targetGroup, targetChannel);
+            }
+        } else {
+            Toast.makeText(this, "未找到频道 " + targetNum, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private Integer[] findChannelByNum(int targetNum) {
+        if (mChannelGroupList == null || mChannelGroupList.isEmpty()) return null;
+        if (groupIndex >= 0 && groupIndex < mChannelGroupList.size()) {
+            ArrayList<LiveChannelItem> currentChannels = getGroupLiveChannels(groupIndex);
+            if (currentChannels != null) {
+                for (int i = 0; i < currentChannels.size(); i++) {
+                    LiveChannelItem item = currentChannels.get(i);
+                    if (item != null && item.getChannelNum() == targetNum) {
+                        return new Integer[]{groupIndex, i};
+                    }
+                }
+            }
+        }
+        for (int g = 0; g < mChannelGroupList.size(); g++) {
+            if (g == groupIndex) continue;
+            ArrayList<LiveChannelItem> channels = getGroupLiveChannels(g);
+            if (channels != null) {
+                for (int i = 0; i < channels.size(); i++) {
+                    LiveChannelItem item = channels.get(i);
+                    if (item != null && item.getChannelNum() == targetNum) {
+                        return new Integer[]{g, i};
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private LiveChannelItem findChannelItemByNum(int targetNum) {
+        Integer[] pos = findChannelByNum(targetNum);
+        if (pos != null) {
+            ArrayList<LiveChannelItem> channels = getGroupLiveChannels(pos[0]);
+            if (channels != null && pos[1] >= 0 && pos[1] < channels.size()) {
+                return channels.get(pos[1]);
+            }
+        }
+        return null;
+    }
+
     private boolean playChannel(int group, int channel, boolean bChangeSource) {
         L.d("playChannel() group=" + group + " channel=" + channel
                 + "\tchangeSource=" + bChangeSource);
         if (!isActivityActive() || mVideoView == null) return false;
+        cancelPendingChannel();
         LiveChannelItem targetChannel = currentLiveChannelItem;
         if (bChangeSource) {
             if (targetChannel == null) return false;
@@ -381,14 +553,38 @@ public class LivePlayActivity extends BaseActivity {
         return true;
     }
 
-    private void playNext() {
-        if (!isCurrentLiveChannelValid()) return;
-        playAdjacentChannel(1);
+    private final Runnable playPendingChannel = () -> {
+        if (!liveScreenResumed || pendingGroupIndex < 0) return;
+        int group = pendingGroupIndex;
+        int channel = pendingChannelIndex;
+        playChannel(group, channel, false);
+    };
+
+    private void cancelPendingChannel() {
+        if (mHandler != null) mHandler.removeCallbacks(playPendingChannel);
+        pendingGroupIndex = -1;
+        pendingChannelIndex = -1;
     }
 
-    private void playPrevious() {
+    private void queueAdjacentChannel(int direction) {
         if (!isCurrentLiveChannelValid()) return;
-        playAdjacentChannel(-1);
+        int group = pendingGroupIndex >= 0 ? pendingGroupIndex : groupIndex;
+        int channel = pendingGroupIndex >= 0 ? pendingChannelIndex : channelIndex;
+        Integer[] next = getNextGroupChannel(direction, group, channel);
+        if (next == null) {
+            Toast.makeText(this, "没有其他可播放频道", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        LiveChannelItem target = getGroupLiveChannels(next[0]).get(next[1]);
+        if (target == null || target.getSourceNum() <= 0) {
+            Toast.makeText(this, "该频道没有可用线路", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        pendingGroupIndex = next[0];
+        pendingChannelIndex = next[1];
+        showChannelInfo(target);
+        mHandler.removeCallbacks(playPendingChannel);
+        mHandler.postDelayed(playPendingChannel, 400);
     }
 
     private void playAdjacentChannel(int direction) {
@@ -401,12 +597,14 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     public void playPreSource() {
+        if (pendingGroupIndex >= 0) playPendingChannel.run();
         if (!isCurrentLiveChannelValid()) return;
         currentLiveChannelItem.preSource();
         playChannel(groupIndex, channelIndex, true);
     }
 
     public void playNextSource() {
+        if (pendingGroupIndex >= 0) playPendingChannel.run();
         if (!isCurrentLiveChannelValid()) return;
         currentLiveChannelItem.nextSource();
         playChannel(groupIndex, channelIndex, true);
@@ -414,6 +612,7 @@ public class LivePlayActivity extends BaseActivity {
 
     //显示设置列表
     private void showSettingGroup() {
+        if (pendingGroupIndex >= 0) playPendingChannel.run();
         if (llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelListRun);
             mHandler.post(mHideChannelListRun);
@@ -547,6 +746,10 @@ public class LivePlayActivity extends BaseActivity {
 
     private Runnable mConnectTimeoutChangeSourceRun = () -> {
         if (!isActivityActive() || mVideoView == null || currentLiveChannelItem == null) return;
+        if (pendingGroupIndex >= 0) {
+            deferConnectTimeout();
+            return;
+        }
         sourceTimes++;
         if (currentLiveChannelItem.getSourceNum() <= sourceTimes) {
             sourceTimes = 0;
@@ -555,6 +758,10 @@ public class LivePlayActivity extends BaseActivity {
             playNextSource();
         }
     };
+
+    private void deferConnectTimeout() {
+        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, 400);
+    }
 
     private void initChannelGroupView() {
         L.d("initChannelGroupView()");
@@ -1175,7 +1382,6 @@ public class LivePlayActivity extends BaseActivity {
             clickLiveChannel(liveChannelIndex);
             mChannelRV.scrollToPosition(groupIndex);
             mLiveRV.scrollToPosition(liveChannelIndex);
-            playChannel(groupIndex, liveChannelIndex, false);
         }
     }
 
@@ -1207,6 +1413,10 @@ public class LivePlayActivity extends BaseActivity {
     }
 
     private Integer[] getNextGroupChannel(int direction) {
+        return getNextGroupChannel(direction, groupIndex, channelIndex);
+    }
+
+    private Integer[] getNextGroupChannel(int direction, int groupIndex, int channelIndex) {
         if (mChannelGroupList == null || mChannelGroupList.isEmpty()
                 || groupIndex < 0 || groupIndex >= mChannelGroupList.size()) return null;
         int step = direction >= 0 ? 1 : -1;

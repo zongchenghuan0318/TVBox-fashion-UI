@@ -9,7 +9,6 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
-import android.view.animation.BounceInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -151,6 +150,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private volatile boolean mViewActive;
     private volatile boolean mHeroVisible;
     private volatile int mFeedRequestId;
+    private boolean mHistoryLoadPending;
     private boolean mFeedCancelled;
 
     // 首页静置自动轮播：电视按键或手机触摸结束后，连续无操作 6 秒才切换
@@ -530,7 +530,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     protected void onFragmentResume() {
         mViewActive = true;
         refreshHomeMode();
-        if (mFeedCancelled && mAdapter != null && mAdapter.getData().isEmpty()) {
+        if (mFeedCancelled && mAdapter != null && (mHistoryLoadPending || mAdapter.getData().isEmpty())) {
             getVideos();
         }
         scheduleAutoScroll();
@@ -552,6 +552,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     @Override
     public void onDestroyView() {
         mViewActive = false;
+        mHistoryLoadPending = false;
         mFeedRequestId++;
         if (mSourceViewModel != null) {
             mSourceViewModel.cancelHomeRequests();
@@ -716,6 +717,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void getVideos() {
         mFeedCancelled = false;
+        mHistoryLoadPending = false;
         final int requestId = ++mFeedRequestId;
         int homeSource = Hawk.get(HawkConfig.HOME_REC, 0);
         L.w("homeFeed start homeSource=" + homeSource
@@ -735,31 +737,39 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         } else if (homeSource == 2) {
             //历史
-            List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
-            List<Movie.Video> vodList = new ArrayList<>();
-            for (VodInfo vodInfo : allVodRecord) {
-                Movie.Video vod = new Movie.Video();
-                vod.id = vodInfo.id;
-                vod.sourceKey = vodInfo.sourceKey;
-                vod.name = vodInfo.name;
-                vod.pic = vodInfo.pic;
-                if (vodInfo.playNote != null && !vodInfo.playNote.isEmpty()) {
-                    vod.note = "上次看到" + vodInfo.playNote;
+            mHistoryLoadPending = true;
+            showLoading();
+            mExecutorService.submit(() -> {
+                List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
+                List<Movie.Video> vodList = new ArrayList<>();
+                for (VodInfo vodInfo : allVodRecord) {
+                    Movie.Video vod = new Movie.Video();
+                    vod.id = vodInfo.id;
+                    vod.sourceKey = vodInfo.sourceKey;
+                    vod.name = vodInfo.name;
+                    vod.pic = vodInfo.pic;
+                    if (vodInfo.playNote != null && !vodInfo.playNote.isEmpty()) {
+                        vod.note = "上次看到" + vodInfo.playNote;
+                    }
+                    vodList.add(vod);
                 }
-                vodList.add(vod);
-            }
-            setHeader("继续观看", vodList.isEmpty() ? "暂无播放记录" : "最近 " + vodList.size() + " 条播放记录");
-            showSuccess();
-            if (vodList.isEmpty()) {
-                //没有播放记录也不留白页，同样走兜底链
-                setHomeCards(vodList);
-                resetCarouselState();
-                loadHotRankFeed(requestId);
-            } else {
-                setHomeCards(vodList);
-                resetCarouselState();
-                bindHero(vodList.get(0));
-            }
+                mActivity.runOnUiThread(() -> {
+                    if (!isPageActive() || requestId != mFeedRequestId) return;
+                    mHistoryLoadPending = false;
+                    setHeader("继续观看", vodList.isEmpty() ? "暂无播放记录" : "最近 " + vodList.size() + " 条播放记录");
+                    showSuccess();
+                    if (vodList.isEmpty()) {
+                        //没有播放记录也不留白页，同样走兜底链
+                        setHomeCards(vodList);
+                        resetCarouselState();
+                        loadHotRankFeed(requestId);
+                    } else {
+                        setHomeCards(vodList);
+                        resetCarouselState();
+                        bindHero(vodList.get(0));
+                    }
+                });
+            });
         } else {
             //豆瓣推荐固定放在第一位；豆瓣被风控或断网时，loadDoubanRecommend 内部会依次
             //回落到本地缓存 → 主流热榜 → 站点推荐 → 聚合源，保证首页不留白
@@ -1466,10 +1476,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private View.OnFocusChangeListener focusChangeListener = new View.OnFocusChangeListener() {
         @Override
         public void onFocusChange(View v, boolean hasFocus) {
+            // TV 端焦点动画：用 DecelerateInterpolator 替换 BounceInterpolator，
+            // 时长从 300ms 压缩到 150ms，连按方向键不再出现视觉粘连抖动
             if (hasFocus) {
-                v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             } else {
-                v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
         }
     };

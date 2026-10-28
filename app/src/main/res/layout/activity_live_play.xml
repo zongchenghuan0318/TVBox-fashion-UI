@@ -105,11 +105,32 @@
         android:layout_marginRight="60mm"
         android:background="@drawable/shape_live_channel_num"
         android:gravity="center"
-        android:paddingTop="5mm"
-        android:paddingBottom="5mm"
+        android:paddingLeft="16mm"
+        android:paddingRight="16mm"
+        android:paddingTop="8mm"
+        android:paddingBottom="8mm"
         android:textColor="@android:color/white"
+        android:textSize="26mm"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvDigitalNum"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="right"
+        android:layout_marginTop="30mm"
+        android:layout_marginRight="60mm"
+        android:background="@drawable/shape_live_digital_num"
+        android:gravity="center"
+        android:paddingLeft="24mm"
+        android:paddingRight="24mm"
+        android:paddingTop="10mm"
+        android:paddingBottom="10mm"
+        android:textColor="#02F8E1"
         android:textSize="36mm"
         android:textStyle="bold"
+        android:singleLine="true"
         android:visibility="gone" />
 
     <TextView

@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class SpiderFm extends com.github.catvod.crawler.Spider {
 
@@ -55,16 +56,38 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
         executor.submit(runnable);
     }
 
-    private Object call(final String func, final Object... args) {
+    private <T> T await(Future<T> task) throws Exception {
         try {
-            return submit(new Callable<CompletableFuture<Object>>() {
+            return task.get(15, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+        } finally {
+            if (!task.isDone()) task.cancel(true);
+        }
+    }
+
+    private Object call(final String func, final Object... args) {
+        Future<CompletableFuture<Object>> task = null;
+        try {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+            task = submit(new Callable<CompletableFuture<Object>>() {
                 @Override
                 public CompletableFuture<Object> call() {
                     return Async.run(jsObject, func, args);
                 }
-            }).get().get();
+            });
+            CompletableFuture<Object> result = task.get(15, TimeUnit.SECONDS);
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0) return null;
+            return result.get(remaining, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
         } catch (Throwable e) {
             return null;
+        } finally {
+            if (task != null && !task.isDone()) task.cancel(true);
         }
     }
 
@@ -73,18 +96,23 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
         initializeJS();
         try {
             if (cat) {
-                call("init", submit(new Callable<JSObject>() {
+                call("init", await(submit(new Callable<JSObject>() {
                     @Override
                     public JSObject call() {
                         return cfg(extend);
                     }
-                }).get());
+                })));
                 return;
             }
             Object value = extend;
             try {
                 new JSONObject(extend);
-                value = ctx.parse(extend);
+                value = await(submit(new Callable<Object>() {
+                    @Override
+                    public Object call() {
+                        return ctx.parse(extend);
+                    }
+                }));
             } catch (Exception ignored) {
             }
             call("init", new Object[]{value});
@@ -105,12 +133,12 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
     @Override
     public String categoryContent(String tid, String pg, boolean filter, HashMap<String, String> extend) {
         try {
-            JSObject obj = submit(new Callable<JSObject>() {
+            JSObject obj = await(submit(new Callable<JSObject>() {
                 @Override
                 public JSObject call() {
                     return JSUtil.toObj(ctx, extend);
                 }
-            }).get();
+            }));
             return (String) call("category", tid, pg, filter, obj);
         } catch (Throwable e) {
             return "";
@@ -136,12 +164,12 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
     @Override
     public String playerContent(String flag, String id, List<String> vipFlags) {
         try {
-            JSArray array = submit(new Callable<JSArray>() {
+            JSArray array = await(submit(new Callable<JSArray>() {
                 @Override
                 public JSArray call() {
                     return JSUtil.toArray(ctx, vipFlags);
                 }
-            }).get();
+            }));
             return (String) call("play", flag, id, array);
         } catch (Throwable e) {
             return "";
@@ -184,14 +212,14 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
         } catch (Throwable ignored) {
         }
         try {
-            submit(new Callable<Object>() {
+            await(submit(new Callable<Object>() {
                 @Override
                 public Object call() {
                     if (jsObject != null) jsObject.release();
                     if (ctx != null) ctx.destroy();
                     return null;
                 }
-            }).get();
+            }));
         } catch (Throwable ignored) {
         } finally {
             executor.shutdownNow();
@@ -200,14 +228,14 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
 
     private void initializeJS() {
         try {
-            submit(new Callable<Object>() {
+            await(submit(new Callable<Object>() {
                 @Override
                 public Object call() {
                     createCtx();
                     createObj();
                     return null;
                 }
-            }).get();
+            }));
         } catch (Throwable ignored) {
         }
     }
@@ -261,21 +289,21 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
 
     public Object[] proxy1(final Map<String, String> params) {
         try {
-            JSObject object = submit(new Callable<JSObject>() {
+            JSObject object = await(submit(new Callable<JSObject>() {
                 @Override
                 public JSObject call() {
                     return JSUtil.toObj(ctx, params);
                 }
-            }).get();
+            }));
             Object result = call("proxy", object);
             if (!(result instanceof JSArray)) return null;
             final JSArray proxy = (JSArray) result;
-            String json = submit(new Callable<String>() {
+            String json = await(submit(new Callable<String>() {
                 @Override
                 public String call() {
                     return proxy.stringify();
                 }
-            }).get();
+            }));
             JSONArray array = new JSONArray(json);
             Map<String, String> headers = array.length() > 3 ? Json.toMap(array.optString(3)) : null;
             boolean base64 = array.length() > 4 && array.optInt(4) == 1;
@@ -294,18 +322,18 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
         try {
             final String url = params.get("url");
             final String header = params.get("header");
-            JSArray array = submit(new Callable<JSArray>() {
+            JSArray array = await(submit(new Callable<JSArray>() {
                 @Override
                 public JSArray call() {
                     return JSUtil.toArray(ctx, Arrays.asList(url.split("/")));
                 }
-            }).get();
-            Object object = submit(new Callable<Object>() {
+            }));
+            Object object = await(submit(new Callable<Object>() {
                 @Override
                 public Object call() {
                     return ctx.parse(header);
                 }
-            }).get();
+            }));
             Object result = call("proxy", array, object);
             Res res = Res.objectFrom(result == null ? "" : result.toString());
             Object[] objects = new Object[3];

@@ -5,7 +5,7 @@ import android.os.Parcelable;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
-import android.view.animation.BounceInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -163,13 +163,16 @@ public class GridFragment extends BaseLazyFragment {
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                // 150ms + DecelerateInterpolator：TV 遥控器连按不卡顿
+                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 if (position >= 0 && position < mGridAdapter.getData().size()) lastFocusedPosition = position;
-                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
 
             @Override

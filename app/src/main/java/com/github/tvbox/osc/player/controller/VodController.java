@@ -23,12 +23,14 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.github.tvbox.osc.api.ApiConfig;
+import com.github.tvbox.osc.bean.EpisodeRangeBean;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.player.thirdparty.MXPlayer;
 import com.github.tvbox.osc.player.thirdparty.ReexPlayer;
 import com.github.tvbox.osc.ui.adapter.PlayerEpisodeAdapter;
+import com.github.tvbox.osc.ui.adapter.PlayerEpisodeRangeAdapter;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.lcstudio.commonsurport.L;
@@ -36,6 +38,7 @@ import com.lcstudio.commonsurport.TimerMin;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
+import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 import com.studio.osc.R;
 
 import org.json.JSONException;
@@ -648,12 +651,85 @@ public class VodController extends BaseController {
         TextView current = panel.findViewById(R.id.episodeCurrent);
         current.setText(episodeName(mCurrentEpisode));
 
+        TvRecyclerView episodeRangeRV = panel.findViewById(R.id.episodeRangeRV);
         TvRecyclerView episodeGrid = panel.findViewById(R.id.episodeGrid);
         episodeGrid.setLayoutManager(new V7GridLayoutManager(mActivity, 3));
         PlayerEpisodeAdapter adapter = new PlayerEpisodeAdapter();
         adapter.setNewData(new ArrayList<>(mEpisodes));
         adapter.setCurrent(mCurrentEpisode);
         episodeGrid.setAdapter(adapter);
+
+        if (mEpisodes.size() > 30 && episodeRangeRV != null) {
+            episodeRangeRV.setVisibility(View.VISIBLE);
+            episodeRangeRV.setLayoutManager(new V7LinearLayoutManager(mActivity, 0, false));
+            PlayerEpisodeRangeAdapter rangeAdapter = new PlayerEpisodeRangeAdapter();
+            List<EpisodeRangeBean> rangeList = new ArrayList<>();
+            final int step = 30;
+            for (int i = 0; i < mEpisodes.size(); i += step) {
+                int start = i + 1;
+                int end = Math.min(i + step, mEpisodes.size());
+                rangeList.add(new EpisodeRangeBean(i, end - 1, start + "-" + end));
+            }
+            rangeAdapter.setNewData(rangeList);
+            int currentRange = mCurrentEpisode / step;
+            rangeAdapter.setSelectedIndex(currentRange);
+            episodeRangeRV.setAdapter(rangeAdapter);
+            episodeRangeRV.scrollToPosition(currentRange);
+
+            PlayerEpisodeRangeAdapter.OnItemClickListener rangeClickListener = (baseQuickAdapter, v, position) -> {
+                if (position >= 0 && position < rangeList.size()) {
+                    rangeAdapter.setSelectedIndex(position);
+                    EpisodeRangeBean item = rangeList.get(position);
+                    focusEpisodeItem(episodeGrid, dialog, item.startIndex, 0);
+                }
+            };
+            rangeAdapter.setOnItemClickListener(rangeClickListener);
+            episodeRangeRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
+                @Override
+                public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+                @Override
+                public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+                @Override
+                public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                    if (position >= 0 && position < rangeList.size()) {
+                        rangeAdapter.setSelectedIndex(position);
+                        EpisodeRangeBean item = rangeList.get(position);
+                        focusEpisodeItem(episodeGrid, dialog, item.startIndex, 0);
+                    }
+                }
+            });
+
+            episodeGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
+                @Override
+                public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+                @Override
+                public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
+                    if (position >= 0 && position < mEpisodes.size()) {
+                        int rIdx = position / step;
+                        if (rIdx != rangeAdapter.getSelectedIndex()) {
+                            rangeAdapter.setSelectedIndex(rIdx);
+                            episodeRangeRV.scrollToPosition(rIdx);
+                        }
+                    }
+                }
+
+                @Override
+                public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                    if (position != mCurrentEpisode) {
+                        mCurrentEpisode = position;
+                        updateEpisodeButton();
+                        controlListener.playEpisode(position);
+                    }
+                    dialog.dismiss();
+                }
+            });
+        } else {
+            if (episodeRangeRV != null) episodeRangeRV.setVisibility(View.GONE);
+        }
+
         adapter.setOnItemClickListener((baseQuickAdapter, view, position) -> {
             if (position != mCurrentEpisode) {
                 mCurrentEpisode = position;
@@ -1002,6 +1078,22 @@ public class VodController extends BaseController {
         int action = event.getAction();
         boolean seekBarFocused = mSeekBar != null && mSeekBar.hasFocus();
         if (action == KeyEvent.ACTION_DOWN) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (isBottomVisible()) {
+                    if (seekBarFocused) {
+                        hideBottom(true);
+                        return true;
+                    }
+                } else if (!bLocked) {
+                    if (mEpisodes != null && mEpisodes.size() > 1) {
+                        showEpisodeSelector();
+                        return true;
+                    } else {
+                        showBottom();
+                        return true;
+                    }
+                }
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 boolean canDirectSeek = !isBottomVisible() || seekBarFocused || (mPlayingBtn != null && mPlayingBtn.hasFocus());
                 if (isInPlayback && canDirectSeek) {

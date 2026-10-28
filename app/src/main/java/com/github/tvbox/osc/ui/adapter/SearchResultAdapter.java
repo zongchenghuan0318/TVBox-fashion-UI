@@ -16,9 +16,15 @@ import com.studio.osc.R;
 import java.util.ArrayList;
 
 public class SearchResultAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
+    private final boolean listView;
+
     public SearchResultAdapter() {
-        // 0 列表 1 缩略图
-        super(Hawk.get(HawkConfig.SEARCH_VIEW, 1) == 0 ? R.layout.item_search_lite : R.layout.item_search, new ArrayList<>());
+        this(Hawk.get(HawkConfig.SEARCH_VIEW, 1) == 0);
+    }
+
+    private SearchResultAdapter(boolean listView) {
+        super(listView ? R.layout.item_search_lite : R.layout.item_search, new ArrayList<>());
+        this.listView = listView;
     }
 
     @Override
@@ -26,7 +32,7 @@ public class SearchResultAdapter extends BaseQuickAdapter<Movie.Video, BaseViewH
         SiteBean site = ApiConfig.getInstance().getSiteBean(video.sourceKey);
         String sourceName = site == null || NullUtil.isNull(site.getName()) ? "未知片源" : site.getName();
         // list
-        if (Hawk.get(HawkConfig.SEARCH_VIEW, 1) == 0) {
+        if (listView) {
             helper.setText(R.id.tvName, String.format("%s  %s %s %s",
                     sourceName,
                     video.name,

@@ -110,7 +110,7 @@ public class AppDataManager {
         return DB_NAME + ".v" + DB_FILE_VERSION + ".db";
     }
 
-    public static AppDataBase get() {
+    public static synchronized AppDataBase get() {
         if (manager == null) {
             throw new RuntimeException("AppDataManager is no init");
         }

@@ -4,7 +4,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
-import android.view.animation.BounceInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,7 +26,6 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CollectActivity extends BaseActivity implements View.OnClickListener {
@@ -38,6 +37,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
     private TipDialog mClearDialog = null;
     private UndoBar undoBar;
     private boolean delMode = false;
+    private int loadGeneration;
 
     @Override
     protected int getLayoutResID() {
@@ -78,12 +78,14 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
     }
 
     private void deleteCollectItem(int position) {
+        loadGeneration++;
         VodCollect vodInfo = collectAdapter.getData().get(position);
         if (vodInfo == null) return;
         collectAdapter.remove(position);
         RoomDataManger.deleteVodCollect(vodInfo.getId());
         updateDeleteButtons();
         getUndoBar().show("已取消收藏", () -> {
+            loadGeneration++;
             RoomDataManger.restoreVodCollect(vodInfo);
             int restorePosition = Math.min(position, collectAdapter.getData().size());
             collectAdapter.addData(restorePosition, vodInfo);
@@ -128,12 +130,14 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150)
+                        .setInterpolator(new DecelerateInterpolator()).start();
             }
 
             @Override
@@ -168,13 +172,15 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
     }
 
     private void initData() {
-        List<VodCollect> allVodRecord = RoomDataManger.getAllVodCollect();
-        List<VodCollect> vodInfoList = new ArrayList<>();
-        for (VodCollect vodInfo : allVodRecord) {
-            vodInfoList.add(vodInfo);
-        }
-        collectAdapter.setNewData(vodInfoList);
-        updateDeleteButtons();
+        final int generation = ++loadGeneration;
+        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            List<VodCollect> records = RoomDataManger.getAllVodCollect();
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || generation != loadGeneration) return;
+                collectAdapter.setNewData(records);
+                updateDeleteButtons();
+            });
+        });
     }
 
     /**

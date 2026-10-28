@@ -22,7 +22,9 @@ import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.cache.VodCollect;
+import com.github.tvbox.osc.bean.EpisodeRangeBean;
 import com.github.tvbox.osc.event.RefreshEvent;
+import com.github.tvbox.osc.ui.adapter.PlayerEpisodeRangeAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesFlagAdapter;
 import com.github.tvbox.osc.ui.dialog.QuickSearchDialog;
@@ -75,6 +77,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private TextView tvPlay;
     private TextView tvCollect;
     private TvRecyclerView mFlagGridView;
+    private TvRecyclerView mSeriesRangeRV;
     private TvRecyclerView mSeriesGridView;
     private LinearLayout mEmptyLayout;
     private SourceViewModel mSourceViewModel;
@@ -82,6 +85,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private VodInfo mVodInfo;
     private SeriesFlagAdapter mFlagAdapter;
     private SeriesAdapter mSeriesAdapter;
+    private PlayerEpisodeRangeAdapter mSeriesRangeAdapter;
     public String vodId;
     public String sourceKey;
     public String noteStr;
@@ -150,7 +154,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             if (mVodInfo != null && mVodInfo.seriesMap.size() > 0) {
                 mVodInfo.reverseSort = !mVodInfo.reverseSort;
                 mVodInfo.reverse();
-                mSeriesAdapter.notifyDataSetChanged();
+                List<VodInfo.VodSeries> currentSeries = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                if (currentSeries != null && currentSeries.size() > 0) {
+                    if (mVodInfo.playIndex >= 0 && mVodInfo.playIndex < currentSeries.size()) {
+                        mVodInfo.playIndex = currentSeries.size() - 1 - mVodInfo.playIndex;
+                    }
+                }
+                tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
+                refreshList(false);
             }
         });
         tvPlay.setOnClickListener(v -> {
@@ -366,6 +377,37 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     private void initSeriesGridView(){
+        mSeriesRangeRV = findViewById(R.id.seriesRangeRV);
+        mSeriesRangeRV.setHasFixedSize(true);
+        mSeriesRangeRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
+        mSeriesRangeAdapter = new PlayerEpisodeRangeAdapter();
+        mSeriesRangeRV.setAdapter(mSeriesRangeAdapter);
+        mSeriesRangeRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                if (position >= 0 && position < mSeriesRangeAdapter.getData().size()) {
+                    mSeriesRangeAdapter.setSelectedIndex(position);
+                    EpisodeRangeBean item = mSeriesRangeAdapter.getData().get(position);
+                    mSeriesGridView.scrollToPosition(item.startIndex);
+                    mSeriesGridView.setSelection(item.startIndex);
+                }
+            }
+        });
+        mSeriesRangeAdapter.setOnItemClickListener((adapter, view, position) -> {
+            if (position >= 0 && position < mSeriesRangeAdapter.getData().size()) {
+                mSeriesRangeAdapter.setSelectedIndex(position);
+                EpisodeRangeBean item = mSeriesRangeAdapter.getData().get(position);
+                mSeriesGridView.scrollToPosition(item.startIndex);
+                mSeriesGridView.setSelection(item.startIndex);
+            }
+        });
+
         mSeriesGridView = findViewById(R.id.seriesRV);
         mSeriesGridView.setHasFixedSize(true);
         mSeriesGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,
@@ -383,6 +425,13 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 bSeriesSelect = true;
+                if (position >= 0 && mSeriesRangeAdapter != null && mSeriesRangeRV != null && mSeriesRangeRV.getVisibility() == View.VISIBLE) {
+                    int rIdx = position / 30;
+                    if (rIdx != mSeriesRangeAdapter.getSelectedIndex()) {
+                        mSeriesRangeAdapter.setSelectedIndex(rIdx);
+                        mSeriesRangeRV.scrollToPosition(rIdx);
+                    }
+                }
             }
 
             @Override
@@ -431,11 +480,30 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             mVodInfo.playIndex = 0;
         }
 
-        if (mVodInfo.seriesMap.get(mVodInfo.playFlag) != null) {
-            mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.playIndex).selected = true;
+        List<VodInfo.VodSeries> currentSeries = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (currentSeries != null) {
+            currentSeries.get(mVodInfo.playIndex).selected = true;
         }
 
-        mSeriesAdapter.setNewData(mVodInfo.seriesMap.get(mVodInfo.playFlag));
+        mSeriesAdapter.setNewData(currentSeries);
+
+        if (currentSeries != null && currentSeries.size() > 30 && mSeriesRangeRV != null) {
+            mSeriesRangeRV.setVisibility(View.VISIBLE);
+            List<EpisodeRangeBean> rangeList = new ArrayList<>();
+            final int step = 30;
+            for (int i = 0; i < currentSeries.size(); i += step) {
+                int start = i + 1;
+                int end = Math.min(i + step, currentSeries.size());
+                rangeList.add(new EpisodeRangeBean(i, end - 1, start + "-" + end));
+            }
+            mSeriesRangeAdapter.setNewData(rangeList);
+            int currentRange = mVodInfo.playIndex / step;
+            mSeriesRangeAdapter.setSelectedIndex(currentRange);
+            mSeriesRangeRV.scrollToPosition(currentRange);
+        } else if (mSeriesRangeRV != null) {
+            mSeriesRangeRV.setVisibility(View.GONE);
+        }
+
         if (!requestFocus) return;
         mSeriesGridView.postDelayed(new Runnable() {
             @Override

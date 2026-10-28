@@ -86,8 +86,19 @@
             android:layout_width="match_parent"
             android:layout_height="@dimen/vs_1"
             android:layout_marginTop="@dimen/vs_16"
-            android:layout_marginBottom="@dimen/vs_12"
+            android:layout_marginBottom="@dimen/vs_10"
             android:background="#1AFFFFFF" />
+
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/episodeRangeRV"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_48"
+            android:layout_marginBottom="@dimen/vs_8"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:visibility="gone"
+            app:tv_horizontalSpacingWithMargins="@dimen/vs_8"
+            tools:visibility="visible" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/episodeGrid"
