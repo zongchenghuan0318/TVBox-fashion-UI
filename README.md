@@ -1,12 +1,3 @@
-<img width="2358" height="1080" alt="e9929ac87570ab76408eb78cb8c7b2cc" src="https://github.com/user-attachments/assets/628169e7-faec-4423-bdba-c91ce121d8e3" />
-<img width="2358" height="1080" alt="b114f60fdcbf82ed8454cd825eece86a" src="https://github.com/user-attachments/assets/0ba983d1-4ec0-40dd-84d9-23c1592a3c39" />
-<img width="2358" height="1080" alt="66de4e048c9e9c9758230af061bbf019" src="https://github.com/user-attachments/assets/57c0328d-0283-478b-95d3-83eae8b49bbc" />
-<img width="2358" height="1080" alt="9aa364a29bd910b53affa1123cb48d89" src="https://github.com/user-attachments/assets/750c239d-13a9-4dad-a699-66edbb69014f" />
-<img width="2358" height="1080" alt="133a8cc6bbccfc5c0dc8ebd7da8060c9" src="https://github.com/user-attachments/assets/0bda9125-1813-4af9-bf33-d7e083d4d6da" />
-
-
-
-
 # Z影视
 
 基于开源项目 [TVBoxOSC](https://github.com/CatVodTVOfficial/TVBoxOSC)（CatVodTVOfficial）二次开发与打磨的 Android 影视聚合客户端，面向电视盒子 / 电视 / 手机横屏使用。
@@ -28,7 +19,9 @@ Z影视 是一款多源聚合的影视客户端。它自己不提供片源，而
 - 默认配置地址：`https://tv.xn--yhqu5zs87a.top`
 - 包名：`com.studio.osc`
 - 支持 Android 5.0 及以上（minSdk 21 / targetSdk 28）
-- 当前版本：`v1.1.4`（versionCode 114），支持应用内检查更新，发布方式见 [在线更新发布说明](docs/在线更新发布.md)
+- 当前版本：`v1.1.4`（versionCode 114），支持应用内检查更新
+
+---
 
 ## 主要功能
 
@@ -77,6 +70,8 @@ Z影视 是一款多源聚合的影视客户端。它自己不提供片源，而
 - **配置源容灾**：当前地址连不上时，自动按「当前地址 → 配置库 → 内置备用地址 → 默认地址」顺序试连，第一个可用的会被采用；全部失败则使用本地缓存并提示
 - 分组：接口与数据源（设置配置文件 / 直播源地址 / 默认网站）、首页与搜索（首页推荐 / 搜索展示 / 搜索源管理）、播放（播放器 / IJK 解码方式 / 渲染方式 / 画面缩放 / 嗅探 Webview / 安全 DNS）、其他（分享给好友 / 关于）
 
+---
+
 ## 源码结构
 
 Gradle 多模块工程，`rootProject.name = "MoviePlayer"`，仅含 `app`（主应用）与 `player`（播放内核）两个模块。
@@ -110,32 +105,32 @@ app/
     │   └── site.json / site_muti.json / readme.json
     ├── python/                 Chaquopy Python 爬虫运行时（app.py / runner.py / trigger.py / base/spider.py）
     ├── java/com/github/
-    │   ├── tvbox/osc/          本项目主体代码（详见下表）
+    │   ├── tvbox/osc/          本项目主体代码
     │   ├── catvod/             爬虫加载与执行（JarLoader、crawler、utils）
     │   ├── com/fongmi/quickjs/ QuickJS 引擎适配（bean / method / utils）
     │   └── okhttp3/dnsoverhttps/  安全 DNS（DoH）
-    └── res/                    layout(54) / drawable(96) / values + values-sw600dp / xml / raw / animator
+    └── res/                    layout / drawable / values + values-sw600dp / xml / raw / animator
 ```
 
 ### com/github/tvbox/osc 包说明
 
-| 包 | 文件数 | 职责 |
-| --- | --- | --- |
-| `api` | 2 | `ApiConfig`（配置解析、站点管理、默认配置地址）、`BaseLoader` |
-| `base` | 3 | `App`、`BaseActivity`、`BaseLazyFragment` 等基类 |
-| `bean` | 17 | 数据模型（影片、站点、搜索结果等） |
-| `cache` | 8 | Room 数据库与本地缓存（收藏、历史、播放记录） |
-| `callback` / `data` / `event` | 2 / 2 / 4 | 回调封装、全局数据、EventBus 事件 |
-| `player` | 1+3+2+2 | 播放内核接入：`IjkMediaPlayer`、`VodController` / `LiveController`、渲染与第三方播放器（MX / Reex） |
-| `receiver` | 3 | 开机自启、外部搜索与自定义 Web 广播接收 |
-| `server` | 7 | 局域网 HTTP 服务与口令投屏（`RemoteServer`、`ControlManager` 等） |
-| `ui.activity` | 11 | `HomeActivity`（入口）、`PlayActivity`、`SearchActivity`、`DetailActivity`、`SettingActivity`、`CollectActivity`、`HistoryActivity`、`PushActivity`、`LivePlayActivity` 等 |
-| `ui.fragment` | 3 | `FirstFragment`（首页）、`GridFragment`（分类 / 收藏 / 历史网格）、`ModelSettingFragment` |
-| `ui.adapter` | 25 | 各页面的 RecyclerView 适配器 |
-| `ui.dialog` | 12 | 设置项、配置地址、备份、选集、快速搜索、搜索站点等对话框 |
-| `ui.tv` + `ui.tv.widget` | 1 + 9 | TV 端控件：首页卡片 `HomeCardRecyclerView`、虚拟键盘、跑马灯、不滚动 ViewPager 等 |
-| `util` | 12 (+js 5 / python 1 / SSL 1 / thunder 1) | `OkGoHelper`、`HawkConfig`、`FileUtils`、`AppManager`、`MD5`、`SharpenTransformation` 等 |
-| `viewmodel` | 1 | `SourceViewModel`（搜索聚合） |
+| 包 | 职责 |
+| --- | --- |
+| `api` | 配置解析、站点管理、默认配置地址 |
+| `base` | App、BaseActivity、BaseLazyFragment 等基类 |
+| `bean` | 数据模型（影片、站点、搜索结果等） |
+| `cache` | Room 数据库与本地缓存（收藏、历史、播放记录） |
+| `callback` / `data` / `event` | 回调封装、全局数据、EventBus 事件 |
+| `player` | 播放内核接入：IjkMediaPlayer、VodController / LiveController、渲染与第三方播放器 |
+| `receiver` | 开机自启、外部搜索与自定义 Web 广播接收 |
+| `server` | 局域网 HTTP 服务与口令投屏 |
+| `ui.activity` | HomeActivity、PlayActivity、SearchActivity、DetailActivity、SettingActivity 等 |
+| `ui.fragment` | FirstFragment（首页）、GridFragment（分类/收藏/历史网格）、ModelSettingFragment |
+| `ui.adapter` | 各页面的 RecyclerView 适配器 |
+| `ui.dialog` | 设置项、配置地址、备份、选集、快速搜索、搜索站点等对话框 |
+| `ui.tv` + `ui.tv.widget` | TV 端控件：首页卡片、虚拟键盘、跑马灯等 |
+| `util` | OkGoHelper、HawkConfig、FileUtils、AppManager、MD5 等工具类 |
+| `viewmodel` | SourceViewModel（搜索聚合） |
 
 ### player 模块
 
@@ -159,6 +154,8 @@ player/src/main/
 | 脚本运行时 | QuickJS（`wang.harlon.quickjs` 2.4.5）、Chaquopy Python 3.8（含 requests / bs4 / lxml / pyquery / pycryptodome） |
 | 本地服务 | NanoHTTPD 2.3.1 |
 
+---
+
 ## 文档
 
 | 文档 | 内容 |
@@ -168,9 +165,9 @@ player/src/main/
 | [播放器增强说明](./docs/播放器增强-2026-10-24.md) | 长按加速、进度条、字幕音轨与片头片尾的实现要点与验证方式 |
 | [续播修复规格](./docs/spec.md) / [任务清单](./docs/tasks.md) | 播放进度续播链路的审查结论、修复方案与验收步骤 |
 
-## 更新记录
+---
 
-> 完整提交历史见仓库 commits 页面，下表按主题归纳重要变更（倒序）。
+## 更新记录
 
 ### 2026-10-24
 
@@ -179,7 +176,6 @@ player/src/main/
 - **搜索排序**：结果每批返回后重新按搜索源勾选顺序排序，避免后返回的高优先级源落在列表末尾
 - **控制栏**：进度条独立成行并重做分段配色与拖动反馈，新增字幕 / 音轨入口，按钮随状态切换
 - **构建**：调试 / 正式产物统一命名为 `Z影视.apk`
-- **文档**：新增播放器增强说明与续播修复规格
 
 ### 2026-10-20
 
@@ -189,24 +185,24 @@ player/src/main/
 - **稳定性**：搜索链路加 15 秒超时、起播加 20 秒超时并请求去重，避免长时间转圈
 - **配置源容灾**：配置地址改为候选链试连（当前地址 → 配置库 → 内置备用地址 → 默认地址），首个可用者被采用，全失败回落本地缓存
 - **配置库 / 收藏地址**：配置弹窗重做，去掉配置内容粘贴框，改为「配置库」「收藏地址」两个入口，点选即校验并切换
-- **直播**：设置新增「直播源地址」（多行 M3U / TVBox JSON，多源去重合并），侧边栏新增「直播」入口，清空该设置即回到总配置自带的直播源
-- **稳定性修复**：搜索请求统一由 `Future` 管理并可在页面销毁时停止、详情页线程池随页面关闭、EventBus 注销修正、配置库列表越界防护、仅在配置地址真正变化时才重启应用
-- **加载提示**：全局 Loading 文案为「请耐心等待」
+- **直播**：设置新增「直播源地址」（多行 M3U / TVBox JSON，多源去重合并），侧边栏新增「直播」入口
 
 ### 2026-10-17
 
-- **首页背景**：海报层从 ViewPager 剥离为 Activity 级独立图层，切到分类页不再透出上一页残留；后台加载与轮播的活跃判断收敛
+- **首页背景**：海报层从 ViewPager 剥离为 Activity 级独立图层，切到分类页不再透出上一页残留
 - **侧边栏**：玻璃质感改版
-- **首页卡片**：环形 3D 轮播 → 虚拟无限循环 → 回调为普通列表循环（末张滑到底回到第一张），弧形深度重做并缩小卡片、同屏显示更多
+- **首页卡片**：环形 3D 轮播 → 虚拟无限循环 → 回调为普通列表循环，弧形深度重做并缩小卡片、同屏显示更多
 - **播放页**：新增选集面板与手势加速
 
 ### 2026-10-16
 
-- **首页**：数据源改为豆瓣推荐优先并置顶；四层兜底保证首页永不空白；背景海报补 USM 锐化、封面统一提到 `l` 档；卡片弧形排布、切换动画 350ms、选中项始终居中
-- **搜索**：搜索源默认全选并内置优先级（`文采┃秒播` > `非凡┃影视` > 其余），勾选顺序即展示顺序；一个源都没勾选时不再空转
-- **播放页**：提示 5 秒自动收起、广告提示并入控制栏、进度条改双行重绘（已播青色 / 缓冲 / 轨道分层）
-- **设置**：分组标题与行高字号层级重做；配置地址校验期间锁定对话框，校验通过才保存
+- **首页**：数据源改为豆瓣推荐优先并置顶；四层兜底保证首页永不空白；卡片弧形排布、切换动画 350ms、选中项始终居中
+- **搜索**：搜索源默认全选并内置优先级，勾选顺序即展示顺序
+- **播放页**：提示 5 秒自动收起、广告提示并入控制栏、进度条改双行重绘
+- **设置**：分组标题与行高字号层级重做；配置地址校验期间锁定对话框
 - **初始提交**：基于 TVBoxOSC 的重打包基线
+
+---
 
 ## 构建
 
@@ -222,6 +218,8 @@ player/src/main/
 依赖下载已配置国内镜像（Maven → 阿里云 / 腾讯云，Gradle 发行版 → 腾讯云镜像）。
 注意：Chaquopy 的 Android 原生轮子只在 `chaquo.com/pypi-7.0` 提供，`build.gradle` 的 `pip{}` 块不能配置 `indexUrl` 镜像，否则 ABI 轮子解析失败。
 
+---
+
 ## 免责声明
 
 - 本项目仅用于学习与技术研究，所有影片、图片、接口均来自互联网第三方，本软件不提供、不存储、不传播任何影视资源。
@@ -229,7 +227,9 @@ player/src/main/
 - 因使用本软件产生的任何后果由使用者自行承担，开发者不承担任何责任。
 - 如有侵权，请联系删除。
 
+---
+
 ## 交流
 
-- QQ ：2020997318
+- QQ：2020997318
 - 有问题请联系开发者：宗成焕
