@@ -1104,7 +1104,22 @@ public class VodController extends BaseController {
                         mSeekBar.requestFocus();
                     }
                     int repeatCount = event.getRepeatCount();
-                    mSeekSpeedMultiplier = repeatCount >= 6 ? 3 : repeatCount >= 2 ? 2 : 1;
+                    // 智能长按平滑倍速递增曲线：单按精准微调(10s)，长按1秒稳步加速，长按3秒以上飞速穿越长篇巨作
+                    int multiplier;
+                    if (repeatCount >= 28) {
+                        multiplier = 30;
+                    } else if (repeatCount >= 18) {
+                        multiplier = 15;
+                    } else if (repeatCount >= 10) {
+                        multiplier = 8;
+                    } else if (repeatCount >= 4) {
+                        multiplier = 4;
+                    } else if (repeatCount >= 1) {
+                        multiplier = 2;
+                    } else {
+                        multiplier = 1;
+                    }
+                    mSeekSpeedMultiplier = multiplier;
                     slideStart(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
                     return true;
                 }

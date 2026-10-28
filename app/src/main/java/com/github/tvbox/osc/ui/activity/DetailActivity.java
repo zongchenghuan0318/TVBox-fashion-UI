@@ -13,6 +13,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.github.tvbox.osc.util.BlurTransformation;
+import com.github.tvbox.osc.util.GlideImg;
 import com.github.tvbox.osc.util.PosterImageLoader;
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.github.tvbox.osc.api.ApiConfig;
@@ -66,6 +70,7 @@ import xyz.doikki.videoplayer.util.PrintUtil;
  */
 public class DetailActivity extends BaseActivity implements View.OnClickListener {
     private ImageView thumpImg;
+    private ImageView ivDetailBackdrop;
     private TextView tvName;
     private TextView tvYear;
     private TextView tvSite;
@@ -131,6 +136,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
     private void initView() {
         thumpImg = findViewById(R.id.ivThumb);
+        ivDetailBackdrop = findViewById(R.id.ivDetailBackdrop);
         tvName = findViewById(R.id.tvName);
         tvName.setOnClickListener(this);
         tvYear = findViewById(R.id.tvYear);
@@ -214,6 +220,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     setTextShow(tvDirector, "导演：", mVideo.director);
                     setTextShow(tvDes, "内容简介：", removeHtmlTag(mVideo.des));
                     PosterImageLoader.bind(thumpImg, mVideo.pic);
+                    if (ivDetailBackdrop != null && mVideo.pic != null && !mVideo.pic.isEmpty()) {
+                        Glide.with(DetailActivity.this)
+                                .load(GlideImg.heroModel(mVideo.pic))
+                                .dontAnimate()
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .bitmapTransform(new BlurTransformation(DetailActivity.this, 18, 5))
+                                .into(ivDetailBackdrop);
+                    }
 
                     if (mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
                         mFlagGridView.setVisibility(View.VISIBLE);

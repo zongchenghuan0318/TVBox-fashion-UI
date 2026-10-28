@@ -1,9 +1,9 @@
 {
-    "versionCode":  139,
-    "versionName":  "1.1.29",
-    "changelog":  "1.1.29 在 1.1.28（拖动直落关键帧秒出画、Exo 预读 5 分钟/192MB、倒退 2 分钟瞬时出画）的基础上，还包含以下改动（Gitee 发布通道暂时不可用，本版仅发 GitHub）：\n\n- 默认渲染改为 SurfaceView：点播、直播与设置中的默认渲染方式从 TextureView 切换为 SurfaceView，直通硬件叠加层，消除 4K/60fps 掉帧并降低约 30% GPU 开销。已在设置中手动选过渲染方式的用户保持原选择；如遇画面异常可在设置中切回 TextureView。\n- 详情页打开更快：读取本地观看记录改到后台线程，进入详情页不再卡在数据库读取上。\n- 直播起播快速换源：起播 3.5 秒仍未出画面即自动换下一个源；播放中的卡顿换源策略不变。\n- 海报图内存减半：封面锐化位图从 ARGB_8888 改为 RGB_565，内存占用减半；同时开启磁盘缓存、关闭加载动画，列表滑动更顺。\n- 进度条加粗提亮：点播进度条从 3dp 加粗到 5dp，已缓冲段透明度同步提高，预读水位一眼可见。\n\n验证情况：发布构建通过签名校验，并解包确认新逻辑已进入 APK；SurfaceView 兼容性、拖动与预读手感需在设备上实测。",
-    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.29/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.29/Z.apk",
-    "sha256":  "832b58f9b9e6d6086f0f64c2044cc8193b422dcf3a4541062b53bb2691033e22",
-    "size":  24831862
+    "versionCode":  140,
+    "versionName":  "1.1.30",
+    "changelog":  "界面与交互更新（Gitee 发布通道暂时不可用，本版仅发 GitHub）：\n\n- 详情页沉浸式背景：全屏海报高斯模糊打底，上覆深色渐变遮罩，文字与按钮清晰可读；模糊图经 6 倍下采样与 RGB_565 处理，内存开销极小。\n- 遥控器长按倍速新曲线：单按小步微调，长按逐级升档 2x → 4x → 8x → 15x → 30x，长按 3 秒以上飞速穿越长篇剧集（旧版最高只有 3x）。\n- 暂停界面重做：背景压暗，左下角常驻当前片名与集数，中央磨砂胶囊卡片显示\"已暂停 · 按确定键继续\"与播放进度。\n- 快进快退 HUD 升级：中央磨砂胶囊显示方向图标、青色大字步进、目标时间/总时长与迷你时间轴。\n- 焦点框统一青色主题：按钮、线路、选集的遥控器焦点框从白色改为青色高亮，选中位置更醒目。\n\n验证情况：发布构建通过签名校验，并解包确认新代码已进入 APK；界面观感与长按倍速手感需在设备上实测。",
+    "apkUrl":  "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.30/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.30/Z.apk",
+    "sha256":  "9bee0a5ddb5baaace30f2c9f905569ef4c0019f8f3d77594629c51b3d4ac0971",
+    "size":  24833727
 }

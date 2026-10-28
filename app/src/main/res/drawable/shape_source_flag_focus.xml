@@ -3,14 +3,14 @@
     <item android:state_pressed="true">
         <shape>
             <corners android:radius="@dimen/vs_5" />
-            <solid android:color="@color/color_0CADE2" />
+            <solid android:color="@color/color_02F8E1" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
             <corners android:radius="10mm" />
-            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
-            <solid android:color="@color/color_6C3D3D3D" />
+            <stroke android:width="2.5mm" android:color="@color/color_02F8E1" />
+            <solid android:color="#3302F8E1" />
         </shape>
     </item>
     <item android:state_focused="false">

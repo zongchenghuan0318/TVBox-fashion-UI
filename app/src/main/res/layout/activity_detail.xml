@@ -5,6 +5,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- 全屏电影氛围高斯毛玻璃背景 -->
+    <ImageView
+        android:id="@+id/ivDetailBackdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop" />
+
+    <!-- 电影感暗光遮罩层，确保前景文字、按钮完美可读 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/shape_detail_scrim" />
+
     <LinearLayout
         android:id="@+id/llLayout"
         android:layout_width="match_parent"
