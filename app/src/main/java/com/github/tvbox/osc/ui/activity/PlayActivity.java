@@ -113,6 +113,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private JSONObject mVodPlayerCfgJsonObject;
     private SiteBean mSiteBean;
     private int autoRetryCount = 0;
+    /** 本片是否已经尝试过 Exo 失败后回退 IJK，避免同一部片来回抖动 */
+    private boolean kernelFallbackTried = false;
+    /** 内核回退重播时直接续播，不再弹“从头开始”提示 */
+    private boolean autoResumeWithoutPrompt = false;
     private Handler mHandler;
     private PlayBean mPlayBean;
     private String mLegacyProgressKey;
@@ -144,7 +148,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         public void run() {
             if (playbackStartPending) {
                 playbackStartPending = false;
-                errorWithRetry("播放超时，请检查线路或网络", false);
+                errorWithRetry("播放超时，请检查线路或网络", false, true);
             }
         }
     };
@@ -233,10 +237,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     if (mResumePosition > 0) {
                         long resumePosition = mResumePosition;
                         mResumePosition = 0;
-                        if (mHasSavedResumePosition && !mResumePromptShown
+                        if (mHasSavedResumePosition && !mResumePromptShown && !autoResumeWithoutPrompt
                                 && hasUsefulResumePosition(resumePosition)) {
                             mResumeHintPending = true;
                         }
+                        autoResumeWithoutPrompt = false;
                         mVideoView.seekTo(resumePosition);
                     }
                 } else if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
@@ -255,7 +260,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 } else if (playState == VideoView.STATE_ERROR && playbackStartPending) {
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
-                    errorWithRetry("视频播放出错", false);
+                    errorWithRetry("视频播放出错", false, true);
                 }
             }
         });
@@ -313,7 +318,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         }
         try {
             if (!mVodPlayerCfgJsonObject.has("pl")) {
-                mVodPlayerCfgJsonObject.put("pl", Hawk.get(HawkConfig.PLAY_TYPE, 1));
+                mVodPlayerCfgJsonObject.put("pl", Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT));
             }
             if (!mVodPlayerCfgJsonObject.has("pr")) {
                 mVodPlayerCfgJsonObject.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
@@ -461,6 +466,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
             @Override
             public void updatePlayerCfg() {
+                // 用户手动换内核（含换回 Exo）后，允许重新走一次失败回退判断
+                kernelFallbackTried = false;
                 savePlayerConfig();
             }
 
@@ -472,7 +479,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
             @Override
             public void errReplay() {
-                errorWithRetry("视频播放出错", false);
+                errorWithRetry("视频播放出错", false, true);
             }
 
             @Override
@@ -569,6 +576,14 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     }
 
     private void errorWithRetry(String err, boolean finish) {
+        errorWithRetry(err, finish, false);
+    }
+
+    /**
+     * @param fromPlayer true 表示错误来自播放器本身（起播失败、起播超时、播放中报错），
+     *                   这类错误先尝试 Exo→IJK 内核回退，再走原来的解析重试
+     */
+    private void errorWithRetry(String err, boolean finish, boolean fromPlayer) {
         if (!isActivityActive() || mVodInfo == null || mVodInfo.seriesMap == null
                 || mVodInfo.playFlag == null || mHandler == null) {
             return;
@@ -587,6 +602,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         PrintUtil.saveError(site + "|" + mVodInfo.name + vs.name, err);
         runOnUiThread(() -> {
             if (!isActivityActive()) return;
+            if (fromPlayer && fallbackToIjkIfNeeded(err)) return;
             if (!doRetry()) {
                 if (finish) {
                     Toast.makeText(mContext, err, Toast.LENGTH_SHORT).show();
@@ -596,6 +612,41 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 }
             }
         });
+    }
+
+    /**
+     * Exo 内核播放失败时自动回退 IJK：保留当前进度，用同一播放地址重播。
+     * 只对点播自带播放器生效，同一部片只回退一次；回退后本片播放内核记为 IJK，
+     * 后续集数直接用 IJK 播放，不会反复经历 Exo 失败。
+     */
+    private boolean fallbackToIjkIfNeeded(String err) {
+        if (kernelFallbackTried || mVodPlayerCfgJsonObject == null || mVideoView == null) return false;
+        if (mVodPlayerCfgJsonObject.optInt("pl", -1) != HawkConfig.PLAY_TYPE_EXO) return false;
+        kernelFallbackTried = true;
+        long position = mVideoView.getCurrentPosition();
+        if (position > 0) {
+            String key = buildEpisodeProgressKey();
+            mResumeKey = key;
+            saveProgressValue(key, position);
+            mResumePosition = position;
+            mHasSavedResumePosition = position >= RESUME_PROMPT_MIN_POSITION_MS;
+            autoResumeWithoutPrompt = true;
+        }
+        try {
+            mVodPlayerCfgJsonObject.put("pl", HawkConfig.PLAY_TYPE_IJK);
+        } catch (JSONException ignored) {
+        }
+        savePlayerConfig();
+        L.d("Exo 播放失败，自动回退 IJK，position=" + position + " err=" + err);
+        showTipsView("该片源用 Exo 放不了，已自动切换到 IJK", true, false);
+        autoRetryCount = 0;
+        String url = mCurrentPlayUrl;
+        if (!NullUtil.isNull(url)) {
+            playVideo(url, mPlayBean == null ? null : mPlayBean.headersMap);
+        } else {
+            preGetPlayUrl();
+        }
+        return true;
     }
 
     private boolean doRetry() {

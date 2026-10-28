@@ -17,7 +17,11 @@ public class LivePlayerManager {
 
     public void init(VideoView videoView) {
         try {
-            defaultPlayerConfig.put("pl", Hawk.get(HawkConfig.PLAY_TYPE, 0));
+            int playType = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
+            // 直播以兼容性优先：默认仍走 IJK（flv/ts 等老流支持最好），
+            // Exo 只用于点播的磁盘缓存场景；单个频道仍可在直播设置里单独切到 Exo。
+            if (playType == HawkConfig.PLAY_TYPE_EXO) playType = HawkConfig.PLAY_TYPE_IJK;
+            defaultPlayerConfig.put("pl", playType);
             defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
             defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
             // 直播默认画面比例为自适应的「默认」，频道仍可单独修改。

@@ -437,6 +437,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void onPlayerError(ExoPlaybackException error) {
+        // 播放失败时清掉这条视频写了一半的缓存，避免失败片源留下无用的磁盘占用
+        evictCacheAsync(mCacheUri);
         if (mPlayerEventListener != null) {
             mPlayerEventListener.onError();
         }

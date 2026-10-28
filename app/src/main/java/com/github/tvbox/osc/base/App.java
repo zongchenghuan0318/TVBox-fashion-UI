@@ -63,8 +63,15 @@ public class App extends MultiDexApplication {
             Hawk.put(HawkConfig.PLAY_SCALE_DEFAULT_RESET, true);
         }
         Hawk.put(HawkConfig.DEBUG_OPEN, false);
-        if (!Hawk.contains(HawkConfig.PLAY_TYPE)) {
-            Hawk.put(HawkConfig.PLAY_TYPE, 1);
+        // 点播默认内核切到 Exo（磁盘缓存、拖动秒回）；只迁移一次仍停留在旧默认 IJK 的配置，
+        // 用户手动选过的系统播放器等其他内核保持不动，之后也仍可在设置里随意切换。
+        if (!Hawk.get(HawkConfig.PLAY_TYPE_DEFAULT_APPLIED, false)) {
+            if (!Hawk.contains(HawkConfig.PLAY_TYPE)) {
+                Hawk.put(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
+            } else if (Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT) == HawkConfig.PLAY_TYPE_IJK) {
+                Hawk.put(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
+            }
+            Hawk.put(HawkConfig.PLAY_TYPE_DEFAULT_APPLIED, true);
         }
         // 固化默认配置地址：未配置过（首次安装/清除数据/手动清空）时预置，
         // 装好即有内容，用户仍可在设置里改成自己的接口

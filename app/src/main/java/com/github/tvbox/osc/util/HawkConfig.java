@@ -25,6 +25,16 @@ public class HawkConfig {
     public static final String PARSE_WEBVIEW = "parse_webview"; // true 系统 false xwalk
     public static final String IJK_CODEC = "ijk_codec";
     public static final String PLAY_TYPE = "play_type";//0 系统 1 ijk 2 exo 10 MXPlayer
+    public static final int PLAY_TYPE_SYSTEM = 0;
+    public static final int PLAY_TYPE_IJK = 1;
+    public static final int PLAY_TYPE_EXO = 2;
+    /**
+     * 点播默认内核：Exo，自带磁盘缓存（拖动回看命中本地缓存）。
+     * 个别老片源/特殊封装 Exo 放不了时，播放页会自动回退 IJK 重播，不需要用户手动切换。
+     */
+    public static final int PLAY_TYPE_DEFAULT = PLAY_TYPE_EXO;
+    /** 默认内核迁移标记：老版本默认停在 IJK 的配置只切换一次，之后用户手动选择不再覆盖 */
+    public static final String PLAY_TYPE_DEFAULT_APPLIED = "play_type_default_exo";
     public static final String PLAY_RENDER = "play_render"; //0 texture 2
     public static final String PLAY_SCALE = "play_scale"; //0 texture 2
     /**

@@ -27,7 +27,7 @@ public class PlayerHelper {
             return;
         }
         L.d("updateCfg()");
-        int playerType = Hawk.get(HawkConfig.PLAY_TYPE, 0);
+        int playerType = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
         int renderType = Hawk.get(HawkConfig.PLAY_RENDER, 0);
         String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
         int scale = Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);
@@ -88,7 +88,7 @@ public class PlayerHelper {
             L.e("updateCfg() ignored because VideoView is null");
             return;
         }
-        int playType = Hawk.get(HawkConfig.PLAY_TYPE, 0);
+        int playType = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
         PlayerFactory playerFactory;
         if (playType == 1) {
             playerFactory = new PlayerFactory<IjkMediaPlayer>() {
