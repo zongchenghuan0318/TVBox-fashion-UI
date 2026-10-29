@@ -43,6 +43,7 @@
             android:layout_marginLeft="@dimen/vs_6"
             android:focusable="false"
             android:src="@drawable/icon_filter"
+            android:tint="@color/selector_home_rail_icon"
             android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

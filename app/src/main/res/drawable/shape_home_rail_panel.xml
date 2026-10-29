@@ -1,58 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  侧边栏面板：轻玻璃拟态(Glassmorphism)
-  - 大幅降低不透明度，让首页大背景海报从侧栏底下透出来，弱化侧栏的存在感
-  - 仅保留极淡的深色渐变底，保证文字在亮海报上依然可读
-  - 顶部高光与描边一起淡化，避免抢主体背景的视线
+  侧边栏面板：现代烟熏黑玻璃拟态 (Smoked Glassmorphism)
+  - 彻底去除任何青蓝或彩色杂色，回归纯净高雅的中性深色黑玻璃
+  - 水平方向平滑渐变，左侧较实确保文字绝对可读，右侧轻透让海报自然透出
+  - 顶部微弱漫反射高光，还原精致物理玻璃质感
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 1. 玻璃基底 - 半透明深色渐变（更透） -->
+    <!-- 1. 烟熏黑玻璃基底：从左至右纯净微透渐变 -->
     <item>
         <shape android:shape="rectangle">
             <gradient
-                android:angle="135"
-                android:startColor="#2E1A1D2E"
-                android:centerColor="#26151822"
-                android:endColor="#1F0F111A" />
+                android:angle="0"
+                android:startColor="#E60A0C10"
+                android:centerColor="#B80D0F14"
+                android:endColor="#73090B0F" />
             <corners android:radius="@dimen/vs_0" />
         </shape>
     </item>
 
-    <!-- 2. 淡青色调层（代替原先的发光边框，只留一点冷色调气息） -->
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#1400D9FF"
-                android:centerColor="#0C00B8E6"
-                android:endColor="#060099CC" />
-            <corners android:radius="@dimen/vs_0" />
-        </shape>
-    </item>
-
-    <!-- 3. 内描边 - 玻璃折射线（淡化） -->
-    <item
-        android:top="@dimen/vs_1"
-        android:right="@dimen/vs_1">
-        <shape android:shape="rectangle">
-            <stroke
-                android:width="@dimen/vs_1"
-                android:color="#14FFFFFF" />
-            <solid android:color="@android:color/transparent" />
-            <corners android:radius="@dimen/vs_0" />
-        </shape>
-    </item>
-
-    <!-- 4. 顶部高光 - 玻璃受光面（淡化） -->
+    <!-- 2. 顶部高光 - 玻璃微弱反光（纯白低透） -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#14FFFFFF"
-                android:centerColor="#0AFFFFFF"
+                android:startColor="#1AFFFFFF"
+                android:centerColor="#06FFFFFF"
                 android:endColor="@android:color/transparent"
-                android:centerY="0.3" />
+                android:centerY="0.25" />
             <corners android:radius="@dimen/vs_0" />
         </shape>
     </item>

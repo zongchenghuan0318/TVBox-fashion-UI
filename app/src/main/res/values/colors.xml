@@ -32,15 +32,15 @@
     <color name="color_66FFFFFF">#66ffffff</color>
     <color name="color_transparent">#00ffffff</color>
 
-    <!-- 侧边栏（深色玻璃拟态）配色：浅色文字阶 + 青蓝强调色 -->
-    <color name="color_rail_accent">#FF00D9FF</color>
+    <!-- 侧边栏（纯净烟熏微透玻璃）配色：0% 彩色杂质，纯净中性 Apple TV 风格白灰阶 -->
+    <color name="color_rail_accent">#FFFFFFFF</color>
     <color name="color_rail_text_active">#FFFFFFFF</color>
-    <color name="color_rail_text_normal">#FFCCD6F6</color>
-    <color name="color_rail_text_muted">#FF8B92B3</color>
-    <color name="color_rail_icon_normal">#FFB0B7D8</color>
-    <color name="color_rail_glass_rim">#4DFFFFFF</color>
-    <color name="color_rail_stroke">#33FFFFFF</color>
-    <color name="color_rail_divider">#33FFFFFF</color>
+    <color name="color_rail_text_normal">#E0FFFFFF</color>
+    <color name="color_rail_text_muted">#8CFFFFFF</color>
+    <color name="color_rail_icon_normal">#B3FFFFFF</color>
+    <color name="color_rail_glass_rim">#1AFFFFFF</color>
+    <color name="color_rail_stroke">#26FFFFFF</color>
+    <color name="color_rail_divider">#1AFFFFFF</color>
 
     <!-- 弹窗体系：深色 surface 与内嵌控件底色 -->
     <color name="color_dialog_surface">#F2192130</color>

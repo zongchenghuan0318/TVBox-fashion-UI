@@ -28,6 +28,7 @@ import com.github.tvbox.osc.ui.tv.widget.DefaultTransformer;
 import com.github.tvbox.osc.ui.tv.widget.MarqueeTextView;
 import com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager;
 import com.github.tvbox.osc.util.DefaultConfig;
+import com.github.tvbox.osc.util.GsonUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
@@ -431,9 +432,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private String buildSortSignature(List<MovieSort.SortData> sortList) {
         StringBuilder sb = new StringBuilder();
+        Gson gson = GsonUtil.getGson();
         for (MovieSort.SortData data : sortList) {
             sb.append(data.sourceKey).append('#').append(data.id).append('#').append(data.name)
-                    .append('#').append(data.available).append('#').append(new Gson().toJson(data.filters)).append(';');
+                    .append('#').append(data.available).append('#').append(gson.toJson(data.filters)).append(';');
         }
         return sb.toString();
     }

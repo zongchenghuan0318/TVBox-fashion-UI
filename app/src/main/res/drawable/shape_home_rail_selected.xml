@@ -1,46 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 导航项：当前选中 —— 青蓝发光玻璃效果 -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    
-    <!-- 外发光效果 -->
-    <item>
-        <shape android:shape="rectangle">
-            <corners android:radius="@dimen/radius_10" />
-            <solid android:color="#4D00D9FF" />
-        </shape>
-    </item>
-    
-    <!-- 主体玻璃层 -->
-    <item
-        android:top="@dimen/vs_1"
-        android:bottom="@dimen/vs_1"
-        android:left="@dimen/vs_1"
-        android:right="@dimen/vs_1">
-        <shape android:shape="rectangle">
-            <corners android:radius="@dimen/radius_10" />
-            <gradient
-                android:angle="135"
-                android:startColor="#6600D9FF"
-                android:centerColor="#4D00B8E6"
-                android:endColor="#330099CC" />
-            <stroke
-                android:width="@dimen/vs_2"
-                android:color="#9900D9FF" />
-        </shape>
-    </item>
-    
-    <!-- 顶部高光 -->
-    <item
-        android:top="@dimen/vs_2"
-        android:left="@dimen/vs_2"
-        android:right="@dimen/vs_2">
-        <shape android:shape="rectangle">
-            <corners android:radius="@dimen/radius_10" />
-            <gradient
-                android:angle="270"
-                android:startColor="#4DFFFFFF"
-                android:endColor="@android:color/transparent" />
-        </shape>
-    </item>
-    
-</layer-list>
+<!-- 侧栏条目：选中态（非焦点） —— 优雅的微透磨砂底，指示当前位置但不喧宾夺主，彻底去除青蓝霓虹 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="@dimen/radius_10" />
+    <solid android:color="#26FFFFFF" />
+    <stroke
+        android:width="@dimen/vs_1"
+        android:color="#33FFFFFF" />
+</shape>

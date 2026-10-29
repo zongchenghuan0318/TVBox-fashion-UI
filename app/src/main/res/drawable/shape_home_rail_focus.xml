@@ -1,31 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 导航项：焦点悬停 —— 微妙的白色玻璃高亮 -->
+<!-- 侧栏条目：焦点悬停 —— Apple TV 风格纯净白磨砂高光胶囊，温润通透，层次分明 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    
-    <!-- 玻璃底层 -->
+
+    <!-- 1. 外层柔和白光晕 -->
     <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_10" />
+            <solid android:color="#1AFFFFFF" />
+        </shape>
+    </item>
+
+    <!-- 2. 主体磨砂玻璃层 -->
+    <item
+        android:left="@dimen/vs_1"
+        android:top="@dimen/vs_1"
+        android:right="@dimen/vs_1"
+        android:bottom="@dimen/vs_1">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/radius_10" />
             <gradient
                 android:angle="135"
-                android:startColor="#33FFFFFF"
-                android:endColor="#1AFFFFFF" />
+                android:startColor="#59FFFFFF"
+                android:centerColor="#3DFFFFFF"
+                android:endColor="#2BFFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"
-                android:color="#66FFFFFF" />
+                android:color="#8CFFFFFF" />
         </shape>
     </item>
-    
-    <!-- 顶部亮光 -->
-    <item>
+
+    <!-- 3. 顶部玻璃反射高光面 -->
+    <item
+        android:left="@dimen/vs_2"
+        android:top="@dimen/vs_1"
+        android:right="@dimen/vs_2">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/radius_10" />
             <gradient
                 android:angle="270"
-                android:startColor="#33FFFFFF"
+                android:startColor="#4DFFFFFF"
                 android:endColor="@android:color/transparent"
-                android:centerY="0.4" />
+                android:centerY="0.5" />
         </shape>
     </item>
-    
+
 </layer-list>

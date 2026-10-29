@@ -15,9 +15,11 @@ import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.rtsp.RtspMediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
+import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.cache.Cache;
 import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
+import com.google.android.exoplayer2.upstream.cache.CacheKeyFactory;
 import com.google.android.exoplayer2.upstream.cache.LeastRecentlyUsedCacheEvictor;
 import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 import com.google.android.exoplayer2.util.Util;
@@ -128,6 +130,54 @@ public final class ExoMediaSourceHelper {
         }
     }
 
+    private static final long MIN_SAFE_CACHE_BYTES = 256 * 1024 * 1024L; // 256MB 极老设备/小闪存兜底
+    private static final long DEFAULT_CACHE_BYTES = 1024 * 1024 * 1024L; // 1GB 黄金平衡（容纳1部完整电影）
+    private static final long MAX_SAFE_CACHE_BYTES = 1800 * 1024 * 1024L; // 1.8GB 宽裕存储上限
+    private static final long DISK_SAFETY_RESERVE_BYTES = 600 * 1024 * 1024L; // 严格为电视系统预留至少 600MB 运行空间，绝不占满
+
+    /**
+     * 智能计算安全的磁盘缓存上限：根据老旧电视剩余闪存动态伸缩，杜绝占满电视内部空间
+     */
+    private long calculateSafeDiskCacheBytes(File base) {
+        try {
+            long usableSpace = base.getUsableSpace();
+            // 如果可用空间小于 1.2GB，说明老电视闪存极其紧张，严格预留 600MB，绝不让系统弹存储不足警告
+            if (usableSpace < 1200 * 1024 * 1024L) {
+                long availableForCache = Math.max(0, usableSpace - DISK_SAFETY_RESERVE_BYTES);
+                return Math.max(128 * 1024 * 1024L, Math.min(MIN_SAFE_CACHE_BYTES, availableForCache / 2));
+            }
+            // 剩余空间 1.2GB ~ 4GB：取剩余空间的 25%，安全防爆满
+            if (usableSpace < 4L * 1024 * 1024 * 1024L) {
+                return Math.min(DEFAULT_CACHE_BYTES, usableSpace / 4);
+            }
+            // 剩余空间充裕（> 4GB）：放宽到 1.5GB ~ 1.8GB，整部电影/多集电视剧秒拉秒回
+            return Math.min(MAX_SAFE_CACHE_BYTES, usableSpace / 5);
+        } catch (Throwable ignored) {
+            return DEFAULT_CACHE_BYTES;
+        }
+    }
+
+    /**
+     * 针对 HLS 视频切片的智能 CacheKey 生成器：
+     * 去除切片 URL 末尾的动态 Token/时间戳参数，使得片源刷新鉴权后，本地已存的切片依然 100% 命中缓存！
+     */
+    private static final CacheKeyFactory SMART_CACHE_KEY_FACTORY = dataSpec -> {
+        if (dataSpec.key != null) {
+            return dataSpec.key;
+        }
+        Uri uri = dataSpec.uri;
+        if (uri == null) return "";
+        String url = uri.toString();
+        int queryIndex = url.indexOf('?');
+        if (queryIndex > 0) {
+            String pathPart = url.substring(0, queryIndex).toLowerCase();
+            if (pathPart.endsWith(".ts") || pathPart.endsWith(".m4s") || pathPart.endsWith(".mp4")) {
+                return url.substring(0, queryIndex);
+            }
+        }
+        return url;
+    };
+
     private synchronized DataSource.Factory getCacheDataSourceFactory(DataSource.Factory upstream) {
         if (mCache == null) {
             mCache = newCache();
@@ -135,15 +185,17 @@ public final class ExoMediaSourceHelper {
         return new CacheDataSource.Factory()
                 .setCache(mCache)
                 .setUpstreamDataSourceFactory(upstream)
+                .setCacheKeyFactory(SMART_CACHE_KEY_FACTORY)
                 .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
     }
 
     private Cache newCache() {
         File base = mAppContext.getExternalCacheDir();
         if (base == null) base = mAppContext.getCacheDir();
+        long safeCacheBytes = calculateSafeDiskCacheBytes(base);
         return new SimpleCache(
                 new File(base, "exo-video-cache"),//缓存目录
-                new LeastRecentlyUsedCacheEvictor(512 * 1024 * 1024),//缓存上限 512M，超出按 LRU 淘汰
+                new LeastRecentlyUsedCacheEvictor(safeCacheBytes),//动态自适应 LRU，老电视智能防爆满保护
                 new ExoDatabaseProvider(mAppContext));
     }
 

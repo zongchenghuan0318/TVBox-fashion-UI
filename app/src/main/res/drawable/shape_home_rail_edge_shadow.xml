@@ -1,10 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 侧栏右缘投影：淡化的冷色光晕，只做轻微过渡，不强调侧栏边界 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <gradient
-        android:angle="0"
-        android:startColor="#3300D9FF"
-        android:centerColor="#1A00B8E6"
-        android:endColor="@android:color/transparent"
-        android:centerX="0.3" />
-</shape>
+<!-- 侧栏与内容区交界：1px 细微高光切割线 + 柔和深色外阴影，完美实现悬浮玻璃质感，0 杂色 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. 自然向右羽化的黑色外投影（提升侧栏悬浮层次） -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="#4D000000"
+                android:centerColor="#1A000000"
+                android:endColor="@android:color/transparent"
+                android:centerX="0.4" />
+        </shape>
+    </item>
+
+    <!-- 2. 交界处 1px 极细微磨砂玻璃反光切割线 -->
+    <item
+        android:left="0dp"
+        android:top="0dp"
+        android:bottom="0dp"
+        android:right="@dimen/vs_7">
+        <shape android:shape="rectangle">
+            <solid android:color="#24FFFFFF" />
+        </shape>
+    </item>
+
+</layer-list>

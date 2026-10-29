@@ -83,8 +83,8 @@
             android:focusableInTouchMode="false"
             android:gravity="center_vertical"
             android:marqueeRepeatLimit="marquee_forever"
-            android:paddingLeft="@dimen/vs_16"
-            android:paddingRight="@dimen/vs_16"
+            android:paddingLeft="@dimen/vs_24"
+            android:paddingRight="@dimen/vs_24"
             android:singleLine="true"
             android:text="软件和影片接口完全免费，软件有问题请联系开发者宗成焕。"
             android:textColor="@color/color_rail_text_muted"
@@ -106,24 +106,16 @@
             android:textSize="@dimen/ts_28"
             android:textStyle="bold" />
 
-        <!-- 品牌强调色短横：给标题一个"落点"，避免纯文字头重脚轻 -->
-        <View
-            android:layout_width="@dimen/vs_24"
-            android:layout_height="@dimen/vs_3"
-            android:layout_marginLeft="@dimen/vs_24"
-            android:layout_marginTop="@dimen/vs_8"
-            android:background="@drawable/shape_rail_rule" />
-
         <TextView
             android:id="@+id/tvDate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_10"
+            android:layout_marginTop="@dimen/vs_4"
             android:focusable="false"
             android:focusableInTouchMode="false"
             android:letterSpacing="0.05"
             android:paddingLeft="@dimen/vs_24"
-            android:textColor="@color/color_rail_text_normal"
+            android:textColor="@color/color_rail_text_muted"
             android:textSize="@dimen/ts_20"
             tools:text="00:00" />
 

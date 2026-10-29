@@ -42,17 +42,29 @@ public class OkGoHelper {
         }
         builder.addInterceptor(loggingInterceptor);
 
+        builder.connectTimeout(15, TimeUnit.SECONDS);
+        builder.readTimeout(20, TimeUnit.SECONDS);
+        builder.writeTimeout(15, TimeUnit.SECONDS);
+
         builder.retryOnConnectionFailure(true);
         builder.followRedirects(true);
         builder.followSslRedirects(true);
-        builder.connectionPool(new ConnectionPool(16, 5, TimeUnit.MINUTES));
+        builder.connectionPool(new ConnectionPool(32, 5, TimeUnit.MINUTES));
+
+        // 解除单 host 5 个并发限制，允许 HLS 视频切片全速并发预读蓄水
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.setMaxRequests(64);
+        dispatcher.setMaxRequestsPerHost(16);
+        builder.dispatcher(dispatcher);
 
         try {
             setOkHttpSsl(builder);
         } catch (Throwable th) {
             th.printStackTrace();
         }
-        builder.dns(dnsOverHttps);
+        if (dnsOverHttps != null) {
+            builder.dns(dnsOverHttps);
+        }
 
         ExoMediaSourceHelper.getInstance(App.getInstance()).setOkClient(builder.build());
     }
@@ -108,8 +120,18 @@ public class OkGoHelper {
         }
         builder.cache(getDohCache());
         OkHttpClient dohClient = builder.build();
-        String dohUrl = getDohUrl(Hawk.get(HawkConfig.DOH_URL, 0));
-        dnsOverHttps = new DnsOverHttps.Builder().client(dohClient).url(dohUrl.isEmpty() ? null : HttpUrl.get(dohUrl)).build();
+        int dohType = Hawk.get(HawkConfig.DOH_URL, 0);
+        String dohUrl = getDohUrl(dohType);
+        if (dohType > 0 && !dohUrl.isEmpty()) {
+            try {
+                dnsOverHttps = new DnsOverHttps.Builder().client(dohClient).url(HttpUrl.get(dohUrl)).build();
+            } catch (Throwable e) {
+                e.printStackTrace();
+                dnsOverHttps = null;
+            }
+        } else {
+            dnsOverHttps = null;
+        }
     }
 
     public static void init() {
@@ -141,7 +163,9 @@ public class OkGoHelper {
         dispatcher.setMaxRequestsPerHost(16);
         builder.dispatcher(dispatcher);
 
-        builder.dns(dnsOverHttps);
+        if (dnsOverHttps != null) {
+            builder.dns(dnsOverHttps);
+        }
         try {
             setOkHttpSsl(builder);
         } catch (Throwable th) {

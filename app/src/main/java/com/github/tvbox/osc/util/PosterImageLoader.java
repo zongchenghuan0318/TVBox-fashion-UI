@@ -14,9 +14,9 @@ public final class PosterImageLoader {
     }
 
     public static void bind(ImageView imageView, String url) {
-        Glide.clear(imageView);
-        imageView.setImageResource(R.drawable.img_loading_placeholder);
         if (TextUtils.isEmpty(url)) {
+            Glide.clear(imageView);
+            imageView.setImageResource(R.drawable.img_loading_placeholder);
             return;
         }
         Glide.with(imageView.getContext())

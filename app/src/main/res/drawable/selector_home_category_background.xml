@@ -1,10 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 首页分类条目背景选择器：现代极简磨砂胶囊，完全剔除荧光青色 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 获得焦点态：清澈高亮白磨砂胶囊 -->
     <item android:state_focused="true">
-        <shape><corners android:radius="@dimen/vs_8" /><solid android:color="#3300D9FF" /><stroke android:width="@dimen/vs_1" android:color="#9900D9FF" /></shape>
+        <shape>
+            <corners android:radius="@dimen/vs_8" />
+            <gradient
+                android:angle="135"
+                android:startColor="#52FFFFFF"
+                android:centerColor="#38FFFFFF"
+                android:endColor="#26FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#80FFFFFF" />
+        </shape>
     </item>
+    <!-- 按下状态 -->
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_8" />
+            <solid android:color="#40FFFFFF" />
+        </shape>
+    </item>
+    <!-- 选中状态（当前正在浏览该分类，但焦点已移动到右侧视频卡片）：温和微透底 -->
     <item android:state_selected="true">
-        <shape><corners android:radius="@dimen/vs_8" /><solid android:color="#14FFFFFF" /></shape>
+        <shape>
+            <corners android:radius="@dimen/vs_8" />
+            <solid android:color="#1FFFFFFF" />
+        </shape>
     </item>
+    <!-- 常态：纯净透明 -->
     <item android:drawable="@android:color/transparent" />
 </selector>

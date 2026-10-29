@@ -46,12 +46,37 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     private static final int MIN_BUFFER_MS = 30_000;
     // 点播最多向前预读 5 分钟（300 秒），进度条飞速蓄水，5 分钟内任意拖拽 100% 内存秒切
     private static final int MAX_BUFFER_MS = 300_000;
-    private static final int BUFFER_FOR_PLAYBACK_MS = 1_500; // 首播起播所需蓄水 1.5 秒，保证快速出画
-    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000; // 二次卡顿后蓄水 3 秒，避免频繁微缓冲
-    // 回退保留时间扩大至 2 分钟（120 秒）：剧集回看、倒退听台词 100% 内存保留，0 延迟瞬时出画
-    private static final int BACK_BUFFER_MS = 120_000;
-    // 缓冲占用内存硬上限：提升至 192MB，为大码率 1080p/4K 提供充沛蓄水空间且防止低端机 OOM
-    private static final int TARGET_BUFFER_BYTES = 192 * 1024 * 1024;
+    // 首播起播所需蓄水 1.0 秒，极速秒出画同时保障前序基础帧完整
+    private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
+    // 卡顿二次缓冲蓄水门槛 4.5 秒：彻底阻断“起播秒开但网络波动时反复短暂停顿”的恶性循环，水库蓄满才放行
+    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 4_500;
+
+    /**
+     * 老电视内存自适应保护机制：根据 JVM 堆内存动态调整缓冲上限，坚决杜绝低配电视 OOM 闪退
+     */
+    private static int calculateSafeTargetBufferBytes() {
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        if (maxMemory <= 128L * 1024 * 1024L) {
+            return 48 * 1024 * 1024;  // 极老设备（<=128MB 堆）分配 48MB
+        } else if (maxMemory <= 256L * 1024 * 1024L) {
+            return 80 * 1024 * 1024;  // 普通老盒子（<=256MB 堆）分配 80MB
+        } else if (maxMemory <= 512L * 1024 * 1024L) {
+            return 144 * 1024 * 1024; // 主流智能电视分配 144MB
+        } else {
+            return 224 * 1024 * 1024; // 旗舰盒子/已开 largeHeap 分配 224MB
+        }
+    }
+
+    /**
+     * 回退保留时长自适应：内存紧缺设备保留 30 秒，正常设备保留 120 秒，兼顾倒退秒回与内存安全
+     */
+    private static int calculateSafeBackBufferMs() {
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        if (maxMemory <= 256L * 1024 * 1024L) {
+            return 30_000;
+        }
+        return 120_000;
+    }
 
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
@@ -82,14 +107,20 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
-                    .setBackBuffer(BACK_BUFFER_MS, true)
-                    .setTargetBufferBytes(TARGET_BUFFER_BYTES)
+                    .setBackBuffer(calculateSafeBackBufferMs(), true)
+                    .setTargetBufferBytes(calculateSafeTargetBufferBytes())
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .createDefaultLoadControl();
         }
+        if (mRenderersFactory == null) {
+            // 解码器容错保护：开启解码器 Fallback，老旧芯片无法硬解时自动转入软解，杜绝崩溃闪退
+            mRenderersFactory = new DefaultRenderersFactory(mAppContext)
+                    .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                    .setEnableDecoderFallback(true);
+        }
         mInternalPlayer = new SimpleExoPlayer.Builder(
                 mAppContext,
-                mRenderersFactory == null ? mRenderersFactory = new DefaultRenderersFactory(mAppContext) : mRenderersFactory,
+                mRenderersFactory,
                 mTrackSelector == null ? mTrackSelector = new DefaultTrackSelector(mAppContext) : mTrackSelector,
                 new DefaultMediaSourceFactory(mAppContext),
                 mLoadControl,

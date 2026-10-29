@@ -257,7 +257,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     if (mResumeKey != null) {
                         saveProgressValue(mResumeKey, 0);
                     }
-                } else if (playState == VideoView.STATE_ERROR && playbackStartPending) {
+                } else if (playState == VideoView.STATE_ERROR) {
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
                     errorWithRetry("视频播放出错", false, true);
