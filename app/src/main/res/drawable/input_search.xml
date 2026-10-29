@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 搜索输入框：半透明熏黑底衬 + 细微高光切线边框 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="10mm" />
+    <corners android:radius="12mm" />
+    <solid android:color="#14FFFFFF" />
     <stroke
-        android:width="@dimen/vs_2"
-        android:color="#99FFFFFF" />
+        android:width="1mm"
+        android:color="#26FFFFFF" />
 </shape>

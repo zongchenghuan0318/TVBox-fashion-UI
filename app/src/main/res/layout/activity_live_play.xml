@@ -127,7 +127,7 @@
         android:paddingRight="24mm"
         android:paddingTop="10mm"
         android:paddingBottom="10mm"
-        android:textColor="#02F8E1"
+        android:textColor="@android:color/white"
         android:textSize="36mm"
         android:textStyle="bold"
         android:singleLine="true"

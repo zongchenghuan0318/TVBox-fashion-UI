@@ -43,7 +43,7 @@
                 android:paddingRight="@dimen/vs_10"
                 android:paddingBottom="@dimen/vs_3"
                 android:singleLine="true"
-                android:textColor="@color/color_02F8E1"
+                android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_16"
                 tools:text="共 48 集" />
         </LinearLayout>
@@ -77,7 +77,7 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:singleLine="true"
-                android:textColor="@color/color_02F8E1"
+                android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_20"
                 tools:text="第 5 集" />
         </LinearLayout>

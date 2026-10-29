@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 选集集数微胶囊：半透明熏黑底衬 + 细微高光边框 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="@dimen/radius_20" />
-    <solid android:color="#1A02F8E1" />
-    <stroke android:width="@dimen/vs_1" android:color="#3302F8E1" />
+    <solid android:color="#1FFFFFFF" />
+    <stroke android:width="@dimen/vs_1" android:color="#33FFFFFF" />
 </shape>

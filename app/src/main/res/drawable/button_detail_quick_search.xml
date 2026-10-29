@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 详情页次级操作按钮：熏黑磨砂玻璃，聚焦时高亮浮起 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape>
             <corners android:radius="@dimen/vs_20" />
-            <solid android:color="@color/color_1890FF" />
-            <stroke android:width="4mm" android:color="@android:color/white" />
+            <solid android:color="#4DFFFFFF" />
+            <stroke android:width="1.5mm" android:color="#FFFFFF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_20" />
-            <solid android:color="@color/color_1890FF" />
-            <stroke android:width="4mm" android:color="@android:color/white" />
+            <solid android:color="#40FFFFFF" />
+            <stroke android:width="1.5mm" android:color="#FFFFFF" />
         </shape>
     </item>
-    <item android:state_focused="false">
+    <item>
         <shape>
             <corners android:radius="@dimen/vs_20" />
-            <solid android:color="@color/color_1890FF" />
+            <solid android:color="#17FFFFFF" />
+            <stroke android:width="1mm" android:color="#21FFFFFF" />
         </shape>
     </item>
 </selector>

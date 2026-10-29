@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 选集文字颜色：落焦纯白高亮，默认中性明亮 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_pressed="true" android:color="#081018" />
-    <item android:state_focused="true" android:color="#081018" />
-    <item android:state_selected="true" android:color="@color/color_02F8E1" />
-    <item android:color="#E6FFFFFF" />
+    <item android:state_pressed="true" android:color="#FFFFFF" />
+    <item android:state_focused="true" android:color="#FFFFFF" />
+    <item android:state_selected="true" android:color="#FFFFFF" />
+    <item android:color="#CCFFFFFF" />
 </selector>

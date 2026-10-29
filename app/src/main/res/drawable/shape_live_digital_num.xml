@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 直播数字切台指示：深熏黑磨砂玻璃 + 优雅月白切线 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="8mm" />
-    <solid android:color="#E6050C14" />
-    <stroke android:width="2mm" android:color="#CC02F8E1" />
+    <solid android:color="#E60A0C10" />
+    <stroke android:width="2mm" android:color="#80FFFFFF" />
 </shape>

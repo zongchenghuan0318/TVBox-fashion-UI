@@ -1,30 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 进度条样式：熏黑轨道 + 半透明白色蓄水池缓冲条 + 月白已播放时间轴 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 轨道：深色半透明基底 -->
     <item android:id="@android:id/background">
         <shape android:shape="rectangle">
             <corners android:radius="4mm" />
-            <solid android:color="#2EFFFFFF" />
+            <solid android:color="#26FFFFFF" />
         </shape>
     </item>
-    <!-- 缓冲：明亮高可视度半透明白（蓄水库清晰可辨） -->
+    <!-- 缓冲：半透明月白（蓄水库清晰可辨，纯净低调） -->
     <item android:id="@android:id/secondaryProgress">
         <clip>
             <shape android:shape="rectangle">
                 <corners android:radius="4mm" />
-                <solid android:color="#99FFFFFF" />
+                <solid android:color="#66FFFFFF" />
             </shape>
         </clip>
     </item>
-    <!-- 已播放：青色时间轴，向右微微提亮 -->
+    <!-- 已播放：纯净月白高光时间轴 -->
     <item android:id="@android:id/progress">
         <clip>
             <shape android:shape="rectangle">
                 <corners android:radius="4mm" />
                 <gradient
                     android:angle="0"
-                    android:startColor="#B302F8E1"
-                    android:endColor="#FF02F8E1" />
+                    android:startColor="#E6FFFFFF"
+                    android:endColor="#FFFFFF" />
             </shape>
         </clip>
     </item>

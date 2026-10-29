@@ -1,16 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 详情页剧集选集方块遥控器交互：中性熏黑磨砂玻璃，落焦纯白发光胶囊 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="10mm" />
+            <solid android:color="#4DFFFFFF" />
+            <stroke android:width="1.5mm" android:color="#FFFFFF" />
+        </shape>
+    </item>
     <item android:state_focused="true">
         <shape>
             <corners android:radius="10mm" />
-            <stroke android:width="2.5mm" android:color="@color/color_02F8E1" />
-            <solid android:color="#3302F8E1" />
+            <solid android:color="#40FFFFFF" />
+            <stroke android:width="1.5mm" android:color="#A6FFFFFF" />
         </shape>
     </item>
-    <item android:state_focused="false">
+    <item android:state_selected="true">
         <shape>
             <corners android:radius="10mm" />
-            <solid android:color="@color/color_6C3D3D3D" />
+            <solid android:color="#2BFFFFFF" />
+            <stroke android:width="1mm" android:color="#59FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="10mm" />
+            <solid android:color="#14FFFFFF" />
+            <stroke android:width="1mm" android:color="#1AFFFFFF" />
         </shape>
     </item>
 </selector>

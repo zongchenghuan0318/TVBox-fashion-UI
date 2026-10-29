@@ -49,7 +49,7 @@
     <!-- 系统 AlertDialog：深色主题，避免继承 Light 主题导致白底 -->
     <style name="DarkAlertDialog" parent="Theme.AppCompat.Dialog.Alert">
         <item name="android:windowBackground">@drawable/shape_dialog_bg_main</item>
-        <item name="colorAccent">@color/color_0CADE2</item>
+        <item name="colorAccent">@android:color/white</item>
         <item name="android:textColorPrimary">@color/color_FFFFFF</item>
         <item name="android:textColorSecondary">@color/color_6CFFFFFF</item>
     </style>

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 详情页海报背景暗光遮罩：纯正黑曜石渐变，平滑衬托前景 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <gradient
         android:angle="270"
-        android:startColor="#B30E1017"
-        android:centerColor="#E60E1017"
-        android:endColor="#F70E1017" />
+        android:startColor="#4D0A0C10"
+        android:centerColor="#D90A0C10"
+        android:endColor="#F80A0C10" />
 </shape>

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 通用常态熏黑磨砂按钮表面：10% 透明微白 + 细微高光切线 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="8mm" />
-    <solid android:color="@color/color_6C3D3D3D" />
+    <corners android:radius="10mm" />
+    <solid android:color="#17FFFFFF" />
     <stroke
-        android:width="2mm"
-        android:color="@color/color_6C3D3D3D" />
+        android:width="1mm"
+        android:color="#1AFFFFFF" />
 </shape>

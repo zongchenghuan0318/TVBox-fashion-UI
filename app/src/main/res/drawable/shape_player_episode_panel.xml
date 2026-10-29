@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 选集侧滑抽屉：深熏黑磨砂玻璃质感 + 细微高光侧边切线 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners
         android:topLeftRadius="@dimen/radius_20"
         android:bottomLeftRadius="@dimen/radius_20" />
     <gradient
         android:angle="270"
-        android:startColor="#F5131720"
-        android:centerColor="#F20E1118"
-        android:endColor="#F5080A0F" />
+        android:startColor="#F5141720"
+        android:centerColor="#F50F1219"
+        android:endColor="#FA090B10" />
+    <stroke
+        android:width="@dimen/vs_1"
+        android:color="#24FFFFFF" />
 </shape>

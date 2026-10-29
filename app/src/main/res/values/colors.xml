@@ -43,6 +43,6 @@
     <color name="color_rail_divider">#1AFFFFFF</color>
 
     <!-- 弹窗体系：深色 surface 与内嵌控件底色 -->
-    <color name="color_dialog_surface">#F2192130</color>
+    <color name="color_dialog_surface">#F214161E</color>
     <color name="color_dialog_field">#14FFFFFF</color>
 </resources>

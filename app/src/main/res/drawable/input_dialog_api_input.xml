@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-
+<!-- Apple TV 对话框输入框背景：落焦纯白切线边框，默认低调半透明描边 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-
     <item android:state_focused="true">
         <layer-list>
             <item android:bottom="@dimen/vs_5" android:left="@dimen/vs_20_" android:right="@dimen/vs_20_" android:top="@dimen/vs_20_">
                 <shape android:shape="rectangle">
-                    <stroke android:width="@dimen/vs_2" android:color="@color/color_0CADE2" />
+                    <corners android:radius="8mm" />
+                    <stroke android:width="@dimen/vs_2" android:color="#A6FFFFFF" />
                     <solid android:color="@color/color_dialog_field" />
                 </shape>
             </item>
@@ -16,6 +16,7 @@
         <layer-list>
             <item android:bottom="@dimen/vs_5" android:left="@dimen/vs_20_" android:right="@dimen/vs_20_" android:top="@dimen/vs_20_">
                 <shape android:shape="rectangle">
+                    <corners android:radius="8mm" />
                     <stroke android:width="@dimen/vs_1" android:color="@color/color_rail_stroke" />
                     <solid android:color="@color/color_dialog_field" />
                 </shape>

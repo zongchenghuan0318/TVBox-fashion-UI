@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 通用弹窗背景：高质感深熏黑磨砂玻璃面板，外加 1px 细微高光流线切线 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape>
             <corners android:radius="@dimen/radius_20" />
-            <solid android:color="#F51A2232" />
+            <gradient
+                android:angle="270"
+                android:startColor="#F21A1C24"
+                android:endColor="#F2111319" />
         </shape>
     </item>
     <item>
@@ -11,7 +15,7 @@
             <corners android:radius="@dimen/radius_20" />
             <stroke
                 android:width="@dimen/vs_1"
-                android:color="#26FFFFFF" />
+                android:color="#24FFFFFF" />
         </shape>
     </item>
 </layer-list>

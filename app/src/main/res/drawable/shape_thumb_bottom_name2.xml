@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 电影海报底部文字暗光渐变底衬，保证海报标题清晰易读 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners
-        android:bottomLeftRadius="@dimen/vs_1"
-        android:bottomRightRadius="@dimen/vs_1" />
-    <solid android:color="@color/color_99000000" />
+        android:bottomLeftRadius="6mm"
+        android:bottomRightRadius="6mm" />
+    <gradient
+        android:angle="270"
+        android:startColor="#00000000"
+        android:centerColor="#800A0C10"
+        android:endColor="#E60A0C10" />
 </shape>

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 进度滑块落焦拖动状态：纯净月白光晕 + 凝白内芯 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 聚焦/拖动：青色光晕 + 青色内芯，明确当前操作对象 -->
     <item>
         <shape android:shape="oval">
-            <solid android:color="#3D02F8E1" />
+            <solid android:color="#40FFFFFF" />
             <size
                 android:width="20dp"
                 android:height="20dp" />
@@ -15,7 +15,7 @@
         android:right="3dp"
         android:top="3dp">
         <shape android:shape="oval">
-            <solid android:color="#4D02F8E1" />
+            <solid android:color="#80FFFFFF" />
         </shape>
     </item>
     <item
@@ -24,7 +24,7 @@
         android:right="5dp"
         android:top="5dp">
         <shape android:shape="oval">
-            <solid android:color="@color/player_overlay_accent" />
+            <solid android:color="#FFFFFF" />
         </shape>
     </item>
 </layer-list>

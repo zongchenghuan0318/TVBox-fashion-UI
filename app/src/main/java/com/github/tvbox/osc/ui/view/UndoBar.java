@@ -57,7 +57,7 @@ public final class UndoBar {
 
         TextView undo = new TextView(activity);
         undo.setText("撤销");
-        undo.setTextColor(Color.rgb(2, 248, 225));
+        undo.setTextColor(Color.WHITE);
         undo.setTextSize(16);
         undo.setGravity(Gravity.CENTER);
         undo.setMinWidth(dp(72));
@@ -115,9 +115,9 @@ public final class UndoBar {
 
     private GradientDrawable background() {
         GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(Color.rgb(34, 38, 52));
+        drawable.setColor(Color.argb(242, 20, 22, 30));
         drawable.setCornerRadius(dp(12));
-        drawable.setStroke(dp(1), Color.argb(55, 255, 255, 255));
+        drawable.setStroke(dp(1), Color.argb(40, 255, 255, 255));
         return drawable;
     }
 

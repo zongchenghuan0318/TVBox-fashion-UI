@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 选集正在播放微圆点：纯净月白 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="@color/color_02F8E1" />
+    <solid android:color="#FFFFFF" />
 </shape>

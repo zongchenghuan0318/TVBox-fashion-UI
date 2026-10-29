@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 播放源选中指示小滑条：纯净白光微胶囊 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <size
         android:width="40mm"
-        android:height="4mm" />
-    <corners android:radius="2mm" />
-    <solid android:color="@color/color_1890FF"/>
+        android:height="3mm" />
+    <corners android:radius="1.5mm" />
+    <solid android:color="#FFFFFF"/>
 </shape>

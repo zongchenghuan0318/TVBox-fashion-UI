@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 选集当前播放指示条：纯净白光微胶囊 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="2mm" />
-    <solid android:color="@color/color_02F8E1" />
+    <solid android:color="#FFFFFF" />
 </shape>

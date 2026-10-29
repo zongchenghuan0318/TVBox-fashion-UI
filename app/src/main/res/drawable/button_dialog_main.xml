@@ -1,30 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 通用弹窗与列表交互按钮：半透明熏黑磨砂，落焦纯白发光胶囊 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape>
             <corners android:radius="@dimen/vs_16" />
-            <solid android:color="#3300D9FF" />
+            <solid android:color="#4DFFFFFF" />
             <stroke
-                android:width="@dimen/vs_1"
-                android:color="#B300D9FF" />
+                android:width="1.5mm"
+                android:color="#FFFFFF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_16" />
-            <solid android:color="#3300D9FF" />
+            <gradient
+                android:angle="90"
+                android:startColor="#40FFFFFF"
+                android:endColor="#26FFFFFF" />
             <stroke
-                android:width="@dimen/vs_1"
-                android:color="#B300D9FF" />
+                android:width="1.5mm"
+                android:color="#A6FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape>
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#2BFFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#59FFFFFF" />
         </shape>
     </item>
     <item>
         <shape>
             <corners android:radius="@dimen/vs_16" />
-            <solid android:color="#0FFFFFFF" />
+            <solid android:color="#14FFFFFF" />
             <stroke
-                android:width="@dimen/vs_1"
-                android:color="#1FFFFFFF" />
+                android:width="1mm"
+                android:color="#24FFFFFF" />
         </shape>
     </item>
 </selector>

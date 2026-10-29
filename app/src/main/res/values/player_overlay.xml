@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="player_overlay_accent">#73E6CA</color>
+    <!-- Apple TV 播放控制器主高光色：纯正月白 -->
+    <color name="player_overlay_accent">#FFFFFF</color>
     <style name="PlayerOverlayIcon">
         <item name="android:layout_width">48dp</item>
         <item name="android:layout_height">48dp</item>

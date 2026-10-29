@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 详情页主播放按钮：Apple TV 签名纯白高光主按键，未聚焦呈高对比度半透明高光 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape>
             <corners android:radius="@dimen/vs_20" />
-            <solid android:color="@color/color_FF5F00" />
-            <stroke android:width="4mm" android:color="@android:color/white" />
+            <solid android:color="#E6FFFFFF" />
+            <stroke android:width="1.5mm" android:color="#FFFFFF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_20" />
-            <solid android:color="@color/color_FF5F00" />
-            <stroke android:width="4mm" android:color="@android:color/white" />
+            <solid android:color="#FFFFFF" />
+            <stroke android:width="2mm" android:color="#80FFFFFF" />
         </shape>
     </item>
-    <item android:state_focused="false">
+    <item>
         <shape>
             <corners android:radius="@dimen/vs_20" />
-            <solid android:color="@color/color_FF5F00" />
+            <solid android:color="#33FFFFFF" />
+            <stroke android:width="1.5mm" android:color="#66FFFFFF" />
         </shape>
     </item>
 </selector>

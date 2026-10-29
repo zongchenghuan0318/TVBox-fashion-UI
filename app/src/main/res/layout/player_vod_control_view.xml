@@ -204,7 +204,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/vs_10"
                 android:text="已暂停 · 按确定键继续"
-                android:textColor="@color/color_02F8E1"
+                android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_20" />
 
             <TextView
@@ -288,7 +288,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="@dimen/vs_8"
-                android:textColor="@color/color_02F8E1"
+                android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_24"
                 android:textStyle="bold"
                 tools:text="+00:30" />
@@ -379,7 +379,7 @@
             android:layout_marginTop="@dimen/vs_8"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textColor="@color/color_02F8E1"
+            android:textColor="@android:color/white"
             android:textSize="@dimen/ts_20" />
 
         <TextView

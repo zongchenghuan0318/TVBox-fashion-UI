@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 电影海报语言角标：半透明熏黑磨砂胶囊 + 微细白边 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/color_FFB800" />
+    <solid android:color="#B30E1016" />
     <corners android:radius="5mm" />
+    <stroke
+        android:width="1mm"
+        android:color="#33FFFFFF" />
 </shape>
