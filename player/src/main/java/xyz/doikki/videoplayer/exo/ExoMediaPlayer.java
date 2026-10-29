@@ -42,14 +42,31 @@ import xyz.doikki.videoplayer.player.VideoViewManager;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    // 持续蓄水下限 30 秒（播放后在后台持续拉流），减少起播后吃光缓冲导致的微卡
-    private static final int MIN_BUFFER_MS = 30_000;
-    // 点播最多向前预读 5 分钟（300 秒），进度条飞速蓄水，5 分钟内任意拖拽 100% 内存秒切
-    private static final int MAX_BUFFER_MS = 300_000;
     // 首播起播所需蓄水 1.0 秒，极速秒出画同时保障前序基础帧完整
     private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
     // 卡顿二次缓冲蓄水门槛 4.5 秒：彻底阻断“起播秒开但网络波动时反复短暂停顿”的恶性循环，水库蓄满才放行
     private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 4_500;
+    // 点播最多向前预读 10 分钟（600 秒），在安全磁盘缓存和内存配额允许下，让网速好的设备尽情蓄水
+    private static final int MAX_BUFFER_MS = 600_000;
+
+    /**
+     * 智能前向蓄水下限（毫秒）：
+     * 解决“缓冲条没有多长”的核心优化：根据电视 JVM 堆内存动态伸缩持续预读时长，
+     * 绝不在 30 秒就踩刹车，而是持续在后台把水库蓄至 2 ~ 4 分钟，
+     * 进度条上的灰色缓冲条会明显拉长，同时在 2~3 分钟内的快进/回看 100% 秒开无需网络等待！
+     */
+    private static int calculateSafeMinBufferMs() {
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        if (maxMemory <= 128L * 1024 * 1024L) {
+            return 60_000;   // 极老设备（<=128MB 堆）稳妥蓄水 60 秒（1分钟，严控内存防溢出）
+        } else if (maxMemory <= 256L * 1024 * 1024L) {
+            return 120_000;  // 普通老盒子/电视（<=256MB 堆）持续蓄水 120 秒（2分钟）
+        } else if (maxMemory <= 512L * 1024 * 1024L) {
+            return 180_000;  // 主流智能电视持续蓄水 180 秒（3分钟）
+        } else {
+            return 240_000;  // 旗舰盒子/大堆内存持续蓄水 240 秒（4分钟）
+        }
+    }
 
     /**
      * 老电视内存自适应保护机制：根据 JVM 堆内存动态调整缓冲上限，坚决杜绝低配电视 OOM 闪退
@@ -59,11 +76,11 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
         if (maxMemory <= 128L * 1024 * 1024L) {
             return 48 * 1024 * 1024;  // 极老设备（<=128MB 堆）分配 48MB
         } else if (maxMemory <= 256L * 1024 * 1024L) {
-            return 80 * 1024 * 1024;  // 普通老盒子（<=256MB 堆）分配 80MB
+            return 96 * 1024 * 1024;  // 普通老盒子（<=256MB 堆）分配 96MB
         } else if (maxMemory <= 512L * 1024 * 1024L) {
-            return 144 * 1024 * 1024; // 主流智能电视分配 144MB
+            return 160 * 1024 * 1024; // 主流智能电视分配 160MB
         } else {
-            return 224 * 1024 * 1024; // 旗舰盒子/已开 largeHeap 分配 224MB
+            return 256 * 1024 * 1024; // 旗舰盒子/已开 largeHeap 分配 256MB
         }
     }
 
@@ -101,15 +118,16 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     @Override
     public void initPlayer() {
         if (mLoadControl == null) {
+            int safeMinBufferMs = calculateSafeMinBufferMs();
             mLoadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                            MIN_BUFFER_MS,
+                            safeMinBufferMs,
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
                     .setBackBuffer(calculateSafeBackBufferMs(), true)
                     .setTargetBufferBytes(calculateSafeTargetBufferBytes())
-                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .setPrioritizeTimeOverSizeThresholds(false)
                     .createDefaultLoadControl();
         }
         if (mRenderersFactory == null) {

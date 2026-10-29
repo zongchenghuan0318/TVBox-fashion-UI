@@ -13,8 +13,8 @@ import xyz.doikki.videoplayer.ijk.IjkPlayer;
 
 public class IjkMediaPlayer extends IjkPlayer {
 
-    /** 播放中最多向前缓冲的时长：尽量往前预读，5 分钟内不设更细的停顿 */
-    private static final long BUFFER_AHEAD_MS = 300000L;
+    /** 播放中最多向前缓冲的时长：尽量往前预读，10 分钟内不设更细的停顿，让进度条尽情蓄水 */
+    private static final long BUFFER_AHEAD_MS = 600000L;
     /** 缓冲区字节下限，也是低内存设备上的实际取值 */
     private static final long BUFFER_BYTES_MIN = 64 * 1024 * 1024L;
     /** 缓冲区字节上限，避免单个播放器把堆吃满 */
