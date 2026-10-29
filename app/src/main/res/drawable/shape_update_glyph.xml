@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 磨砂玻璃圆形图标容器 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="22mm" />
-    <gradient android:angle="315" android:startColor="#3C365E" android:endColor="#23364C" />
-    <stroke android:width="1mm" android:color="#655C92" />
+    <corners android:radius="19mm" />
+    <gradient
+        android:angle="315"
+        android:startColor="#2BFFFFFF"
+        android:endColor="#12FFFFFF" />
+    <stroke
+        android:width="1mm"
+        android:color="#33FFFFFF" />
 </shape>

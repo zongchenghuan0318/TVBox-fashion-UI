@@ -1,9 +1,9 @@
 {
-  "versionCode": 142,
-  "versionName": "1.1.32",
-  "changelog": "播放缓冲策略调整。\n\n- IJK 前向缓冲目标从 5 分钟调整为 10 分钟。\n- Exo 根据设备堆内存调整预读目标和缓冲字节目标，最大预读时长调整为 10 分钟。\n- Exo 优先遵守缓冲字节目标，避免为了达到时长目标而持续增加缓冲内存。\n\n实际缓冲时长受片源码率、网络和设备内存影响；电视端起播、连续播放和资源占用仍需实机验证。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.32/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.32/Z.apk",
-  "sha256": "1aa9f2bb55acee2b20479c0d1ec5a44e590dc5a8478a95a88b42d4ed324ce330",
-  "size": 24834806
+  "versionCode": 143,
+  "versionName": "1.1.33",
+  "changelog": "设置页面视觉与布局更新。\n\n- 调整设置页背景、分组卡片与文字配色。\n- 更新遥控焦点、选中状态和返回按钮样式。\n- 优化设置项排版、间距和软件更新入口的呈现。\n\n发布构建与签名校验通过；电视端焦点跳转、文字可读性及不同屏幕尺寸仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.33/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.33/Z.apk",
+  "sha256": "49551319426af73fca4902eb5fe6993726ffafcec695cc4316131323d7a5c928",
+  "size": 24837451
 }

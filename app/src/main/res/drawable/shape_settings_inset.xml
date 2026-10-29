@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 沉浸式微凹嵌胶囊背景 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="16mm" />
-    <solid android:color="#101725" />
-    <stroke android:width="1mm" android:color="#2D3B56" />
+    <corners android:radius="10mm" />
+    <solid android:color="#12141A" />
+    <stroke
+        android:width="1mm"
+        android:color="#1FFFFFFF" />
 </shape>

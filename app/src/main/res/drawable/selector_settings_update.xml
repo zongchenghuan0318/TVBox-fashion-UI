@@ -1,17 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 软件更新卡片背景：纯中性深灰磨砂玻璃，聚焦时高亮浮起 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_focused="true"><shape>
-        <corners android:radius="22mm" />
-        <gradient android:angle="0" android:startColor="#353451" android:endColor="#243748" />
-        <stroke android:width="2mm" android:color="@color/settings_focus" />
-    </shape></item>
-    <item android:state_pressed="true"><shape>
-        <corners android:radius="22mm" /><solid android:color="#303B55" />
-        <stroke android:width="1mm" android:color="@color/settings_accent" />
-    </shape></item>
-    <item><shape>
-        <corners android:radius="22mm" />
-        <gradient android:angle="0" android:startColor="#272943" android:endColor="#1B2D3A" />
-        <stroke android:width="1mm" android:color="#4A4C70" />
-    </shape></item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="16mm" />
+            <gradient
+                android:angle="90"
+                android:startColor="#4DFFFFFF"
+                android:endColor="#2EFFFFFF" />
+            <stroke
+                android:width="1.5mm"
+                android:color="#B3FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="16mm" />
+            <solid android:color="#4DFFFFFF" />
+            <stroke
+                android:width="1.5mm"
+                android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="16mm" />
+            <gradient
+                android:angle="270"
+                android:startColor="#222530"
+                android:endColor="#15171F" />
+            <stroke
+                android:width="1mm"
+                android:color="#26FFFFFF" />
+        </shape>
+    </item>
 </selector>

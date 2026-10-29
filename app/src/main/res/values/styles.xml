@@ -54,13 +54,13 @@
         <item name="android:textColorSecondary">@color/color_6CFFFFFF</item>
     </style>
 
-    <!-- 设置页：分组标题（小标签 + 青色圆点，弱化装饰、强化扫描） -->
+    <!-- 设置页：分组标题（Apple TV 极简字标，弱化装饰、强化快速扫描） -->
     <style name="SettingSectionTitle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/settings_text_secondary</item>
-        <item name="android:textSize">@dimen/ts_20</item>
-        <item name="android:letterSpacing">0.04</item>
+        <item name="android:textSize">16mm</item>
+        <item name="android:letterSpacing">0.03</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
@@ -70,43 +70,44 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">horizontal</item>
         <item name="android:gravity">center_vertical</item>
-        <item name="android:layout_marginTop">24mm</item>
-        <item name="android:layout_marginBottom">@dimen/vs_10</item>
-        <item name="android:paddingLeft">@dimen/vs_6</item>
+        <item name="android:layout_marginTop">16mm</item>
+        <item name="android:layout_marginBottom">8mm</item>
+        <item name="android:paddingLeft">6mm</item>
     </style>
 
-    <!-- 设置页：一组设置行共用的半透明面板 -->
+    <!-- 设置页：一组设置行共用的半透明磨砂玻璃卡片面板 -->
     <style name="SettingGroup">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/shape_setting_group</item>
         <item name="android:orientation">vertical</item>
-        <item name="android:padding">8mm</item>
+        <item name="android:padding">4mm</item>
     </style>
 
-    <!-- 设置页：组内发丝分隔线 -->
+    <!-- 设置页：组内发丝分隔线（半透明白色发丝微切线） -->
     <style name="SettingDivider">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">@dimen/vs_1</item>
-        <item name="android:layout_marginLeft">@dimen/vs_24</item>
-        <item name="android:layout_marginRight">@dimen/vs_24</item>
-        <item name="android:background">#29354B</item>
+        <item name="android:layout_marginLeft">14mm</item>
+        <item name="android:layout_marginRight">14mm</item>
+        <item name="android:background">#12FFFFFF</item>
     </style>
 
-    <!-- 设置页：整行容器（圆角焦点块，不画底部分隔线，分隔交给 SettingDivider） -->
+    <!-- 设置页：整行容器（圆角磨砂胶囊，遥控器交互） -->
     <style name="SettingRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:minHeight">64mm</item>
+        <item name="android:minHeight">50mm</item>
         <item name="android:layout_marginBottom">@dimen/vs_0</item>
         <item name="android:background">@drawable/selector_setting_row</item>
         <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:orientation">horizontal</item>
-        <item name="android:paddingLeft">18mm</item>
-        <item name="android:paddingRight">18mm</item>
-        <item name="android:paddingTop">14mm</item>
-        <item name="android:paddingBottom">14mm</item>
+        <item name="android:paddingLeft">14mm</item>
+        <item name="android:paddingRight">14mm</item>
+        <item name="android:paddingTop">10mm</item>
+        <item name="android:paddingBottom">10mm</item>
         <item name="android:stateListAnimator">@animator/setting_row_focus</item>
     </style>
 
@@ -123,11 +124,12 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:singleLine">true</item>
-        <item name="android:textColor">@color/color_FFFFFF</item>
-        <item name="android:textSize">22mm</item>
+        <item name="android:textColor">@color/selector_setting_title</item>
+        <item name="android:textSize">18mm</item>
+        <item name="android:duplicateParentState">true</item>
     </style>
 
-    <!-- 设置页：行当前值（比标题暗一档；宽度吃满剩余空间并右对齐，避免长值顶住标题、把箭头挤出屏幕） -->
+    <!-- 设置页：行当前值（聚焦时亮白，未聚焦中性灰；宽度吃满剩余空间并右对齐） -->
     <style name="SettingRowValue">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_weight">1</item>
@@ -135,19 +137,21 @@
         <item name="android:gravity">end</item>
         <item name="android:ellipsize">middle</item>
         <item name="android:singleLine">true</item>
-        <item name="android:textColor">@color/settings_text_secondary</item>
-        <item name="android:textSize">@dimen/ts_20</item>
-        <item name="android:layout_marginLeft">14mm</item>
+        <item name="android:textColor">@color/selector_setting_value</item>
+        <item name="android:textSize">16mm</item>
+        <item name="android:layout_marginLeft">12mm</item>
+        <item name="android:duplicateParentState">true</item>
     </style>
 
-    <!-- 设置页：行末箭头 -->
+    <!-- 设置页：行末箭头（聚焦纯白，未聚焦中性微光） -->
     <style name="SettingRowArrow">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginLeft">@dimen/vs_12</item>
-        <item name="android:layout_marginStart">@dimen/vs_12</item>
+        <item name="android:layout_marginLeft">8mm</item>
+        <item name="android:layout_marginStart">8mm</item>
         <item name="android:text">›</item>
-        <item name="android:textColor">@color/settings_text_muted</item>
-        <item name="android:textSize">@dimen/ts_24</item>
+        <item name="android:textColor">@color/selector_setting_arrow</item>
+        <item name="android:textSize">18mm</item>
+        <item name="android:duplicateParentState">true</item>
     </style>
 </resources>

@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 熏黑磨砂玻璃卡片背景：纯中性黑曜石渐变 + 1px 极细微高光包边 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="@dimen/radius_20" />
-    <gradient android:angle="270" android:startColor="#1A2233" android:endColor="@color/settings_surface" />
+    <corners android:radius="16mm" />
+    <gradient
+        android:angle="270"
+        android:startColor="#1A1C24"
+        android:endColor="#111319" />
     <stroke
-        android:width="@dimen/vs_1"
-        android:color="@color/settings_border" />
+        android:width="1mm"
+        android:color="#1FFFFFFF" />
 </shape>

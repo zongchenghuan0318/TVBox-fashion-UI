@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置行箭头符号：聚焦时纯白，常态为暗淡中性灰 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FFFFFFFF" />
+    <item android:state_selected="true" android:color="#FFFFFFFF" />
+    <item android:state_pressed="true" android:color="#FFFFFFFF" />
+    <item android:color="#4D5364" />
+</selector>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 主操作按钮文字：聚焦高亮胶囊时黑色文字，常态白色 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#000000" />
+    <item android:state_pressed="true" android:color="#000000" />
+    <item android:color="#FFFFFF" />
+</selector>

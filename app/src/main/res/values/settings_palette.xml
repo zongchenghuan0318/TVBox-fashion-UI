@@ -1,27 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="settings_background">#0C101A</color>
-    <color name="settings_surface">#161D2C</color>
-    <color name="settings_surface_raised">#202A3D</color>
-    <color name="settings_border">#354059</color>
-    <color name="settings_text">#F4F6FC</color>
-    <color name="settings_text_secondary">#B7C1D8</color>
-    <color name="settings_text_muted">#98A6C2</color>
-    <color name="settings_accent">#BDB2FF</color>
-    <color name="settings_focus">#D6CEFF</color>
-    <color name="settings_success">#7DE0C3</color>
-    <color name="settings_warning">#F1CA8B</color>
+    <!-- Apple TV 极简深色磨砂玻璃主色板：0% 蓝紫偏色，纯粹中性黑白灰阶 -->
+    <color name="settings_background">#0A0C10</color>
+    <color name="settings_surface">#13151B</color>
+    <color name="settings_surface_raised">#1C1E26</color>
+    <color name="settings_border">#1FFFFFFF</color>
+    <color name="settings_border_strong">#33FFFFFF</color>
+    <color name="settings_text">#F5F7FA</color>
+    <color name="settings_text_secondary">#8E95A5</color>
+    <color name="settings_text_muted">#5A6070</color>
+    <color name="settings_accent">#FFFFFF</color>
+    <color name="settings_focus">#FFFFFF</color>
+    <color name="settings_success">#34D399</color>
+    <color name="settings_warning">#FBBF24</color>
+
     <style name="SettingsButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:minHeight">52mm</item>
-        <item name="android:minWidth">110mm</item>
-        <item name="android:paddingLeft">22mm</item>
-        <item name="android:paddingRight">22mm</item>
-        <item name="android:paddingTop">12mm</item>
-        <item name="android:paddingBottom">12mm</item>
+        <item name="android:minHeight">44mm</item>
+        <item name="android:minWidth">100mm</item>
+        <item name="android:paddingLeft">20mm</item>
+        <item name="android:paddingRight">20mm</item>
+        <item name="android:paddingTop">10mm</item>
+        <item name="android:paddingBottom">10mm</item>
         <item name="android:gravity">center</item>
-        <item name="android:textSize">20mm</item>
+        <item name="android:textSize">17mm</item>
         <item name="android:textColor">@color/settings_text</item>
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:focusable">true</item>
@@ -29,14 +32,14 @@
         <item name="android:background">@drawable/selector_settings_control</item>
     </style>
     <style name="SettingsButton.Primary" parent="SettingsButton">
-        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textColor">@color/selector_update_action_text</item>
         <item name="android:background">@drawable/selector_update_primary</item>
-        <item name="android:minWidth">144mm</item>
+        <item name="android:minWidth">120mm</item>
     </style>
     <style name="UpdateCaption">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textSize">16mm</item>
+        <item name="android:textSize">14mm</item>
         <item name="android:textColor">@color/settings_text_muted</item>
     </style>
 </resources>

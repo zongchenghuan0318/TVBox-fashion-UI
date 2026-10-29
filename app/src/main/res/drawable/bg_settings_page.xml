@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 中性灰暗黑背景：0% 蓝紫偏色，顶部带有一缕极为微妙的中性漫反射光晕 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape><solid android:color="@color/settings_background" /></shape></item>
-    <item><shape>
-        <gradient android:type="radial" android:centerX="0.1" android:centerY="0"
-            android:gradientRadius="720mm" android:startColor="#252F4D8A" android:endColor="#002F4D8A" />
-    </shape></item>
+    <item>
+        <shape>
+            <solid android:color="@color/settings_background" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <gradient
+                android:type="radial"
+                android:centerX="0.5"
+                android:centerY="0.0"
+                android:gradientRadius="600mm"
+                android:startColor="#18FFFFFF"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
 </layer-list>
