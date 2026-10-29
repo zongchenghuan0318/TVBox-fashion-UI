@@ -93,6 +93,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private boolean categoryMetadataPending;
     private final Runnable categoryRetry = this::requestCategoryMetadata;
     private final Runnable categoryMetadataTimeout = this::onCategoryMetadataTimeout;
+    private boolean hasScheduledUpdateCheck = false;
+    private boolean updateSourceReady = false;
     private final Runnable mClockRunnable = new Runnable() {
         @Override
         public void run() {
@@ -350,7 +352,28 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             if (freshCount < 5) scheduleCategoryRetry();
             else mHandler.removeCallbacks(categoryRetry);
             hideLoading();
+            // 核心保证：只有默认点播源分类或推荐数据完全载入成功后，才允许排队检查更新
+            if (freshCount > 0 || (absXml != null && absXml.videoList != null && !absXml.videoList.isEmpty())) {
+                checkUpdateIfSourceReady();
+            }
         });
+    }
+
+    /**
+     * 点播源数据加载后延时检查更新，减少与主页初始加载同时进行的工作。
+     */
+    private void checkUpdateIfSourceReady() {
+        updateSourceReady = true;
+        if (hasScheduledUpdateCheck || isFinishing() || isDestroyed()) return;
+        hasScheduledUpdateCheck = true;
+        mHandler.postDelayed(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                UpdateManager.check(HomeActivity.this, false);
+            } else {
+                hasScheduledUpdateCheck = false;
+            }
+        }, 4000L);
     }
 
     private String categoryCacheKey(SiteBean source) {
@@ -462,8 +485,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     mMovieSortRV.setSelection(0);
                     mMovieSortRV.requestFocus();
                 }
-                // 每次启动首页就绪后检查一次更新
-                UpdateManager.check(HomeActivity.this, false);
             }
         }).start();
     }
@@ -645,6 +666,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     @Override
     protected void onResume() {
         super.onResume();
+        if (updateSourceReady) checkUpdateIfSourceReady();
         showTime();
         // 从其它页面返回时，当前页可能还停在分类页，需要重新同步大背景的显隐
         syncHeroBackdrop();
