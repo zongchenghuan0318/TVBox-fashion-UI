@@ -194,12 +194,14 @@ public class LivePlayActivity extends BaseActivity {
                         if (mDigitChannelBuffer.length() > 0) {
                             cancelDigitalTune();
                         }
+                        sourceTimes = 0;
                         playPreSource();
                         return true;
                     case KeyEvent.KEYCODE_DPAD_RIGHT:
                         if (mDigitChannelBuffer.length() > 0) {
                             cancelDigitalTune();
                         }
+                        sourceTimes = 0;
                         playNextSource();
                         return true;
                     case KeyEvent.KEYCODE_DPAD_CENTER:
@@ -539,9 +541,9 @@ public class LivePlayActivity extends BaseActivity {
             return true;
         }
         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
-        sourceTimes = 0;
         mVideoView.release();
         if (!bChangeSource) {
+            sourceTimes = 0;
             groupIndex = group;
             channelIndex = channel;
             currentLiveChannelItem = targetChannel;
@@ -723,15 +725,16 @@ public class LivePlayActivity extends BaseActivity {
                         L.d("case VideoView.STATE_PREPARING");
                         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
                         mBegin = System.currentTimeMillis();
-                        // 首次建立连接起播采用 3.5s 快速探测超时，死链或不可达流快速换源，消除换台黑屏长久等待
-                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, 3500L);
+                        // 首次建立连接起播采用用户设置的超时换源时长（默认 10 秒，支持 5s~30s 档位调节），
+                        // 避免因过短（如 3.5s）在首片解析、握手和缓冲过程中误判死链导致反复跳源
+                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, getLiveConnectTimeoutMs());
                         break;
                     case VideoView.STATE_BUFFERING:
                         L.d("case VideoView.STATE_BUFFERING");
                         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
                         mBegin = System.currentTimeMillis();
-                        // 播放中途卡顿缓冲保留设定超时，容忍网络短暂抖动恢复
-                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, (Hawk.get(HawkConfig.LIVE_CONNECT_TIMEOUT, 1) + 1) * 3000L);
+                        // 播放中途卡顿缓冲同样遵循设定超时，容忍网络短暂抖动恢复
+                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, getLiveConnectTimeoutMs());
                         break;
                 }
             }
@@ -770,6 +773,14 @@ public class LivePlayActivity extends BaseActivity {
 
     private void deferConnectTimeout() {
         mHandler.postDelayed(mConnectTimeoutChangeSourceRun, 400);
+    }
+
+    private long getLiveConnectTimeoutMs() {
+        int timeoutIdx = Hawk.get(HawkConfig.LIVE_CONNECT_TIMEOUT, 1);
+        if (timeoutIdx < 0 || timeoutIdx >= 6) {
+            timeoutIdx = 1;
+        }
+        return (timeoutIdx + 1) * 5000L;
     }
 
     private void initChannelGroupView() {
@@ -1012,8 +1023,9 @@ public class LivePlayActivity extends BaseActivity {
         }
         switch (settingGroupIndex) {
             case 0://线路切换
+                sourceTimes = 0;
                 currentLiveChannelItem.setSourceIndex(position);
-                playChannel(groupIndex, channelIndex,true);
+                playChannel(groupIndex, channelIndex, true);
                 break;
             case 1://画面比例
                 livePlayerManager.changeLivePlayerScale(mVideoView, position, currentLiveChannelItem.getChannelName());
@@ -1026,8 +1038,15 @@ public class LivePlayActivity extends BaseActivity {
                 break;
             case 3://超时换源
                 Hawk.put(HawkConfig.LIVE_CONNECT_TIMEOUT, position);
+                if (mVideoView != null) {
+                    int playState = mVideoView.getCurrentPlayState();
+                    if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
+                        mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
+                        mHandler.postDelayed(mConnectTimeoutChangeSourceRun, getLiveConnectTimeoutMs());
+                    }
+                }
                 break;
-            case 4://超时换源
+            case 4://偏好设置
                 boolean select = false;
                 switch (position) {
                     case 0:

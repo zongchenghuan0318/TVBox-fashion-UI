@@ -1,9 +1,9 @@
 {
-  "versionCode": 146,
-  "versionName": "1.1.36",
-  "changelog": "更新电视端界面与网页遥控体验。\n\n- 调整配置、遥控、备份、关于等弹窗和二维码区域的布局与焦点样式。\n- 更新推送页面、直播源卡片及空状态界面。\n- 更新网页遥控端布局与交互提示，增加输入检查。\n- 修正二维码说明文字。\n\n本版本完成 Release 构建与签名校验；实际电视上的遥控焦点、网页联动和覆盖升级仍需实机确认。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.36/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.36/Z.apk",
-  "sha256": "ac24927d6c713f59acfc690a55f65dc26675efba7f9a4980ff46d632aee23301",
-  "size": 24824367
+  "versionCode": 147,
+  "versionName": "1.1.37",
+  "changelog": "修复直播超时换源行为。\n\n- 起播和播放中缓冲统一遵循用户设置的超时时长，默认 10 秒。\n- 调整超时设置后立即更新正在等待的换源计时。\n- 修正自动换源尝试计数，手动切换线路或频道时重新计数。\n\nRelease 构建与签名校验通过；直播换源和覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.37/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.37/Z.apk",
+  "sha256": "c5f0d53f9352b0f29c1a97fc9b3a3d8a3d96f6b48003cc1e00efb5271b025bca",
+  "size": 24824486
 }
