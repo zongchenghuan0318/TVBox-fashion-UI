@@ -1,55 +1,119 @@
+// ==========================================================================
+// TVBox Web Companion Client Logic
+// ==========================================================================
+
+let current_root = '';
+let current_parent = '';
+let current_remote = '';
+let current_file = '';
+let hudTimer = null;
+
+function hudToast(message, type) {
+    let $hud = $('#hudToast');
+    let $msg = $('#hudMessage');
+    let $icon = $('#hudIcon');
+    if (!$hud.length) return;
+
+    $msg.text(message);
+    if (type === 'warn') {
+        $icon.html('<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>');
+        $icon.css('color', '#ff9f0a');
+    } else {
+        $icon.html('<polyline points="20 6 9 17 4 12"></polyline>');
+        $icon.css('color', '#30d158');
+    }
+
+    $hud.addClass('show');
+    if (hudTimer) clearTimeout(hudTimer);
+    hudTimer = setTimeout(function () {
+        $hud.removeClass('show');
+    }, 2400);
+}
+
+function warnToast(msg) {
+    hudToast(msg, 'warn');
+}
+
 function search() {
-    doAction('search', { word: $('#search_key_word').val() });
+    let word = $('#search_key_word').val().trim();
+    if (!word) {
+        hudToast('请输入搜索关键字', 'warn');
+        return;
+    }
+    doAction('search', { word: word });
+    hudToast('已发送搜索「' + word + '」至电视', 'success');
 }
 
 function api() {
-    doAction('api', { url: $('#diy_api_url').val() });
+    let url = $('#diy_api_url').val().trim();
+    if (!url) {
+        hudToast('请输入自定义配置接口地址', 'warn');
+        return;
+    }
+    doAction('api', { url: url });
+    hudToast('接口配置地址已同步至电视', 'success');
 }
 
 function push() {
-    doAction('push', { url: $('#push_url').val() });
+    let url = $('#push_url').val().trim();
+    if (!url) {
+        hudToast('请输入需要推送播放的地址', 'warn');
+        return;
+    }
+    doAction('push', { url: url });
+    hudToast('视频链接已推送到电视播放', 'success');
 }
 
 function doAction(action, kv) {
     kv['do'] = action;
-    // alert(JSON.stringify(kv));
     $.post('/action', kv, function (data) {
         console.log(data);
-        // alert(data);
     });
     return false;
 }
 
 function tpl_top(path) {
-    return `<a class="weui-cell  weui-cell_access" href="javascript:void(0)" onclick="listFile('` + path + `')">
-    <div class="weui-cell__hd"><img src="`+ ic_dir + `" alt="" style="width: 32px; margin-right: 16px; display: block;"></div>
-    <span class="weui-cell__bd">
-        <span>..</span>
-    </span>
-    <span class="weui-cell__ft">
-    </span>
+    return `<a class="file-row" href="javascript:void(0)" onclick="listFile('` + path + `')">
+    <div class="file-glyph">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    </div>
+    <div class="file-meta">
+        <div class="file-label">.. (返回上级目录)</div>
+        <div class="file-subtext">返回上一层文件夹</div>
+    </div>
+    <div class="file-chevron">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
     </a>`;
 }
 
 function tpl_dir(name, time, path) {
-    return `<a class="weui-cell  weui-cell_access" href="#" onclick="listFile('` + path + `')">
-    <div class="weui-cell__hd"><img src="`+ ic_dir + `" alt="" style="width: 32px; margin-right: 16px; display: block;"></div>
-    <span class="weui-cell__bd">
-    <span>`+ name + `</span>
-        <div class="weui-cell__desc">`+ time + `</div>
-    </span>
-    <span class="weui-cell__ft">
-    </span>
+    return `<a class="file-row" href="javascript:void(0)" onclick="listFile('` + path + `')">
+    <div class="file-glyph">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+    <div class="file-meta">
+        <div class="file-label">` + name + `</div>
+        <div class="file-subtext">` + time + `</div>
+    </div>
+    <div class="file-chevron">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
     </a>`;
 }
 
 function tpl_file(name, time, path, canDel) {
-    return `<a class="weui-cell  weui-cell_access" href="javascript:void(0)" onclick="selectFile('` + path + `', ` + canDel + `)">
-    <div class="weui-cell__hd"><img src="`+ ic_file + `" alt="" style="width: 32px; margin-right: 16px; display: block;"></div>
-    <span class="weui-cell__bd">
-        <span>`+ name + `</span>
-        <div class="weui-cell__desc">`+ time + `</div>
-    </span>
+    return `<a class="file-row" href="javascript:void(0)" onclick="selectFile('` + path + `', ` + canDel + `)">
+    <div class="file-glyph">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+    </div>
+    <div class="file-meta">
+        <div class="file-label">` + name + `</div>
+        <div class="file-subtext">` + time + `</div>
+    </div>
+    <div class="file-chevron">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+    </div>
     </a>`;
 }
 
@@ -61,23 +125,15 @@ function add_file(node) {
     $('#file_list').append(node);
 }
 
-let ic_dir = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAIoSURBVFiF7Ze/T9RgGMc/T9/WO+74IXdRNKCJxETPQaOJi8LoxiouTurmv+DAYvwH3JzVhOhgSHByMTqY6GBCCBFMcJFwURC4O1rbvo8DoIg9rvHuYOGTdGjfb/J88vZpn1Z0bKw7JjsiaCcJqMiCKQ1OyuhonLTeLG5MZlLQq/UCooqd/nwfuNcOAUfgSorcbR0fN20RACRF7hgzc0PtEJB47IGmCSq8EXjbOKjG+VG54Buv531puK/WkfO2L0cY+ZI5ksVfD84vTt91U5vCEBvH7qxU0GqV18PX+Xg2+e6GFmZXhPlc3zOX5dW0Do2xMbIeEBuXmVMX68Y8BwxQzhXFlWqtdQKbzA+cIch0pMq630vgX55DTJgY+Bn18ql8hyAqphb4VjjeMLPVeG722nOKztddw0EPTARPUws0ohqB3TRw8w2KAwyaCRara/i2u+niCqxHf85TPQWe+Jw2L3kX3GhaYCdip5xU74FV28dSPNB8QZR8VEbCiCe1h+kFWopCVLH42oWz58Xh98s/y9o+CWzjQOBA4EBg3wX+mgWxdwlrTtSJRrjBK0T99glUC49R52jdcG75Fp7/on0C4BGGIeWFMtsHRL4zT2/hMCoerebfHkgYTWm+2/+XHTsQ4h3y6D/ZnxgWjRKvt0wgv3QTa+rN/I0mbDVipxxLe3c5kWjNgqIOSOO/nRajMVu99kF0hi4iM4LQtSfVrWbigHMa21k35NEvWSq4Cnb1Ay8AAAAASUVORK5CYII=';
-let ic_file = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAJdSURBVFiF7ZfLaxNRFMa/c+8MbZO0xAgmGIIxUmtsQCkobsSNO12I7v0PXAjuBDeCCN0I/gvdu3HhQlHBBwouTA1UUoulKXmYSDp59TEzx4XUpmFm0tsMTRd+u5l7uN9vvnvunRmCh+r1+km2+CWAlFedm5byP79PIHRx8tKk4VYjvCawTfvafs0BoN1qThWNYn7h3cK4EgDPI23P07Ox5pM7+zXfVqPRPFbulPO517nQngBmv3JwkwIPQXQDXDs9KAAANI1WtLpVXcx9yEU8AWY/WU95nRvL1tVbfhgLKXcgGq1oZe3XajabPdJdo3VfMOg2AAL7YQ8kUyewIiQs0wQAbG5sjHbqnUUARx0BAMi/IP4oEAxganpnFcuFEggU7q7x3AUHoaED9C6Bp5gZlmUpGQgSENL9OR0B2KUJCssFFAslJQAShPMXzkHX9b0DuCmRTCCRTCgB9JPzSeirhbeUEjDqBgyjoWQgiBCLxyCEcx8494DLZLZtwzbVmpAFeUaqlEA4EkY4Eu5fqKBDeg64bsNVVEoVJQMCITOTga47WznfJefJ4onjiMWjygBSk67jSgcRCYImlNqmr4beA0M/iP4ncDgT+BfBAUThmQDbpv+OPZ+8ngBa+xWEWfbFt9PqgJmh6/r7XR5OxduIkpcw9uMsWE4MZM7QMKoFq2uBF2dS6VO1vgArWzPIjDwHSUCOA2DXf0sFit9z6XS61nu7F8AEgLfrD/CtfQUhWR3YNzZS+ngzdPc+ps03TuO7Xjuzn61HzHQPDL1pAvaAu4AZJYvo+uPL9MWt5g/5NsVsHsMO8wAAAABJRU5ErkJggg==';
-
-let current_root = '';
-let current_parent = '';
-let current_remote = '';
-let current_file = '';
-
 function selectFile(path, canDel) {
     current_file = path;
     if (canDel)
         $("#delFileBtn").show();
     else
         $("#delFileBtn").hide();
-    // $("#fileUrl0")[0].value = current_remote.replace('clan://', 'http://') + 'file/' + current_file;
-    $("#fileUrl1")[0].value = "clan://localhost/" + current_file;
-    $("#fileUrl2")[0].value = current_remote + current_file;
+
+    $("#fileUrl1").val("clan://localhost/" + current_file);
+    $("#fileUrl2").val(current_remote + current_file);
     $("#fileInfoDialog").show();
 }
 
@@ -87,6 +143,8 @@ function fileToApi(type) {
     } else {
         doAction('api', { url: current_remote + current_file });
     }
+    hudToast('已将文件应用为当前接口配置', 'success');
+    hideFileInfo();
 }
 
 function hideFileInfo() {
@@ -103,7 +161,7 @@ function listFile(path) {
         current_parent = parent;
         current_remote = info.remote;
         let array = info.files;
-        if (path === '' && array.length == 0)
+        if (path === '' && array.length === 0)
             warnToast('读取本地文件失败，可能没有存储权限');
         clear_list();
         if (parent !== '.')
@@ -123,15 +181,10 @@ function listFile(path) {
             }
         });
         $('#loadingToast').hide();
-    })
-}
-
-function warnToast(msg) {
-    $('#warnToastContent').html(msg);
-    $('#warnToast').show();
-    setTimeout(() => {
-        $('#warnToast').hide();
-    }, 1000);
+    }).fail(function () {
+        $('#loadingToast').hide();
+        warnToast('获取文件列表失败');
+    });
 }
 
 function uploadFile() {
@@ -144,21 +197,21 @@ function uploadTip() {
         return false;
     let tip = '';
     for (var i = 0; i < files.length; i++) {
-        tip += (files[i].name) + ',';
+        tip += files[i].name + (i < files.length - 1 ? '、' : '');
     }
-    $('#uploadTipContent').html(tip);
+    $('#uploadTipContent').text(tip);
     $('#uploadTip').show();
 }
 
 function doUpload(yes) {
     $('#uploadTip').hide();
-    if (yes == 1) {
+    if (yes === 1) {
         let files = $('#file_uploader')[0].files;
         if (files.length <= 0)
             return false;
         var formData = new FormData();
         formData.append('path', current_root);
-        for (i = 0; i < files.length; i++) {
+        for (var i = 0; i < files.length; i++) {
             formData.append("files-" + i, files[i]);
         }
         $('#loadingToast').show();
@@ -170,6 +223,7 @@ function doUpload(yes) {
             contentType: false,
             complete: function () {
                 $('#loadingToast').hide();
+                hudToast('文件上传完成', 'success');
                 listFile(current_root);
             }
         });
@@ -177,97 +231,115 @@ function doUpload(yes) {
 }
 
 function newFolder() {
+    $('#newFolderContent').val('');
     $('#newFolder').show();
 }
 
 function doNewFolder(yes) {
     $('#newFolder').hide();
-    if (yes == 1) {
-        let name = $('#newFolderContent')[0].value.trim();
+    if (yes === 1) {
+        let name = $('#newFolderContent').val().trim();
         if (name.length <= 0)
             return false;
         $('#loadingToast').show();
-        $.post('/newFolder', { path: current_root, name: '' + name }, function (data) {
+        $.post('/newFolder', { path: current_root, name: '' + name }, function () {
             $('#loadingToast').hide();
+            hudToast('已新建文件夹「' + name + '」', 'success');
             listFile(current_root);
-        });
-    }
-}
-
-
-function delFolder() {
-    $('#delFolderContent').html('是否删除 ' + current_root);
-    $('#delFolder').show();
-}
-
-function doDelFolder(yes) {
-    $('#delFolder').hide();
-    if (yes == 1) {
-        $('#loadingToast').show();
-        $.post('/delFolder', { path: current_root }, function (data) {
+        }).fail(function () {
             $('#loadingToast').hide();
-            listFile(current_parent);
+            warnToast('创建文件夹失败');
         });
     }
 }
 
 function delFolder() {
-    $('#delFolderContent').html('是否删除 ' + current_root);
+    $('#delFolderContent').text('是否确认删除文件夹「' + current_root + '」？');
     $('#delFolder').show();
 }
 
 function doDelFolder(yes) {
     $('#delFolder').hide();
-    if (yes == 1) {
+    if (yes === 1) {
         $('#loadingToast').show();
-        $.post('/delFolder', { path: current_root }, function (data) {
+        $.post('/delFolder', { path: current_root }, function () {
             $('#loadingToast').hide();
+            hudToast('文件夹已删除', 'success');
             listFile(current_parent);
+        }).fail(function () {
+            $('#loadingToast').hide();
+            warnToast('删除文件夹失败');
         });
     }
 }
 
 function delFile() {
     hideFileInfo();
-    $('#delFileContent').html('是否删除 ' + current_file);
+    $('#delFileContent').text('是否确认删除文件「' + current_file + '」？');
     $('#delFile').show();
 }
 
 function doDelFile(yes) {
     $('#delFile').hide();
-    if (yes == 1) {
+    if (yes === 1) {
         $('#loadingToast').show();
-        $.post('/delFile', { path: current_file }, function (data) {
+        $.post('/delFile', { path: current_file }, function () {
             $('#loadingToast').hide();
+            hudToast('文件已删除', 'success');
             listFile(current_root);
+        }).fail(function () {
+            $('#loadingToast').hide();
+            warnToast('删除文件失败');
         });
     }
 }
 
 function showPanel(id) {
-    let tab = $('#tab' + id)[0];
-    $(tab).attr('aria-selected', 'true').addClass('weui-bar__item_on');
-    $(tab).siblings('.weui-bar__item_on').removeClass('weui-bar__item_on').attr('aria-selected', 'false');
-    var panelId = '#' + $(tab).attr('aria-controls');
+    $('.tab-btn').removeClass('active');
+    $('#tab' + id).addClass('active');
+
+    $('#panel1, #panel2, #panel3').hide();
+    $('#panel' + id).fadeIn(150);
+
     if (id === 3 && current_remote.length === 0) {
-        listFile('')
+        listFile('');
     }
-    $(panelId).css('display', 'block');
-    $(panelId).siblings('.weui-tab__panel').css('display', 'none');
 }
 
 $(function () {
-    $('.weui-tabbar__item').on('click', function () {
-        showPanel(parseInt($(this).attr('id').substr(3)));
+    // 键盘回车快捷响应
+    $('#search_key_word').on('keypress', function (e) {
+        if (e.which === 13) {
+            search();
+            return false;
+        }
     });
-});
+    $('#push_url').on('keypress', function (e) {
+        if (e.which === 13) {
+            push();
+            return false;
+        }
+    });
+    $('#diy_api_url').on('keypress', function (e) {
+        if (e.which === 13) {
+            api();
+            return false;
+        }
+    });
+    $('#newFolderContent').on('keypress', function (e) {
+        if (e.which === 13) {
+            doNewFolder(1);
+            return false;
+        }
+    });
 
-var url = window.location.href;
-if (url.indexOf('push.html') > 0)
-    showPanel(2);
-else if (url.indexOf('api.html') > 0)
-    showPanel(3);
-else if (url.indexOf('all.html') > 0)
-    showPanel(3);
-else
-    showPanel(1);
+    var url = window.location.href;
+    if (url.indexOf('push.html') > 0)
+        showPanel(2);
+    else if (url.indexOf('api.html') > 0)
+        showPanel(3);
+    else if (url.indexOf('all.html') > 0)
+        showPanel(3);
+    else
+        showPanel(1);
+});

@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 极简磨砂白高光焦点：纯净中性玻璃反馈，去除赛博杂色 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape>
             <corners android:radius="@dimen/vs_15" />
-            <solid android:color="#2600D9FF" />
+            <solid android:color="#4DFFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"
-                android:color="#8000D9FF" />
+                android:color="#E6FFFFFF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_15" />
-            <solid android:color="#2600D9FF" />
+            <solid android:color="#33FFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"
-                android:color="#8000D9FF" />
+                android:color="#B3FFFFFF" />
         </shape>
     </item>
     <item>

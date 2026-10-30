@@ -10,7 +10,7 @@
 
     <!-- 左：当前配置与二维码 -->
     <LinearLayout
-        android:layout_width="@dimen/vs_310"
+        android:layout_width="@dimen/vs_320"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
@@ -28,35 +28,47 @@
             android:layout_marginTop="@dimen/vs_6"
             android:text="扫码在手机上打开当前配置"
             android:textColor="@color/color_6CFFFFFF"
-            android:textSize="@dimen/ts_20" />
+            android:textSize="@dimen/ts_18" />
+
+        <FrameLayout
+            android:layout_width="@dimen/vs_260"
+            android:layout_height="@dimen/vs_260"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/vs_16"
+            android:background="@drawable/shape_qr_container"
+            android:padding="@dimen/vs_10">
+
+            <ImageView
+                android:id="@+id/ivQRCode"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:focusable="false"
+                android:src="@drawable/cs_ic_launcher" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/tvAddress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_15"
+            android:layout_marginTop="@dimen/vs_16"
+            android:background="@drawable/shape_settings_inset"
             android:gravity="center"
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingTop="@dimen/vs_8"
+            android:paddingRight="@dimen/vs_12"
+            android:paddingBottom="@dimen/vs_8"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_22"
+            android:textSize="@dimen/ts_18"
             tools:text="1111111111111111111111111" />
-
-        <ImageView
-            android:id="@+id/ivQRCode"
-            android:layout_width="@dimen/vs_280"
-            android:layout_height="@dimen/vs_280"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="@dimen/vs_15"
-            android:focusable="false"
-            android:src="@drawable/cs_ic_launcher" />
     </LinearLayout>
 
-    <!-- 发丝分隔线 -->
+    <!-- 柔和垂直微隔离 -->
     <View
         android:layout_width="@dimen/vs_1"
         android:layout_height="match_parent"
         android:layout_marginLeft="@dimen/vs_24"
         android:layout_marginRight="@dimen/vs_24"
-        android:background="#14FFFFFF" />
+        android:background="#1AFFFFFF" />
 
     <!-- 右：点播源 -->
     <LinearLayout

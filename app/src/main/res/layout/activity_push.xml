@@ -3,45 +3,80 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#101217">
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="@dimen/vs_460"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:orientation="vertical">
+        android:background="@drawable/shape_dialog_bg_main"
+        android:orientation="vertical"
+        android:padding="@dimen/vs_30">
 
-        <ImageView
-            android:id="@+id/ivQRCode"
-            android:layout_width="@dimen/vs_300"
-            android:layout_height="@dimen/vs_300"
-            android:layout_gravity="center" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="视频推送 · 远程交互"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_26"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_6"
+            android:layout_marginBottom="@dimen/vs_20"
+            android:gravity="center"
+            android:text="手机/电脑扫描上方二维码或直接浏览器访问"
+            android:textColor="@color/color_6CFFFFFF"
+            android:textSize="@dimen/ts_18" />
+
+        <FrameLayout
+            android:layout_width="@dimen/vs_240"
+            android:layout_height="@dimen/vs_240"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/shape_qr_container"
+            android:padding="@dimen/vs_10">
+
+            <ImageView
+                android:id="@+id/ivQRCode"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/tvAddress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
             android:layout_marginTop="@dimen/vs_20"
+            android:background="@drawable/shape_settings_inset"
             android:gravity="center"
-            android:lineSpacingMultiplier="1.5"
-            android:textAlignment="gravity"
+            android:lineSpacingMultiplier="1.3"
+            android:paddingLeft="@dimen/vs_16"
+            android:paddingTop="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_16"
+            android:paddingBottom="@dimen/vs_12"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_24"
-            tools:text="1111111111111111111111111111111111111111111111111111" />
+            android:textSize="@dimen/ts_20"
+            tools:text="http://192.168.1.88:9978" />
 
         <TextView
             android:id="@+id/pushLocal"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:layout_height="@dimen/vs_45"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="@dimen/vs_20"
-            android:background="@drawable/selector_user_focus"
+            android:background="@drawable/button_dialog_main"
             android:focusable="true"
             android:gravity="center"
-            android:padding="@dimen/vs_10"
+            android:minWidth="@dimen/vs_180"
+            android:paddingLeft="@dimen/vs_20"
+            android:paddingRight="@dimen/vs_20"
             android:text="推送剪贴板内容"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_24" />
+            android:textSize="@dimen/ts_22" />
     </LinearLayout>
 </FrameLayout>

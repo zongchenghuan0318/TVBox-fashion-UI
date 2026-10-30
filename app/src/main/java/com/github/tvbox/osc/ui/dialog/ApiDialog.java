@@ -420,7 +420,7 @@ public class ApiDialog extends BaseDialog {
 
     private void refreshQRCode() {
         String address = ControlManager.get().getAddress(false);
-        tvAddress.setText(String.format("描二维码或浏览器访问：%s", address));
+        tvAddress.setText(String.format("扫描二维码或浏览器访问：%s", address));
         Bitmap bmp = QRCodeGen.generateBitmap(address, AutoSizeUtils.mm2px(getContext(), 300), AutoSizeUtils.mm2px(getContext(), 300));
         if (null != bmp) {
             qrCodeImg.setImageBitmap(bmp);

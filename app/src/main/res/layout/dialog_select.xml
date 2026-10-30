@@ -33,9 +33,9 @@
             android:id="@+id/title_divider"
             android:layout_width="match_parent"
             android:layout_height="@dimen/vs_1"
-            android:layout_marginLeft="@dimen/vs_30"
-            android:layout_marginRight="@dimen/vs_30"
-            android:background="#14FFFFFF"
+            android:layout_marginLeft="@dimen/vs_24"
+            android:layout_marginRight="@dimen/vs_24"
+            android:background="#1AFFFFFF"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/title" />

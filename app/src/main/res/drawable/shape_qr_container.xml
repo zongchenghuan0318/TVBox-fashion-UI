@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 扫码白底圆角卡片：纯净白底带微圆角，与暗色背景形成通透对比 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="@dimen/radius_15" />
+    <solid android:color="#FFFFFF" />
+</shape>

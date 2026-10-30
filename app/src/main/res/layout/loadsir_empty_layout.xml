@@ -13,6 +13,7 @@
         <ImageView
             android:layout_width="@dimen/vs_120"
             android:layout_height="@dimen/vs_120"
+            android:alpha="0.6"
             android:src="@drawable/icon_empty" />
 
         <TextView
@@ -20,9 +21,19 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/vs_20"
             android:gravity="center"
-            android:text="没找到数据"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_24" />
+            android:text="暂无相关影视内容"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_26"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_8"
+            android:gravity="center"
+            android:text="可尝试更换搜索关键词或切换片源配置"
+            android:textColor="@color/color_6CFFFFFF"
+            android:textSize="@dimen/ts_18" />
     </LinearLayout>
 
 </FrameLayout>
