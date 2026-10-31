@@ -63,10 +63,18 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
     public void onBindViewHolder( @NotNull SelectDialogAdapter.SelectViewHolder holder, int position) {
         T value = data.get(position);
         String name = dialogInterface.getDisplay(value);
-        if (position == select) {
+        boolean isSelected = position == select;
+        if (isSelected) {
             name = "√ " + name;
         }
-        ((TextView) holder.itemView.findViewById(R.id.tvName)).setText(name);
+        TextView tvName = (TextView) holder.itemView.findViewById(R.id.tvName);
+        if (tvName != null) {
+            tvName.setText(name);
+            tvName.setSelected(isSelected);
+            tvName.getPaint().setFakeBoldText(isSelected);
+            tvName.setTextColor(isSelected ? 0xFFFFFFFF : 0xCCFFFFFF);
+        }
+        holder.itemView.setSelected(isSelected);
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

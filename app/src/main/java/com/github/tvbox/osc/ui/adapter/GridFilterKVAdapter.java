@@ -20,11 +20,14 @@ public class GridFilterKVAdapter extends BaseQuickAdapter<String, BaseViewHolder
     @Override
     protected void convert(BaseViewHolder helper, String item) {
         helper.setText(R.id.filterValue, item);
-        boolean selected = item.equals(selectedLabel);
+        boolean selected = item != null && item.equals(selectedLabel);
         helper.itemView.setSelected(selected);
         android.widget.TextView text = helper.getView(R.id.filterValue);
-        text.getPaint().setFakeBoldText(selected);
-        text.setTextColor(text.getResources().getColor(selected
-                ? R.color.color_02F8E1 : R.color.color_FFFFFF));
+        if (text != null) {
+            text.setSelected(selected);
+            text.getPaint().setFakeBoldText(selected);
+            text.setTextColor(text.getResources().getColor(selected
+                    ? R.color.color_FFFFFF : R.color.color_CCFFFFFF));
+        }
     }
 }

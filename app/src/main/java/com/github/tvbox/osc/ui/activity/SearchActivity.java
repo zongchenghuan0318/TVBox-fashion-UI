@@ -780,11 +780,30 @@ public class SearchActivity extends BaseActivity {
                             return true;
                         }
                     }
+                } else if (currentFocus != null && isChildOf(currentFocus, mHotWordRV)) {
+                    View next = currentFocus.focusSearch(View.FOCUS_RIGHT);
+                    if (next == null || isChildOf(next, mHotWordRV)) {
+                        if (mSearchResultRV != null && mSearchResultRV.getVisibility() == View.VISIBLE && mSearchResultRV.getChildCount() > 0) {
+                            mSearchResultRV.requestFocus();
+                            return true;
+                        }
+                    }
                 }
             } else if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT) {
-                if (currentFocus != null && (isChildOf(currentFocus, mSearchResultRV) || isChildOf(currentFocus, mHotWordRV))) {
+                if (currentFocus != null && isChildOf(currentFocus, mSearchResultRV)) {
                     View next = currentFocus.focusSearch(View.FOCUS_LEFT);
-                    if (next == null || (!isChildOf(next, keyboard) && !isChildOf(next, mHotWordRV))) {
+                    if (next == null || isChildOf(next, mSearchResultRV)) {
+                        if (llWord != null && llWord.getVisibility() == View.VISIBLE && mHotWordRV != null && mHotWordRV.getChildCount() > 0) {
+                            mHotWordRV.requestFocus();
+                            return true;
+                        } else if (keyboard != null && keyboard.getVisibility() == View.VISIBLE) {
+                            keyboard.requestFocus();
+                            return true;
+                        }
+                    }
+                } else if (currentFocus != null && isChildOf(currentFocus, mHotWordRV)) {
+                    View next = currentFocus.focusSearch(View.FOCUS_LEFT);
+                    if (next == null || isChildOf(next, mHotWordRV)) {
                         if (keyboard != null && keyboard.getVisibility() == View.VISIBLE) {
                             keyboard.requestFocus();
                             return true;

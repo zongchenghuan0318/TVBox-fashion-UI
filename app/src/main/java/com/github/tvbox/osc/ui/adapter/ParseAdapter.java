@@ -19,12 +19,14 @@ public class ParseAdapter extends BaseQuickAdapter<ParseBean, BaseViewHolder> {
     @Override
     protected void convert(BaseViewHolder helper, ParseBean item) {
         TextView tvParse = helper.getView(R.id.tvParse);
-        tvParse.setVisibility(View.VISIBLE);
-        if (item.isDefault()) {
-            tvParse.setTextColor(mContext.getResources().getColor(R.color.color_02F8E1));
-        } else {
-            tvParse.setTextColor(Color.WHITE);
+        boolean isDefault = item != null && item.isDefault();
+        helper.itemView.setSelected(isDefault);
+        if (tvParse != null) {
+            tvParse.setVisibility(View.VISIBLE);
+            tvParse.setSelected(isDefault);
+            tvParse.getPaint().setFakeBoldText(isDefault);
+            tvParse.setTextColor(isDefault ? Color.WHITE : mContext.getResources().getColor(R.color.color_CCFFFFFF));
+            tvParse.setText(item == null ? "" : item.getName());
         }
-        tvParse.setText(item.getName());
     }
 }

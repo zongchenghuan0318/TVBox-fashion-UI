@@ -1,14 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 设置页左侧菜单项落焦与选中：中性熏黑磨砂胶囊 + 纯白高光外框 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="5mm" />
-            <stroke android:width="2mm" android:color="@android:color/white" />
+            <corners android:radius="8mm" />
+            <gradient
+                android:angle="90"
+                android:startColor="#40FFFFFF"
+                android:endColor="#26FFFFFF" />
+            <stroke
+                android:width="1.5mm"
+                android:color="#B3FFFFFF" />
         </shape>
     </item>
-    <item android:state_focused="false">
+    <item android:state_selected="true">
         <shape>
-            <solid android:color="@android:color/transparent" />
+            <corners android:radius="8mm" />
+            <solid android:color="#26FFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#4DFFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="8mm" />
+            <solid android:color="#14FFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#1AFFFFFF" />
         </shape>
     </item>
 </selector>

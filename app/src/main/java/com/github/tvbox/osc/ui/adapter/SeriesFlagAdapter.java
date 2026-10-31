@@ -1,6 +1,7 @@
 package com.github.tvbox.osc.ui.adapter;
 
 import android.view.View;
+import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
@@ -22,11 +23,15 @@ public class SeriesFlagAdapter extends BaseQuickAdapter<VodInfo.VodSeriesFlag, B
     @Override
     protected void convert(BaseViewHolder helper, VodInfo.VodSeriesFlag item) {
         View select = helper.getView(R.id.tvSeriesFlagSelect);
-        if (item.selected) {
-            select.setVisibility(View.VISIBLE);
-        } else {
-            select.setVisibility(View.GONE);
+        TextView tvSeriesFlag = helper.getView(R.id.tvSeriesFlag);
+        boolean selected = item != null && item.selected;
+        helper.itemView.setSelected(selected);
+        if (select != null) {
+            select.setVisibility(selected ? View.VISIBLE : View.GONE);
         }
-        helper.setText(R.id.tvSeriesFlag, "线路" + item.name);
+        if (tvSeriesFlag != null) {
+            tvSeriesFlag.getPaint().setFakeBoldText(selected);
+            tvSeriesFlag.setText(item == null ? "" : "线路" + item.name);
+        }
     }
 }

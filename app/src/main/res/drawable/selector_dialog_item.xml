@@ -19,6 +19,15 @@
                 android:color="#B3FFFFFF" />
         </shape>
     </item>
+    <item android:state_selected="true">
+        <shape>
+            <corners android:radius="@dimen/vs_15" />
+            <solid android:color="#26FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#4DFFFFFF" />
+        </shape>
+    </item>
     <item>
         <shape>
             <corners android:radius="@dimen/vs_15" />

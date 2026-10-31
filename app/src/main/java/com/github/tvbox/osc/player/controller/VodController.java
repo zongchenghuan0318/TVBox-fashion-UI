@@ -270,15 +270,17 @@ public class VodController extends BaseController {
                 onSeekPreviewFinished();
             }
         });
-        // 进度条获得焦点时，时间数字转为青色，明确当前可调节进度
+        // 进度条获得焦点时，时间高亮纯白并加粗，契合 Apple TV 中性发光交互规范
         mSeekBar.setOnFocusChangeListener((view, hasFocus) -> {
             int color = mActivity == null ? 0 : mActivity.getResources().getColor(
-                    hasFocus ? R.color.color_02F8E1 : R.color.color_CCFFFFFF);
+                    hasFocus ? R.color.color_FFFFFF : R.color.color_CCFFFFFF);
             if (mCurrentTimeTV != null) {
                 mCurrentTimeTV.setTextColor(color);
+                mCurrentTimeTV.getPaint().setFakeBoldText(hasFocus);
             }
             if (mTotalTimeTV != null) {
                 mTotalTimeTV.setTextColor(color);
+                mTotalTimeTV.getPaint().setFakeBoldText(hasFocus);
             }
         });
         mPlayerRetryTv.setOnClickListener(v -> {
@@ -737,8 +739,19 @@ public class VodController extends BaseController {
         if (window == null) {
             return;
         }
+        if (mControlWrapper != null) {
+            mControlWrapper.stopFadeOut();
+        }
         mEpisodeDialog = dialog;
-        dialog.setOnDismissListener(d -> mEpisodeDialog = null);
+        dialog.setOnDismissListener(d -> {
+            mEpisodeDialog = null;
+            if (mEpisodeBtn != null && mBottomLayout != null && mBottomLayout.getVisibility() == VISIBLE) {
+                mEpisodeBtn.requestFocus();
+            }
+            if (mControlWrapper != null) {
+                mControlWrapper.startFadeOut();
+            }
+        });
         window.setBackgroundDrawableResource(android.R.color.transparent);
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         window.setWindowAnimations(R.style.PlayerEpisodeWindowAnim);

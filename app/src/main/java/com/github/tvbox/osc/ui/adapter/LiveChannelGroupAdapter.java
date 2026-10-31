@@ -29,11 +29,11 @@ public class LiveChannelGroupAdapter extends BaseQuickAdapter<LiveChannelGroup, 
         TextView tvGroupName = holder.getView(R.id.tvChannelGroupName);
         tvGroupName.setText(item.getGroupName());
         int groupIndex = item.getGroupIndex();
-        if (groupIndex == selectedGroupIndex && groupIndex != focusedGroupIndex) {
-            tvGroupName.setTextColor(mContext.getResources().getColor(R.color.color_1890FF));
-        } else {
-            tvGroupName.setTextColor(Color.WHITE);
-        }
+        boolean isSelected = groupIndex == selectedGroupIndex;
+        holder.itemView.setSelected(isSelected);
+        tvGroupName.setSelected(isSelected);
+        tvGroupName.getPaint().setFakeBoldText(isSelected);
+        tvGroupName.setTextColor(isSelected ? Color.WHITE : 0xCCFFFFFF);
     }
 
     public void setSelectedGroupIndex(int selectedGroupIndex) {

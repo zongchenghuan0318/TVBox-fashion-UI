@@ -27,12 +27,11 @@ public class LiveSettingItemAdapter extends BaseQuickAdapter<LiveSettingItem, Ba
     protected void convert(BaseViewHolder holder, LiveSettingItem item) {
         TextView tvItemName = holder.getView(R.id.tvSettingItemName);
         tvItemName.setText(item.getItemName());
-        int itemIndex = item.getItemIndex();
-        if (item.isItemSelected() && itemIndex != focusedItemIndex) {
-            tvItemName.setTextColor(mContext.getResources().getColor(R.color.color_1890FF));
-        } else {
-            tvItemName.setTextColor(Color.WHITE);
-        }
+        boolean isSelected = item != null && item.isItemSelected();
+        holder.itemView.setSelected(isSelected);
+        tvItemName.setSelected(isSelected);
+        tvItemName.getPaint().setFakeBoldText(isSelected);
+        tvItemName.setTextColor(isSelected ? Color.WHITE : 0xCCFFFFFF);
     }
 
     public void selectItem(int selectedItemIndex, boolean select, boolean unselectPreItemIndex) {
