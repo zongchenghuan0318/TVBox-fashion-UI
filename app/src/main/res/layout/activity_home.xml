@@ -43,8 +43,9 @@
         android:orientation="horizontal"
         android:overScrollMode="never">
 
-        <!-- 占位：把内容区顶到侧栏右侧 -->
+        <!-- 占位：把内容区顶到侧栏右侧（在经典侧栏模式下生效，全屏顶栏/抽屉模式下隐藏） -->
         <View
+            android:id="@+id/sidebarSpacer"
             android:layout_width="@dimen/vs_165"
             android:layout_height="match_parent" />
 
@@ -59,6 +60,14 @@
                 android:layout_height="match_parent" />
         </FrameLayout>
     </LinearLayout>
+
+    <!-- 动态抽屉背景暗色半透明遮罩 -->
+    <View
+        android:id="@+id/drawerScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:visibility="gone" />
 
     <!-- 左侧导航栏：悬浮在内容区之上 -->
     <com.github.tvbox.osc.ui.tv.widget.NoScrollLinearLayout
@@ -316,10 +325,162 @@
 
     <!-- 侧栏与内容区之间的玻璃边缘投影 -->
     <View
+        android:id="@+id/sidebarEdgeShadow"
         android:layout_width="@dimen/vs_8"
         android:layout_height="match_parent"
         android:layout_marginLeft="@dimen/vs_165"
         android:background="@drawable/shape_home_rail_edge_shadow" />
+
+    <!-- 顶部悬浮导航栏：供 Apple TV 顶栏模式与极简沉浸模式使用 -->
+    <LinearLayout
+        android:id="@+id/topNavPanel"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/vs_54"
+        android:layout_gravity="top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/vs_40"
+        android:paddingRight="@dimen/vs_40"
+        android:paddingTop="@dimen/vs_8"
+        android:paddingBottom="@dimen/vs_4"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:visibility="gone">
+
+        <!-- 品牌标识与时间胶囊 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/vs_38"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:background="@drawable/shape_home_top_brand_pill"
+            android:paddingLeft="@dimen/vs_14"
+            android:paddingRight="@dimen/vs_14">
+
+            <TextView
+                android:id="@+id/tvTopBrand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:singleLine="true"
+                android:text="@string/app_name"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_22"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTopDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="@dimen/vs_10"
+                android:letterSpacing="0.04"
+                android:singleLine="true"
+                android:textColor="@color/color_CCFFFFFF"
+                android:textSize="@dimen/ts_18"
+                tools:text="00:00" />
+        </LinearLayout>
+
+        <!-- 顶部横向滚动分类列表 -->
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/sortTopRV"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginLeft="@dimen/vs_12"
+            android:layout_marginRight="@dimen/vs_12"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:scrollbars="none" />
+
+        <!-- 顶部右侧快捷操作胶囊组 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/top_layout_search"
+                android:layout_width="@dimen/vs_38"
+                android:layout_height="@dimen/vs_38"
+                android:layout_marginLeft="@dimen/vs_6"
+                android:background="@drawable/selector_home_top_action"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="@dimen/vs_20"
+                    android:layout_height="@dimen/vs_20"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_search"
+                    android:tint="@color/selector_home_rail_icon" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/top_layout_history"
+                android:layout_width="@dimen/vs_38"
+                android:layout_height="@dimen/vs_38"
+                android:layout_marginLeft="@dimen/vs_6"
+                android:background="@drawable/selector_home_top_action"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="@dimen/vs_20"
+                    android:layout_height="@dimen/vs_20"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_history"
+                    android:tint="@color/selector_home_rail_icon" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/top_layout_collect"
+                android:layout_width="@dimen/vs_38"
+                android:layout_height="@dimen/vs_38"
+                android:layout_marginLeft="@dimen/vs_6"
+                android:background="@drawable/selector_home_top_action"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="@dimen/vs_20"
+                    android:layout_height="@dimen/vs_20"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_collect"
+                    android:tint="@color/selector_home_rail_icon" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/top_layout_live"
+                android:layout_width="@dimen/vs_38"
+                android:layout_height="@dimen/vs_38"
+                android:layout_marginLeft="@dimen/vs_6"
+                android:background="@drawable/selector_home_top_action"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="@dimen/vs_20"
+                    android:layout_height="@dimen/vs_20"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_live"
+                    android:tint="@color/selector_home_rail_icon" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/top_layout_setting"
+                android:layout_width="@dimen/vs_38"
+                android:layout_height="@dimen/vs_38"
+                android:layout_marginLeft="@dimen/vs_6"
+                android:background="@drawable/selector_home_top_action"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="@dimen/vs_20"
+                    android:layout_height="@dimen/vs_20"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_setting"
+                    android:tint="@color/selector_home_rail_icon" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
 
     <!-- 打开画面：配置与首页数据全部就绪后再淡出 -->
     <FrameLayout

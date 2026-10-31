@@ -1,9 +1,9 @@
 {
-  "versionCode": 152,
-  "versionName": "1.2.3",
-  "changelog": "将 Gitee 更新入口切换至 Release 发行版。\n\n- 查询 Gitee Release API，再读取对应发行版的 update.json 附件，不再请求仓库 raw 链接。\n- 校验正式版标签及清单版本一致性，异常时回退到 GitHub。\n- APK 继续通过 Release 附件分发，保留大小、SHA-256 和签名校验。\n\n12 项更新回归测试通过，Release 构建与签名校验通过。Gitee 当前账号和仓库仍受限，无法验证线上附件访问；旧客户端可通过 GitHub 备用源或手动安装升级。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.3/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.3/Z.apk",
-  "sha256": "724c9675b5893ababfb4023ffc85d663aae48a48ed114f1c2d24f958c035da5f",
-  "size": 24831003
+  "versionCode": 153,
+  "versionName": "1.2.4",
+  "changelog": "新增首页布局切换。\n\n- 支持经典侧栏、悬浮顶栏、动态抽屉和极简沉浸四种首页布局。\n- 设置页增加首页布局选择，默认使用悬浮顶栏。\n- 新增横向分类导航及顶部操作入口。\n- 分类网格列数随布局调整，并兼容长辈模式。\n\nRelease 构建与签名校验通过；四种布局切换、遥控焦点和覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.4/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.4/Z.apk",
+  "sha256": "abad9d6f6145f0918aa3f37b07b907fff061531153e94d273d913453a31d7b08",
+  "size": 24839689
 }

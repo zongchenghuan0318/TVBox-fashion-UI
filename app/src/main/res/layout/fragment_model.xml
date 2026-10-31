@@ -188,7 +188,7 @@
                             android:id="@+id/llHomeRec"
                             style="@style/SettingRow"
                             android:nextFocusUp="@id/llHomeMode"
-                            android:nextFocusDown="@id/llSearchView"
+                            android:nextFocusDown="@id/llHomeLayout"
                             android:nextFocusRight="@id/llAudioLanguage">
                             <TextView style="@style/SettingRowTitle" android:text="首页推荐" />
                             <TextView android:id="@+id/tvHomeRec" style="@style/SettingRowValue" />
@@ -198,9 +198,22 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
-                            android:id="@+id/llSearchView"
+                            android:id="@+id/llHomeLayout"
                             style="@style/SettingRow"
                             android:nextFocusUp="@id/llHomeRec"
+                            android:nextFocusDown="@id/llSearchView"
+                            android:nextFocusRight="@id/llAudioLanguage">
+                            <TextView style="@style/SettingRowTitle" android:text="首页布局" />
+                            <TextView android:id="@+id/tvHomeLayout" style="@style/SettingRowValue" />
+                            <TextView style="@style/SettingRowArrow" />
+                        </LinearLayout>
+
+                        <View style="@style/SettingDivider" />
+
+                        <LinearLayout
+                            android:id="@+id/llSearchView"
+                            style="@style/SettingRow"
+                            android:nextFocusUp="@id/llHomeLayout"
                             android:nextFocusDown="@id/llSearchSite"
                             android:nextFocusRight="@id/llSubtitleLanguage">
                             <TextView style="@style/SettingRowTitle" android:text="搜索展示" />

@@ -20,6 +20,8 @@ import com.github.tvbox.osc.ui.adapter.GridAdapter;
 import com.github.tvbox.osc.ui.dialog.GridFilterDialog;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
+import com.github.tvbox.osc.util.HawkConfig;
+import com.orhanobut.hawk.Hawk;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.lcstudio.commonsurport.L;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
@@ -145,10 +147,7 @@ public class GridFragment extends BaseLazyFragment {
         mGridView.setHasFixedSize(true);
         mGridAdapter = new GridAdapter();
         mGridView.setAdapter(mGridAdapter);
-        // 左侧分类栏占用 250，内容区变窄，列数由 5/6 降为 4/5
-        mGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,
-                com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(
-                        isBaseOnWidth() ? 4 : 5)));
+        setupGridLayout();
         mGridAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
             @Override
             public void onLoadMoreRequested() {
@@ -288,9 +287,27 @@ public class GridFragment extends BaseLazyFragment {
         activePageRequestId = sourceViewModel.getMovieList(mSortData, mPage);
     }
 
+    private void setupGridLayout() {
+        if (mGridView == null) return;
+        int layoutStyle = Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT);
+        boolean isFullWidth = (layoutStyle != HawkConfig.HOME_LAYOUT_SIDEBAR);
+        // 全屏无界模式（Apple TV 顶栏、动态抽屉、极简沉浸）下无左侧固定栏占用，展开为 5 列（或 6 列）
+        // 经典侧栏模式下有左侧栏占用，为 4 列（或 5 列）
+        int baseCols = isFullWidth ? (isBaseOnWidth() ? 5 : 6) : (isBaseOnWidth() ? 4 : 5);
+        int cols = com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(baseCols);
+        androidx.recyclerview.widget.RecyclerView.LayoutManager currentLm = mGridView.getLayoutManager();
+        if (currentLm instanceof V7GridLayoutManager) {
+            if (((V7GridLayoutManager) currentLm).getSpanCount() == cols) {
+                return;
+            }
+        }
+        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, cols));
+    }
+
     @Override
     protected void onFragmentResume() {
         if (mGridAdapter == null && getView() != null) init();
+        setupGridLayout();
         restoreGridScroll();
         if (retryWhenResumed && mGridAdapter != null) {
             retryWhenResumed = false;

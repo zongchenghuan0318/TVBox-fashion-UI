@@ -74,6 +74,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvHomeApi;
     private TextView tvDns;
     private TextView tvHomeRec;
+    private TextView tvHomeLayout;
     private TextView tvSearchView;
     private TextView tvSearchSite;
     private TextView tvPlayTimeStep;
@@ -118,6 +119,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvHomeApi = findViewById(R.id.tvHomeApi);
         tvDns = findViewById(R.id.tvDns);
         tvHomeRec = findViewById(R.id.tvHomeRec);
+        tvHomeLayout = findViewById(R.id.tvHomeLayout);
         tvSearchView = findViewById(R.id.tvSearchView);
         tvSearchSite = findViewById(R.id.tvSearchSite);
         tvPlayTimeStep = findViewById(R.id.tvPlayTimeStep);
@@ -173,6 +175,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvLiveSource.setText("打开管理");
         tvDns.setText(OkGoHelper.dnsHttpsList.get(Hawk.get(HawkConfig.DOH_URL, 0)));
         tvHomeRec.setText(getHomeRecName(Hawk.get(HawkConfig.HOME_REC, 0)));
+        if (tvHomeLayout != null) {
+            tvHomeLayout.setText(getHomeLayoutName(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT)));
+        }
         tvSearchView.setText(getSearchView(Hawk.get(HawkConfig.SEARCH_VIEW, 1)));
         tvHomeApi.setText(ApiConfig.getInstance().getHomeBean().getName());
         tvScale.setText(PlayerHelper.getScaleName(Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT)));
@@ -587,6 +592,49 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 dialog.show();
             }
         });
+        View llHomeLayout = findViewById(R.id.llHomeLayout);
+        if (llHomeLayout != null) {
+            llHomeLayout.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    FastClickCheckUtil.check(v);
+                    int defaultPos = Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT);
+                    ArrayList<Integer> types = new ArrayList<>();
+                    types.add(HawkConfig.HOME_LAYOUT_SIDEBAR);
+                    types.add(HawkConfig.HOME_LAYOUT_APPLE_TV);
+                    types.add(HawkConfig.HOME_LAYOUT_DRAWER);
+                    types.add(HawkConfig.HOME_LAYOUT_IMMERSIVE);
+                    SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
+                    dialog.setTip("请选择首页布局风格");
+                    dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                        @Override
+                        public void click(Integer value, int pos) {
+                            Hawk.put(HawkConfig.HOME_LAYOUT_STYLE, value);
+                            if (tvHomeLayout != null) {
+                                tvHomeLayout.setText(getHomeLayoutName(value));
+                            }
+                            android.widget.Toast.makeText(mActivity, "已切换为：" + getHomeLayoutName(value) + "（返回首页即生效）", android.widget.Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public String getDisplay(Integer val) {
+                            return getHomeLayoutName(val);
+                        }
+                    }, new DiffUtil.ItemCallback<Integer>() {
+                        @Override
+                        public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
+                            return oldItem.intValue() == newItem.intValue();
+                        }
+
+                        @Override
+                        public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
+                            return oldItem.intValue() == newItem.intValue();
+                        }
+                    }, types, defaultPos);
+                    dialog.show();
+                }
+            });
+        }
         findViewById(R.id.llSearchView).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -659,6 +707,21 @@ public class ModelSettingFragment extends BaseLazyFragment {
             return "观看历史";
         } else {
             return "豆瓣推荐";
+        }
+    }
+
+    String getHomeLayoutName(int layout) {
+        switch (layout) {
+            case HawkConfig.HOME_LAYOUT_SIDEBAR:
+                return "经典侧边栏";
+            case HawkConfig.HOME_LAYOUT_APPLE_TV:
+                return "Apple TV 顶栏";
+            case HawkConfig.HOME_LAYOUT_DRAWER:
+                return "Netflix 动态抽屉";
+            case HawkConfig.HOME_LAYOUT_IMMERSIVE:
+                return "极简画报沉浸";
+            default:
+                return "Apple TV 顶栏";
         }
     }
 

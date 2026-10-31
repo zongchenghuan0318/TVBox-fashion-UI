@@ -53,6 +53,12 @@ public class HawkConfig {
     public static final String SUBTITLE_OFF = "subtitle_off";
     public static final String DOH_URL = "doh_url";
     public static final String HOME_LOW_POWER = "home_low_power"; // false 当前首页，true 低压力首页
+    public static final String HOME_LAYOUT_STYLE = "home_layout_style"; // 0 经典侧栏, 1 Apple TV 顶栏, 2 Netflix 抽屉, 3 极简沉浸
+    public static final int HOME_LAYOUT_SIDEBAR = 0;      // 经典侧边栏
+    public static final int HOME_LAYOUT_APPLE_TV = 1;     // Apple TV 悬浮顶栏
+    public static final int HOME_LAYOUT_DRAWER = 2;       // Netflix 动态抽屉
+    public static final int HOME_LAYOUT_IMMERSIVE = 3;    // 极简全屏画报沉浸
+    public static final int HOME_LAYOUT_DEFAULT = HOME_LAYOUT_APPLE_TV; // 默认使用纯净无界 Apple TV 顶栏
     public static final String HOME_REC = "home_rec"; // 0 豆瓣热播 1 数据源推荐 2 历史
     public static final String HOME_DOUBAN_CACHE = "home_douban_cache"; // 最近一次成功的豆瓣热播列表，限流时兜底
     public static final String DOU_BAN_BID = "dou_ban_bid"; // 豆瓣 bid Cookie，首次生成后固定，降低被判定异常请求的概率
