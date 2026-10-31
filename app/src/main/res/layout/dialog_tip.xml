@@ -18,12 +18,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:lineSpacingExtra="@dimen/ts_50"
-            android:lineSpacingMultiplier="0"
-            android:textAlignment="gravity"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.25"
             android:textColor="@color/color_FFFFFF"
             android:textSize="@dimen/ts_24"
-            tools:text="1111111111111111111111111111111111111111111111111111" />
+            tools:text="确定要清空全部收藏吗？" />
 
 
         <LinearLayout

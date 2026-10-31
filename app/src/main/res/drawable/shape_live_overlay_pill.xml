@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 直播浮层指示徽章：极简深熏黑磨砂玻璃底衬 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="6mm" />
+    <solid android:color="#B30E1016" />
+    <stroke android:width="1mm" android:color="#26FFFFFF" />
+</shape>

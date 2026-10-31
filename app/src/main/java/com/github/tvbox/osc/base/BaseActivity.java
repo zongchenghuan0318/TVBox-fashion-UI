@@ -127,9 +127,14 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
             mLoadService = LoadSir.getDefault().register(view, new Callback.OnReloadListener() {
                 @Override
                 public void onReload(View v) {
+                    BaseActivity.this.onReload();
                 }
             });
         }
+    }
+
+    protected void onReload() {
+        init();
     }
 
     protected void showLoading() {

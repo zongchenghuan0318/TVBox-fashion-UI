@@ -368,22 +368,45 @@ public class LivePlayActivity extends BaseActivity {
     private void showChannelInfo(LiveChannelItem channel) {
         L.d("showChannelInfo()");
         if (channel == null) return;
-        tvChannelInfo.setText(String.format(Locale.getDefault(), "%03d  %s  %s(%d/%d)",
+        String resBadge = "";
+        try {
+            if (mVideoView != null) {
+                int[] size = mVideoView.getVideoSize();
+                if (size != null && size.length >= 2 && size[0] > 0 && size[1] > 0) {
+                    int h = size[1];
+                    if (h >= 2160) resBadge = " · 4K";
+                    else if (h >= 1080) resBadge = " · 1080P";
+                    else if (h >= 720) resBadge = " · 720P";
+                    else resBadge = " · " + h + "P";
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        tvChannelInfo.setText(String.format(Locale.getDefault(), "%03d  %s  %s(%d/%d)%s",
                 channel.getChannelNum(),
                 channel.getChannelName(),
                 channel.getSourceName(),
                 channel.getSourceIndex() + 1,
-                channel.getSourceNum()));
+                channel.getSourceNum(),
+                resBadge));
 
-        FrameLayout.LayoutParams lParams = new FrameLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        if (rightSettingLayout.getVisibility() == View.VISIBLE) {
-            lParams.gravity = Gravity.LEFT;
-            lParams.leftMargin = 60;
-            lParams.topMargin = 30;
+        ViewGroup.LayoutParams existing = tvChannelInfo.getLayoutParams();
+        FrameLayout.LayoutParams lParams;
+        if (existing instanceof FrameLayout.LayoutParams) {
+            lParams = (FrameLayout.LayoutParams) existing;
         } else {
-            lParams.gravity = Gravity.RIGHT;
-            lParams.rightMargin = 60;
-            lParams.topMargin = 30;
+            lParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        }
+        int marginX = me.jessyan.autosize.utils.AutoSizeUtils.mm2px(this, 30);
+        int marginY = me.jessyan.autosize.utils.AutoSizeUtils.mm2px(this, 20);
+        if (rightSettingLayout.getVisibility() == View.VISIBLE) {
+            lParams.gravity = Gravity.LEFT | Gravity.TOP;
+            lParams.leftMargin = marginX;
+            lParams.topMargin = marginY;
+        } else {
+            lParams.gravity = Gravity.RIGHT | Gravity.TOP;
+            lParams.rightMargin = marginX;
+            lParams.topMargin = marginY;
         }
         tvChannelInfo.setLayoutParams(lParams);
 
@@ -607,6 +630,7 @@ public class LivePlayActivity extends BaseActivity {
         if (pendingGroupIndex >= 0) playPendingChannel.run();
         if (!isCurrentLiveChannelValid()) return;
         currentLiveChannelItem.preSource();
+        showChannelInfo(currentLiveChannelItem);
         playChannel(groupIndex, channelIndex, true);
     }
 
@@ -614,6 +638,7 @@ public class LivePlayActivity extends BaseActivity {
         if (pendingGroupIndex >= 0) playPendingChannel.run();
         if (!isCurrentLiveChannelValid()) return;
         currentLiveChannelItem.nextSource();
+        showChannelInfo(currentLiveChannelItem);
         playChannel(groupIndex, channelIndex, true);
     }
 
@@ -717,6 +742,10 @@ public class LivePlayActivity extends BaseActivity {
                         sourceTimes = 0;
                         consecutiveChannelFailures = 0;
                         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
+                        if (currentLiveChannelItem != null && tvChannelInfo != null
+                                && tvChannelInfo.getVisibility() == View.VISIBLE) {
+                            showChannelInfo(currentLiveChannelItem);
+                        }
                         String channelInfo = tvChannelInfo.getText().toString();
                         PrintUtil.saveSuccess(channelInfo, System.currentTimeMillis()-mBegin);
                         break;
@@ -1345,13 +1374,12 @@ public class LivePlayActivity extends BaseActivity {
         L.d("onStop");
     }
 
-    private Runnable mUpdateTimeRun = new Runnable() {
+    private final SimpleDateFormat mLiveTimeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+    private final Runnable mUpdateTimeRun = new Runnable() {
         @Override
         public void run() {
             if (!liveScreenResumed || !isActivityActive()) return;
-            Date day=new Date();
-            SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
-            tvTime.setText(df.format(day));
+            tvTime.setText(mLiveTimeFormat.format(new Date()));
             mHandler.postDelayed(this, 1000);
         }
     };
@@ -1368,11 +1396,18 @@ public class LivePlayActivity extends BaseActivity {
         }
     }
 
-    private Runnable mUpdateNetSpeedRun = new Runnable() {
+    private final Runnable mUpdateNetSpeedRun = new Runnable() {
         @Override
         public void run() {
             if (mVideoView == null || !liveScreenResumed || !isActivityActive()) return;
-            tvNetSpeed.setText(String.format("%.2fMB/s", (float)mVideoView.getTcpSpeed() / 1024.0 / 1024.0));
+            long tcpSpeed = mVideoView.getTcpSpeed();
+            String speedText;
+            if (tcpSpeed >= 1024 * 1024) {
+                speedText = String.format(Locale.getDefault(), "%.2f MB/s", (float) tcpSpeed / 1024.0f / 1024.0f);
+            } else {
+                speedText = String.format(Locale.getDefault(), "%d KB/s", tcpSpeed / 1024);
+            }
+            tvNetSpeed.setText(speedText);
             mHandler.postDelayed(this, 1000);
         }
     };

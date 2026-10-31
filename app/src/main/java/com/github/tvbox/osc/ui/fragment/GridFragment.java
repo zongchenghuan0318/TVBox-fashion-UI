@@ -257,6 +257,11 @@ public class GridFragment extends BaseLazyFragment {
         });
     }
 
+    @Override
+    protected void onReload() {
+        initData();
+    }
+
     private void initData() {
         retryWhenResumed = false;
         if (!mSortData.available) {

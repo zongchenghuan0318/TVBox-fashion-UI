@@ -1,11 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 直播列表焦点：极简熏黑磨砂玻璃胶囊 + 优雅高光切线 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
-            <solid android:color="@color/color_1890FF" />
+            <corners android:radius="8mm" />
+            <gradient
+                android:angle="90"
+                android:startColor="#40FFFFFF"
+                android:endColor="#26FFFFFF" />
+            <stroke
+                android:width="1.5mm"
+                android:color="#B3FFFFFF" />
         </shape>
     </item>
-    <item android:state_focused="false">
+    <item android:state_selected="true">
+        <shape>
+            <corners android:radius="8mm" />
+            <solid android:color="#26FFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#4DFFFFFF" />
+        </shape>
+    </item>
+    <item>
         <shape>
             <solid android:color="@android:color/transparent" />
         </shape>

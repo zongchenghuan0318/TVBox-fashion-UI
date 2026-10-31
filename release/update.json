@@ -1,9 +1,9 @@
 {
-  "versionCode": 149,
-  "versionName": "1.2.0",
-  "changelog": "1.2.0：更新交互与后台任务处理。\n\n- 将收藏、历史记录的部分数据库操作移至后台执行。\n- 调整详情页选集焦点，减少对用户当前操作的干扰。\n- 调整首页轮播与时钟刷新，以及播放页计时和控制器任务管理。\n- 调整 M3U 直播列表解析及遥控服务停止、文件写入处理。\n\nRelease 构建与签名校验通过；收藏撤销、焦点、播放及覆盖升级仍需实机验证。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.0/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.0/Z.apk",
-  "sha256": "76874a999a0bf439fa08b967d433b9e5032d2fc6d388a25d1c75ed85e3af6d24",
-  "size": 24828921
+  "versionCode": 150,
+  "versionName": "1.2.1",
+  "changelog": "更新直播信息显示与空页面交互。\n\n- 调整直播侧栏、焦点和信息浮层样式。\n- 频道信息增加分辨率标记，网速按 KB/s 或 MB/s 显示。\n- 空页面增加刷新重试入口，接入详情页和分类列表重新加载。\n- 调整关于、提示弹窗及搜索条目样式。\n\nRelease 构建与签名校验通过；遥控焦点、刷新重试、直播显示及覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.1/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.1/Z.apk",
+  "sha256": "a78b19c298bcfd716054996f0c60bf05ceee8f19fe2473e898d924b191fbf85a",
+  "size": 24830463
 }

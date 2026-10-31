@@ -363,6 +363,11 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         }
     }
 
+    @Override
+    protected void onReload() {
+        loadDetail(vodId, sourceKey);
+    }
+
     private void loadDetail(String vid, String key) {
         if (vid != null) {
             vodId = vid;
