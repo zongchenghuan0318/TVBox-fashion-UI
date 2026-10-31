@@ -52,7 +52,6 @@ import com.studio.osc.R;
 import com.uisupport.UiConstans;
 import com.uisupport.update.HotWords;
 import com.uisupport.update.HttpUtil;
-import com.uisupport.update.Initer;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -456,7 +455,6 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void requestHotWords() {
-        Initer.init(this);
         final int generation = suggestionRequestId;
         if (!canShowHotWords(generation)) return;
         // 加载热词
@@ -599,7 +597,7 @@ public class SearchActivity extends BaseActivity {
         if (siteBeans.isEmpty()) {
             searchFinished = true;
             tvSearchProgress.setText("没有启用搜索源，请先在设置中勾选可搜索的来源");
-            Toast.makeText(mContext, "未选择任何搜索源，请到 设置 → 设置其他 → 搜索源管理 中勾选", Toast.LENGTH_LONG).show();
+            Toast.makeText(mContext, "未选择任何搜索源，请到 设置 → 常规与播放 → 搜索源管理 中勾选", Toast.LENGTH_LONG).show();
             return;
         }
         searchSourceCount = siteBeans.size();

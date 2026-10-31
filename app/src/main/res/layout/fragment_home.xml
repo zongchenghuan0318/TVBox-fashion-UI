@@ -296,41 +296,6 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/shareLayout"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/vs_60"
-            android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:layout_weight="1"
-            android:background="@drawable/selector_user_focus"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:focusable="true"
-            android:orientation="horizontal"
-            android:paddingBottom="@dimen/vs_6">
-
-            <ImageView
-                android:layout_width="@dimen/vs_50"
-                android:layout_height="@dimen/vs_50"
-                android:layout_gravity="center"
-                android:alpha="0.75"
-                android:src="@drawable/icon_push" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginLeft="@dimen/vs_10"
-                android:focusable="false"
-                android:focusableInTouchMode="false"
-                android:gravity="center"
-                android:text="分享"
-                android:textAlignment="gravity"
-                android:textColor="@color/color_CCFFFFFF"
-                android:textSize="@dimen/ts_40" />
-        </LinearLayout>
-
-        <LinearLayout
             android:id="@+id/tvSetting"
             android:layout_width="0dp"
             android:layout_height="@dimen/vs_60"

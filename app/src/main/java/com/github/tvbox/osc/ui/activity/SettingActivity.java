@@ -131,7 +131,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
         homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
         dnsOpt = Hawk.get(HawkConfig.DOH_URL, 0);
         List<String> sortList = new ArrayList<>();
-        sortList.add("设置其他");
+        sortList.add("常规与播放");
         sortAdapter.setNewData(sortList);
         initViewPager();
     }

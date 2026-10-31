@@ -22,7 +22,6 @@ public class HawkConfig {
     public static final String DEFAULT_PARSE = "parse_default";
     public static final String DEBUG_OPEN = "debug_open";
     public static final String SENIOR_MODE = "senior_mode";
-    public static final String PARSE_WEBVIEW = "parse_webview"; // true 系统 false xwalk
     public static final String IJK_CODEC = "ijk_codec";
     public static final String PLAY_TYPE = "play_type";//0 系统 1 ijk 2 exo 10 MXPlayer
     public static final int PLAY_TYPE_SYSTEM = 0;

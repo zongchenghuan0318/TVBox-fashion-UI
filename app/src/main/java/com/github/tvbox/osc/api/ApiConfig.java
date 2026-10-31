@@ -34,7 +34,6 @@ import com.lzy.okgo.OkGo;
 import com.lzy.okgo.callback.AbsCallback;
 import com.lzy.okgo.model.Response;
 import com.orhanobut.hawk.Hawk;
-import com.uisupport.update.Initer;
 
 import org.json.JSONObject;
 
@@ -114,7 +113,6 @@ public class ApiConfig {
         apiUrl = Hawk.get(HawkConfig.API_URL, "");
         SPDataUtil spDataUtil = new SPDataUtil(ctx);
         String configContent = spDataUtil.getStringValue(PRE_KEY_CONFIG);
-        Initer.init(activity);
         new Thread() {
             @Override
             public void run() {

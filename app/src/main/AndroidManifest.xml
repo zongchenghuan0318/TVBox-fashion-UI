@@ -102,13 +102,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <receiver android:name="com.github.tvbox.osc.receiver.BootBroadcastReceiver">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </receiver>
-
         <meta-data
             android:name="design_width_in_dp"
             android:value="1280" />

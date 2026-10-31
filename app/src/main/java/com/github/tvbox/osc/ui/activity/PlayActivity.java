@@ -62,7 +62,6 @@ import com.lzy.okgo.callback.AbsCallback;
 import com.lzy.okgo.model.Response;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
-import com.uisupport.update.Initer;
 
 import org.greenrobot.eventbus.EventBus;
 import org.json.JSONException;
@@ -276,7 +275,6 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private void initModelObserver() {
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
-        Initer.init(this);
         sourceViewModel.playResult.observe(this, new Observer<JSONObject>() {
             @Override
             public void onChanged(JSONObject info) {

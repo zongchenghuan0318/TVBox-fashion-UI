@@ -101,7 +101,7 @@ app/
     │   ├── tvbox.jar           内置爬虫包，运行时由 DexClassLoader 动态加载
     │   ├── js/                 JS 爬虫引擎与依赖（drpy、cat.js、cheerio、crypto-js、pako 等）
     │   ├── parse.html          内置解析页
-    │   └── site.json / site_muti.json / readme.json
+    │   └── site.json / readme.json
     ├── python/                 Chaquopy Python 爬虫运行时（app.py / runner.py / trigger.py / base/spider.py）
     ├── java/com/github/
     │   ├── tvbox/osc/          本项目主体代码（详见下表）
@@ -121,7 +121,7 @@ app/
 | `cache` | 8 | Room 数据库与本地缓存（收藏、历史、播放记录） |
 | `callback` / `data` / `event` | 2 / 2 / 4 | 回调封装、全局数据、EventBus 事件 |
 | `player` | 1+3+2+2 | 播放内核接入：`IjkMediaPlayer`、`VodController` / `LiveController`、渲染与第三方播放器（MX / Reex） |
-| `receiver` | 3 | 开机自启、外部搜索与自定义 Web 广播接收 |
+| `receiver` | 3 | 更新安装、外部搜索与自定义 Web 广播接收 |
 | `server` | 7 | 局域网 HTTP 服务与口令投屏（`RemoteServer`、`ControlManager` 等） |
 | `ui.activity` | 11 | `HomeActivity`（入口）、`PlayActivity`、`SearchActivity`、`DetailActivity`、`SettingActivity`、`CollectActivity`、`HistoryActivity`、`PushActivity`、`LivePlayActivity` 等 |
 | `ui.fragment` | 3 | `FirstFragment`（首页）、`GridFragment`（分类 / 收藏 / 历史网格）、`ModelSettingFragment` |

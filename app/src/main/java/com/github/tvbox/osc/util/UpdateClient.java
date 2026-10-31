@@ -119,16 +119,22 @@ public final class UpdateClient {
 
     public Info fetchInfo() throws IOException {
         IOException last = null;
+        Info newest = null;
         try {
-            return readGiteeRelease();
+            newest = readGiteeRelease();
         } catch (IOException e) { last = e; }
         for (String prefix : GITHUB_PREFIXES) {
             checkCancelled();
             try {
-                return readManifest(prefix + GITHUB_MANIFEST_URL);
+                Info githubInfo = readManifest(prefix + GITHUB_MANIFEST_URL);
+                if (newest == null || githubInfo.versionCode > newest.versionCode) {
+                    newest = githubInfo;
+                }
+                break;
             } catch (IOException e) { last = e; }
         }
         checkCancelled();
+        if (newest != null) return newest;
         throw new IOException("无法检查更新，请检查网络后重试", last);
     }
 

@@ -66,7 +66,6 @@ import tv.danmaku.ijk.media.player.IjkMediaPlayer;
 public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvDebugOpen;
     private TextView tvMediaCodec;
-    private TextView tvParseWebView;
     private TextView tvPlay;
     private TextView tvRender;
     private TextView tvScale;
@@ -110,7 +109,6 @@ public class ModelSettingFragment extends BaseLazyFragment {
     @Override
     protected void init() {
         tvDebugOpen = findViewById(R.id.tvDebugOpen);
-        tvParseWebView = findViewById(R.id.tvParseWebView);
         tvMediaCodec = findViewById(R.id.tvMediaCodec);
         tvPlay = findViewById(R.id.tvPlay);
         tvRender = findViewById(R.id.tvRenderType);
@@ -171,7 +169,6 @@ public class ModelSettingFragment extends BaseLazyFragment {
         });
         tvMediaCodec.setText(Hawk.get(HawkConfig.IJK_CODEC, ""));
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
-        tvParseWebView.setText("系统自带");
         tvApi.setText(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL));
         tvLiveSource.setText("打开管理");
         tvDns.setText(OkGoHelper.dnsHttpsList.get(Hawk.get(HawkConfig.DOH_URL, 0)));
@@ -190,14 +187,6 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 FastClickCheckUtil.check(v);
                 Hawk.put(HawkConfig.DEBUG_OPEN, !Hawk.get(HawkConfig.DEBUG_OPEN, false));
                 tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
-            }
-        });
-        findViewById(R.id.llParseWebVew).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                Hawk.put(HawkConfig.PARSE_WEBVIEW, true);
-                tvParseWebView.setText("系统自带");
             }
         });
         final TextView tvClearCache = findViewById(R.id.tvClearCache);
@@ -269,13 +258,15 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 FastClickCheckUtil.check(v);
                 List<SiteBean> sites = ApiConfig.getInstance().getSiteBeanList();
                 if (!NullUtil.isNull(sites)) {
-                    //添加自动选择
-                    SiteBean auto= new SiteBean();
-                    auto.setKey("");
-                    auto.setName("自动选择");
-                    auto.setApi("api");
-                    auto.setSearchable(0);
-                    sites.add(0, auto);
+                    //添加自动选择，避免弹窗重复打开时累加
+                    if (sites.isEmpty() || !"".equals(sites.get(0).getKey())) {
+                        SiteBean auto = new SiteBean();
+                        auto.setKey("");
+                        auto.setName("自动选择");
+                        auto.setApi("api");
+                        auto.setSearchable(0);
+                        sites.add(0, auto);
+                    }
 
                     SelectDialog<SiteBean> dialog = new SelectDialog<>(mActivity);
                     dialog.setTip("请选择首页数据源");

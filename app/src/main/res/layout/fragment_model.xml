@@ -466,16 +466,6 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 隐藏项（保持原有 ID） -->
-                    <LinearLayout
-                        android:id="@+id/llParseWebVew"
-                        style="@style/SettingRow"
-                        android:visibility="gone">
-                        <TextView style="@style/SettingRowTitle" android:text="嗅探 WebView" />
-                        <TextView android:id="@+id/tvParseWebView" style="@style/SettingRowValue" />
-                        <TextView style="@style/SettingRowArrow" />
-                    </LinearLayout>
-
                     <LinearLayout
                         android:id="@+id/llDns"
                         style="@style/SettingRow"

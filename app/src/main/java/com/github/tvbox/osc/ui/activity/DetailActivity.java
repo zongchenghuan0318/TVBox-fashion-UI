@@ -47,7 +47,6 @@ import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 import com.studio.osc.R;
-import com.uisupport.update.Initer;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -173,7 +172,6 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             jumpToPlay();
         });
 
-        Initer.init(this);
         //分词搜索
         tvQuickSearch.setOnClickListener(v -> {
             startQuickSearch();
