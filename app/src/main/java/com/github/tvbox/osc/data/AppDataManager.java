@@ -131,16 +131,23 @@ public class AppDataManager {
                         @Override
                         public void onOpen(@NonNull SupportSQLiteDatabase db) {
                             super.onOpen(db);
-//                        LOG.i("数据库打开成功");
+                            try {
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_vodRecord_src_vod` ON `vodRecord` (`sourceKey`, `vodId`)");
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_vodRecord_time` ON `vodRecord` (`updateTime`)");
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_vodCollect_src_vod` ON `vodCollect` (`sourceKey`, `vodId`)");
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_vodCollect_time` ON `vodCollect` (`updateTime`)");
+                            } catch (Throwable ignored) {
+                            }
                         }
                     }).allowMainThreadQueries()//可以在主线程操作
                     .build();
         return dbInstance;
     }
 
-    public static boolean backup(File path) throws IOException {
+    public static synchronized boolean backup(File path) throws IOException {
         if (dbInstance != null && dbInstance.isOpen()) {
             dbInstance.close();
+            dbInstance = null;
         }
         File db = App.getInstance().getDatabasePath(dbPath());
         if (db.exists()) {
@@ -151,9 +158,10 @@ public class AppDataManager {
         }
     }
 
-    public static boolean restore(File path) throws IOException {
+    public static synchronized boolean restore(File path) throws IOException {
         if (dbInstance != null && dbInstance.isOpen()) {
             dbInstance.close();
+            dbInstance = null;
         }
         File db = App.getInstance().getDatabasePath(dbPath());
         if (db.exists()) {

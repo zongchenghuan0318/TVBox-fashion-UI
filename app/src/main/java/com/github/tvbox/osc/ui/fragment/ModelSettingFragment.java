@@ -8,6 +8,7 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.os.AsyncTask;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -23,6 +24,7 @@ import com.github.tvbox.osc.base.BaseActivity;
 import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.SiteBean;
+import com.github.tvbox.osc.cache.CacheManager;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
@@ -30,6 +32,7 @@ import com.github.tvbox.osc.ui.dialog.ApiDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
+import com.github.tvbox.osc.util.FileUtils;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.OkGoHelper;
 import com.github.tvbox.osc.util.PlayerHelper;
@@ -45,6 +48,7 @@ import com.github.tvbox.osc.util.UpdateManager;
 import org.greenrobot.eventbus.EventBus;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -190,6 +194,54 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 tvParseWebView.setText("系统自带");
             }
         });
+        final TextView tvClearCache = findViewById(R.id.tvClearCache);
+        View clearCacheRow = findViewById(R.id.llClearCache);
+        if (clearCacheRow != null) {
+            clearCacheRow.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    FastClickCheckUtil.check(v);
+                    if (tvClearCache != null) tvClearCache.setText("清理中...");
+                    AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                        long freedBytes = 0;
+                        try {
+                            File glideCacheDir = com.bumptech.glide.Glide.getPhotoCacheDir(requireContext());
+                            if (glideCacheDir != null && glideCacheDir.exists()) {
+                                freedBytes += getFolderSize(glideCacheDir);
+                                com.bumptech.glide.Glide.get(requireContext()).clearDiskCache();
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        try {
+                            File videoCache = new File(requireContext().getCacheDir(), "video-cache");
+                            if (videoCache.exists()) {
+                                freedBytes += getFolderSize(videoCache);
+                                FileUtils.recursiveDelete(videoCache);
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        try {
+                            CacheManager.clearAll();
+                        } catch (Throwable ignored) {
+                        }
+                        final long totalFreed = freedBytes;
+                        if (isAdded() && getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                try {
+                                    com.bumptech.glide.Glide.get(requireContext()).clearMemory();
+                                } catch (Throwable ignored) {
+                                }
+                                if (tvClearCache != null) tvClearCache.setText("已清理");
+                                String freedStr = totalFreed > 1024 * 1024
+                                        ? String.format(java.util.Locale.getDefault(), "%.1f MB", totalFreed / (1024.0 * 1024.0))
+                                        : "已释放空间";
+                                android.widget.Toast.makeText(requireContext(), "缓存清理完成 (" + freedStr + ")", android.widget.Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    });
+                }
+            });
+        }
         findViewById(R.id.llBackup).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -925,6 +977,22 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 .start();
         mark.animate().alpha(0.25f).setDuration(700L).setStartDelay(300L)
                 .withEndAction(() -> mark.animate().alpha(1f).setDuration(700L).start()).start();
+    }
+
+    private long getFolderSize(File file) {
+        long size = 0;
+        if (file == null || !file.exists()) return 0;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    size += getFolderSize(child);
+                }
+            }
+        } else {
+            size += file.length();
+        }
+        return size;
     }
 
     private int dp(int value) {

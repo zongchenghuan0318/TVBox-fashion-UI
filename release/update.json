@@ -1,9 +1,9 @@
 {
-  "versionCode": 147,
-  "versionName": "1.1.37",
-  "changelog": "修复直播超时换源行为。\n\n- 起播和播放中缓冲统一遵循用户设置的超时时长，默认 10 秒。\n- 调整超时设置后立即更新正在等待的换源计时。\n- 修正自动换源尝试计数，手动切换线路或频道时重新计数。\n\nRelease 构建与签名校验通过；直播换源和覆盖升级仍需实机验证。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.37/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.37/Z.apk",
-  "sha256": "c5f0d53f9352b0f29c1a97fc9b3a3d8a3d96f6b48003cc1e00efb5271b025bca",
-  "size": 24824486
+  "versionCode": 148,
+  "versionName": "1.1.38",
+  "changelog": "更新缓存管理、配置兼容与遥控体验。\n\n- 增加设置页缓存清理入口，调整内存与磁盘缓存管理。\n- 提高站点、解析配置的容错能力，调整首页源探测任务管理。\n- 调整搜索页面键盘与结果区域的遥控焦点切换。\n- 改进带参数播放地址的格式识别，并调整直播连续失败时的换台处理。\n\nRelease 构建与签名校验通过；缓存清理、直播换台、遥控焦点及覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.1.38/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.1.38/Z.apk",
+  "sha256": "90d1277f8186abdd2234e7730757577145bc79636882b827fc831ee776d75046",
+  "size": 24828039
 }

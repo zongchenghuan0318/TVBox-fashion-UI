@@ -765,6 +765,49 @@ public class SearchActivity extends BaseActivity {
     }
 
     @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            View currentFocus = getCurrentFocus();
+            if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (currentFocus != null && isChildOf(currentFocus, keyboard)) {
+                    View next = currentFocus.focusSearch(View.FOCUS_RIGHT);
+                    if (next == null || isChildOf(next, keyboard)) {
+                        if (llWord != null && llWord.getVisibility() == View.VISIBLE && mHotWordRV != null && mHotWordRV.getChildCount() > 0) {
+                            mHotWordRV.requestFocus();
+                            return true;
+                        } else if (mSearchResultRV != null && mSearchResultRV.getVisibility() == View.VISIBLE && mSearchResultRV.getChildCount() > 0) {
+                            mSearchResultRV.requestFocus();
+                            return true;
+                        }
+                    }
+                }
+            } else if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (currentFocus != null && (isChildOf(currentFocus, mSearchResultRV) || isChildOf(currentFocus, mHotWordRV))) {
+                    View next = currentFocus.focusSearch(View.FOCUS_LEFT);
+                    if (next == null || (!isChildOf(next, keyboard) && !isChildOf(next, mHotWordRV))) {
+                        if (keyboard != null && keyboard.getVisibility() == View.VISIBLE) {
+                            keyboard.requestFocus();
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private boolean isChildOf(View child, View parent) {
+        if (child == null || parent == null) return false;
+        if (child == parent) return true;
+        android.view.ViewParent p = child.getParent();
+        while (p != null) {
+            if (p == parent) return true;
+            p = p.getParent();
+        }
+        return false;
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         stopSearchRequests();

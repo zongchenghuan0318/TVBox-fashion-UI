@@ -120,6 +120,22 @@ public final class ExoMediaSourceHelper {
     }
 
     private int inferContentType(String fileName) {
+        if (TextUtils.isEmpty(fileName)) return C.TYPE_OTHER;
+        try {
+            Uri uri = Uri.parse(fileName);
+            String path = uri.getPath();
+            if (path != null) {
+                path = path.toLowerCase();
+                if (path.endsWith(".mpd")) {
+                    return C.TYPE_DASH;
+                } else if (path.endsWith(".m3u8") || path.endsWith(".hls")) {
+                    return C.TYPE_HLS;
+                } else if (path.endsWith(".mp4") || path.endsWith(".mkv") || path.endsWith(".flv") || path.endsWith(".avi")) {
+                    return C.TYPE_OTHER;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
         fileName = fileName.toLowerCase();
         if (fileName.contains(".mpd")) {
             return C.TYPE_DASH;

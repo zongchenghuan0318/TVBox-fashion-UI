@@ -49,8 +49,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -87,6 +89,15 @@ public class SourceViewModel extends ViewModel {
     public MutableLiveData<JSONObject> playResult;
     public ExecutorService mExecutorService;
     private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(2);
+    private final ExecutorService mSpiderWorkerExecutor = Executors.newFixedThreadPool(6, new ThreadFactory() {
+        private final AtomicInteger threadIndex = new AtomicInteger(1);
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "spider-pool-" + threadIndex.getAndIncrement());
+            t.setDaemon(true);
+            return t;
+        }
+    });
     private volatile FutureTask<String> activePlayContentTask;
     private volatile int playRequestId;
     private volatile int detailRequestId;
@@ -127,6 +138,7 @@ public class SourceViewModel extends ViewModel {
         }
         playRequestId++;
         mSearchParseExecutor.shutdownNow();
+        mSpiderWorkerExecutor.shutdownNow();
         if (mExecutorService != null) {
             mExecutorService.shutdownNow();
             mExecutorService = null;
@@ -160,10 +172,9 @@ public class SourceViewModel extends ViewModel {
         L.d("getSort() begin type="+type);
         if (type == 3) {
             Runnable waitResponse = () -> {
-                ExecutorService executor = Executors.newSingleThreadExecutor();
-                Future<String> future = executor.submit(() -> {
+                Future<String> future = mSpiderWorkerExecutor.submit(() -> {
                     Spider sp = ApiConfig.getInstance().getCSP(sourceBean);
-                    return sp.homeContent(true);
+                    return sp != null ? sp.homeContent(true) : null;
                 });
                 String sortJson = null;
                 try {
@@ -195,11 +206,6 @@ public class SourceViewModel extends ViewModel {
                         }
                     } else {
                         postSortResult(null, requestId, sourceKey);
-                    }
-                    try {
-                        executor.shutdownNow();
-                    } catch (Throwable th) {
-                         L.e(th);
                     }
                 }
             };
@@ -372,12 +378,11 @@ public class SourceViewModel extends ViewModel {
     public void getHomeRecList(SiteBean sourceBean, ArrayList<String> ids, HomeRecCallback callback) {
         if (sourceBean.getType() == 3) {
             Runnable waitResponse = () -> {
-                ExecutorService executor = Executors.newSingleThreadExecutor();
-                Future<String> future = executor.submit(new Callable<String>() {
+                Future<String> future = mSpiderWorkerExecutor.submit(new Callable<String>() {
                     @Override
                     public String call() throws Exception {
                         Spider sp = ApiConfig.getInstance().getCSP(sourceBean);
-                        return sp.homeVideoContent();
+                        return sp != null ? sp.homeVideoContent() : null;
                     }
                 });
                 String sortJson = null;
@@ -398,11 +403,6 @@ public class SourceViewModel extends ViewModel {
                         }
                     } else {
                         callback.done(null);
-                    }
-                    try {
-                        executor.shutdownNow();
-                    } catch (Throwable th) {
-                        L.e(th);
                     }
                 }
             };
@@ -597,30 +597,27 @@ public class SourceViewModel extends ViewModel {
         }
         int type = siteBean.getType();
         if (type == 3) {
-            FutureTask<String> searchTask = null;
+            Future<String> searchFuture = null;
             try {
-                searchTask = new FutureTask<>(() -> {
+                searchFuture = mSpiderWorkerExecutor.submit(() -> {
                     Spider spider = ApiConfig.getInstance().getCSP(siteBean);
                     if (spider == null) {
                         throw new IllegalStateException("搜索源未初始化");
                     }
                     return spider.searchContent(wd, false);
                 });
-                Thread searchThread = new Thread(searchTask, "search-" + sourceKey);
-                searchThread.setDaemon(true);
-                searchThread.start();
-                String content = searchTask.get(12, TimeUnit.SECONDS);
+                String content = searchFuture.get(12, TimeUnit.SECONDS);
                 L.d(siteBean.getName()+" doSearch sp  content="+content);
                 parseJson(searchType, content, siteBean.getKey(), 0, requestId);
             } catch (TimeoutException e) {
-                if (searchTask != null) {
-                    searchTask.cancel(true);
+                if (searchFuture != null) {
+                    searchFuture.cancel(true);
                 }
                 L.w(sourceKey + " spider search timed out");
                 postSearchResult(searchType, null, requestId, sourceKey);
             } catch (InterruptedException e) {
-                if (searchTask != null) {
-                    searchTask.cancel(true);
+                if (searchFuture != null) {
+                    searchFuture.cancel(true);
                 }
                 Thread.currentThread().interrupt();
                 postSearchResult(searchType, null, requestId, sourceKey);

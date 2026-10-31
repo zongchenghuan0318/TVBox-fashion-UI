@@ -119,7 +119,8 @@
             android:id="@+id/keyBoardRoot"
             android:visibility="visible"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:nextFocusRight="@+id/sortRV" />
 
         <LinearLayout
             android:id="@+id/remoteRoot"
@@ -229,6 +230,7 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:visibility="invisible"
+            android:nextFocusLeft="@+id/keyBoardRoot"
             app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
             app:tv_selectedItemIsCentered="true"
             app:tv_verticalSpacingWithMargins="@dimen/vs_5" />

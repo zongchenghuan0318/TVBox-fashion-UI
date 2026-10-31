@@ -702,25 +702,32 @@ public class ApiConfig {
             mSpider = DefaultConfig.safeJsonString(jsonObject, "spider", "");
             L.d("mSpider=" + mSpider);
             // 远端站点源
-            for (JsonElement opt : jsonObject.get("sites").getAsJsonArray()) {
-                JsonObject obj = (JsonObject) opt;
-                SiteBean bean = new SiteBean();
-                String siteKey = obj.get("key").getAsString().trim();
-                bean.setKey(siteKey);
-                if(NullUtil.isNull(siteKey)) continue;//空key不要
-                bean.setName(obj.get("name").getAsString().trim());
-                bean.setType(obj.get("type").getAsInt());
-                bean.setApi(obj.get("api").getAsString().trim());
-                bean.setSearchable(DefaultConfig.safeJsonInt(obj, "searchable", 1));
-                bean.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
-                bean.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
-                bean.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
-                bean.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
-                //部分源的类不在全局 spider 里，配置用站点级 jar 单独提供（如 csp_AppRJ 在 feimao1004.jar）
-                bean.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
-                bean.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
-                L.d(UiHelper.getBeanStr(bean));
-                mSiteBeanMap.put(siteKey, bean);
+            if (jsonObject.has("sites") && jsonObject.get("sites").isJsonArray()) {
+                for (JsonElement opt : jsonObject.get("sites").getAsJsonArray()) {
+                    try {
+                        if (!opt.isJsonObject()) continue;
+                        JsonObject obj = opt.getAsJsonObject();
+                        String siteKey = DefaultConfig.safeJsonString(obj, "key", "");
+                        if (NullUtil.isNull(siteKey)) continue;//空key不要
+                        SiteBean bean = new SiteBean();
+                        bean.setKey(siteKey);
+                        bean.setName(DefaultConfig.safeJsonString(obj, "name", siteKey));
+                        bean.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
+                        bean.setApi(DefaultConfig.safeJsonString(obj, "api", ""));
+                        bean.setSearchable(DefaultConfig.safeJsonInt(obj, "searchable", 1));
+                        bean.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
+                        bean.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
+                        bean.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
+                        bean.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
+                        //部分源的类不在全局 spider 里，配置用站点级 jar 单独提供（如 csp_AppRJ 在 feimao1004.jar）
+                        bean.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
+                        bean.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
+                        L.d(UiHelper.getBeanStr(bean));
+                        mSiteBeanMap.put(siteKey, bean);
+                    } catch (Throwable th) {
+                        L.w("parseSiteFile skip invalid site: " + th.getMessage());
+                    }
+                }
             }
 
             // 配置文件里多是盘搜类站点，补上内置的主流采集源并排到最前（分类页/搜索用它们）
@@ -729,16 +736,25 @@ public class ApiConfig {
             // 需要使用vip解析的flag
             mVipFlagList = DefaultConfig.safeJsonStringList(jsonObject, "flags");
             // 解析地址
-            for (JsonElement opt : jsonObject.get("parses").getAsJsonArray()) {
-                JsonObject obj = (JsonObject) opt;
-                ParseBean pb = new ParseBean();
-                pb.setName(obj.get("name").getAsString().trim());
-                pb.setUrl(obj.get("url").getAsString().trim());
-                String ext = obj.has("ext") ? obj.get("ext").getAsJsonObject().toString() : "";
-                pb.setExt(ext);
-                pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
-                mParseBeanList.add(pb);
-                L.d(pb.getName() + "\t" + pb.getUrl());
+            if (jsonObject.has("parses") && jsonObject.get("parses").isJsonArray()) {
+                for (JsonElement opt : jsonObject.get("parses").getAsJsonArray()) {
+                    try {
+                        if (!opt.isJsonObject()) continue;
+                        JsonObject obj = opt.getAsJsonObject();
+                        ParseBean pb = new ParseBean();
+                        pb.setName(DefaultConfig.safeJsonString(obj, "name", ""));
+                        pb.setUrl(DefaultConfig.safeJsonString(obj, "url", ""));
+                        String ext = obj.has("ext") && obj.get("ext").isJsonObject() ? obj.get("ext").getAsJsonObject().toString() : "";
+                        pb.setExt(ext);
+                        pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
+                        if (!TextUtils.isEmpty(pb.getUrl())) {
+                            mParseBeanList.add(pb);
+                            L.d(pb.getName() + "\t" + pb.getUrl());
+                        }
+                    } catch (Throwable th) {
+                        L.w("parseSiteFile skip invalid parse: " + th.getMessage());
+                    }
+                }
             }
             // 获取默认解析
             if (!NullUtil.isNull(mParseBeanList)) {
@@ -1442,6 +1458,8 @@ public class ApiConfig {
         }
         //自动设置home
         bInit = false;
+        List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
+        final ExecutorService homeExecutor = !NullUtil.isNull(beans) ? Executors.newFixedThreadPool(3) : null;
         //重新探测期间如果一直没探测成功，兜底沿用上次的首页源，避免分类列表一直空白
         final SiteBean lastBean = cachedHomeBean;
         if (lastBean != null) {
@@ -1455,13 +1473,18 @@ public class ApiConfig {
                     if (bInit) return;
                     L.w("initHomeBean 探测未成功，沿用上次首页源 " + lastBean.getKey());
                     if (!selectHomeBeanOnce(lastBean)) return;
+                    OkGo.getInstance().cancelTag("_initHome");
+                    if (homeExecutor != null) {
+                        try {
+                            homeExecutor.shutdownNow();
+                        } catch (Throwable ignored) {
+                        }
+                    }
                     callback.success();
                 }
             }).start();
         }
-        List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
         if (!NullUtil.isNull(beans)) {
-            ExecutorService mExecutorService = Executors.newFixedThreadPool(3);
             for (int i = 0; i < beans.size(); i++) {
                 L.d("initHomeBean i=" + i);
                 SiteBean bean = beans.get(i);
@@ -1470,7 +1493,7 @@ public class ApiConfig {
                     L.d("initHomeBean skip " + bean.getKey() + " searchable=0");
                     continue;
                 }
-                mExecutorService.submit(new Runnable() {
+                homeExecutor.submit(new Runnable() {
                     @Override
                     public void run() {
                         if (bInit) return;//初始过，不再继续
@@ -1481,8 +1504,12 @@ public class ApiConfig {
                             // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
                             if (classCount(sortJson) >= 2) {
                                 if (!selectHomeBeanOnce(bean)) return;
+                                OkGo.getInstance().cancelTag("_initHome");
+                                try {
+                                    homeExecutor.shutdownNow();
+                                } catch (Throwable ignored) {
+                                }
                                 callback.success();
-                                mExecutorService.shutdown();
                             }
                         } else {
                             OkGo.<String>get(bean.getApi())
@@ -1505,6 +1532,12 @@ public class ApiConfig {
                                             if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
                                                 if (!selectHomeBeanOnce(bean)) return;
                                                 OkGo.getInstance().cancelTag("_initHome");
+                                                if (homeExecutor != null) {
+                                                    try {
+                                                        homeExecutor.shutdownNow();
+                                                    } catch (Throwable ignored) {
+                                                    }
+                                                }
                                                 callback.success();
                                             }
                                         }

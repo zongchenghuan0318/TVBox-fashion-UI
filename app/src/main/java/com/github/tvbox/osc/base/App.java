@@ -81,6 +81,24 @@ public class App extends MultiDexApplication {
         }
     }
 
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        try {
+            com.bumptech.glide.Glide.get(this).trimMemory(level);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        try {
+            com.bumptech.glide.Glide.get(this).clearMemory();
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static App getInstance() {
         return instance;
     }

@@ -88,6 +88,8 @@ public class LivePlayActivity extends BaseActivity {
     private int groupIndex = 0;
     private int channelIndex = -1;
     private int sourceTimes = 0;
+    private int consecutiveChannelFailures = 0;
+    private static final int MAX_CONSECUTIVE_AUTO_FAILS = 5;
     private int pendingGroupIndex = -1;
     private int pendingChannelIndex = -1;
     private LiveChannelItem currentLiveChannelItem = null;
@@ -544,6 +546,7 @@ public class LivePlayActivity extends BaseActivity {
         mVideoView.release();
         if (!bChangeSource) {
             sourceTimes = 0;
+            consecutiveChannelFailures = 0;
             groupIndex = group;
             channelIndex = channel;
             currentLiveChannelItem = targetChannel;
@@ -712,6 +715,7 @@ public class LivePlayActivity extends BaseActivity {
                     case VideoView.STATE_PLAYING:
                         L.d("case VideoView.STATE_BUFFERED");
                         sourceTimes = 0;
+                        consecutiveChannelFailures = 0;
                         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
                         String channelInfo = tvChannelInfo.getText().toString();
                         PrintUtil.saveSuccess(channelInfo, System.currentTimeMillis()-mBegin);
@@ -756,18 +760,28 @@ public class LivePlayActivity extends BaseActivity {
         mVideoView.setProgressManager(null);
     }
 
-    private Runnable mConnectTimeoutChangeSourceRun = () -> {
-        if (!isActivityActive() || mVideoView == null || currentLiveChannelItem == null) return;
-        if (pendingGroupIndex >= 0) {
-            deferConnectTimeout();
-            return;
-        }
-        sourceTimes++;
-        if (currentLiveChannelItem.getSourceNum() <= sourceTimes) {
-            sourceTimes = 0;
-            playAdjacentChannel(Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false) ? -1 : 1);
-        } else {
-            playNextSource();
+    private final Runnable mConnectTimeoutChangeSourceRun = new Runnable() {
+        @Override
+        public void run() {
+            if (!isActivityActive() || mVideoView == null || currentLiveChannelItem == null) return;
+            if (pendingGroupIndex >= 0) {
+                deferConnectTimeout();
+                return;
+            }
+            sourceTimes++;
+            if (currentLiveChannelItem.getSourceNum() <= sourceTimes) {
+                sourceTimes = 0;
+                consecutiveChannelFailures++;
+                if (consecutiveChannelFailures >= MAX_CONSECUTIVE_AUTO_FAILS) {
+                    consecutiveChannelFailures = 0;
+                    mHandler.removeCallbacks(this);
+                    Toast.makeText(LivePlayActivity.this, "多个频道连接超时，已暂停自动换台", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                playAdjacentChannel(Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false) ? -1 : 1);
+            } else {
+                playNextSource();
+            }
         }
     };
 

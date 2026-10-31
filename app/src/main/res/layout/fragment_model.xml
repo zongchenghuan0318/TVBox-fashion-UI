@@ -235,7 +235,7 @@
                             android:id="@+id/llSeniorMode"
                             style="@style/SettingRow"
                             android:nextFocusUp="@id/llSearchSite"
-                            android:nextFocusDown="@id/llBackup"
+                            android:nextFocusDown="@id/llClearCache"
                             android:nextFocusRight="@id/llPlayTimeStart">
                             <TextView style="@style/SettingRowTitle" android:text="长辈模式" />
                             <TextView android:id="@+id/tvSeniorModeState" style="@style/SettingRowValue" />
@@ -245,9 +245,22 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
-                            android:id="@+id/llBackup"
+                            android:id="@+id/llClearCache"
                             style="@style/SettingRow"
                             android:nextFocusUp="@id/llSeniorMode"
+                            android:nextFocusDown="@id/llBackup"
+                            android:nextFocusRight="@id/llPlayTimeStart">
+                            <TextView style="@style/SettingRowTitle" android:text="清理应用缓存" />
+                            <TextView android:id="@+id/tvClearCache" style="@style/SettingRowValue" android:text="一键释放" />
+                            <TextView style="@style/SettingRowArrow" />
+                        </LinearLayout>
+
+                        <View style="@style/SettingDivider" />
+
+                        <LinearLayout
+                            android:id="@+id/llBackup"
+                            style="@style/SettingRow"
+                            android:nextFocusUp="@id/llClearCache"
                             android:nextFocusDown="@id/llBackup"
                             android:nextFocusRight="@id/llPlayTimeEnd">
                             <TextView style="@style/SettingRowTitle" android:text="分享给好友" />

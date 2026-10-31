@@ -117,6 +117,8 @@ public class SharpenTransformation extends BitmapTransformation {
             int ny = y + 2;
             if (ny < h) {
                 src.getPixels(next, 0, w, 0, ny, w, 1);
+            } else {
+                System.arraycopy(cur, 0, next, 0, w);
             }
         }
     }
