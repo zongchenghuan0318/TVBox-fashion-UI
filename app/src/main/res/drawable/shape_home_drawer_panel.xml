@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Netflix 抽屉导航栏专用面板：高密度中性烟熏黑玻璃 (High-Density Smoked Glass Overlay)
+  - 针对覆盖在海报与内容网格上方的抽屉场景，提供 96%~98% 高遮蔽率底色，杜绝底层内容穿透重叠
+  - 右侧边缘精致 1px 磨砂纯白反光切割线，清晰划分抽屉与主画面层级
+  - 顶部微弱漫反射高光，维持高阶苹果黑玻璃质感
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. 高密度深空烟熏黑玻璃基底：确保抽屉内所有文字与下层海报绝对互不干扰重叠 -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="#FA0A0C10"
+                android:centerColor="#F50D0F14"
+                android:endColor="#F0090B0F" />
+            <corners android:radius="@dimen/vs_0" />
+        </shape>
+    </item>
+
+    <!-- 2. 顶部微弱漫反射高光 -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#1EFFFFFF"
+                android:centerColor="#08FFFFFF"
+                android:endColor="@android:color/transparent"
+                android:centerY="0.25" />
+            <corners android:radius="@dimen/vs_0" />
+        </shape>
+    </item>
+
+    <!-- 3. 右侧交界处 1px 细微磨砂玻璃反光切割线（形成高级分层境界感） -->
+    <item
+        android:left="-4dp"
+        android:top="-4dp"
+        android:bottom="-4dp"
+        android:right="0dp">
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#33FFFFFF" />
+        </shape>
+    </item>
+
+</layer-list>

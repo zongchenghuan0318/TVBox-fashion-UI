@@ -11,7 +11,9 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -110,11 +112,21 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         @Override
         public void run() {
             if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null) {
-                if (topNavPanel.hasFocus()) return;
+                if (topNavPanel.hasFocus()) {
+                    scheduleImmersiveTopBarFadeOut(3500L);
+                    return;
+                }
+                int height = topNavPanel.getHeight() > 0 ? topNavPanel.getHeight() : AutoSizeUtils.dp2px(HomeActivity.this, 60);
                 topNavPanel.animate()
                         .alpha(0f)
-                        .translationY(-topNavPanel.getHeight())
-                        .setDuration(300)
+                        .translationY(-height)
+                        .setDuration(260)
+                        .setInterpolator(new AccelerateInterpolator())
+                        .withEndAction(() -> {
+                            if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null && !topNavPanel.hasFocus()) {
+                                topNavPanel.setVisibility(View.GONE);
+                            }
+                        })
                         .start();
             }
         }
@@ -188,6 +200,20 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         this.tvTopBrand = findViewById(R.id.tvTopBrand);
         this.tvTopDate = findViewById(R.id.tvTopDate);
         this.sortTopRV = findViewById(R.id.sortTopRV);
+
+        if (this.topNavPanel != null) {
+            this.topNavPanel.getViewTreeObserver().addOnGlobalFocusChangeListener((oldFocus, newFocus) -> {
+                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+                    boolean hadFocus = isViewOrDescendant(oldFocus, topNavPanel);
+                    boolean hasFocus = isViewOrDescendant(newFocus, topNavPanel);
+                    if (hasFocus) {
+                        mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
+                    } else if (hadFocus) {
+                        scheduleImmersiveTopBarFadeOut(1000L);
+                    }
+                }
+            });
+        }
 
         // 侧栏操作按钮
         findViewById(R.id.layout_search2).setOnClickListener(this);
@@ -371,6 +397,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
                 selectCategory(position);
                 enterSelectedCategoryContent();
+                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+                    scheduleImmersiveTopBarFadeOut(800L);
+                }
             }
         });
     }
@@ -384,6 +413,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 // 1. 经典侧边栏：侧边栏固定常驻，内容区避开 165mm
                 if (sidebarSpacer != null) sidebarSpacer.setVisibility(View.VISIBLE);
                 if (leftNavPanel != null) {
+                    leftNavPanel.setBackgroundResource(R.drawable.shape_home_rail_panel);
                     leftNavPanel.setVisibility(View.VISIBLE);
                     leftNavPanel.setTranslationX(0f);
                 }
@@ -420,15 +450,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             case HawkConfig.HOME_LAYOUT_DRAWER:
                 // 3. Netflix 动态隐形抽屉：内容区全宽铺满，侧栏平移移出屏幕左侧，按左键滑出
                 if (sidebarSpacer != null) sidebarSpacer.setVisibility(View.GONE);
+                if (sidebarEdgeShadow != null) sidebarEdgeShadow.setVisibility(View.GONE);
                 if (leftNavPanel != null) {
-                    leftNavPanel.setVisibility(View.VISIBLE);
-                    int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : AutoSizeUtils.dp2px(this, 165);
+                    leftNavPanel.setBackgroundResource(R.drawable.shape_home_drawer_panel);
+                    int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.vs_165);
                     leftNavPanel.setTranslationX(-panelWidth);
-                }
-                if (sidebarEdgeShadow != null) {
-                    sidebarEdgeShadow.setVisibility(View.VISIBLE);
-                    int panelWidth = leftNavPanel != null && leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : AutoSizeUtils.dp2px(this, 165);
-                    sidebarEdgeShadow.setTranslationX(-panelWidth);
+                    leftNavPanel.setVisibility(View.GONE);
                 }
                 if (drawerScrim != null) {
                     drawerScrim.setVisibility(View.GONE);
@@ -454,7 +481,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     topNavPanel.setTranslationY(0f);
                 }
                 isDrawerOpen = false;
-                scheduleImmersiveTopBarFadeOut(3000L);
+                scheduleImmersiveTopBarFadeOut(3500L);
                 break;
         }
     }
@@ -463,15 +490,17 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (isDrawerOpen || leftNavPanel == null) return;
         isDrawerOpen = true;
         if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.GONE);
+        leftNavPanel.setBackgroundResource(R.drawable.shape_home_drawer_panel);
         leftNavPanel.setVisibility(View.VISIBLE);
+        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.vs_165);
+        leftNavPanel.setTranslationX(-panelWidth);
         leftNavPanel.animate()
                 .translationX(0f)
                 .setDuration(240)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
         if (sidebarEdgeShadow != null) {
-            sidebarEdgeShadow.setVisibility(View.VISIBLE);
-            sidebarEdgeShadow.animate().translationX(0f).setDuration(240).start();
+            sidebarEdgeShadow.setVisibility(View.GONE);
         }
         if (drawerScrim != null) {
             drawerScrim.setVisibility(View.VISIBLE);
@@ -490,14 +519,19 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER && drawerTabHandle != null) {
             drawerTabHandle.setVisibility(View.VISIBLE);
         }
-        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : AutoSizeUtils.dp2px(this, 165);
+        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.vs_165);
         leftNavPanel.animate()
                 .translationX(-panelWidth)
                 .setDuration(200)
                 .setInterpolator(new DecelerateInterpolator())
+                .withEndAction(() -> {
+                    if (!isDrawerOpen && mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER && leftNavPanel != null) {
+                        leftNavPanel.setVisibility(View.GONE);
+                    }
+                })
                 .start();
         if (sidebarEdgeShadow != null) {
-            sidebarEdgeShadow.animate().translationX(-panelWidth).setDuration(200).start();
+            sidebarEdgeShadow.setVisibility(View.GONE);
         }
         if (drawerScrim != null) {
             drawerScrim.animate().alpha(0f).setDuration(200).withEndAction(() -> {
@@ -612,7 +646,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                         int screenHeight = getResources().getDisplayMetrics().heightPixels;
                         if (y > AutoSizeUtils.dp2px(this, 54) && y < screenHeight * 0.65f) {
                             if (topNavPanel != null) {
-                                if (topNavPanel.getAlpha() < 0.5f) {
+                                if (topNavPanel.getVisibility() != View.VISIBLE || topNavPanel.getAlpha() < 0.5f) {
                                     revealImmersiveTopBar();
                                 } else {
                                     scheduleImmersiveTopBarFadeOut(0L);
@@ -661,12 +695,18 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 .setDuration(220)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
+        // 唤出后固定时长（3.5秒）自动收起，极简纯净沉浸
+        scheduleImmersiveTopBarFadeOut(3500L);
     }
 
     public void scheduleImmersiveTopBarFadeOut(long delay) {
         if (mHandler == null) return;
         mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
-        mHandler.postDelayed(immersiveTopBarFadeRunnable, delay);
+        if (delay <= 0) {
+            immersiveTopBarFadeRunnable.run();
+        } else {
+            mHandler.postDelayed(immersiveTopBarFadeRunnable, delay);
+        }
     }
 
     private void initFirstPager() {
@@ -740,6 +780,17 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         return mContentViewPager.requestFocus();
     }
 
+    private boolean isViewOrDescendant(View child, View parent) {
+        if (child == null || parent == null) return false;
+        View current = child;
+        while (current != null) {
+            if (current == parent) return true;
+            ViewParent p = current.getParent();
+            current = (p instanceof View) ? (View) p : null;
+        }
+        return false;
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -754,6 +805,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                         return true;
                     }
                     if (enterSelectedCategoryContent()) return true;
+                } else if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER && isDrawerOpen) {
+                    View currentFocus = getCurrentFocus();
+                    if (currentFocus != null && isViewOrDescendant(currentFocus, leftNavPanel)) {
+                        closeDrawer();
+                        return true;
+                    }
                 }
             }
 
@@ -778,7 +835,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     if (topNavPanel != null && topNavPanel.hasFocus()) {
                         enterSelectedCategoryContent();
                         if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-                            scheduleImmersiveTopBarFadeOut(1200L);
+                            scheduleImmersiveTopBarFadeOut(800L);
                         }
                         return true;
                     }
@@ -805,7 +862,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
             // 4. 极简沉浸模式：按菜单键直接唤出顶部导航栏
             if (keyCode == KeyEvent.KEYCODE_MENU && mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-                if (topNavPanel != null && topNavPanel.getAlpha() < 0.5f) {
+                if (topNavPanel != null && (topNavPanel.getVisibility() != View.VISIBLE || topNavPanel.getAlpha() < 0.5f)) {
                     revealImmersiveTopBar();
                     if (sortTopRV != null) {
                         sortTopRV.setSelection(mCurrentSelected);
@@ -1221,6 +1278,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         int savedLayout = Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT);
         if (savedLayout != mCurrentLayoutStyle) {
             applyLayoutStyle(savedLayout);
+        } else if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+            if (topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE && !topNavPanel.hasFocus()) {
+                scheduleImmersiveTopBarFadeOut(3500L);
+            }
         }
         // 从其它页面返回时，当前页可能还停在分类页，需要重新同步大背景的显隐
         syncHeroBackdrop();

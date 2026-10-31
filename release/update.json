@@ -1,9 +1,9 @@
 {
-  "versionCode": 154,
-  "versionName": "1.2.5",
-  "changelog": "更新横屏触控与首页交互。\n\n- 动态抽屉增加触控拉手和边缘滑动操作。\n- 沉浸模式支持触控显示、隐藏顶部导航。\n- 首页导航增加屏幕挖孔安全区域适配。\n- 首页非当前卡片先居中预览，再次点击进入搜索。\n- 调整搜索布局、返回入口及软键盘显示和收起交互。\n\nRelease 构建与签名校验通过；手机、平板横屏手势、遥控操作及覆盖升级仍需实机验证。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.5/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.5/Z.apk",
-  "sha256": "cd0b41f4b348d8628b0aee3bef78324e43f86544e22f6d7ab1f9cf24bacc1a8b",
-  "size": 24842636
+  "versionCode": 155,
+  "versionName": "1.2.6",
+  "changelog": "调整动态抽屉与沉浸模式导航。\n\n- 抽屉采用独立深色面板，调整隐藏状态与展开动画。\n- 抽屉获得焦点时支持遥控方向操作收起。\n- 调整沉浸模式顶栏自动隐藏、焦点保持与返回首页后的计时。\n- 顶栏隐藏后移出布局显示，调整触控和菜单键唤出判断。\n\nRelease 构建与签名校验通过；抽屉、顶栏触控与遥控交互及覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.6/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.6/Z.apk",
+  "sha256": "a5549bfaa940fc87eca4b017a65c1b15c593a694fa231cc55abb2c8266af546c",
+  "size": 24844561
 }
