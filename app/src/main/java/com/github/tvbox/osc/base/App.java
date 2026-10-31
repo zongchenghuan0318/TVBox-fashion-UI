@@ -18,12 +18,6 @@ import androidx.multidex.MultiDexApplication;
 import me.jessyan.autosize.AutoSizeConfig;
 import me.jessyan.autosize.unit.Subunits;
 
-/**
- * @author pj567
- * @date :2020/12/17
- * @description:
- *  * tvbox交流QQ群：879811030
- */
 public class App extends MultiDexApplication {
     private static App instance;
 

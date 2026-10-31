@@ -63,9 +63,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import xyz.doikki.videoplayer.player.VideoView;
 import xyz.doikki.videoplayer.util.PrintUtil;
 
-/**
- * tvbox交流QQ群：879811030
- */
 public class LivePlayActivity extends BaseActivity {
     private VideoView mVideoView;
     private TextView tvChannelInfo;
@@ -268,7 +265,6 @@ public class LivePlayActivity extends BaseActivity {
             mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
             mHandler.removeCallbacks(mUpdateNetSpeedRun);
 
-            UiHelper.upPlayResult(getApplicationContext());
             // Return to the existing home activity so its startup loading screen is not shown again.
             super.onBackPressed();
         }

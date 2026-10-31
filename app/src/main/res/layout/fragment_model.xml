@@ -276,8 +276,8 @@
                             android:nextFocusUp="@id/llClearCache"
                             android:nextFocusDown="@id/llBackup"
                             android:nextFocusRight="@id/llPlayTimeEnd">
-                            <TextView style="@style/SettingRowTitle" android:text="分享给好友" />
-                            <Space android:layout_width="0dp" android:layout_height="1mm" android:layout_weight="1" />
+                            <TextView style="@style/SettingRowTitle" android:text="数据备份与还原" />
+                            <TextView style="@style/SettingRowValue" android:text="本地备份" />
                             <TextView style="@style/SettingRowArrow" />
                         </LinearLayout>
                     </LinearLayout>

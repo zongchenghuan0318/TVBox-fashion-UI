@@ -69,22 +69,7 @@ public class UiHelper {
     }
 
     public static void upPlayResult(Context ctx) {
-        new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                //上报只是统计信息，接口不可用时不能让播放页退出时闪退
-                try {
-                    String apiUrl = Hawk.get(HawkConfig.API_URL, "");
-                    PrintUtil.saveError(HawkConfig.API_URL, apiUrl);
-                    PrintUtil.saveError("current_siteUrl", ApiConfig.current_siteUrl);
-                    HttpUtil.postPlayResult(ctx, UiConstans.UP_PLAY_RESULT_URL
-                            , PrintUtil.successMap, PrintUtil.playErrorMap);
-                } catch (Throwable th) {
-                    L.e("upPlayResult " + th.getMessage());
-                }
-            }
-        }.start();
+        // 彻底关闭第三方接口上报，保护用户隐私与避免废弃库调用
     }
 
 

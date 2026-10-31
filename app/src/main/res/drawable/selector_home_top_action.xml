@@ -1,34 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple TV 顶栏圆形/胶囊微型动作按钮选择器 -->
+<!-- Apple TV 顶栏圆形/胶囊微型动作按钮选择器：
+     中性深色微透底托，确保图标在复杂海报背景下轮廓分明，落焦高光提亮 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
             <corners android:radius="19mm" />
             <gradient
                 android:angle="90"
-                android:startColor="#4DFFFFFF"
-                android:endColor="#26FFFFFF" />
-            <stroke
-                android:width="1.5mm"
-                android:color="#B3FFFFFF" />
-        </shape>
-    </item>
-    <item android:state_pressed="true">
-        <shape>
-            <corners android:radius="19mm" />
-            <solid android:color="#40FFFFFF" />
+                android:startColor="#66FFFFFF"
+                android:endColor="#33FFFFFF" />
             <stroke
                 android:width="1.5mm"
                 android:color="#E6FFFFFF" />
         </shape>
     </item>
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="19mm" />
+            <solid android:color="#4D252A36" />
+            <stroke
+                android:width="1.5mm"
+                android:color="#B3FFFFFF" />
+        </shape>
+    </item>
     <item>
         <shape>
             <corners android:radius="19mm" />
-            <solid android:color="#14FFFFFF" />
+            <solid android:color="#38101218" />
             <stroke
                 android:width="1mm"
-                android:color="#1FFFFFFF" />
+                android:color="#26FFFFFF" />
         </shape>
     </item>
 </selector>

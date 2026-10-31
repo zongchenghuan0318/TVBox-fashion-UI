@@ -25,6 +25,10 @@
             android:ellipsize="end"
             android:focusable="false"
             android:gravity="center"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="2"
             android:singleLine="true"
             android:textColor="@color/selector_home_rail_text"
             android:textSize="@dimen/ts_22" />

@@ -1,7 +1,4 @@
-tvbox交流QQ群：879811030
-
-单仓配置文件，可以自行更改。直接覆盖site.json文件即可
-
-配置文件格式示例：
-https://gitee.com/mofanyun/niuma/raw/master/niuma.json
-http://www.tvboxx.top/tv/xiong.json
+{
+  "name": "Z影视",
+  "description": "单仓配置文件，支持覆盖或在应用设置中导入远程接口。"
+}

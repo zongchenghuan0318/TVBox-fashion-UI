@@ -114,7 +114,7 @@
             android:paddingLeft="@dimen/vs_24"
             android:paddingRight="@dimen/vs_24"
             android:singleLine="true"
-            android:text="软件和影片接口完全免费，软件有问题请联系开发者宗成焕。"
+            android:text="软件与影片接口完全免费，请勿轻信任何广告。"
             android:textColor="@color/color_rail_text_muted"
             android:textSize="@dimen/ts_16" />
 
@@ -371,14 +371,15 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/vs_54"
         android:layout_gravity="top"
+        android:background="@drawable/shape_home_top_nav_bar"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingLeft="@dimen/vs_40"
         android:paddingRight="@dimen/vs_40"
         android:paddingTop="@dimen/vs_8"
         android:paddingBottom="@dimen/vs_4"
-        android:clipChildren="false"
-        android:clipToPadding="false"
         android:visibility="gone">
 
         <!-- 品牌标识与时间胶囊 -->
@@ -396,6 +397,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.06"
+                android:shadowColor="#CC000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="2"
                 android:singleLine="true"
                 android:text="@string/app_name"
                 android:textColor="@color/color_FFFFFF"
@@ -408,6 +413,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="@dimen/vs_10"
                 android:letterSpacing="0.04"
+                android:shadowColor="#CC000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="2"
                 android:singleLine="true"
                 android:textColor="@color/color_CCFFFFFF"
                 android:textSize="@dimen/ts_18"

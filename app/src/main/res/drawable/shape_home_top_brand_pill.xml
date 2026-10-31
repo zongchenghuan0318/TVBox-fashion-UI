@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple TV 顶栏品牌Logo与时间底托胶囊 -->
+<!-- Apple TV 顶栏品牌Logo与时间底托胶囊：
+     中性深色烟熏底与全顶栏胶囊体系统一 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="19mm" />
-    <solid android:color="#1A0E1016" />
+    <solid android:color="#38101218" />
     <stroke
         android:width="1mm"
         android:color="#26FFFFFF" />

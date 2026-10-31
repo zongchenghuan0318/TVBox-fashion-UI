@@ -4,7 +4,7 @@ An Android aggregated video client for TV boxes, TVs and landscape phones, built
 
 This project ships the client only: **all video resources and third-party APIs come from the Internet. The app stores and distributes no video content.**
 
-> The app and all video APIs are completely free. For issues, contact the developer 宗成焕.
+> The app and all video APIs are completely free. Do not trust any advertisements.
 
 ---
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apple TV 悬浮顶栏柔和微透烟熏保护层：
+     从顶部中低透度沉静暗黑（约 50% 不透明）自然衰减至底部完全透明，
+     为选项文字建立清晰的对比度基线，同时保持通透高级、不生硬、不艳丽 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="270"
+        android:startColor="#8008090C"
+        android:centerColor="#3308090C"
+        android:endColor="@android:color/transparent"
+        android:centerY="0.75" />
+</shape>

@@ -477,7 +477,6 @@ public class SearchActivity extends BaseActivity {
                             }
                             wordAdapter.setNewData(hots);
                             updateHotWordPanel();
-                            requestHotWords_my(generation);
                         } catch (Throwable th) {
                             th.printStackTrace();
                         }
@@ -493,37 +492,6 @@ public class SearchActivity extends BaseActivity {
         return !isFinishing() && !isDestroyed() && generation == suggestionRequestId
                 && etSearch != null && TextUtils.isEmpty(etSearch.getText().toString().trim())
                 && TextUtils.isEmpty(searchWord);
-    }
-
-    private void requestHotWords_my(int generation) {
-        new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                //热词只是推荐内容，接口异常时不能把搜索页带崩
-                try {
-                    final HotWords hotWordsBean = HttpUtil.getHotWords(getApplicationContext(), UiConstans.HOT_WORDS_URL, "获取热词");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (!canShowHotWords(generation)) return;
-                            if (hotWordsBean != null && !NullUtil.isNull(hotWordsBean.resultData)) {
-                                ArrayList<String> hots = new ArrayList<>();
-                                for (HotWords.Word w : hotWordsBean.resultData) {
-                                    hots.add(w.name);
-                                }
-                                if (!NullUtil.isNull(hots)) {
-                                    wordAdapter.setNewData(hots);
-                                    updateHotWordPanel();
-                                }
-                            }
-                        }
-                    });
-                } catch (Throwable th) {
-                    L.e("requestHotWords_my " + th.getMessage());
-                }
-            }
-        }.start();
     }
 
     private void refreshQRCode() {
@@ -619,23 +587,7 @@ public class SearchActivity extends BaseActivity {
         }
         saveHistoryWords(wd);
         refreshHistoryView();
-        upSearchKey(wd);
         tvSearch.requestFocus();
-    }
-
-    private void upSearchKey(final String wd) {
-        new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                //上报搜索词只是统计信息，接口不可用时不能让搜索页闪退
-                try {
-                    HttpUtil.getHotWords(getApplicationContext(), UiConstans.HOT_WORDS_URL, wd);
-                } catch (Throwable th) {
-                    L.e("upSearchKey " + th.getMessage());
-                }
-            }
-        }.start();
     }
 
     private void doSearch() {

@@ -65,9 +65,6 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import xyz.doikki.videoplayer.util.PrintUtil;
 
-/**
- * tvbox交流QQ群：879811030
- */
 public class DetailActivity extends BaseActivity implements View.OnClickListener {
     private ImageView thumpImg;
     private ImageView ivDetailBackdrop;

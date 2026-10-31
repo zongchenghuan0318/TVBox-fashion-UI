@@ -1,47 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple TV 顶栏横向分类药丸交互背景：纯净中性熏黑磨砂，落焦纯白发光胶囊 -->
+<!-- Apple TV 顶栏横向分类药丸交互背景：
+     纯净中性烟熏黑磨砂玻璃，平衡通透感与辨识度，落焦纯白发光胶囊 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 获得焦点态：纯白发光微透高光胶囊 -->
+    <!-- 获得焦点态：纯白发光微透高光胶囊，对比鲜明 -->
     <item android:state_focused="true">
         <shape>
             <corners android:radius="19mm" />
             <gradient
                 android:angle="90"
-                android:startColor="#4DFFFFFF"
-                android:endColor="#26FFFFFF" />
+                android:startColor="#66FFFFFF"
+                android:endColor="#33FFFFFF" />
             <stroke
                 android:width="1.5mm"
-                android:color="#B3FFFFFF" />
+                android:color="#E6FFFFFF" />
         </shape>
     </item>
     <!-- 按下态 -->
     <item android:state_pressed="true">
         <shape>
             <corners android:radius="19mm" />
-            <solid android:color="#40FFFFFF" />
+            <solid android:color="#4D252A36" />
             <stroke
                 android:width="1.5mm"
-                android:color="#E6FFFFFF" />
+                android:color="#B3FFFFFF" />
         </shape>
     </item>
     <!-- 选中态（当前浏览该分类，但焦点移动至下方内容海报） -->
     <item android:state_selected="true">
         <shape>
             <corners android:radius="19mm" />
-            <solid android:color="#2BFFFFFF" />
+            <solid android:color="#54161A22" />
             <stroke
-                android:width="1mm"
-                android:color="#59FFFFFF" />
+                android:width="1.2mm"
+                android:color="#66FFFFFF" />
         </shape>
     </item>
-    <!-- 常态：极弱微透暗光胶囊 -->
+    <!-- 常态：精细烟熏微透磨砂底托，滤除复杂背景干扰，存在感低且字迹清晰 -->
     <item>
         <shape>
             <corners android:radius="19mm" />
-            <solid android:color="#14FFFFFF" />
+            <solid android:color="#38101218" />
             <stroke
                 android:width="1mm"
-                android:color="#1FFFFFFF" />
+                android:color="#26FFFFFF" />
         </shape>
     </item>
 </selector>

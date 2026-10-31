@@ -70,9 +70,6 @@ import java.util.concurrent.Executors;
 import androidx.lifecycle.ViewModelProvider;
 import me.jessyan.autosize.utils.AutoSizeUtils;
 
-/**
- * tvbox交流QQ群：879811030
- */
 public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private TextView tvDate;
     private SourceViewModel sourceViewModel;
@@ -148,7 +145,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private long mShowLoadingTime = 0;
     private String mSortSignature = "";
     private int mLastSyncedPage = -1;
-    private ExecutorService mConfigExecutor;
     private String categorySourceIdentity = "";
     private int categoryMetadataAttempts;
     private boolean categoryMetadataPending;
@@ -271,7 +267,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         // 初始化Web服务器
         ControlManager.get().startServer(getApplicationContext());
         mHandler = new Handler(Looper.getMainLooper());
-        mConfigExecutor = Executors.newSingleThreadExecutor();
         EventBus.getDefault().register(this);
         initView();
         mShowLoadingTime = System.currentTimeMillis();
@@ -282,26 +277,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         observePages();
         initSiteFile();
         showTime();
-        getConfig(this);
         // 兜底：加载异常时也不能一直停在打开画面
         mHandler.postDelayed(() -> {
             hideLoading();
             if (categorySourceIdentity.isEmpty()) requestCategoryMetadata();
         }, 15000);
-    }
-
-    public void getConfig(Context context) {
-        if (mConfigExecutor == null || mConfigExecutor.isShutdown()) {
-            return;
-        }
-        Context applicationContext = context.getApplicationContext();
-        mConfigExecutor.execute(() -> {
-            RspReportConfig bean = HttpUtil.getConfig(UiConstans.GET_CONFIG_URL, applicationContext);
-            if (bean != null && bean.resultData != null) {
-                SPDataUtil spDataUtil = new SPDataUtil(applicationContext);
-                spDataUtil.saveObjectValue(UiConstans.PRE_KEY_CONFIG, bean.resultData);
-            }
-        });
     }
 
     private void initSortView(){
@@ -1352,10 +1332,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
         if (mContentViewPager != null) {
             mContentViewPager.setAdapter(null);
-        }
-        if (mConfigExecutor != null) {
-            mConfigExecutor.shutdownNow();
-            mConfigExecutor = null;
         }
         super.onDestroy();
     }

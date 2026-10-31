@@ -30,12 +30,6 @@ import me.jessyan.autosize.AutoSizeCompat;
 import me.jessyan.autosize.AutoSizeConfig;
 import me.jessyan.autosize.internal.CustomAdapt;
 
-/**
- * @author pj567
- * @date :2020/12/17
- * @description:
- *  * tvbox交流QQ群：879811030
- */
 public abstract class BaseActivity extends AppCompatActivity implements CustomAdapt {
     protected Context mContext;
     private LoadService mLoadService;

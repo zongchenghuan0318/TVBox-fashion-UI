@@ -29,6 +29,7 @@ import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.ApiDialog;
+import com.github.tvbox.osc.ui.dialog.BackupDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
@@ -251,7 +252,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
             @Override
             public void onClick(View v) {
                 FastClickCheckUtil.check(v);
-                SystemUitl.share(getActivity(), "分享", "我发现个很好用的免费视频APP，官网:"+ UiConstans.GO_BROWSER_URL);
+                new BackupDialog(getActivity()).show();
             }
         });
         aboutRow.setOnClickListener(new View.OnClickListener() {

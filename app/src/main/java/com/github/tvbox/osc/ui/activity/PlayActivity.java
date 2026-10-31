@@ -82,9 +82,6 @@ import xyz.doikki.videoplayer.player.ProgressManager;
 import xyz.doikki.videoplayer.player.VideoView;
 import xyz.doikki.videoplayer.util.PrintUtil;
 
-/**
- * tvbox交流QQ群：879811030
- */
 public class PlayActivity extends BaseActivity  implements View.OnClickListener {
     private VideoView mVideoView;
     private TextView mTimeTV;
@@ -952,7 +949,6 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     protected void onStop() {
         saveCurrentProgress();
         super.onStop();
-        UiHelper.upPlayResult(getApplicationContext());
     }
 
     private void saveCurrentProgress() {
