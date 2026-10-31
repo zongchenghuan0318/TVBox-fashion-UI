@@ -1,13 +1,12 @@
 
 <img width="2358" height="1080" alt="b1a7518ea912af8df3dbe50ae9e594cc" src="https://github.com/user-attachments/assets/0e087a46-10b7-4eaf-9c27-d2d5b5437812" />
+<img width="2358" height="1080" alt="3a333afb64c43b7d1875991f8ceb6252" src="https://github.com/user-attachments/assets/85c6f696-fd7e-4018-9085-115b589f4139" />
 <img width="2358" height="1080" alt="fb49b4a6c40a7d93a88ed2e6d3576992" src="https://github.com/user-attachments/assets/f810db62-0641-4fca-aa2d-0028b98c831c" />
+<img width="2358" height="1080" alt="7707b998cc63466a2fe7e06b92029893" src="https://github.com/user-attachments/assets/8b7c8e99-ab26-4fca-ae25-24bb6a4a99d9" />
 <img width="2358" height="1080" alt="9aa364a29bd910b53affa1123cb48d89" src="https://github.com/user-attachments/assets/750c239d-13a9-4dad-a699-66edbb69014f" />
 <img width="2358" height="1080" alt="133a8cc6bbccfc5c0dc8ebd7da8060c9" src="https://github.com/user-attachments/assets/0bda9125-1813-4af9-bf33-d7e083d4d6da" />
-
 # Z影视
-
 基于开源项目 [TVBoxOSC](https://github.com/CatVodTVOfficial/TVBoxOSC)（CatVodTVOfficial）二次开发与打磨的 Android 影视聚合客户端，面向电视盒子 / 电视 / 手机横屏使用。
-
 项目只做客户端本身：**影片资源与各家接口全部来源于互联网第三方，本软件不存储、不传播任何视频内容。**
 
 > 软件与影片接口完全免费，软件有问题请联系开发者 宗成焕
