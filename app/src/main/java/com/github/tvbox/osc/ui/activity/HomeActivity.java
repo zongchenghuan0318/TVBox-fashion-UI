@@ -324,6 +324,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 if (view != null && !HomeActivity.this.bDownOrUp) {
                     view.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).start();
                     TextView textView = view.findViewById(R.id.tvTitle);
+                    textView.setSelected(view.isSelected());
                     textView.getPaint().setFakeBoldText(view.isSelected());
                     textView.setTextColor(HomeActivity.this.getResources().getColorStateList(R.color.selector_home_rail_text));
                     textView.invalidate();
@@ -406,11 +407,15 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     public void applyLayoutStyle(int mode) {
         this.mCurrentLayoutStyle = mode;
+        mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
+        if (leftNavPanel != null) leftNavPanel.animate().withEndAction(null).cancel();
+        if (topNavPanel != null) topNavPanel.animate().withEndAction(null).cancel();
+        if (drawerScrim != null) drawerScrim.animate().withEndAction(null).cancel();
         ViewGroup homeContent = findViewById(R.id.homeContent);
 
         switch (mode) {
             case HawkConfig.HOME_LAYOUT_SIDEBAR:
-                // 1. 经典侧边栏：侧边栏固定常驻，内容区避开 165mm
+                // 1. 经典侧边栏：侧边栏固定常驻，内容区避开侧栏宽度
                 if (sidebarSpacer != null) sidebarSpacer.setVisibility(View.VISIBLE);
                 if (leftNavPanel != null) {
                     leftNavPanel.setBackgroundResource(R.drawable.shape_home_rail_panel);
@@ -442,7 +447,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 }
                 if (homeContent != null) {
                     // 为顶部悬浮胶囊留出 54mm 呼吸空间，避免遮盖内容区顶部
-                    homeContent.setPadding(0, AutoSizeUtils.dp2px(this, 54), 0, 0);
+                    homeContent.setPadding(0, getResources().getDimensionPixelSize(R.dimen.vs_54), 0, 0);
                 }
                 isDrawerOpen = false;
                 break;
@@ -453,7 +458,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 if (sidebarEdgeShadow != null) sidebarEdgeShadow.setVisibility(View.GONE);
                 if (leftNavPanel != null) {
                     leftNavPanel.setBackgroundResource(R.drawable.shape_home_drawer_panel);
-                    int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.vs_165);
+                    int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.home_rail_width);
                     leftNavPanel.setTranslationX(-panelWidth);
                     leftNavPanel.setVisibility(View.GONE);
                 }
@@ -484,6 +489,15 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 scheduleImmersiveTopBarFadeOut(3500L);
                 break;
         }
+        updateContentInsets(mCurrentSelected);
+    }
+
+    private void updateContentInsets(int currentIndex) {
+        View content = findViewById(R.id.homeContent);
+        if (content == null) return;
+        boolean hasTopBar = mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV
+                || (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && currentIndex > 0);
+        content.setPadding(0, hasTopBar ? getResources().getDimensionPixelSize(R.dimen.vs_54) : 0, 0, 0);
     }
 
     public void openDrawer() {
@@ -492,7 +506,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.GONE);
         leftNavPanel.setBackgroundResource(R.drawable.shape_home_drawer_panel);
         leftNavPanel.setVisibility(View.VISIBLE);
-        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.vs_165);
+        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.home_rail_width);
         leftNavPanel.setTranslationX(-panelWidth);
         leftNavPanel.animate()
                 .translationX(0f)
@@ -519,7 +533,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER && drawerTabHandle != null) {
             drawerTabHandle.setVisibility(View.VISIBLE);
         }
-        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.vs_165);
+        int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : getResources().getDimensionPixelSize(R.dimen.home_rail_width);
         leftNavPanel.animate()
                 .translationX(-panelWidth)
                 .setDuration(200)
@@ -572,8 +586,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
                         // 2. 顶部胶囊导航栏：如果左右有挖孔，为顶部胶囊导航栏增加安全避让区
                         if (topNavPanel != null) {
-                            int basePaddingLeft = AutoSizeUtils.dp2px(HomeActivity.this, 40);
-                            int basePaddingRight = AutoSizeUtils.dp2px(HomeActivity.this, 40);
+                            int basePaddingLeft = getResources().getDimensionPixelSize(R.dimen.vs_40);
+                            int basePaddingRight = getResources().getDimensionPixelSize(R.dimen.vs_40);
                             topNavPanel.setPadding(
                                     basePaddingLeft + insetLeft,
                                     topNavPanel.getPaddingTop(),
@@ -644,7 +658,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
                     if (Math.abs(totalDx) < AutoSizeUtils.dp2px(this, 15) && Math.abs(totalDy) < AutoSizeUtils.dp2px(this, 15) && duration < 350) {
                         int screenHeight = getResources().getDisplayMetrics().heightPixels;
-                        if (y > AutoSizeUtils.dp2px(this, 54) && y < screenHeight * 0.65f) {
+                        if (y > getResources().getDimensionPixelSize(R.dimen.vs_54) && y < screenHeight * 0.65f) {
                             if (topNavPanel != null) {
                                 if (topNavPanel.getVisibility() != View.VISIBLE || topNavPanel.getAlpha() < 0.5f) {
                                     revealImmersiveTopBar();
@@ -745,6 +759,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         bDownOrUp = false;
         view.animate().scaleX(1.06f).scaleY(1.06f).setInterpolator(new DecelerateInterpolator()).setDuration(220).start();
         TextView textView = view.findViewById(R.id.tvTitle);
+        textView.setSelected(true);
         textView.getPaint().setFakeBoldText(true);
         textView.setTextColor(getResources().getColor(R.color.color_rail_text_active));
         textView.invalidate();
@@ -1225,6 +1240,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void syncHeroBackdrop(int currentIndex) {
+        updateContentInsets(currentIndex);
         if (fragments == null || fragments.isEmpty()
                 || currentIndex < 0 || currentIndex >= fragments.size()) {
             return;

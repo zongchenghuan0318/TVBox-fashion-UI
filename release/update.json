@@ -1,9 +1,9 @@
 {
-  "versionCode": 155,
-  "versionName": "1.2.6",
-  "changelog": "调整动态抽屉与沉浸模式导航。\n\n- 抽屉采用独立深色面板，调整隐藏状态与展开动画。\n- 抽屉获得焦点时支持遥控方向操作收起。\n- 调整沉浸模式顶栏自动隐藏、焦点保持与返回首页后的计时。\n- 顶栏隐藏后移出布局显示，调整触控和菜单键唤出判断。\n\nRelease 构建与签名校验通过；抽屉、顶栏触控与遥控交互及覆盖升级仍需实机验证。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.6/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.6/Z.apk",
-  "sha256": "a5549bfaa940fc87eca4b017a65c1b15c593a694fa231cc55abb2c8266af546c",
-  "size": 24844561
+  "versionCode": 156,
+  "versionName": "1.2.7",
+  "changelog": "修复侧栏与分类页布局。\n\n- 统一加宽经典侧栏和动态抽屉，调整分类行高度与长标题滚动显示。\n- 修正导航文字宽度分配、侧栏占位及布局切换后的动画残留。\n- 统一顶栏适配单位，分类页预留顶部空间，减少内容遮挡。\n- 分类页重新加载从第一页开始，补充加载与无筛选提示。\n- 重试按钮仅在加载失败或无内容时显示，不常驻。\n\nRelease 构建与签名校验通过；侧栏文字、分类显示、遥控焦点及覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.7/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.7/Z.apk",
+  "sha256": "5da47a22223cb6bd89895e72bffded4e53da0a5282250ea83a01c366c52bb5a0",
+  "size": 24844522
 }

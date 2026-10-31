@@ -131,7 +131,9 @@ public class GridFragment extends BaseLazyFragment {
             resetGridPosition();
             initData();
         });
-        mCategoryFilter.setOnClickListener(v -> showFilter());
+        mCategoryFilter.setOnClickListener(v -> {
+            if (!showFilter()) android.widget.Toast.makeText(mContext, "当前分类没有可用筛选条件", android.widget.Toast.LENGTH_SHORT).show();
+        });
         mCategoryReset.setOnClickListener(v -> {
             mSortData.filterSelect.clear();
             mFilterDialog = null;
@@ -187,6 +189,7 @@ public class GridFragment extends BaseLazyFragment {
                         mCategoryFilter.requestFocus();
                         return true;
                     }
+                    return mCategoryRetry.getVisibility() == View.VISIBLE && mCategoryRetry.requestFocus();
                 }
                 return false;
             }
@@ -258,6 +261,10 @@ public class GridFragment extends BaseLazyFragment {
 
     @Override
     protected void onReload() {
+        if (pageRequestInFlight) return;
+        mPage = 1;
+        maxPage = 1;
+        resetGridPosition();
         initData();
     }
 
@@ -273,11 +280,7 @@ public class GridFragment extends BaseLazyFragment {
         pageRequestInFlight = true;
         showLoading();
         categoryHandler.removeCallbacks(firstPageTimeout);
-        if (mCategoryRetry.hasFocus()) {
-            mCategoryRetry.setText("加载中…");
-        } else {
-            showCategoryStatus("", false);
-        }
+        showCategoryStatus("正在加载分类内容…", false);
         categoryHandler.postDelayed(firstPageTimeout, 20000L);
         if (mPage == 1) mGridAdapter.setNewData(new ArrayList<>());
         L.w("gridFeed start sort=" + (mSortData == null ? "null" : mSortData.name)
@@ -360,7 +363,8 @@ public class GridFragment extends BaseLazyFragment {
             }
         }
         mCategorySummary.setText(summary);
-        mCategoryFilter.setVisibility(mSortData.filters.isEmpty() ? View.GONE : View.VISIBLE);
+        mCategoryFilter.setVisibility(View.VISIBLE);
+        mCategoryFilter.setText(mSortData.filters.isEmpty() ? "无筛选" : "筛选");
         mCategoryReset.setVisibility(mSortData.filterSelect.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
@@ -404,7 +408,8 @@ public class GridFragment extends BaseLazyFragment {
     }
 
     public boolean focusRememberedItem() {
-        if (mCategoryRetry != null && mCategoryRetry.getVisibility() == View.VISIBLE) {
+        if (mCategoryRetry != null && mCategoryRetry.getVisibility() == View.VISIBLE
+                && (mGridAdapter == null || mGridAdapter.getData().isEmpty())) {
             return mCategoryRetry.requestFocus();
         }
         if (mGridView == null || mGridAdapter == null || mGridAdapter.getData().isEmpty()

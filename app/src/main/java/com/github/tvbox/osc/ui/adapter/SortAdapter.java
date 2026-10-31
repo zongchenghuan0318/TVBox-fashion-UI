@@ -31,6 +31,8 @@ public class SortAdapter extends BaseQuickAdapter<MovieSort.SortData, BaseViewHo
         boolean selected = getData().indexOf(item) == selectedPosition;
         helper.itemView.setSelected(selected);
         android.widget.TextView title = helper.getView(R.id.tvTitle);
+        title.setSelected(selected || helper.itemView.hasFocus());
+        helper.itemView.setContentDescription(item.name);
         title.getPaint().setFakeBoldText(selected || helper.itemView.hasFocus());
         title.setTextColor(title.getResources().getColorStateList(R.color.selector_home_rail_text));
         helper.setVisible(R.id.tvFilter, item.filters != null && !item.filters.isEmpty());

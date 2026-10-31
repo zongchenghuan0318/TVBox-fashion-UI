@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="home_rail_width">220mm</dimen>
     <dimen name="home_card_width">112mm</dimen>
     <dimen name="home_card_height">72mm</dimen>
     <dimen name="home_card_row_height">160mm</dimen>

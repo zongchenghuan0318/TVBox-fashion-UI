@@ -46,7 +46,7 @@
         <!-- 占位：把内容区顶到侧栏右侧（在经典侧栏模式下生效，全屏顶栏/抽屉模式下隐藏） -->
         <View
             android:id="@+id/sidebarSpacer"
-            android:layout_width="@dimen/vs_165"
+            android:layout_width="@dimen/home_rail_width"
             android:layout_height="match_parent" />
 
         <FrameLayout
@@ -91,7 +91,7 @@
     <!-- 左侧导航栏：悬浮在内容区之上 -->
     <com.github.tvbox.osc.ui.tv.widget.NoScrollLinearLayout
         android:id="@+id/leftNavPanel"
-        android:layout_width="@dimen/vs_165"
+        android:layout_width="@dimen/home_rail_width"
         android:layout_height="match_parent"
         android:background="@drawable/shape_home_rail_panel"
         android:clipChildren="true"
@@ -173,8 +173,11 @@
                 android:tint="@color/selector_home_rail_icon" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:layout_marginLeft="@dimen/vs_12"
                 android:focusable="false"
                 android:text="历史"
@@ -207,8 +210,11 @@
                 android:tint="@color/selector_home_rail_icon" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:layout_marginLeft="@dimen/vs_12"
                 android:focusable="false"
                 android:text="直播"
@@ -241,8 +247,11 @@
                 android:tint="@color/selector_home_rail_icon" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:layout_marginLeft="@dimen/vs_12"
                 android:focusable="false"
                 android:text="搜索"
@@ -275,8 +284,11 @@
                 android:tint="@color/selector_home_rail_icon" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:layout_marginLeft="@dimen/vs_12"
                 android:focusable="false"
                 android:text="收藏"
@@ -309,8 +321,11 @@
                 android:tint="@color/selector_home_rail_icon" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:layout_marginLeft="@dimen/vs_12"
                 android:focusable="false"
                 android:text="设置"
@@ -347,7 +362,7 @@
         android:id="@+id/sidebarEdgeShadow"
         android:layout_width="@dimen/vs_8"
         android:layout_height="match_parent"
-        android:layout_marginLeft="@dimen/vs_165"
+        android:layout_marginLeft="@dimen/home_rail_width"
         android:background="@drawable/shape_home_rail_edge_shadow" />
 
     <!-- 顶部悬浮导航栏：供 Apple TV 顶栏模式与极简沉浸模式使用 -->
