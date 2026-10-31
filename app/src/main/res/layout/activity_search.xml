@@ -19,63 +19,71 @@
             android:gravity="center_vertical"
             android:orientation="vertical">
 
-            <RelativeLayout
+            <LinearLayout
                 android:id="@+id/search_parent_layout"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <ImageView
                     android:id="@+id/back_tv"
-                    android:layout_width="@dimen/vs_20"
-                    android:layout_height="@dimen/vs_50"
+                    android:layout_width="@dimen/vs_42"
+                    android:layout_height="@dimen/vs_42"
+                    android:layout_marginRight="@dimen/vs_8"
+                    android:background="@drawable/selector_home_top_action"
                     android:clickable="true"
-                    android:gravity="center_vertical"
-                    android:scaleType="fitXY"
-                    android:src="@drawable/browser_back_selector"
-                    android:visibility="gone" />
+                    android:focusable="true"
+                    android:padding="@dimen/vs_10"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/icon_back"
+                    android:visibility="visible" />
 
-                <EditText
-                    android:id="@+id/etSearch"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:background="@drawable/input_search"
-                    android:hint="请输入要搜索的内容"
-                    android:inputType="text"
-                    android:maxLines="1"
-                    android:layout_toRightOf="@id/back_tv"
-                    android:imeOptions="actionSearch"
-                    android:paddingLeft="@dimen/vs_45"
-                    android:paddingRight="@dimen/vs_10"
-                    android:textColor="@android:color/white"
-                    android:textColorHint="#99FFFFFF"
-                    android:textSize="@dimen/ts_20" />
+                <RelativeLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
 
-                <ImageView
-                    android:id="@+id/search_img"
-                    android:layout_width="@dimen/vs_35"
-                    android:layout_height="@dimen/vs_35"
-                    android:layout_alignParentLeft="true"
-                    android:layout_marginLeft="@dimen/vs_2"
-                    android:layout_marginRight="@dimen/vs_10"
-                    android:layout_centerVertical="true"
-                    android:alpha="0.75"
-                    android:clickable="true"
-                    android:src="@drawable/selector_btn_search" />
+                    <EditText
+                        android:id="@+id/etSearch"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/vs_50"
+                        android:background="@drawable/input_search"
+                        android:hint="请输入要搜索的内容"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:imeOptions="actionSearch"
+                        android:paddingLeft="@dimen/vs_45"
+                        android:paddingRight="@dimen/vs_10"
+                        android:textColor="@android:color/white"
+                        android:textColorHint="#99FFFFFF"
+                        android:textSize="@dimen/ts_20" />
+
+                    <ImageView
+                        android:id="@+id/search_img"
+                        android:layout_width="@dimen/vs_35"
+                        android:layout_height="@dimen/vs_35"
+                        android:layout_alignParentLeft="true"
+                        android:layout_marginLeft="@dimen/vs_6"
+                        android:layout_centerVertical="true"
+                        android:alpha="0.75"
+                        android:clickable="true"
+                        android:src="@drawable/selector_btn_search" />
+                </RelativeLayout>
 
                 <TextView
                     android:id="@+id/tvSearch"
                     android:layout_width="@dimen/vs_50"
-                    android:layout_height="@dimen/vs_40"
-                    android:layout_marginRight="@dimen/vs_4"
-                    android:layout_alignParentRight="true"
-                    android:layout_centerVertical="true"
+                    android:layout_height="@dimen/vs_42"
+                    android:layout_marginLeft="@dimen/vs_8"
                     android:background="@drawable/selector_user_focus"
+                    android:clickable="true"
                     android:focusable="true"
                     android:focusableInTouchMode="true"
                     android:gravity="center"
                     android:text="搜索"
                     android:textColor="@android:color/white" />
-            </RelativeLayout>
+            </LinearLayout>
 
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/serch_history_rv"

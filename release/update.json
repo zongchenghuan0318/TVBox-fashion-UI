@@ -1,9 +1,9 @@
 {
-  "versionCode": 153,
-  "versionName": "1.2.4",
-  "changelog": "新增首页布局切换。\n\n- 支持经典侧栏、悬浮顶栏、动态抽屉和极简沉浸四种首页布局。\n- 设置页增加首页布局选择，默认使用悬浮顶栏。\n- 新增横向分类导航及顶部操作入口。\n- 分类网格列数随布局调整，并兼容长辈模式。\n\nRelease 构建与签名校验通过；四种布局切换、遥控焦点和覆盖升级仍需实机验证。",
-  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.4/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.4/Z.apk",
-  "sha256": "abad9d6f6145f0918aa3f37b07b907fff061531153e94d273d913453a31d7b08",
-  "size": 24839689
+  "versionCode": 154,
+  "versionName": "1.2.5",
+  "changelog": "更新横屏触控与首页交互。\n\n- 动态抽屉增加触控拉手和边缘滑动操作。\n- 沉浸模式支持触控显示、隐藏顶部导航。\n- 首页导航增加屏幕挖孔安全区域适配。\n- 首页非当前卡片先居中预览，再次点击进入搜索。\n- 调整搜索布局、返回入口及软键盘显示和收起交互。\n\nRelease 构建与签名校验通过；手机、平板横屏手势、遥控操作及覆盖升级仍需实机验证。",
+  "apkUrl": "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI/releases/download/v1.2.5/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.2.5/Z.apk",
+  "sha256": "cd0b41f4b348d8628b0aee3bef78324e43f86544e22f6d7ab1f9cf24bacc1a8b",
+  "size": 24842636
 }

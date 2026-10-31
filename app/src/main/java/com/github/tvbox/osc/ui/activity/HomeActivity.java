@@ -2,13 +2,18 @@ package com.github.tvbox.osc.ui.activity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.DisplayCutout;
 import android.view.FocusFinder;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -84,6 +89,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View leftNavPanel;
     private View sidebarEdgeShadow;
     private View drawerScrim;
+    private View drawerTabHandle;
     private LinearLayout topNavPanel;
     private TextView tvTopBrand;
     private TextView tvTopDate;
@@ -92,6 +98,13 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View mTopSortFocusView = null;
     private int mTopSortFocused = 0;
     private boolean isDrawerOpen = false;
+
+    // 触控交互优化支持（手机/平板横屏优化）
+    private float mTouchDownX = 0f;
+    private float mTouchDownY = 0f;
+    private long mTouchDownTime = 0L;
+    private boolean mIsEdgeSwipe = false;
+    private boolean mIsTopEdgeSwipe = false;
 
     private final Runnable immersiveTopBarFadeRunnable = new Runnable() {
         @Override
@@ -167,6 +180,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (this.drawerScrim != null) {
             this.drawerScrim.setOnClickListener(v -> closeDrawer());
         }
+        this.drawerTabHandle = findViewById(R.id.drawerTabHandle);
+        if (this.drawerTabHandle != null) {
+            this.drawerTabHandle.setOnClickListener(v -> openDrawer());
+        }
         this.topNavPanel = findViewById(R.id.topNavPanel);
         this.tvTopBrand = findViewById(R.id.tvTopBrand);
         this.tvTopDate = findViewById(R.id.tvTopDate);
@@ -215,15 +232,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
         if (leftNavPanel != null) {
             leftNavPanel.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            // 禁用触摸滚动，但保留子View的点击功能
-            leftNavPanel.setOnTouchListener((v, event) -> {
-                // 禁止父容器拦截触摸事件，防止产生滚动
-                v.getParent().requestDisallowInterceptTouchEvent(true);
-                // 返回true：侧栏区域内子View没消费掉的触摸（例如条目间距、上下内边距这些空档）
-                // 由侧栏自己吃掉，避免穿透到下层内容区，点到被侧栏遮住看不见的分类卡片
-                return true;
-            });
+            // 允许触控事件自然传递给子视图（RecyclerView与功能按钮）
+            leftNavPanel.setOnTouchListener((v, event) -> false);
         }
+
+        initCutoutSafeInsets();
     }
 
     @Override
@@ -276,9 +289,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         this.mMovieSortRV.setSpacingWithMargins(0, AutoSizeUtils.dp2px(this.mContext, 2.0f));
         this.mMovieSortRV.setAdapter(this.sortAdapter);
         
-        // 禁用嵌套滚动，使列表固定不可滑动
-        this.mMovieSortRV.setNestedScrollingEnabled(false);
-        
+        // 允许嵌套滚动，便于手机触屏用户顺畅上下滑动查看更多分类
+        this.mMovieSortRV.setNestedScrollingEnabled(true);
+
         this.mMovieSortRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView tvRecyclerView, View view, int position) {
@@ -301,7 +314,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
                 selectCategory(position);
-                enterSelectedCategoryContent();
+                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER && isDrawerOpen) {
+                    closeDrawer();
+                } else {
+                    enterSelectedCategoryContent();
+                }
             }
         });
     }
@@ -314,7 +331,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         this.sortTopRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
         this.sortTopRV.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 4.0f), 0);
         this.sortTopRV.setAdapter(this.sortTopAdapter);
-        this.sortTopRV.setNestedScrollingEnabled(false);
+        // 允许嵌套滚动，便于手机触屏用户横向滑动切换更多分类
+        this.sortTopRV.setNestedScrollingEnabled(true);
         this.sortTopRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView tvRecyclerView, View view, int position) {
@@ -374,6 +392,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     sidebarEdgeShadow.setTranslationX(0f);
                 }
                 if (drawerScrim != null) drawerScrim.setVisibility(View.GONE);
+                if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.GONE);
                 if (topNavPanel != null) topNavPanel.setVisibility(View.GONE);
                 if (homeContent != null) homeContent.setPadding(0, 0, 0, 0);
                 isDrawerOpen = false;
@@ -385,6 +404,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 if (leftNavPanel != null) leftNavPanel.setVisibility(View.GONE);
                 if (sidebarEdgeShadow != null) sidebarEdgeShadow.setVisibility(View.GONE);
                 if (drawerScrim != null) drawerScrim.setVisibility(View.GONE);
+                if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.GONE);
                 if (topNavPanel != null) {
                     topNavPanel.setVisibility(View.VISIBLE);
                     topNavPanel.setAlpha(1.0f);
@@ -414,6 +434,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     drawerScrim.setVisibility(View.GONE);
                     drawerScrim.setAlpha(0f);
                 }
+                if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.VISIBLE);
                 if (topNavPanel != null) topNavPanel.setVisibility(View.GONE);
                 if (homeContent != null) homeContent.setPadding(0, 0, 0, 0);
                 isDrawerOpen = false;
@@ -425,6 +446,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 if (leftNavPanel != null) leftNavPanel.setVisibility(View.GONE);
                 if (sidebarEdgeShadow != null) sidebarEdgeShadow.setVisibility(View.GONE);
                 if (drawerScrim != null) drawerScrim.setVisibility(View.GONE);
+                if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.GONE);
                 if (homeContent != null) homeContent.setPadding(0, 0, 0, 0);
                 if (topNavPanel != null) {
                     topNavPanel.setVisibility(View.VISIBLE);
@@ -440,6 +462,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     public void openDrawer() {
         if (isDrawerOpen || leftNavPanel == null) return;
         isDrawerOpen = true;
+        if (drawerTabHandle != null) drawerTabHandle.setVisibility(View.GONE);
         leftNavPanel.setVisibility(View.VISIBLE);
         leftNavPanel.animate()
                 .translationX(0f)
@@ -464,6 +487,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     public void closeDrawer() {
         if (!isDrawerOpen || leftNavPanel == null) return;
         isDrawerOpen = false;
+        if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER && drawerTabHandle != null) {
+            drawerTabHandle.setVisibility(View.VISIBLE);
+        }
         int panelWidth = leftNavPanel.getWidth() > 0 ? leftNavPanel.getWidth() : AutoSizeUtils.dp2px(this, 165);
         leftNavPanel.animate()
                 .translationX(-panelWidth)
@@ -479,6 +505,150 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             }).start();
         }
         enterSelectedCategoryContent();
+    }
+
+    private void initCutoutSafeInsets() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                getWindow().setAttributes(lp);
+            } catch (Throwable ignored) {
+            }
+
+            View decorView = getWindow().getDecorView();
+            decorView.setOnApplyWindowInsetsListener((v, insets) -> {
+                try {
+                    DisplayCutout cutout = insets.getDisplayCutout();
+                    if (cutout != null) {
+                        int insetLeft = cutout.getSafeInsetLeft();
+                        int insetRight = cutout.getSafeInsetRight();
+
+                        // 1. 侧边栏/抽屉：如果左侧有物理挖孔摄像头，为侧栏及拉手增加左内边距/外边距避让
+                        if (insetLeft > 0) {
+                            if (leftNavPanel != null) {
+                                leftNavPanel.setPadding(insetLeft, leftNavPanel.getPaddingTop(), leftNavPanel.getPaddingRight(), leftNavPanel.getPaddingBottom());
+                            }
+                            if (drawerTabHandle != null && drawerTabHandle.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+                                ViewGroup.MarginLayoutParams lpHandle = (ViewGroup.MarginLayoutParams) drawerTabHandle.getLayoutParams();
+                                lpHandle.leftMargin = insetLeft;
+                                drawerTabHandle.setLayoutParams(lpHandle);
+                            }
+                        }
+
+                        // 2. 顶部胶囊导航栏：如果左右有挖孔，为顶部胶囊导航栏增加安全避让区
+                        if (topNavPanel != null) {
+                            int basePaddingLeft = AutoSizeUtils.dp2px(HomeActivity.this, 40);
+                            int basePaddingRight = AutoSizeUtils.dp2px(HomeActivity.this, 40);
+                            topNavPanel.setPadding(
+                                    basePaddingLeft + insetLeft,
+                                    topNavPanel.getPaddingTop(),
+                                    basePaddingRight + insetRight,
+                                    topNavPanel.getPaddingBottom()
+                            );
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                return v.onApplyWindowInsets(insets);
+            });
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        int action = ev.getActionMasked();
+        float x = ev.getRawX();
+        float y = ev.getRawY();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                mTouchDownX = x;
+                mTouchDownY = y;
+                mTouchDownTime = System.currentTimeMillis();
+                // 屏幕左侧 80dp 作为边缘滑动手势识别区
+                mIsEdgeSwipe = (x <= AutoSizeUtils.dp2px(this, 80));
+                // 屏幕顶部 70dp 作为顶部下拉手势识别区
+                mIsTopEdgeSwipe = (y <= AutoSizeUtils.dp2px(this, 70));
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                float dx = x - mTouchDownX;
+                float dy = y - mTouchDownY;
+
+                // 1. Netflix 动态隐形抽屉模式：
+                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER) {
+                    // a. 抽屉关闭时：左边缘向右划动拉出抽屉
+                    if (!isDrawerOpen && mIsEdgeSwipe && dx > AutoSizeUtils.dp2px(this, 45) && Math.abs(dx) > Math.abs(dy) * 1.2f) {
+                        openDrawer();
+                        mIsEdgeSwipe = false;
+                        return true;
+                    }
+                    // b. 抽屉打开时：向左快速划动收起抽屉
+                    if (isDrawerOpen && dx < -AutoSizeUtils.dp2px(this, 45) && Math.abs(dx) > Math.abs(dy) * 1.2f) {
+                        closeDrawer();
+                        return true;
+                    }
+                }
+
+                // 2. 极简全屏画报沉浸模式：顶部向下滑动拉出顶栏
+                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+                    if (mIsTopEdgeSwipe && dy > AutoSizeUtils.dp2px(this, 35) && Math.abs(dy) > Math.abs(dx) * 1.2f) {
+                        revealImmersiveTopBar();
+                        mIsTopEdgeSwipe = false;
+                        return true;
+                    }
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+                float totalDx = x - mTouchDownX;
+                float totalDy = y - mTouchDownY;
+                long duration = System.currentTimeMillis() - mTouchDownTime;
+
+                // 3. 极简画报沉浸模式：轻点屏幕上半区（海报背景空白区），切换顶部导航栏显隐
+                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+                    if (Math.abs(totalDx) < AutoSizeUtils.dp2px(this, 15) && Math.abs(totalDy) < AutoSizeUtils.dp2px(this, 15) && duration < 350) {
+                        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                        if (y > AutoSizeUtils.dp2px(this, 54) && y < screenHeight * 0.65f) {
+                            if (topNavPanel != null) {
+                                if (topNavPanel.getAlpha() < 0.5f) {
+                                    revealImmersiveTopBar();
+                                } else {
+                                    scheduleImmersiveTopBarFadeOut(0L);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. 触屏横向划屏切换分类：在屏幕上半区海报大背景区域左右划动切换上一个/下一个分类
+                // （避免与底部的卡片横向滑动产生冲突）
+                int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                if (mTouchDownY < screenHeight * 0.65f && duration < 500) {
+                    if (Math.abs(totalDx) > AutoSizeUtils.dp2px(this, 80) && Math.abs(totalDx) > Math.abs(totalDy) * 1.5f) {
+                        if (totalDx < 0) {
+                            // 向左划 -> 切换到下一个分类
+                            if (mCurrentSelected < fragments.size() - 1) {
+                                int target = mCurrentSelected + 1;
+                                selectCategory(target);
+                                if (mMovieSortRV != null) mMovieSortRV.smoothScrollToPosition(target);
+                                if (sortTopRV != null) sortTopRV.smoothScrollToPosition(target);
+                            }
+                        } else {
+                            // 向右划 -> 切换到上一个分类（非抽屉边缘滑动时）
+                            if (!mIsEdgeSwipe && mCurrentSelected > 0) {
+                                int target = mCurrentSelected - 1;
+                                selectCategory(target);
+                                if (mMovieSortRV != null) mMovieSortRV.smoothScrollToPosition(target);
+                                if (sortTopRV != null) sortTopRV.smoothScrollToPosition(target);
+                            }
+                        }
+                    }
+                }
+                break;
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     public void revealImmersiveTopBar() {

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 抽屉左侧微型半透明触控拉手背景 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners
+        android:topRightRadius="14mm"
+        android:bottomRightRadius="14mm" />
+    <solid android:color="#4D1E222D" />
+    <stroke
+        android:width="1mm"
+        android:color="#4DFFFFFF" />
+</shape>

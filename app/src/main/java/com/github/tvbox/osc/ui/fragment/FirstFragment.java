@@ -324,6 +324,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 mStart += 20;
                 return;
             }
+            // 触控交互优化：如果点击的不是当前居中/选中的卡片，先将其居中并联动大图与简介预览；
+            // 再次点击或点击已居中卡片时，才正式进入搜索/播放
+            if (position != mFocusedCardPosition) {
+                applyCardSelected(view, position);
+                centerCardAt(position, view);
+                return;
+            }
             //首页卡片点击统一进聚合搜索：不管有没有 id，都拿片名去搜
             if (vod.name == null || vod.name.isEmpty()) {
                 return;

@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.ui.activity;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,7 +11,9 @@ import android.text.TextWatcher;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -150,9 +153,14 @@ public class SearchActivity extends BaseActivity {
 
     private void initView() {
         EventBus.getDefault().register(this);
+        ImageView backTv = findViewById(R.id.back_tv);
+        if (backTv != null) {
+            backTv.setOnClickListener(v -> finish());
+        }
         llLayout = findViewById(R.id.llLayout);
         llWord = findViewById(R.id.llWord);
         etSearch = findViewById(R.id.etSearch);
+        etSearch.setOnClickListener(v -> showSoftKeyboard(etSearch));
         tvSearch = findViewById(R.id.tvSearch);
         tvSearchProgress = findViewById(R.id.tvSearchProgress);
         tvRetrySearch = findViewById(R.id.tvRetrySearch);
@@ -165,6 +173,19 @@ public class SearchActivity extends BaseActivity {
         initHistoryView();
         initHotRecycleView();
         initSearchResultRecycleView();
+
+        mSearchResultRV.setOnTouchListener((v, event) -> {
+            hideSoftKeyboard();
+            return false;
+        });
+        mHotWordRV.setOnTouchListener((v, event) -> {
+            hideSoftKeyboard();
+            return false;
+        });
+        mSearchHistoryRV.setOnTouchListener((v, event) -> {
+            hideSoftKeyboard();
+            return false;
+        });
 
         tvSearch.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -542,8 +563,25 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
-    private void searchClick() {
+    private void hideSoftKeyboard() {
         System_UI.hideInputMethod(getBaseContext(), etSearch);
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null && getCurrentFocus() != null) {
+            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+        }
+    }
+
+    private void showSoftKeyboard(View view) {
+        if (view == null) return;
+        view.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
+    private void searchClick() {
+        hideSoftKeyboard();
         String wd = etSearch.getText().toString().trim();
         if (!TextUtils.isEmpty(wd)) {
             search(wd);

@@ -69,6 +69,25 @@
         android:background="#99000000"
         android:visibility="gone" />
 
+    <!-- 动态抽屉模式下的左边缘悬浮微型手势把手（供触屏/手机用户轻点或拖动呼出抽屉） -->
+    <LinearLayout
+        android:id="@+id/drawerTabHandle"
+        android:layout_width="@dimen/vs_20"
+        android:layout_height="@dimen/vs_70"
+        android:layout_gravity="center_vertical|left"
+        android:background="@drawable/shape_drawer_handle"
+        android:clickable="true"
+        android:focusable="false"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="@dimen/vs_3"
+            android:layout_height="@dimen/vs_24"
+            android:background="#80FFFFFF" />
+    </LinearLayout>
+
     <!-- 左侧导航栏：悬浮在内容区之上 -->
     <com.github.tvbox.osc.ui.tv.widget.NoScrollLinearLayout
         android:id="@+id/leftNavPanel"
@@ -393,7 +412,7 @@
             android:overScrollMode="never"
             android:scrollbars="none" />
 
-        <!-- 顶部右侧快捷操作胶囊组 -->
+        <!-- 顶部右侧快捷操作胶囊组（放大触控热区至 42mm 并扩大间距，彻底消除手机触控误触） -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -402,15 +421,15 @@
 
             <FrameLayout
                 android:id="@+id/top_layout_search"
-                android:layout_width="@dimen/vs_38"
-                android:layout_height="@dimen/vs_38"
-                android:layout_marginLeft="@dimen/vs_6"
+                android:layout_width="@dimen/vs_42"
+                android:layout_height="@dimen/vs_42"
+                android:layout_marginLeft="@dimen/vs_8"
                 android:background="@drawable/selector_home_top_action"
                 android:clickable="true"
                 android:focusable="true">
                 <ImageView
-                    android:layout_width="@dimen/vs_20"
-                    android:layout_height="@dimen/vs_20"
+                    android:layout_width="@dimen/vs_22"
+                    android:layout_height="@dimen/vs_22"
                     android:layout_gravity="center"
                     android:src="@drawable/icon_search"
                     android:tint="@color/selector_home_rail_icon" />
@@ -418,15 +437,15 @@
 
             <FrameLayout
                 android:id="@+id/top_layout_history"
-                android:layout_width="@dimen/vs_38"
-                android:layout_height="@dimen/vs_38"
-                android:layout_marginLeft="@dimen/vs_6"
+                android:layout_width="@dimen/vs_42"
+                android:layout_height="@dimen/vs_42"
+                android:layout_marginLeft="@dimen/vs_8"
                 android:background="@drawable/selector_home_top_action"
                 android:clickable="true"
                 android:focusable="true">
                 <ImageView
-                    android:layout_width="@dimen/vs_20"
-                    android:layout_height="@dimen/vs_20"
+                    android:layout_width="@dimen/vs_22"
+                    android:layout_height="@dimen/vs_22"
                     android:layout_gravity="center"
                     android:src="@drawable/icon_history"
                     android:tint="@color/selector_home_rail_icon" />
@@ -434,15 +453,15 @@
 
             <FrameLayout
                 android:id="@+id/top_layout_collect"
-                android:layout_width="@dimen/vs_38"
-                android:layout_height="@dimen/vs_38"
-                android:layout_marginLeft="@dimen/vs_6"
+                android:layout_width="@dimen/vs_42"
+                android:layout_height="@dimen/vs_42"
+                android:layout_marginLeft="@dimen/vs_8"
                 android:background="@drawable/selector_home_top_action"
                 android:clickable="true"
                 android:focusable="true">
                 <ImageView
-                    android:layout_width="@dimen/vs_20"
-                    android:layout_height="@dimen/vs_20"
+                    android:layout_width="@dimen/vs_22"
+                    android:layout_height="@dimen/vs_22"
                     android:layout_gravity="center"
                     android:src="@drawable/icon_collect"
                     android:tint="@color/selector_home_rail_icon" />
@@ -450,15 +469,15 @@
 
             <FrameLayout
                 android:id="@+id/top_layout_live"
-                android:layout_width="@dimen/vs_38"
-                android:layout_height="@dimen/vs_38"
-                android:layout_marginLeft="@dimen/vs_6"
+                android:layout_width="@dimen/vs_42"
+                android:layout_height="@dimen/vs_42"
+                android:layout_marginLeft="@dimen/vs_8"
                 android:background="@drawable/selector_home_top_action"
                 android:clickable="true"
                 android:focusable="true">
                 <ImageView
-                    android:layout_width="@dimen/vs_20"
-                    android:layout_height="@dimen/vs_20"
+                    android:layout_width="@dimen/vs_22"
+                    android:layout_height="@dimen/vs_22"
                     android:layout_gravity="center"
                     android:src="@drawable/icon_live"
                     android:tint="@color/selector_home_rail_icon" />
@@ -466,15 +485,15 @@
 
             <FrameLayout
                 android:id="@+id/top_layout_setting"
-                android:layout_width="@dimen/vs_38"
-                android:layout_height="@dimen/vs_38"
-                android:layout_marginLeft="@dimen/vs_6"
+                android:layout_width="@dimen/vs_42"
+                android:layout_height="@dimen/vs_42"
+                android:layout_marginLeft="@dimen/vs_8"
                 android:background="@drawable/selector_home_top_action"
                 android:clickable="true"
                 android:focusable="true">
                 <ImageView
-                    android:layout_width="@dimen/vs_20"
-                    android:layout_height="@dimen/vs_20"
+                    android:layout_width="@dimen/vs_22"
+                    android:layout_height="@dimen/vs_22"
                     android:layout_gravity="center"
                     android:src="@drawable/icon_setting"
                     android:tint="@color/selector_home_rail_icon" />
