@@ -571,7 +571,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mHeroBackdropAlt != null) {
             mHeroBackdropAlt.setImageDrawable(null);
         }
-        if (rootView != null) {
+        if (rootView != null && rootView.getViewTreeObserver().isAlive()) {
             rootView.getViewTreeObserver().removeOnGlobalFocusChangeListener(mFocusChangeListener);
         }
         mHeroBackdrop = null;
@@ -661,13 +661,26 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mAdapter.setNewData(source);
     }
 
+    private boolean isSidebarFocused() {
+        return (tvLive != null && tvLive.hasFocus())
+                || (tvSearch != null && tvSearch.hasFocus())
+                || (tvSetting != null && tvSetting.hasFocus())
+                || (tvHistory != null && tvHistory.hasFocus())
+                || (tvPush != null && tvPush.hasFocus())
+                || (tvCollect != null && tvCollect.hasFocus());
+    }
+
     /**
      * 自动推进到下一张卡片：正在滚动时跳过（等下一次计时），
      * 焦点停在左栏说明用户正在导航，此时不抢焦点也不轮播
      */
     private void autoScrollNext() {
         if (!mViewActive || !mHeroVisible || mUserOperatingCards
-                || mHotGridView == null || mAdapter == null) return;
+                || mHotGridView == null || mAdapter == null || isSidebarFocused()) return;
+        if (getActivity() != null && !getActivity().hasWindowFocus()) {
+            scheduleAutoScroll();
+            return;
+        }
         if (mHotGridView.isScrolling()) {
             return;
         }

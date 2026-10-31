@@ -79,14 +79,18 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         VodInfo vodInfo = historyAdapter.getData().get(position);
         if (vodInfo == null) return;
         historyAdapter.remove(position);
-        RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
         updateDeleteButtons();
+        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
+        });
         getUndoBar().show("已删除观看记录", () -> {
             loadGeneration++;
-            RoomDataManger.insertVodRecord(vodInfo.sourceKey, vodInfo);
             int restorePosition = Math.min(position, historyAdapter.getData().size());
             historyAdapter.addData(restorePosition, vodInfo);
             updateDeleteButtons();
+            android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                RoomDataManger.insertVodRecord(vodInfo.sourceKey, vodInfo);
+            });
         }, mGridView);
     }
 
@@ -219,9 +223,14 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
             @Override
             public void left() {
                 mClearDialog.dismiss();
-                RoomDataManger.deleteAllVodRecord();
-                initData();
-                Toast.makeText(mContext, "已清空历史记录", Toast.LENGTH_SHORT).show();
+                android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                    RoomDataManger.deleteAllVodRecord();
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        initData();
+                        Toast.makeText(mContext, "已清空历史记录", Toast.LENGTH_SHORT).show();
+                    });
+                });
             }
 
             @Override

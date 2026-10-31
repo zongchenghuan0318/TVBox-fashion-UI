@@ -38,9 +38,11 @@ import com.uisupport.update.Initer;
 
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.net.IDN;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1012,29 +1014,34 @@ public class ApiConfig {
         Map<String, JsonArray> groups = new LinkedHashMap<>();
         String channelName = null;
         String groupName = null;
-        for (String rawLine : content.split("\\r?\\n")) {
-            String line = rawLine.trim();
-            if (line.isEmpty()) continue;
-            if (line.startsWith("#EXTINF")) {
-                int comma = line.lastIndexOf(',');
-                channelName = comma >= 0 ? line.substring(comma + 1).trim() : "";
-                groupName = getM3uAttribute(line, "group-title");
-                if (groupName.isEmpty()) groupName = "其他";
-            } else if (!line.startsWith("#") && channelName != null && !channelName.isEmpty()) {
-                JsonArray channels = groups.get(groupName);
-                if (channels == null) {
-                    channels = new JsonArray();
-                    groups.put(groupName, channels);
+        try (BufferedReader reader = new BufferedReader(new StringReader(content))) {
+            String rawLine;
+            while ((rawLine = reader.readLine()) != null) {
+                String line = rawLine.trim();
+                if (line.isEmpty()) continue;
+                if (line.startsWith("#EXTINF")) {
+                    int comma = line.lastIndexOf(',');
+                    channelName = comma >= 0 ? line.substring(comma + 1).trim() : "";
+                    groupName = getM3uAttribute(line, "group-title");
+                    if (groupName.isEmpty()) groupName = "其他";
+                } else if (!line.startsWith("#") && channelName != null && !channelName.isEmpty()) {
+                    JsonArray channels = groups.get(groupName);
+                    if (channels == null) {
+                        channels = new JsonArray();
+                        groups.put(groupName, channels);
+                    }
+                    JsonObject channel = new JsonObject();
+                    channel.addProperty("name", channelName);
+                    JsonArray urls = new JsonArray();
+                    urls.add(line);
+                    channel.add("urls", urls);
+                    channels.add(channel);
+                    channelName = null;
+                    groupName = null;
                 }
-                JsonObject channel = new JsonObject();
-                channel.addProperty("name", channelName);
-                JsonArray urls = new JsonArray();
-                urls.add(line);
-                channel.add("urls", urls);
-                channels.add(channel);
-                channelName = null;
-                groupName = null;
             }
+        } catch (Exception e) {
+            L.w("parseM3uLives error: " + e.getMessage());
         }
         JsonArray lives = new JsonArray();
         for (Map.Entry<String, JsonArray> entry : groups.entrySet()) {

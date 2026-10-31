@@ -34,7 +34,6 @@ import com.github.tvbox.osc.ui.adapter.PlayerEpisodeRangeAdapter;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.lcstudio.commonsurport.L;
-import com.lcstudio.commonsurport.TimerMin;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
@@ -97,7 +96,6 @@ public class VodController extends BaseController {
     private int mLastValidDuration = 0;
     private VodControlListener controlListener;
     private boolean bSkipEnd = true;
-    private TimerMin mTimerMin;
     private int mTimeSpeed = 1;
     private int mSeekSpeedMultiplier = 1;
     private boolean mDownLongHandled;
@@ -218,17 +216,10 @@ public class VodController extends BaseController {
 
         initClickListener();
 
-        mTimerMin = new TimerMin();
-        mTimerMin.startTimer(() -> {
-            L.d("callback() mTimerMin=" + mTimerMin);
-            mActivity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    hideBottom();
-                    hideLockImg();
-                }
-            });
-        }, 8 * 1000);
+        mBaseHandler.postDelayed(() -> {
+            hideBottom();
+            hideLockImg();
+        }, 8000L);
     }
 
     private void initClickListener() {
@@ -1202,14 +1193,9 @@ public class VodController extends BaseController {
     public void releaseController() {
         cancelSpeedBoost(false);
         cancelAutoNextCountdown();
-        L.d("releaseController() mTimerMin=" + mTimerMin);
         if (mEpisodeDialog != null) {
             mEpisodeDialog.dismiss();
             mEpisodeDialog = null;
-        }
-        if (mTimerMin != null) {
-            mTimerMin.cancelTimer();
-            mTimerMin = null;
         }
         stopProgress();
         mBaseHandler.removeCallbacksAndMessages(null);

@@ -101,8 +101,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             if (tvDate == null || mHandler == null) {
                 return;
             }
-            tvDate.setText(StringUtil.getFormatTime_HH_MM(System.currentTimeMillis()));
-            mHandler.postDelayed(this, 1000);
+            long now = System.currentTimeMillis();
+            tvDate.setText(StringUtil.getFormatTime_HH_MM(now));
+            // 对齐到下一分钟边界，避免每秒触发 TextView.setText 引发的 UI 主线程 layout/draw 重排重绘
+            long delay = 60000L - (now % 60000L) + 50L;
+            mHandler.postDelayed(this, delay);
         }
     };
     /** 首页片段只创建一次：ViewPager 按 tag 复用它，页面列表里必须放同一个实例 */

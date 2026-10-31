@@ -90,8 +90,15 @@ public class ControlManager {
     }
 
     public void stopServer() {
-        if (mServer != null && mServer.isStarting()) {
-            mServer.stop();
+        if (mServer != null) {
+            try {
+                if (mServer.isStarting()) {
+                    mServer.stop();
+                }
+            } catch (Throwable th) {
+                L.e(th);
+            }
+            mServer = null;
         }
     }
 }

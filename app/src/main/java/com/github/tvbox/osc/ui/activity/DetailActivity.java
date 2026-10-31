@@ -312,25 +312,44 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
     private void refreshCollectButton() {
         if (tvCollect == null || mVodInfo == null) return;
-        VodCollect record = RoomDataManger.getVodCollect(mVodInfo.sourceKey, mVodInfo.id);
-        boolean collected = record != null;
-        tvCollect.setText(collected ? "已收藏" : "加入收藏");
-        tvCollect.setContentDescription(collected ? "已收藏，按确定取消收藏" : "按确定加入收藏");
-        tvCollect.setEnabled(true);
+        final String curSource = mVodInfo.sourceKey;
+        final String curId = mVodInfo.id;
+        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            VodCollect record = RoomDataManger.getVodCollect(curSource, curId);
+            boolean collected = record != null;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || tvCollect == null || mVodInfo == null
+                        || !curId.equals(mVodInfo.id) || !curSource.equals(mVodInfo.sourceKey)) {
+                    return;
+                }
+                tvCollect.setText(collected ? "已收藏" : "加入收藏");
+                tvCollect.setContentDescription(collected ? "已收藏，按确定取消收藏" : "按确定加入收藏");
+                tvCollect.setEnabled(true);
+            });
+        });
     }
 
     private void toggleCollect() {
         if (mVodInfo == null) return;
-        VodCollect record = RoomDataManger.getVodCollect(mVodInfo.sourceKey, mVodInfo.id);
-        if (record == null) {
-            RoomDataManger.insertVodCollect(mVodInfo.sourceKey, mVodInfo);
-            Toast.makeText(DetailActivity.this, "已加入收藏夹", Toast.LENGTH_SHORT).show();
-        } else {
-            RoomDataManger.deleteVodCollect(record.getId());
-            Toast.makeText(DetailActivity.this, "已取消收藏", Toast.LENGTH_SHORT).show();
-        }
-        refreshCollectButton();
-        EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_COLLECT_REFRESH));
+        tvCollect.setEnabled(false);
+        final VodInfo info = mVodInfo;
+        final String curSource = info.sourceKey;
+        final String curId = info.id;
+        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            VodCollect record = RoomDataManger.getVodCollect(curSource, curId);
+            boolean wasCollected = record != null;
+            if (wasCollected) {
+                RoomDataManger.deleteVodCollect(record.getId());
+            } else {
+                RoomDataManger.insertVodCollect(curSource, info);
+            }
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                Toast.makeText(DetailActivity.this, wasCollected ? "已取消收藏" : "已加入收藏夹", Toast.LENGTH_SHORT).show();
+                refreshCollectButton();
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_COLLECT_REFRESH));
+            });
+        });
     }
 
     private void initData() {
@@ -553,7 +572,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
      * 因此这里在子 View 出现后再设置焦点，并限制重试次数避免死循环。
      */
     private void focusCurrentSeries() {
-        if (!bNeedFocusSeries || mVodInfo == null || mSeriesGridView.getLayoutManager() == null) {
+        if (!bNeedFocusSeries || mVodInfo == null || mSeriesGridView == null || mSeriesGridView.getLayoutManager() == null) {
+            bNeedFocusSeries = false;
+            return;
+        }
+        // 如果用户已主动将焦点移到其他可交互控件（如收藏、换源、分词搜索），立即退出重试并保留用户当前焦点
+        View current = getCurrentFocus();
+        if (current != null && current != mSeriesGridView && !mSeriesGridView.hasFocus()
+                && current.getId() != R.id.tvPlay) {
             bNeedFocusSeries = false;
             return;
         }
@@ -709,6 +735,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             mExecutorService.submit(new Runnable() {
                 @Override
                 public void run() {
+                    if (requestId != quickSearchRequestId || Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
                     mSourceViewModel.getQuickSearch(key, query, requestId);
                 }
             });
@@ -736,6 +765,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     protected void onDestroy() {
         super.onDestroy();
         detailHandler.removeCallbacksAndMessages(null);
+        if (mSeriesGridView != null) {
+            mSeriesGridView.removeCallbacks(null);
+        }
         OkGo.getInstance().cancelTag("fenci");
         if (mSourceViewModel != null) mSourceViewModel.cancelDetailRequests();
         OkGo.getInstance().cancelTag("search");

@@ -1241,14 +1241,24 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         return DefaultConfig.isVideoFormat(url);
     }
 
-    private void showSystemTime() {
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
+    private final Runnable mSystemTimeRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isActivityActive() || mTimeTV == null || mHandler == null) return;
+            if (mTimeTV.getVisibility() == View.VISIBLE) {
                 mTimeTV.setText(StringUtil.getFormatTimeStr(System.currentTimeMillis()));
-                mHandler.postDelayed(this, 1000);
+                mHandler.postDelayed(this, 1000L);
             }
-        }, 1000);
+        }
+    };
+
+    private void showSystemTime() {
+        if (mHandler == null) return;
+        mHandler.removeCallbacks(mSystemTimeRunnable);
+        if (mTimeTV != null && mTimeTV.getVisibility() == View.VISIBLE) {
+            mTimeTV.setText(StringUtil.getFormatTimeStr(System.currentTimeMillis()));
+            mHandler.postDelayed(mSystemTimeRunnable, 1000L);
+        }
     }
 
     /**
@@ -1261,6 +1271,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         if (mMovieNameTV != null) mMovieNameTV.setVisibility(vis);
         if (mTimeTV != null) mTimeTV.setVisibility(vis);
         if (mAdTipTV != null) mAdTipTV.setVisibility(vis);
+        if (visible) {
+            showSystemTime();
+        } else if (mHandler != null) {
+            mHandler.removeCallbacks(mSystemTimeRunnable);
+        }
     }
 
     private void showOverlaysThenAutoHide() {

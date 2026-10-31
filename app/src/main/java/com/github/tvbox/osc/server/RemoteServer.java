@@ -418,10 +418,14 @@ public class RemoteServer extends NanoHTTPD {
 
     void extractFile(InputStream inputStream, String destFilePath) throws Throwable {
         File dst = new File(destFilePath);
+        File parent = dst.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
         if (dst.exists())
             dst.delete();
         try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(destFilePath))) {
-            byte[] bytesIn = new byte[2048];
+            byte[] bytesIn = new byte[8192];
             int len = inputStream.read(bytesIn);
             while (len > 0) {
                 bos.write(bytesIn, 0, len);

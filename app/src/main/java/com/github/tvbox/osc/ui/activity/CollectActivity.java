@@ -82,14 +82,18 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         VodCollect vodInfo = collectAdapter.getData().get(position);
         if (vodInfo == null) return;
         collectAdapter.remove(position);
-        RoomDataManger.deleteVodCollect(vodInfo.getId());
         updateDeleteButtons();
+        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            RoomDataManger.deleteVodCollect(vodInfo.getId());
+        });
         getUndoBar().show("已取消收藏", () -> {
             loadGeneration++;
-            RoomDataManger.restoreVodCollect(vodInfo);
             int restorePosition = Math.min(position, collectAdapter.getData().size());
             collectAdapter.addData(restorePosition, vodInfo);
             updateDeleteButtons();
+            android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                RoomDataManger.restoreVodCollect(vodInfo);
+            });
         }, mGridView);
     }
 
@@ -195,9 +199,14 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
             @Override
             public void left() {
                 mClearDialog.dismiss();
-                RoomDataManger.deleteAllVodCollect();
-                initData();
-                Toast.makeText(mContext, "已清空收藏", Toast.LENGTH_SHORT).show();
+                android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                    RoomDataManger.deleteAllVodCollect();
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        initData();
+                        Toast.makeText(mContext, "已清空收藏", Toast.LENGTH_SHORT).show();
+                    });
+                });
             }
 
             @Override
