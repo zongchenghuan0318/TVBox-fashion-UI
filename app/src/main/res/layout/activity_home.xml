@@ -560,18 +560,6 @@
                 android:textColor="@color/color_99FFFFFF"
                 android:textSize="@dimen/ts_20" />
         </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|right"
-            android:layout_marginRight="@dimen/vs_30"
-            android:layout_marginBottom="@dimen/vs_24"
-            android:gravity="right"
-            android:lineSpacingExtra="@dimen/vs_6"
-            android:text="开发者宗成焕\n联系电话：19856352311"
-            android:textColor="@color/color_BBFFFFFF"
-            android:textSize="@dimen/ts_20" />
     </FrameLayout>
 
 </FrameLayout>
