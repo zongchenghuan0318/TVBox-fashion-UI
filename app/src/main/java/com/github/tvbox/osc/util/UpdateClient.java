@@ -20,9 +20,9 @@ import okhttp3.Response;
 
 /** Public release traffic only. Never uses the playback client's relaxed TLS settings. */
 public final class UpdateClient {
-    /** 主更新源：Gitee 仓库里的静态清单，国内可直连。 */
+    /** 主更新源：查询 Gitee 发行版，再读取该版本的清单附件。 */
     public static final String GITEE_REPOSITORY = "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI";
-    public static final String GITEE_MANIFEST_URL = GITEE_REPOSITORY + "/raw/main/release/update.json";
+    public static final String GITEE_LATEST_RELEASE_URL = "https://gitee.com/api/v5/repos/the-eternal-cycle/TVBox-fashion-UI/releases/latest";
     /** 备用更新源：GitHub 发行版，沿用原有三条加速线路。 */
     public static final String GITHUB_REPOSITORY = "https://github.com/zongchenghuan0318/TVBox-fashion-UI";
     public static final String GITHUB_MANIFEST_URL = GITHUB_REPOSITORY + "/releases/latest/download/update.json";
@@ -120,7 +120,7 @@ public final class UpdateClient {
     public Info fetchInfo() throws IOException {
         IOException last = null;
         try {
-            return readManifest(GITEE_MANIFEST_URL);
+            return readGiteeRelease();
         } catch (IOException e) { last = e; }
         for (String prefix : GITHUB_PREFIXES) {
             checkCancelled();
@@ -132,7 +132,34 @@ public final class UpdateClient {
         throw new IOException("无法检查更新，请检查网络后重试", last);
     }
 
+    private static final class Release {
+        String tag_name;
+        boolean prerelease;
+    }
+
+    private Info readGiteeRelease() throws IOException {
+        Release release;
+        try {
+            release = new Gson().fromJson(readMetadata(GITEE_LATEST_RELEASE_URL), Release.class);
+        } catch (RuntimeException e) {
+            throw new IOException("发行版信息格式不正确", e);
+        }
+        if (release == null || release.prerelease || release.tag_name == null
+                || !release.tag_name.matches("v[0-9]+\\.[0-9]+\\.[0-9]+")) {
+            throw new IOException("没有可用的正式发行版");
+        }
+        Info info = readManifest(GITEE_REPOSITORY + "/releases/download/" + release.tag_name + "/update.json");
+        if (!release.tag_name.equals("v" + info.versionName)) {
+            throw new IOException("发行版与更新清单版本不一致");
+        }
+        return info;
+    }
+
     private Info readManifest(String url) throws IOException {
+        return Info.parse(readMetadata(url));
+    }
+
+    private String readMetadata(String url) throws IOException {
         checkCancelled();
         try (Response response = request(metadata, url);
              InputStream input = response.body().byteStream()) {
@@ -147,7 +174,7 @@ public final class UpdateClient {
             String json = output.toString("UTF-8");
             // 清单可能带 UTF-8 BOM，去掉后再解析，避免个别 JSON 解析器报格式错误。
             if (!json.isEmpty() && json.charAt(0) == '\uFEFF') json = json.substring(1);
-            return Info.parse(json);
+            return json;
         }
     }
 

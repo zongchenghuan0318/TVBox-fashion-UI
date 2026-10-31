@@ -91,7 +91,7 @@ public class UpdateClientTest {
             return response(chain, giteeManifest(APK).getBytes(StandardCharsets.UTF_8));
         });
         assertEquals(114, client.fetchInfo().versionCode);
-        assertEquals(UpdateClient.GITEE_MANIFEST_URL, urls.get(0));
+        assertEquals(UpdateClient.GITEE_LATEST_RELEASE_URL, urls.get(0));
         assertEquals("https://gh-proxy.com/" + UpdateClient.GITHUB_MANIFEST_URL, urls.get(1));
         assertEquals("https://ghfast.top/" + UpdateClient.GITHUB_MANIFEST_URL, urls.get(2));
     }
@@ -100,6 +100,49 @@ public class UpdateClientTest {
         UpdateClient client = client(chain -> response(chain,
                 ("\uFEFF" + giteeManifest(APK)).getBytes(StandardCharsets.UTF_8)));
         assertEquals(114, client.fetchInfo().versionCode);
+    }
+
+    @Test public void giteeMetadataUsesOnlyReleaseApiAndAttachment() throws Exception {
+        List<String> urls = new ArrayList<>();
+        UpdateClient client = client(chain -> {
+            String url = chain.request().url().toString();
+            urls.add(url);
+            assertNull(chain.request().header("Authorization"));
+            String body = url.equals(UpdateClient.GITEE_LATEST_RELEASE_URL)
+                    ? "{\"tag_name\":\"v1.1.4\",\"prerelease\":false}"
+                    : "\uFEFF" + giteeManifest(APK);
+            return response(chain, body.getBytes(StandardCharsets.UTF_8));
+        });
+        assertEquals(114, client.fetchInfo().versionCode);
+        assertEquals(2, urls.size());
+        assertEquals(UpdateClient.GITEE_LATEST_RELEASE_URL, urls.get(0));
+        assertEquals(UpdateClient.GITEE_REPOSITORY + "/releases/download/v1.1.4/update.json", urls.get(1));
+    }
+
+    @Test public void invalidOrIncompleteGiteeReleaseFallsBackToGithub() throws Exception {
+        String[] releases = {"null", "{}", "<html>error</html>",
+                "{\"tag_name\":\"../../raw/main\"}",
+                "{\"tag_name\":\"v1.1.4\",\"prerelease\":true}",
+                "{\"tag_name\":\"v1.1.5\"}",
+                "{\"tag_name\":\"v1.1.4\"}"};
+        for (String release : releases) {
+            List<String> urls = new ArrayList<>();
+            UpdateClient client = client(chain -> {
+                String url = chain.request().url().toString();
+                urls.add(url);
+                if (url.equals(UpdateClient.GITEE_LATEST_RELEASE_URL)) {
+                    return response(chain, release.getBytes(StandardCharsets.UTF_8));
+                }
+                if (url.startsWith(UpdateClient.GITEE_REPOSITORY)) {
+                    if (release.contains("v1.1.5")) return response(chain, giteeManifest(APK).getBytes(StandardCharsets.UTF_8));
+                    throw new IOException("attachment missing");
+                }
+                return response(chain, githubManifest(APK).getBytes(StandardCharsets.UTF_8));
+            });
+            assertEquals(114, client.fetchInfo().versionCode);
+            assertEquals("https://gh-proxy.com/" + UpdateClient.GITHUB_MANIFEST_URL, urls.get(urls.size() - 1));
+            for (String url : urls) assertFalse(url.contains("/raw/"));
+        }
     }
 
     @Test public void metadataFailureAndOversizedResponseTerminateAfterFourRoutes() throws Exception {
