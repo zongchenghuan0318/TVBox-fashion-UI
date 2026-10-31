@@ -4,14 +4,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:background="@drawable/bg_settings_page">
 
     <!-- 独立于 ViewPager 的首页背景层：允许海报覆盖左侧内容区域，但不携带分类页内容 -->
     <FrameLayout
         android:id="@+id/homeHeroLayer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/color_home_base">
+        android:background="@drawable/bg_settings_page">
 
         <ImageView
             android:id="@+id/ivHeroBackdrop"

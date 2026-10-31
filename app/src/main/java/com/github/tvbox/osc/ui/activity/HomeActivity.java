@@ -112,18 +112,19 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         @Override
         public void run() {
             if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null) {
+                // 如果当前顶栏仍持有焦点，主动将焦点归还给下方内容区，确保不发生焦点丢失
                 if (topNavPanel.hasFocus()) {
-                    scheduleImmersiveTopBarFadeOut(3500L);
-                    return;
+                    enterSelectedCategoryContent();
                 }
                 int height = topNavPanel.getHeight() > 0 ? topNavPanel.getHeight() : AutoSizeUtils.dp2px(HomeActivity.this, 60);
+                topNavPanel.animate().cancel();
                 topNavPanel.animate()
                         .alpha(0f)
                         .translationY(-height)
-                        .setDuration(260)
+                        .setDuration(240)
                         .setInterpolator(new AccelerateInterpolator())
                         .withEndAction(() -> {
-                            if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null && !topNavPanel.hasFocus()) {
+                            if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null) {
                                 topNavPanel.setVisibility(View.GONE);
                             }
                         })
@@ -207,9 +208,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     boolean hadFocus = isViewOrDescendant(oldFocus, topNavPanel);
                     boolean hasFocus = isViewOrDescendant(newFocus, topNavPanel);
                     if (hasFocus) {
-                        mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
+                        scheduleImmersiveTopBarFadeOut(3500L);
                     } else if (hadFocus) {
-                        scheduleImmersiveTopBarFadeOut(1000L);
+                        scheduleImmersiveTopBarFadeOut(150L);
                     }
                 }
             });
@@ -399,7 +400,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 selectCategory(position);
                 enterSelectedCategoryContent();
                 if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-                    scheduleImmersiveTopBarFadeOut(800L);
+                    scheduleImmersiveTopBarFadeOut(150L);
                 }
             }
         });
@@ -495,8 +496,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private void updateContentInsets(int currentIndex) {
         View content = findViewById(R.id.homeContent);
         if (content == null) return;
-        boolean hasTopBar = mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV
-                || (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && currentIndex > 0);
+        boolean hasTopBar = mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV;
         content.setPadding(0, hasTopBar ? getResources().getDimensionPixelSize(R.dimen.vs_54) : 0, 0, 0);
     }
 
@@ -663,6 +663,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                                 if (topNavPanel.getVisibility() != View.VISIBLE || topNavPanel.getAlpha() < 0.5f) {
                                     revealImmersiveTopBar();
                                 } else {
+                                    enterSelectedCategoryContent();
                                     scheduleImmersiveTopBarFadeOut(0L);
                                 }
                             }
@@ -702,6 +703,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     public void revealImmersiveTopBar() {
         if (topNavPanel == null) return;
         mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
+        topNavPanel.animate().cancel();
         topNavPanel.setVisibility(View.VISIBLE);
         topNavPanel.animate()
                 .alpha(1.0f)
@@ -792,7 +794,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (mCurrentSelected < 0 || mCurrentSelected >= fragments.size()) return false;
         BaseLazyFragment page = fragments.get(mCurrentSelected);
         if (page instanceof GridFragment) return ((GridFragment) page).focusCategoryContent();
-        return mContentViewPager.requestFocus();
+        if (page instanceof FirstFragment) return ((FirstFragment) page).focusContent();
+        return mContentViewPager != null && mContentViewPager.requestFocus();
     }
 
     private boolean isViewOrDescendant(View child, View parent) {
@@ -843,6 +846,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 }
             }
 
+            // 极简沉浸模式：若顶栏正处于显示状态，每次遥控器按键操作都重新刷新 3.5 秒闲置倒计时
+            if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE) {
+                scheduleImmersiveTopBarFadeOut(3500L);
+            }
+
             // 3. Apple TV 顶栏模式 & 极简沉浸模式：
             if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV || mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
                 // 3a. 在顶部栏中按向下键进入内容区
@@ -850,7 +858,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     if (topNavPanel != null && topNavPanel.hasFocus()) {
                         enterSelectedCategoryContent();
                         if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-                            scheduleImmersiveTopBarFadeOut(800L);
+                            scheduleImmersiveTopBarFadeOut(150L);
                         }
                         return true;
                     }
@@ -875,13 +883,18 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 }
             }
 
-            // 4. 极简沉浸模式：按菜单键直接唤出顶部导航栏
+            // 4. 极简沉浸模式：按菜单键切换顶部导航栏显隐（开时按关闭，关时按打开）
             if (keyCode == KeyEvent.KEYCODE_MENU && mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-                if (topNavPanel != null && (topNavPanel.getVisibility() != View.VISIBLE || topNavPanel.getAlpha() < 0.5f)) {
-                    revealImmersiveTopBar();
-                    if (sortTopRV != null) {
-                        sortTopRV.setSelection(mCurrentSelected);
-                        sortTopRV.requestFocus();
+                if (topNavPanel != null) {
+                    if (topNavPanel.getVisibility() != View.VISIBLE || topNavPanel.getAlpha() < 0.5f) {
+                        revealImmersiveTopBar();
+                        if (sortTopRV != null) {
+                            sortTopRV.setSelection(mCurrentSelected);
+                            sortTopRV.requestFocus();
+                        }
+                    } else {
+                        enterSelectedCategoryContent();
+                        scheduleImmersiveTopBarFadeOut(0L);
                     }
                     return true;
                 }
@@ -1172,9 +1185,24 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             return;
         }
 
-        if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV || mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+        if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+            // 极简沉浸模式：若顶栏正处于呼出展示状态，按返回键首要动作是收起顶栏并把焦点送回内容区
+            if (topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE && topNavPanel.getAlpha() > 0.5f) {
+                enterSelectedCategoryContent();
+                scheduleImmersiveTopBarFadeOut(0L);
+                return;
+            }
+            // 内容区按返回键：若不在首页推荐（分类页），先返回首页推荐；在首页推荐则提示再按一次退出
+            if (mCurrentSelected != 0) {
+                selectCategory(0);
+                return;
+            }
+            exit();
+            return;
+        }
+
+        if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV) {
             if (mContentViewPager != null && mContentViewPager.hasFocus()) {
-                revealImmersiveTopBar();
                 if (sortTopRV != null) {
                     sortTopRV.setSelection(mCurrentSelected);
                     sortTopRV.requestFocus();
@@ -1295,7 +1323,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (savedLayout != mCurrentLayoutStyle) {
             applyLayoutStyle(savedLayout);
         } else if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-            if (topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE && !topNavPanel.hasFocus()) {
+            if (topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE) {
                 scheduleImmersiveTopBarFadeOut(3500L);
             }
         }

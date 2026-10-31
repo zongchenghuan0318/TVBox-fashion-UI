@@ -235,6 +235,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
     }
 
+    public boolean focusContent() {
+        if (mHotGridView != null) {
+            int pos = mHotGridView.getSelectedPosition();
+            if (pos < 0) pos = mFocusedCardPosition;
+            if (mHotGridView.getLayoutManager() != null) {
+                View card = mHotGridView.getLayoutManager().findViewByPosition(pos);
+                if (card != null && card.requestFocus()) {
+                    return true;
+                }
+            }
+            return mHotGridView.requestFocus();
+        }
+        return false;
+    }
+
     private void refreshHomeMode() {
         boolean lowPower = Hawk.get(HawkConfig.HOME_LOW_POWER, false);
         if (mLowPowerHome == lowPower) return;
