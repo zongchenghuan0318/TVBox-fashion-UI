@@ -892,7 +892,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             return;
         }
         lastBackPressedMs = now;
-        showTipsView("再按一次返回键退出播放", true, false);
+        Toast.makeText(this, "再按一次返回键退出播放", Toast.LENGTH_SHORT).show();
     }
 
     @Override
