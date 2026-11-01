@@ -570,6 +570,11 @@ public class ModelSettingFragment extends BaseLazyFragment {
                     public String getDisplay(Integer val) {
                         return getHomeRecName(val);
                     }
+
+                    @Override
+                    public String getSubDisplay(Integer val) {
+                        return getHomeRecDesc(val);
+                    }
                 }, new DiffUtil.ItemCallback<Integer>() {
                     @Override
                     public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
@@ -611,6 +616,11 @@ public class ModelSettingFragment extends BaseLazyFragment {
                         @Override
                         public String getDisplay(Integer val) {
                             return getHomeLayoutName(val);
+                        }
+
+                        @Override
+                        public String getSubDisplay(Integer val) {
+                            return getHomeLayoutDesc(val);
                         }
                     }, new DiffUtil.ItemCallback<Integer>() {
                         @Override
@@ -702,6 +712,16 @@ public class ModelSettingFragment extends BaseLazyFragment {
         }
     }
 
+    String getHomeRecDesc(int type) {
+        if (type == 1) {
+            return "展示主页数据源最新更新与推荐剧集";
+        } else if (type == 2) {
+            return "快速续播历史观看记录，换集继续看";
+        } else {
+            return "精选豆瓣热门电影与热播电视剧榜单";
+        }
+    }
+
     String getHomeLayoutName(int layout) {
         switch (layout) {
             case HawkConfig.HOME_LAYOUT_SIDEBAR:
@@ -714,6 +734,21 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 return "极简画报沉浸";
             default:
                 return "Apple TV 顶栏";
+        }
+    }
+
+    String getHomeLayoutDesc(int layout) {
+        switch (layout) {
+            case HawkConfig.HOME_LAYOUT_SIDEBAR:
+                return "经典左侧多级导航，分类切换直观稳定";
+            case HawkConfig.HOME_LAYOUT_APPLE_TV:
+                return "顶部磨砂玻璃导航，宽幅画报与平滑视差聚焦";
+            case HawkConfig.HOME_LAYOUT_DRAWER:
+                return "左侧悬浮动态收折，滑入展开分类，大屏视野开阔";
+            case HawkConfig.HOME_LAYOUT_IMMERSIVE:
+                return "全屏超大画报无干扰，静置自动轮播，按上键呼出顶栏";
+            default:
+                return null;
         }
     }
 

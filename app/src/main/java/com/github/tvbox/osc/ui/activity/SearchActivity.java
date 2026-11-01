@@ -29,6 +29,7 @@ import com.github.tvbox.osc.event.ServerEvent;
 import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchHistoryAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchResultAdapter;
+import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.tv.widget.SearchKeyboard;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -87,6 +88,8 @@ public class SearchActivity extends BaseActivity {
     private TextView tvClear;
     private SearchKeyboard keyboard;
     private SearchResultAdapter searchResultAdapter;
+    private View llSearchEmpty;
+    private View btnEmptyManageSources;
     private PinyinAdapter wordAdapter;
     private SearchHistoryAdapter historyAdapter;
     private String searchWord = "";
@@ -169,6 +172,14 @@ public class SearchActivity extends BaseActivity {
         mHotWordRV = findViewById(R.id.mGridViewWord);
         mSearchHistoryRV = findViewById(R.id.serch_history_rv);
         llClearHistory = findViewById(R.id.llClearHistory);
+        llSearchEmpty = findViewById(R.id.llSearchEmpty);
+        btnEmptyManageSources = findViewById(R.id.btnEmptyManageSources);
+        if (btnEmptyManageSources != null) {
+            btnEmptyManageSources.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                new SearchSiteDialog(SearchActivity.this).show();
+            });
+        }
         initHistoryView();
         initHotRecycleView();
         initSearchResultRecycleView();
@@ -319,7 +330,34 @@ public class SearchActivity extends BaseActivity {
                 search(historyAdapter.getItem(position));
             }
         });
+        historyAdapter.setOnItemLongClickListener((adapter, view, position) -> {
+            FastClickCheckUtil.check(view);
+            if (position >= 0 && position < historyAdapter.getData().size()) {
+                String item = historyAdapter.getItem(position);
+                deleteSingleHistoryItem(item);
+            }
+            return true;
+        });
         refreshHistoryView();
+    }
+
+    private void deleteSingleHistoryItem(String wd) {
+        List<String> historys = getHistoryWords();
+        if (!NullUtil.isNull(historys)) {
+            boolean removed = false;
+            for (int i = 0; i < historys.size(); i++) {
+                if (historys.get(i).equalsIgnoreCase(wd)) {
+                    historys.remove(i);
+                    removed = true;
+                    break;
+                }
+            }
+            if (removed) {
+                spDataUtil.saveObjectValue("histroys", historys);
+                refreshHistoryView();
+                Toast.makeText(mContext, "已删除搜索词：" + wd, Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     /**
@@ -569,6 +607,7 @@ public class SearchActivity extends BaseActivity {
         searchSourceCount = 0;
         showSuccess();
         this.searchWord = wd;
+        if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
         tvSearchProgress.setVisibility(View.VISIBLE);
         tvSearchProgress.setText("正在准备搜索来源…");
         mSearchResultRV.setVisibility(View.VISIBLE);
@@ -702,6 +741,14 @@ public class SearchActivity extends BaseActivity {
         } else {
             tvSearchProgress.setText("正在搜索 · 已收到 " + completedSearchSources + "/" + searchSourceCount + " 个来源的响应");
         }
+        boolean hasResults = !searchResultAdapter.getData().isEmpty();
+        boolean finished = timedOut || (searchSourceCount > 0 && completedSearchSources >= searchSourceCount) || searchFinished;
+        if (llSearchEmpty != null) {
+            llSearchEmpty.setVisibility(!hasResults && finished ? View.VISIBLE : View.GONE);
+        }
+        if (mSearchResultRV != null) {
+            mSearchResultRV.setVisibility(!hasResults && finished ? View.GONE : View.VISIBLE);
+        }
     }
 
     private void showSearchData(AbsXml absXml) {
@@ -744,6 +791,7 @@ public class SearchActivity extends BaseActivity {
                 resultMergeRunning = false;
                 if (!merged.isEmpty()) {
                     showSuccess();
+                    if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
                     mSearchResultRV.setVisibility(View.VISIBLE);
                 }
                 updateSearchProgress(searchFinished && completedSearchSources < searchSourceCount);

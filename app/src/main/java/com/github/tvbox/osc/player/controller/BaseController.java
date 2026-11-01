@@ -315,14 +315,40 @@ public abstract class BaseController extends BaseVideoController implements Gest
         return true;
     }
 
-    //双击
+    //双击：分区手势（左侧 35% 快退 10 秒，右侧 35% 快进 10 秒，中间 30% 切换播放/暂停）
     @Override
     public boolean onDoubleTap(MotionEvent e) {
-        if (bLocked) return true;
-        if (!isLocked() && isInPlaybackState()) {
+        if (bLocked || isLocked() || !isInPlaybackState()) return true;
+        int width = getWidth();
+        if (width <= 0) {
+            togglePlay();
+            return true;
+        }
+        float x = e.getX();
+        if (x < width * 0.35f) {
+            seekDelta(-10000);
+        } else if (x > width * 0.65f) {
+            seekDelta(10000);
+        } else {
             togglePlay();
         }
         return true;
+    }
+
+    public void seekDelta(int deltaMs) {
+        if (mControlWrapper == null) return;
+        long duration = mControlWrapper.getDuration();
+        if (duration <= 0) {
+            togglePlay();
+            return;
+        }
+        long current = mControlWrapper.getCurrentPosition();
+        long target = Math.max(0, Math.min(duration, current + deltaMs));
+        onSeekRequested((int) target);
+        mControlWrapper.seekTo((int) target);
+        updateSeekUI((int) current, (int) target, duration);
+        onSeekPreviewFinished();
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
     }
 
     // 在屏幕上滑动
@@ -539,6 +565,28 @@ public abstract class BaseController extends BaseVideoController implements Gest
         if (active) restoreSpeedFeedback(feedback);
         else if (!feedback && mSpeedBoostView != null) mSpeedBoostView.dismissImmediately();
         return active;
+    }
+
+    public boolean startKeySpeedBoost() {
+        if (mSpeedBoostView == null || bLocked || !isInPlaybackState()
+                || isLocked() || mControlWrapper == null || !mControlWrapper.isPlaying()) {
+            return false;
+        }
+        mSpeedGesture.pointerDown(0, 0);
+        if (!mSpeedGesture.begin(getConfiguredSpeed())) {
+            return false;
+        }
+        mControlWrapper.setSpeed(mSpeedGesture.getSpeed());
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        showSpeedFeedback(true);
+        return true;
+    }
+
+    public void stopKeySpeedBoost() {
+        if (mSpeedGesture.isActive()) {
+            mSpeedGesture.pointerUp();
+            restoreSpeedFeedback(true);
+        }
     }
 
     @Override

@@ -876,6 +876,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         if (mController != null && mController.lockWarning()) {
             return;
         }
+        if (mController != null && mController.isBottomVisible()) {
+            mController.hideBottom(true);
+            return;
+        }
         super.onBackPressed();
     }
 

@@ -65,7 +65,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
 
     private void updateModeHint() {
         boolean hasItems = collectAdapter != null && collectAdapter.getData() != null && !collectAdapter.getData().isEmpty();
-        tvDelTip.setText(delMode ? "确定删除 · 返回退出" : "点按打开收藏");
+        tvDelTip.setText(delMode ? "点按删除 · 返回退出" : "长按取消收藏 · 点按打开");
         tvDelTip.setVisibility(hasItems ? View.VISIBLE : View.GONE);
     }
 
@@ -86,7 +86,8 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
             RoomDataManger.deleteVodCollect(vodInfo.getId());
         });
-        getUndoBar().show("已取消收藏", () -> {
+        String title = vodInfo.name != null ? vodInfo.name : "";
+        getUndoBar().show("已取消收藏" + (title.isEmpty() ? "" : "：" + title), () -> {
             loadGeneration++;
             int restorePosition = Math.min(position, collectAdapter.getData().size());
             collectAdapter.addData(restorePosition, vodInfo);
@@ -171,6 +172,17 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
                         }
                     }
                 }
+            }
+        });
+        collectAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(BaseQuickAdapter adapter, View view, int position) {
+                FastClickCheckUtil.check(view);
+                if (position >= 0 && position < collectAdapter.getData().size()) {
+                    deleteCollectItem(position);
+                    return true;
+                }
+                return false;
             }
         });
     }

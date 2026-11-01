@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_settings_page">
 
     <!-- 全屏电影氛围高斯毛玻璃背景 -->
     <ImageView
@@ -150,6 +151,14 @@
                     android:ellipsize="end"
                     android:lineSpacingMultiplier="1.2"
                     android:maxLines="4"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="@drawable/selector_detail_des"
+                    android:paddingLeft="@dimen/vs_4"
+                    android:paddingRight="@dimen/vs_4"
+                    android:paddingTop="@dimen/vs_2"
+                    android:paddingBottom="@dimen/vs_2"
+                    android:nextFocusDown="@+id/tvPlay"
                     android:textColor="@color/color_CCFFFFFF"
                     android:textSize="@dimen/ts_20" />
 

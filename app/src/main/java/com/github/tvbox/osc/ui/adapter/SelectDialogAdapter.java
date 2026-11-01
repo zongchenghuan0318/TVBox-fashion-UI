@@ -28,6 +28,9 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
     public interface SelectDialogInterface<T> {
         void click(T value, int pos);
         String getDisplay(T val);
+        default String getSubDisplay(T val) {
+            return null;
+        }
     }
 
     private ArrayList<T> data = new ArrayList<>();
@@ -73,6 +76,17 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
             tvName.setSelected(isSelected);
             tvName.getPaint().setFakeBoldText(isSelected);
             tvName.setTextColor(isSelected ? 0xFFFFFFFF : 0xCCFFFFFF);
+        }
+        TextView tvSub = (TextView) holder.itemView.findViewById(R.id.tvSub);
+        if (tvSub != null) {
+            String sub = dialogInterface.getSubDisplay(value);
+            if (sub != null && !sub.isEmpty()) {
+                tvSub.setText(sub);
+                tvSub.setVisibility(View.VISIBLE);
+                tvSub.setTextColor(isSelected ? 0xB3FFFFFF : 0x80FFFFFF);
+            } else {
+                tvSub.setVisibility(View.GONE);
+            }
         }
         holder.itemView.setSelected(isSelected);
         holder.itemView.setOnClickListener(new View.OnClickListener() {

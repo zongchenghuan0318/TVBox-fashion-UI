@@ -242,5 +242,53 @@
             app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
             app:tv_selectedItemIsCentered="true"
             app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
+
+        <LinearLayout
+            android:id="@+id/llSearchEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="@dimen/vs_80"
+                android:layout_height="@dimen/vs_80"
+                android:alpha="0.45"
+                android:src="@drawable/icon_empty" />
+
+            <TextView
+                android:id="@+id/tvSearchEmptyTip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_14"
+                android:text="未找到相关影视资源"
+                android:textColor="@color/color_CCFFFFFF"
+                android:textSize="@dimen/ts_22" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_6"
+                android:text="建议缩短片名，或在搜索源管理中开启更多数据源"
+                android:textColor="@color/color_rail_text_muted"
+                android:textSize="@dimen/ts_16" />
+
+            <TextView
+                android:id="@+id/btnEmptyManageSources"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/vs_42"
+                android:layout_marginTop="@dimen/vs_16"
+                android:background="@drawable/selector_user_focus"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_20"
+                android:paddingRight="@dimen/vs_20"
+                android:text="搜索源管理"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_18" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

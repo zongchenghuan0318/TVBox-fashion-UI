@@ -32,6 +32,7 @@ import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.PlayerEpisodeRangeAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesFlagAdapter;
+import com.github.tvbox.osc.ui.dialog.DescriptionDialog;
 import com.github.tvbox.osc.ui.dialog.QuickSearchDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
@@ -187,6 +188,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
         tvCollect.setEnabled(false);
         tvCollect.setOnClickListener(v -> toggleCollect());
+
+        tvDes.setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            if (mVideo != null) {
+                String des = removeHtmlTag(mVideo.des);
+                new DescriptionDialog(DetailActivity.this, mVideo.name, des).show();
+            }
+        });
     }
 
     private void initViewModelObserve() {

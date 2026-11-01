@@ -100,6 +100,17 @@ public class VodController extends BaseController {
     private int mSeekSpeedMultiplier = 1;
     private boolean mDownLongHandled;
     private boolean mDownNextPending;
+    private boolean mCenterPressed;
+    private boolean mCenterLongHandled;
+    private final Runnable mCenterLongPressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mCenterPressed && isInPlaybackState() && mControlWrapper != null && mControlWrapper.isPlaying()) {
+                mCenterLongHandled = true;
+                startKeySpeedBoost();
+            }
+        }
+    };
     private final Runnable mDownNextRunnable = new Runnable() {
         @Override
         public void run() {
@@ -1045,11 +1056,11 @@ public class VodController extends BaseController {
                 com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000L : 6000L);
     }
 
-    void hideBottom() {
+    public void hideBottom() {
         hideBottom(false);
     }
 
-    private void hideBottom(boolean force) {
+    public void hideBottom(boolean force) {
         if (mOptionsOpen || mIsDragging || bSimSlideStart || (!force && !mControlWrapper.isPlaying())) return;
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
         setControlsVisible(false);
@@ -1128,13 +1139,31 @@ public class VodController extends BaseController {
                     return true;
                 }
             }
-            showBottom();
-            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
-                if (isInPlayback && !hasFocusedControl()) {
+            if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                if (isInPlayback) {
                     togglePlay();
                     return true;
                 }
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (isInPlayback && !hasFocusedControl()) {
+                    if (event.getRepeatCount() == 0) {
+                        mCenterPressed = true;
+                        mCenterLongHandled = false;
+                        mBaseHandler.removeCallbacks(mCenterLongPressRunnable);
+                        mBaseHandler.postDelayed(mCenterLongPressRunnable, 400L);
+                    } else if (event.getRepeatCount() >= 2) {
+                        if (!mCenterLongHandled && mControlWrapper != null && mControlWrapper.isPlaying()) {
+                            mCenterLongHandled = true;
+                            mBaseHandler.removeCallbacks(mCenterLongPressRunnable);
+                            startKeySpeedBoost();
+                        }
+                    }
+                    return true;
+                }
+            }
+            showBottom();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (!bLocked && !hasFocusedControl()) {
                     mDownLongHandled = false;
                     mDownNextPending = false;
@@ -1147,6 +1176,22 @@ public class VodController extends BaseController {
                 }
             }
         } else if (action == KeyEvent.ACTION_UP) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                mBaseHandler.removeCallbacks(mCenterLongPressRunnable);
+                if (mCenterLongHandled) {
+                    mCenterLongHandled = false;
+                    mCenterPressed = false;
+                    stopKeySpeedBoost();
+                    return true;
+                }
+                if (mCenterPressed) {
+                    mCenterPressed = false;
+                    if (isInPlayback && !hasFocusedControl()) {
+                        togglePlay();
+                        return true;
+                    }
+                }
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (!seekBarFocused && !bSimSlideStart) {
                     return false;

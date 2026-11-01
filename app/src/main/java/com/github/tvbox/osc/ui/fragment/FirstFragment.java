@@ -419,8 +419,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE && !mCarouselInitializing) {
-                    scheduleAutoScroll();
+                if (newState == RecyclerView.SCROLL_STATE_SETTLING) {
+                    try {
+                        if (mContext != null) Glide.with(mContext).pauseRequests();
+                    } catch (Exception ignored) {}
+                    mHeroHandler.removeCallbacks(mHeroImageRun);
+                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    try {
+                        if (mContext != null) Glide.with(mContext).resumeRequests();
+                    } catch (Exception ignored) {}
+                    if (mAdapter != null && mFocusedCardPosition >= 0 && mFocusedCardPosition < mAdapter.getData().size()) {
+                        bindHero(mAdapter.getData().get(mFocusedCardPosition));
+                    }
+                    if (!mCarouselInitializing) {
+                        scheduleAutoScroll();
+                    }
                 }
             }
         });
@@ -489,7 +502,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         mFocusedCardPosition = position;
         mHotGridView.setSelectedPosition(position);
-        bindHero(data.get(position));
+        if (mHotGridView.getScrollState() == RecyclerView.SCROLL_STATE_SETTLING) {
+            // 快速惯性滚动中仅更新标题文字，不触发重度背景高斯与解码
+            applyHeroInfo(data.get(position));
+        } else {
+            bindHero(data.get(position));
+        }
     }
 
     private void updateCardDepth() {
