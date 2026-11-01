@@ -24,6 +24,8 @@ public class HawkConfig {
     public static final String SENIOR_MODE = "senior_mode";
     public static final String AUTO_UPDATE_CHECK = "auto_update_check";
     public static final String IJK_CODEC = "ijk_codec";
+    public static final String IJK_CODEC_DEFAULT = "硬解码";
+    public static final String IJK_HARDWARE_DEFAULT_APPLIED = "ijk_hardware_default_applied";
     public static final String PLAY_TYPE = "play_type";//0 系统 1 ijk 2 exo 10 MXPlayer
     public static final int PLAY_TYPE_SYSTEM = 0;
     public static final int PLAY_TYPE_IJK = 1;

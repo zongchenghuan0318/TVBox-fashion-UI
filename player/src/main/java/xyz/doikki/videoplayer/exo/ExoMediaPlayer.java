@@ -2,6 +2,7 @@ package xyz.doikki.videoplayer.exo;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
+import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
@@ -17,6 +18,9 @@ import com.google.android.exoplayer2.RenderersFactory;
 import com.google.android.exoplayer2.SeekParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.analytics.AnalyticsCollector;
+import com.google.android.exoplayer2.analytics.AnalyticsListener;
+import com.google.android.exoplayer2.mediacodec.MediaCodecInfo;
+import com.google.android.exoplayer2.mediacodec.MediaCodecSelector;
 import com.google.android.exoplayer2.source.DefaultMediaSourceFactory;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.TrackGroup;
@@ -34,10 +38,12 @@ import com.google.android.exoplayer2.video.VideoSize;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 import xyz.doikki.videoplayer.player.AbstractPlayer;
 import xyz.doikki.videoplayer.player.MediaTrack;
 import xyz.doikki.videoplayer.player.VideoViewManager;
+import xyz.doikki.videoplayer.util.PlaybackBufferBudget;
 
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
@@ -46,54 +52,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
     // 卡顿二次缓冲蓄水门槛 4.5 秒：彻底阻断“起播秒开但网络波动时反复短暂停顿”的恶性循环，水库蓄满才放行
     private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 4_500;
-    // 点播最多向前预读 10 分钟（600 秒），在安全磁盘缓存和内存配额允许下，让网速好的设备尽情蓄水
-    private static final int MAX_BUFFER_MS = 600_000;
-
-    /**
-     * 智能前向蓄水下限（毫秒）：
-     * 解决“缓冲条没有多长”的核心优化：根据电视 JVM 堆内存动态伸缩持续预读时长，
-     * 绝不在 30 秒就踩刹车，而是持续在后台把水库蓄至 2 ~ 4 分钟，
-     * 进度条上的灰色缓冲条会明显拉长，同时在 2~3 分钟内的快进/回看 100% 秒开无需网络等待！
-     */
-    private static int calculateSafeMinBufferMs() {
-        long maxMemory = Runtime.getRuntime().maxMemory();
-        if (maxMemory <= 128L * 1024 * 1024L) {
-            return 60_000;   // 极老设备（<=128MB 堆）稳妥蓄水 60 秒（1分钟，严控内存防溢出）
-        } else if (maxMemory <= 256L * 1024 * 1024L) {
-            return 120_000;  // 普通老盒子/电视（<=256MB 堆）持续蓄水 120 秒（2分钟）
-        } else if (maxMemory <= 512L * 1024 * 1024L) {
-            return 180_000;  // 主流智能电视持续蓄水 180 秒（3分钟）
-        } else {
-            return 240_000;  // 旗舰盒子/大堆内存持续蓄水 240 秒（4分钟）
-        }
-    }
-
-    /**
-     * 老电视内存自适应保护机制：根据 JVM 堆内存动态调整缓冲上限，坚决杜绝低配电视 OOM 闪退
-     */
-    private static int calculateSafeTargetBufferBytes() {
-        long maxMemory = Runtime.getRuntime().maxMemory();
-        if (maxMemory <= 128L * 1024 * 1024L) {
-            return 48 * 1024 * 1024;  // 极老设备（<=128MB 堆）分配 48MB
-        } else if (maxMemory <= 256L * 1024 * 1024L) {
-            return 96 * 1024 * 1024;  // 普通老盒子（<=256MB 堆）分配 96MB
-        } else if (maxMemory <= 512L * 1024 * 1024L) {
-            return 160 * 1024 * 1024; // 主流智能电视分配 160MB
-        } else {
-            return 256 * 1024 * 1024; // 旗舰盒子/已开 largeHeap 分配 256MB
-        }
-    }
-
-    /**
-     * 回退保留时长自适应：内存紧缺设备保留 30 秒，正常设备保留 120 秒，兼顾倒退秒回与内存安全
-     */
-    private static int calculateSafeBackBufferMs() {
-        long maxMemory = Runtime.getRuntime().maxMemory();
-        if (maxMemory <= 256L * 1024 * 1024L) {
-            return 30_000;
-        }
-        return 120_000;
-    }
+    // Bound forward and backward RAM queues; disk caching handles older segments.
+    private static final int MAX_BUFFER_MS = 60_000;
 
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
@@ -101,6 +61,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     protected ExoMediaSourceHelper mMediaSourceHelper;
 
     private PlaybackParameters mSpeedPlaybackParameters;
+    private long lastPlaybackWarningMs;
 
     private boolean mIsPreparing;
     /** 当前播放地址，用于播放结束/换集时释放磁盘缓存 */
@@ -118,21 +79,31 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     @Override
     public void initPlayer() {
         if (mLoadControl == null) {
-            int safeMinBufferMs = calculateSafeMinBufferMs();
+            int bufferBytes = PlaybackBufferBudget.forDevice(mAppContext);
+            boolean smallBudget = bufferBytes <= 16 * 1024 * 1024;
             mLoadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                            safeMinBufferMs,
+                            smallBudget ? 15_000 : 30_000,
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
-                    .setBackBuffer(calculateSafeBackBufferMs(), true)
-                    .setTargetBufferBytes(calculateSafeTargetBufferBytes())
+                    .setBackBuffer(smallBudget ? 0 : 5_000, false)
+                    .setTargetBufferBytes(bufferBytes)
                     .setPrioritizeTimeOverSizeThresholds(false)
                     .createDefaultLoadControl();
         }
         if (mRenderersFactory == null) {
             // 解码器容错保护：开启解码器 Fallback，老旧芯片无法硬解时自动转入软解，杜绝崩溃闪退
             mRenderersFactory = new DefaultRenderersFactory(mAppContext)
+                    .setMediaCodecSelector((mimeType, secure, tunneling) -> {
+                        List<MediaCodecInfo> decoders = new ArrayList<>(
+                                MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, secure, tunneling));
+                        if (mimeType.startsWith("video/")) {
+                            Collections.sort(decoders, (a, b) ->
+                                    Boolean.compare(b.hardwareAccelerated, a.hardwareAccelerated));
+                        }
+                        return decoders;
+                    })
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                     .setEnableDecoderFallback(true);
         }
@@ -153,6 +124,33 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
         }
 
         mInternalPlayer.addListener(this);
+        mInternalPlayer.addAnalyticsListener(new AnalyticsListener() {
+            @Override
+            public void onVideoDecoderInitialized(EventTime eventTime, String decoderName,
+                    long initializedTimestampMs, long initializationDurationMs) {
+                Log.i("PlaybackHealth", "videoDecoder=" + decoderName);
+            }
+
+            @Override
+            public void onDroppedVideoFrames(EventTime eventTime, int droppedFrames, long elapsedMs) {
+                logPlaybackPressure("droppedFrames=" + droppedFrames + ", intervalMs=" + elapsedMs);
+            }
+
+            @Override
+            public void onAudioUnderrun(EventTime eventTime, int bufferSize, long bufferSizeMs,
+                    long elapsedSinceLastFeedMs) {
+                logPlaybackPressure("audioUnderrun, feedGapMs=" + elapsedSinceLastFeedMs);
+            }
+        });
+    }
+
+    private void logPlaybackPressure(String reason) {
+        if (mInternalPlayer == null) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (now - lastPlaybackWarningMs < 5_000L) return;
+        lastPlaybackWarningMs = now;
+        Log.w("PlaybackHealth", reason + ", speed=" + mInternalPlayer.getPlaybackParameters().speed
+                + ", bufferedMs=" + mInternalPlayer.getTotalBufferedDuration());
     }
 
     public void setTrackSelector(TrackSelector trackSelector) {

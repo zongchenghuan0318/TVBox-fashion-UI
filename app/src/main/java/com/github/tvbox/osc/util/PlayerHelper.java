@@ -21,6 +21,13 @@ import xyz.doikki.videoplayer.render.RenderViewFactory;
 import xyz.doikki.videoplayer.render.TextureRenderViewFactory;
 
 public class PlayerHelper {
+    public static boolean applyHardwareDefault(JSONObject playerCfg) throws JSONException {
+        if (playerCfg.optBoolean("ijk_hw_default", false) && playerCfg.has("ijk")) return false;
+        playerCfg.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT));
+        playerCfg.put("ijk_hw_default", true);
+        return true;
+    }
+
     public static void updateCfg(VideoView videoView, JSONObject playerCfg) {
         if (videoView == null) {
             L.e("updateCfg() ignored because VideoView is null");
@@ -29,9 +36,10 @@ public class PlayerHelper {
         L.d("updateCfg()");
         int playerType = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
         int renderType = Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT);
-        String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
+        String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
         int scale = Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);
         try {
+            applyHardwareDefault(playerCfg);
             playerType = playerCfg.getInt("pl");
             renderType = playerCfg.getInt("pr");
             ijkCode = playerCfg.getString("ijk");

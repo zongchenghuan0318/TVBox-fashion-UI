@@ -51,6 +51,10 @@ public class App extends MultiDexApplication {
     private void initParams() {
         // Hawk
         Hawk.init(this).build();
+        if (!Hawk.get(HawkConfig.IJK_HARDWARE_DEFAULT_APPLIED, false)) {
+            Hawk.put(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
+            Hawk.put(HawkConfig.IJK_HARDWARE_DEFAULT_APPLIED, true);
+        }
         // 升级后统一恢复一次自适应比例，此后的手动选择继续保留。
         if (!Hawk.get(HawkConfig.PLAY_SCALE_DEFAULT_RESET, false)) {
             Hawk.put(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);

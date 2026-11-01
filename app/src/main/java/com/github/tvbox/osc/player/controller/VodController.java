@@ -850,6 +850,7 @@ public class VodController extends BaseController {
                 return;
             }
         }
+        if (!isBottomVisible()) return;
         mCurrentTimeTV.setText(PlayerUtils.stringForTime(position));
         mTotalTimeTV.setText(mDualtion);
         if (duration > 0) {
@@ -1071,9 +1072,17 @@ public class VodController extends BaseController {
     }
 
     public void hideBottom(boolean force) {
-        if (mOptionsOpen || mIsDragging || bSimSlideStart || (!force && !mControlWrapper.isPlaying())) return;
+        if (!force && (mOptionsOpen || mIsDragging || bSimSlideStart || !mControlWrapper.isPlaying())) return;
+        if (force) {
+            mIsDragging = false;
+            bSimSlideStart = false;
+            simSlideOffset = 0;
+            mBaseHandler.removeMessages(MSG_WHAT_SEEK_PLAY);
+            showProgressOverlay(false);
+        }
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
         setControlsVisible(false);
+        if (force) requestFocus();
     }
 
     private void setControlsVisible(boolean visible) {
@@ -1103,8 +1112,13 @@ public class VodController extends BaseController {
         boolean isInPlayback = isInPlaybackState();
         int keyCode = event.getKeyCode();
         int action = event.getAction();
+        if (keyCode == KeyEvent.KEYCODE_BACK) return false;
         boolean seekBarFocused = mSeekBar != null && mSeekBar.hasFocus();
         if (action == KeyEvent.ACTION_DOWN) {
+            if (isBottomVisible() && movePlaybackControlFocus(keyCode)) {
+                showBottom();
+                return true;
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (isBottomVisible()) {
                     if (seekBarFocused) {
@@ -1122,7 +1136,7 @@ public class VodController extends BaseController {
                 }
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                boolean canDirectSeek = !isBottomVisible() || seekBarFocused || (mPlayingBtn != null && mPlayingBtn.hasFocus());
+                boolean canDirectSeek = !isBottomVisible() || seekBarFocused;
                 if (isInPlayback && canDirectSeek) {
                     showBottom();
                     if (mSeekBar != null && mSeekBar.isEnabled() && !seekBarFocused) {
@@ -1172,19 +1186,17 @@ public class VodController extends BaseController {
                     return true;
                 }
             }
-            showBottom();
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                if (!bLocked && !hasFocusedControl()) {
+                if (!bLocked && (!isBottomVisible() || seekBarFocused || !hasFocusedControl())) {
                     mDownLongHandled = false;
                     mDownNextPending = false;
                     mBaseHandler.removeCallbacks(mDownNextRunnable);
                     showBottom();
-                    if (mSeekBar != null && mSeekBar.isEnabled()) {
-                        mSeekBar.requestFocus();
-                    }
+                    mPlayingBtn.requestFocus();
                     return true;
                 }
             }
+            showBottom();
         } else if (action == KeyEvent.ACTION_UP) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
                 mBaseHandler.removeCallbacks(mCenterLongPressRunnable);
@@ -1215,7 +1227,29 @@ public class VodController extends BaseController {
                 }
             }
         }
-        return super.dispatchKeyEvent(event);
+        return false;
+    }
+
+    private boolean movePlaybackControlFocus(int keyCode) {
+        if (keyCode != KeyEvent.KEYCODE_DPAD_LEFT && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT
+                && keyCode != KeyEvent.KEYCODE_DPAD_UP) return false;
+        View focused = findFocus();
+        View[] controls = {mPreBtn, mPlayingBtn, mNextBtn, mPlayerRetryTv, mPlayerTV,
+                mPlayerIJKTV, mPlayerSpeedBtn, mEpisodeBtn, mPlayerScaleBtn, portHorImg};
+        for (int i = 0; i < controls.length; i++) {
+            if (focused == null || focused != controls[i]) continue;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                return mSeekBar != null && mSeekBar.isEnabled() && mSeekBar.requestFocus();
+            }
+            int direction = keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1;
+            for (int next = i + direction; next >= 0 && next < controls.length; next += direction) {
+                View target = controls[next];
+                if (target != null && target.isShown() && target.isEnabled() && target.isFocusable()
+                        && target.requestFocus()) return true;
+            }
+            return true;
+        }
+        return false;
     }
 
     public long getCurrentOrPendingPosition() {

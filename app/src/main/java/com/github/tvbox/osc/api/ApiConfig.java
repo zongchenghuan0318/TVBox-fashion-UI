@@ -809,7 +809,7 @@ public class ApiConfig {
             }
             // IJK解码配置
             boolean foundOldSelect = false;
-            String ijkCodec = Hawk.get(HawkConfig.IJK_CODEC, "");
+            String ijkCodec = Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
             mIjkCodes = new ArrayList<>();
             // ijk 键是可选的（本点播配置就没有），缺失时不能直接 getAsJsonArray 否则 NPE
             JsonArray ijkArr = jsonObject.getAsJsonArray("ijk");
@@ -840,7 +840,13 @@ public class ApiConfig {
                 mIjkCodes.addAll(getDefaultIjkCodes(ijkCodec));
                 foundOldSelect = true;
             } else if (!foundOldSelect && mIjkCodes.size() > 0) {
-                mIjkCodes.get(0).selected(true);
+                if (HawkConfig.IJK_CODEC_DEFAULT.equals(ijkCodec)) {
+                    IJKCode hardwareCodec = createHardwareCodec();
+                    hardwareCodec.selected(true);
+                    mIjkCodes.add(0, hardwareCodec);
+                } else {
+                    mIjkCodes.get(0).selected(true);
+                }
             }
         } catch (Exception e) {
             L.e(e);
@@ -1664,12 +1670,10 @@ public class ApiConfig {
         return mLiveChannelGroupList;
     }
 
-    public List<IJKCode> getDefaultIjkCodes(String selectedName) {
-        List<IJKCode> list = new ArrayList<>();
-
+    private IJKCode createHardwareCodec() {
         // 硬解码 (Hardware decoding with low-latency and anti-stutter defaults)
         IJKCode hardCodec = new IJKCode();
-        hardCodec.setName("硬解码");
+        hardCodec.setName(HawkConfig.IJK_CODEC_DEFAULT);
         LinkedHashMap<String, String> hardOpt = new LinkedHashMap<>();
         hardOpt.put("4|mediacodec", "1");
         hardOpt.put("4|mediacodec-auto-rotate", "1");
@@ -1686,6 +1690,12 @@ public class ApiConfig {
         hardOpt.put("1|dns_cache_clear", "1");
         hardOpt.put("1|reconnect", "1");
         hardCodec.setOption(hardOpt);
+        return hardCodec;
+    }
+
+    public List<IJKCode> getDefaultIjkCodes(String selectedName) {
+        List<IJKCode> list = new ArrayList<>();
+        IJKCode hardCodec = createHardwareCodec();
 
         // 软解码 (Software decoding with low-latency and anti-stutter defaults)
         IJKCode softCodec = new IJKCode();
@@ -1704,7 +1714,7 @@ public class ApiConfig {
         softOpt.put("1|reconnect", "1");
         softCodec.setOption(softOpt);
 
-        if ("硬解码".equals(selectedName)) {
+        if (!"软解码".equals(selectedName)) {
             hardCodec.selected(true);
             softCodec.selected(false);
         } else {
@@ -1718,13 +1728,13 @@ public class ApiConfig {
 
     public List<IJKCode> getmIjkCodes() {
         if (NullUtil.isNull(mIjkCodes) || mIjkCodes.isEmpty()) {
-            mIjkCodes = getDefaultIjkCodes(Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
+            mIjkCodes = getDefaultIjkCodes(Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT));
         }
         return mIjkCodes;
     }
 
     public IJKCode getCurrentIJKCode() {
-        String codeName = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
+        String codeName = Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
         return getIJKCodec(codeName);
     }
 
@@ -1733,9 +1743,15 @@ public class ApiConfig {
             mIjkCodes = getDefaultIjkCodes(name);
         }
         for (IJKCode code : mIjkCodes) {
-            if (code != null && code.getName() != null && code.getName().equals(name))
+            if (code != null && code.getName() != null && code.getName().equals(name)) {
+                if (HawkConfig.IJK_CODEC_DEFAULT.equals(name) && (code.getOption() == null
+                        || !"1".equals(code.getOption().get("4|mediacodec")))) {
+                    return createHardwareCodec();
+                }
                 return code;
+            }
         }
+        if (HawkConfig.IJK_CODEC_DEFAULT.equals(name)) return createHardwareCodec();
         return mIjkCodes.isEmpty() ? new IJKCode() : mIjkCodes.get(0);
     }
 }

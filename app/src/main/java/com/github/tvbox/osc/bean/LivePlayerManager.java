@@ -22,7 +22,7 @@ public class LivePlayerManager {
             // Exo 只用于点播的磁盘缓存场景；单个频道仍可在直播设置里单独切到 Exo。
             if (playType == HawkConfig.PLAY_TYPE_EXO) playType = HawkConfig.PLAY_TYPE_IJK;
             defaultPlayerConfig.put("pl", playType);
-            defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
+            defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT));
             defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT));
             // 直播默认画面比例为自适应的「默认」，频道仍可单独修改。
             defaultPlayerConfig.put("sc", VideoView.SCREEN_SCALE_DEFAULT);
@@ -50,14 +50,16 @@ public class LivePlayerManager {
                 getDefaultLiveChannelPlayer(videoView);
             return;
         }
-        if (playerConfig.optInt("scv", 0) < 2) {
-            try {
+        try {
+            boolean changed = PlayerHelper.applyHardwareDefault(playerConfig);
+            if (playerConfig.optInt("scv", 0) < 2) {
                 playerConfig.put("sc", VideoView.SCREEN_SCALE_DEFAULT);
                 playerConfig.put("scv", 2);
-                Hawk.put(channelName, playerConfig);
-            } catch (JSONException e) {
-                e.printStackTrace();
+                changed = true;
             }
+            if (changed) Hawk.put(channelName, playerConfig);
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
         if (playerConfig.toString().equals(currentPlayerConfig.toString()))
             return;

@@ -322,9 +322,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             if (!mVodPlayerCfgJsonObject.has("pr")) {
                 mVodPlayerCfgJsonObject.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT));
             }
-            if (!mVodPlayerCfgJsonObject.has("ijk")) {
-                mVodPlayerCfgJsonObject.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, ""));
-            }
+            PlayerHelper.applyHardwareDefault(mVodPlayerCfgJsonObject);
             // 已有影片统一恢复一次默认比例，此后的手动选择不再重置。
             if (mVodPlayerCfgJsonObject.optInt("scv", 0) < 4) {
                 int scale = mVodPlayerCfgJsonObject.has("sc") ? VideoView.SCREEN_SCALE_DEFAULT
@@ -871,6 +869,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     @Override
     public void onBackPressed() {
+        dismissResumePrompt(false);
         if (mController != null && mController.cancelAutoNextCountdown()) return;
         if (mController != null && mController.cancelSpeedBoost(true)) return;
         if (mController != null && mController.lockWarning()) {
@@ -887,6 +886,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event != null) {
             int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                return super.dispatchKeyEvent(event);
+            }
             if (mResumeHintConsumedKey != KeyEvent.KEYCODE_UNKNOWN && keyCode == mResumeHintConsumedKey) {
                 if (event.getAction() == KeyEvent.ACTION_UP) mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
                 return true;

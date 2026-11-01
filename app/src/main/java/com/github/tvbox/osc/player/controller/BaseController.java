@@ -113,7 +113,9 @@ public abstract class BaseController extends BaseVideoController implements Gest
     @Override
     protected void setProgress(int duration, int position) {
         super.setProgress(duration, position);
-        mPauseTimeTV.setText(PlayerUtils.stringForTime(position) + " / " + PlayerUtils.stringForTime(duration));
+        if (mPauseRootView.getVisibility() == VISIBLE) {
+            mPauseTimeTV.setText(PlayerUtils.stringForTime(position) + " / " + PlayerUtils.stringForTime(duration));
+        }
     }
 
     @Override

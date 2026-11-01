@@ -1,9 +1,9 @@
 {
-  "versionCode": 170,
-  "versionName": "1.4.1",
-  "changelog": "播放与弹窗操作修复，发布 1.4.1\n\n- 打开剧集选择器时定位并聚焦当前播放集，切换剧集分组时保留预期焦点。\n- 增强直播换台的频道索引和播放状态检查，减少无效切换。\n- 选择弹窗支持遥控器确认键触发选项。\n- 接口配置弹窗安全处理返回结果，并在接口地址更新后定位光标。\n- 仅对识别为有效视频格式的地址启动播放，剪贴板和空列表交互更加稳妥。\n- 版本号升级至 1.4.1（versionCode 170）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.1/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.1/Z.apk",
-  "sha256": "386e6ebcb8025f2d3f09f2eaf9344ec4e194724b8f9a5bbd9d92cfb8ea1bd2e2",
-  "size": 24755916
+  "versionCode": 171,
+  "versionName": "1.4.2",
+  "changelog": "电视播放控制与硬解优先，发布 1.4.2\n\n- 修复播放页左右键被快进逻辑拦截，支持移动到倍速、选集等按钮。\n- 修复返回键反复唤出控制栏导致无法退出播放页的问题。\n- IJK 点播与直播默认硬解，旧配置迁移一次；Exo 优先可用硬件视频解码器并保留兼容回退。\n- 按设备普通内存额度限制缓冲，缩短内存预读及回看队列，减少低配电视内存压力。\n- 减少隐藏播放控件的文字刷新，增加本地掉帧与音频欠载诊断日志。\n- 构建和内存预算边界测试通过；电视实机播放与倍速流畅度仍待验证。\n- 版本号升级至 1.4.2（versionCode 171）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.2/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.2/Z.apk",
+  "sha256": "1d8f2ba3137cd2eba193136593c9cc9fa62f5cdfbfe7f79904d01287896d696c",
+  "size": 24763334
 }

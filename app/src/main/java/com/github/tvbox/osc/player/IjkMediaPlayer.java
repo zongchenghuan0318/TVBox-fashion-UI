@@ -10,21 +10,19 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import xyz.doikki.videoplayer.ijk.IjkPlayer;
+import xyz.doikki.videoplayer.util.PlaybackBufferBudget;
 
 public class IjkMediaPlayer extends IjkPlayer {
 
-    /** 播放中最多向前缓冲的时长：尽量往前预读，10 分钟内不设更细的停顿，让进度条尽情蓄水 */
-    private static final long BUFFER_AHEAD_MS = 600000L;
-    /** 缓冲区字节下限，也是低内存设备上的实际取值 */
-    private static final long BUFFER_BYTES_MIN = 64 * 1024 * 1024L;
-    /** 缓冲区字节上限，避免单个播放器把堆吃满 */
-    private static final long BUFFER_BYTES_CAP = 256 * 1024 * 1024L;
+    private static final long BUFFER_AHEAD_MS = 60000L;
+    private final int targetBufferBytes;
 
     private IJKCode codec = null;
 
     public IjkMediaPlayer(Context context, IJKCode codec) {
         super(context);
         this.codec = codec;
+        targetBufferBytes = PlaybackBufferBudget.forDevice(context);
     }
 
     @Override
@@ -47,8 +45,8 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
         mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1000L); // 首播起播蓄水 1.0 秒，极速起播
         mMediaPlayer.setOption(4, "next-high-water-mark-ms", 4000L);  // 重新缓冲时蓄水 4.0 秒，水库蓄满才放行，彻底消灭反复微卡顿
-        mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS); // 播放中最多向前缓冲 5 分钟，能拉多少拉多少
-        mMediaPlayer.setOption(4, "max-buffer-size", bufferBytes()); // 字节上限随堆大小动态放宽，避免先于时长上限截断
+        mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS);
+        mMediaPlayer.setOption(4, "max-buffer-size", targetBufferBytes);
         mMediaPlayer.setOption(4, "accurate-seek-timeout", 300L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
@@ -72,37 +70,24 @@ public class IjkMediaPlayer extends IjkPlayer {
                     } catch (Exception ignored) {
                     }
                 }
-                // 片源配置可能把缓冲调得很小，这里只对“小于安全值”的项兜底，配置更大的值仍然生效
-                applyBufferFloor(options, "4|last-high-water-mark-ms", BUFFER_AHEAD_MS);
-                applyBufferFloor(options, "4|max-buffer-size", bufferBytes());
+                // Respect smaller source settings, but keep large buffers within the device budget.
+                applyBufferCeiling(options, "4|last-high-water-mark-ms", BUFFER_AHEAD_MS);
+                applyBufferCeiling(options, "4|max-buffer-size", targetBufferBytes);
             }
         }
     }
 
-    /** 按堆上限动态放宽缓冲字节数：考虑极老设备保护，夹在 32MB~256MB 之间 */
-    private static long bufferBytes() {
-        long maxMemory = Runtime.getRuntime().maxMemory();
-        if (maxMemory <= 128L * 1024 * 1024L) {
-            return 32 * 1024 * 1024L; // 极老设备严控 32MB 保护
-        }
-        if (maxMemory <= 256L * 1024 * 1024L) {
-            return 64 * 1024 * 1024L; // 普通老设备 64MB 保护
-        }
-        long quarter = maxMemory / 4;
-        return Math.max(BUFFER_BYTES_MIN, Math.min(BUFFER_BYTES_CAP, quarter));
-    }
-
-    /** 配置值低于安全值时改回安全值；配置未提供或更大则保持现状 */
-    private void applyBufferFloor(LinkedHashMap<String, String> options, String key, long floor) {
+    private void applyBufferCeiling(LinkedHashMap<String, String> options, String key, long ceiling) {
         String value = options.get(key);
         if (value == null) return;
         try {
-            if (Long.parseLong(value.trim()) >= floor) return;
+            long configured = Long.parseLong(value.trim());
+            if (configured > 0 && configured <= ceiling) return;
         } catch (Exception ignored) {
         }
         String[] opt = key.split("\\|");
         try {
-            mMediaPlayer.setOption(Integer.parseInt(opt[0].trim()), opt[1].trim(), floor);
+            mMediaPlayer.setOption(Integer.parseInt(opt[0].trim()), opt[1].trim(), ceiling);
         } catch (Exception ignored) {
         }
     }
