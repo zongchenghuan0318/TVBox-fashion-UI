@@ -96,11 +96,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     public String movieName;
     boolean bSeriesSelect = false;
     /** 进入详情页后，首次加载完成时把焦点落到「当前集」上（否则默认停在左上角返回键） */
-    private boolean bNeedFocusSeries = true;
     private boolean autoPlayFromHistory;
+    private boolean hasPlaybackHistory;
     private int detailRequestId;
     /** 当前集还没被布局出来时的重试次数，避免滚动/布局未完成导致焦点设置失效 */
-    private int mFocusSeriesRetry = 0;
     private View mFocusView = null;
     private String searchTitle = "";
     private boolean bHadQuickStart = false;
@@ -169,7 +168,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                 }
                 tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
                 refreshList(false);
-                updatePlayButtonText(mVodInfo);
+                updatePlayButtonText();
             }
         });
         tvPlay.setOnClickListener(v -> {
@@ -280,6 +279,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
     private void applyVodHistoryAndRender(VodInfo vodInfoRecord) {
         if (mVodInfo == null) return;
+        hasPlaybackHistory = vodInfoRecord != null;
         // 读取历史记录
         if (vodInfoRecord != null) {
             mVodInfo.playIndex = Math.max(vodInfoRecord.playIndex, 0);
@@ -323,7 +323,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         if (tvSort != null) {
             tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
         }
-        updatePlayButtonText(vodInfoRecord);
+        updatePlayButtonText();
         refreshList(!autoPlayFromHistory);
         if (autoPlayFromHistory) {
             autoPlayFromHistory = false;
@@ -331,9 +331,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         }
     }
 
-    private void updatePlayButtonText(VodInfo vodInfoRecord) {
+    private void updatePlayButtonText() {
         if (tvPlay == null || mVodInfo == null) return;
-        if (vodInfoRecord != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
+        if (hasPlaybackHistory && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
             List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
             if (list != null && mVodInfo.playIndex >= 0 && mVodInfo.playIndex < list.size()) {
                 VodInfo.VodSeries cur = list.get(mVodInfo.playIndex);
@@ -416,9 +416,6 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             vodId = vid;
             sourceKey = key;
             bHadQuickStart = false;
-            // 换源搜索会重新加载详情，这里重置焦点标记，保证重新进入时焦点仍落在当前集
-            bNeedFocusSeries = true;
-            mFocusSeriesRetry = 0;
             showLoading();
             detailHandler.removeCallbacks(detailTimeout);
             detailHandler.postDelayed(detailTimeout, 20000L);
@@ -447,34 +444,38 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                refresh(itemView, position, false);
+                selectPlaybackFlag(itemView, position, false);
             }
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-                refresh(itemView, position, false);
-            }
-
-            private void refresh(View itemView, int position, boolean requestFocus) {
-                String newFlag = mFlagAdapter.getData().get(position).name;
-                if (mVodInfo != null && !mVodInfo.playFlag.equals(newFlag)) {
-                    for (int i = 0; i < mVodInfo.seriesFlags.size(); i++) {
-                        VodInfo.VodSeriesFlag flag = mVodInfo.seriesFlags.get(i);
-                        if (flag.name.equals(mVodInfo.playFlag)) {
-                            flag.selected = false;
-                            mFlagAdapter.notifyItemChanged(i);
-                            break;
-                        }
-                    }
-                    VodInfo.VodSeriesFlag flag = mVodInfo.seriesFlags.get(position);
-                    flag.selected = true;
-                    mVodInfo.playFlag = newFlag;
-                    mFlagAdapter.notifyItemChanged(position);
-                    refreshList(requestFocus);
-                }
-                mFocusView = itemView;
+                selectPlaybackFlag(itemView, position, true);
             }
         });
+        mFlagAdapter.setOnItemClickListener((adapter, view, position) -> selectPlaybackFlag(view, position, true));
+    }
+
+    private void selectPlaybackFlag(View itemView, int position, boolean requestFocus) {
+        if (mVodInfo == null || position < 0 || position >= mFlagAdapter.getData().size()) return;
+        String newFlag = mFlagAdapter.getData().get(position).name;
+        if (!android.text.TextUtils.equals(mVodInfo.playFlag, newFlag)) {
+            for (int i = 0; i < mVodInfo.seriesFlags.size(); i++) {
+                VodInfo.VodSeriesFlag flag = mVodInfo.seriesFlags.get(i);
+                if (android.text.TextUtils.equals(flag.name, mVodInfo.playFlag)) {
+                    flag.selected = false;
+                    mFlagAdapter.notifyItemChanged(i);
+                    break;
+                }
+            }
+            VodInfo.VodSeriesFlag flag = mVodInfo.seriesFlags.get(position);
+            flag.selected = true;
+            mVodInfo.playFlag = newFlag;
+            mFlagAdapter.notifyItemChanged(position);
+            refreshList(false);
+            updatePlayButtonText();
+        }
+        mFocusView = itemView;
+        if (requestFocus) focusPlayButton();
     }
 
     private void initSeriesGridView(){
@@ -563,7 +564,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     mSeriesAdapter.getData().get(position).selected = true;
                     mSeriesAdapter.notifyItemChanged(position);
                 }
-                updatePlayButtonText(mVodInfo);
+                updatePlayButtonText();
                 jumpToPlay();
             }
         }
@@ -577,6 +578,8 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     Bundle bundle = new Bundle();
                     bundle.putString("sourceKey", sourceKey);
                     bundle.putSerializable("VodInfo", mVodInfo);
+                    hasPlaybackHistory = true;
+                    updatePlayButtonText();
                     jumpActivity(PlayActivity.class, bundle);
                 } else {
                     Toast.makeText(this, "当前线路暂无可用剧集", Toast.LENGTH_SHORT).show();
@@ -630,42 +633,18 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         }
 
         if (!requestFocus) return;
-        mSeriesGridView.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                mSeriesGridView.scrollToPosition(mVodInfo.playIndex);
-                focusCurrentSeries();
-            }
-        }, 100);
+        mSeriesGridView.scrollToPosition(mVodInfo.playIndex);
+        focusPlayButton();
     }
 
-    /**
-     * 把焦点移到当前集上。
-     * 首次进入时列表还没有滚动到该集，其子 View 尚未被布局出来，直接 setSelection 会失效，
-     * 因此这里在子 View 出现后再设置焦点，并限制重试次数避免死循环。
-     */
-    private void focusCurrentSeries() {
-        if (!bNeedFocusSeries || mVodInfo == null || mSeriesGridView == null || mSeriesGridView.getLayoutManager() == null) {
-            bNeedFocusSeries = false;
-            return;
-        }
-        // 如果用户已主动将焦点移到其他可交互控件（如收藏、换源、分词搜索），立即退出重试并保留用户当前焦点
-        View current = getCurrentFocus();
-        if (current != null && current != mSeriesGridView && !mSeriesGridView.hasFocus()
-                && current.getId() != R.id.tvPlay) {
-            bNeedFocusSeries = false;
-            return;
-        }
-        if (mFocusSeriesRetry++ > 20) {
-            bNeedFocusSeries = false;
-            return;
-        }
-        if (mSeriesGridView.getLayoutManager().findViewByPosition(mVodInfo.playIndex) != null) {
-            bNeedFocusSeries = false;
-            mSeriesGridView.setSelection(mVodInfo.playIndex);
-        } else {
-            mSeriesGridView.postDelayed(this::focusCurrentSeries, 100);
-        }
+    private void focusPlayButton() {
+        final int requestId = detailRequestId;
+        tvPlay.post(() -> {
+            if (requestId == detailRequestId && !isFinishing() && !isDestroyed()
+                    && tvPlay.isShown() && tvPlay.isEnabled()) {
+                tvPlay.requestFocus();
+            }
+        });
     }
 
 

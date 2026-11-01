@@ -114,7 +114,6 @@ public class LivePlayActivity extends BaseActivity {
     protected void init() {
         livePlayerManager = new LivePlayerManager();
         mHandler = new Handler();
-        firstTimes = System.currentTimeMillis();
         PrintUtil.saveError("LivePlayActivity", "begin" + StringUtil.getFormat_Date_HH_MM_SS(System.currentTimeMillis()));
 
         setLoadSir(findViewById(R.id.live_root));
@@ -158,6 +157,7 @@ public class LivePlayActivity extends BaseActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+            if (keyCode != KeyEvent.KEYCODE_BACK) firstTimes = 0;
             if (keyCode == KeyEvent.KEYCODE_MENU) {
                 if (mDigitChannelBuffer.length() > 0) {
                     cancelDigitalTune();
@@ -212,7 +212,10 @@ public class LivePlayActivity extends BaseActivity {
                         showChannelList();
                         return true;
                     case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                        showChannelList();
+                        if (mVideoView != null) {
+                            if (mVideoView.isPlaying()) mVideoView.pause();
+                            else if (mVideoView.getCurrentPlayState() == VideoView.STATE_PAUSED) mVideoView.start();
+                        }
                         return true;
                 }
             }
@@ -227,6 +230,7 @@ public class LivePlayActivity extends BaseActivity {
 
     @Override
     protected void onPause() {
+        firstTimes = 0;
         liveScreenResumed = false;
         cancelPendingChannel();
         cancelDigitalTune();
@@ -244,20 +248,24 @@ public class LivePlayActivity extends BaseActivity {
     @Override
     public void onBackPressed() {
         if (mDigitChannelBuffer.length() > 0) {
+            firstTimes = 0;
             cancelDigitalTune();
             return;
         }
         if (llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
+            firstTimes = 0;
             mHandler.removeCallbacks(mHideChannelListRun);
             mHandler.post(mHideChannelListRun);
         }
         else if (rightSettingLayout.getVisibility() == View.VISIBLE) {
+            firstTimes = 0;
             mHandler.removeCallbacks(mHideSettingLayoutRun);
             mHandler.post(mHideSettingLayoutRun);
         }
         else {
-            if (System.currentTimeMillis() - firstTimes > 5000) {
-                firstTimes = System.currentTimeMillis();
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (firstTimes == 0 || now - firstTimes > 1500L) {
+                firstTimes = now;
                 UIUtil.showToast(this, "再按一次返回键退出");
                 return;
             }

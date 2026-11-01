@@ -244,7 +244,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
                 mClearDialog.dismiss();
             }
         });
-        mClearDialog.setOnShowListener(dialog -> mClearDialog.findViewById(R.id.leftBtn).requestFocus());
+        mClearDialog.setOnShowListener(dialog -> mClearDialog.findViewById(R.id.rightBtn).requestFocus());
         mClearDialog.show();
     }
 

@@ -126,6 +126,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private boolean mResumeHintPending;
     private long mResumeHintDeadline;
     private int mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
+    private long lastBackPressedMs;
+    private static final long BACK_EXIT_INTERVAL_MS = 1500L;
     private final Runnable mResumeHintTick = this::refreshResumeHintCountdown;
     private static final long RESUME_PROMPT_MIN_POSITION_MS = 30_000L;
     private boolean playbackStartPending;
@@ -870,16 +872,22 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     @Override
     public void onBackPressed() {
         dismissResumePrompt(false);
-        if (mController != null && mController.cancelAutoNextCountdown()) return;
-        if (mController != null && mController.cancelSpeedBoost(true)) return;
         if (mController != null && mController.lockWarning()) {
             return;
         }
-        if (mController != null && mController.isBottomVisible()) {
-            mController.hideBottom(true);
+        if (mController != null) {
+            mController.cancelAutoNextCountdown();
+            mController.cancelSpeedBoost(true);
+        }
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (lastBackPressedMs != 0 && now - lastBackPressedMs <= BACK_EXIT_INTERVAL_MS) {
+            lastBackPressedMs = 0;
+            super.onBackPressed();
             return;
         }
-        super.onBackPressed();
+        lastBackPressedMs = now;
+        showOverlaysThenAutoHide();
+        if (mController != null) mController.showBottom();
     }
 
     @Override
@@ -889,6 +897,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             if (keyCode == KeyEvent.KEYCODE_BACK) {
                 return super.dispatchKeyEvent(event);
             }
+            if (event.getAction() == KeyEvent.ACTION_DOWN) lastBackPressedMs = 0;
             if (mResumeHintConsumedKey != KeyEvent.KEYCODE_UNKNOWN && keyCode == mResumeHintConsumedKey) {
                 if (event.getAction() == KeyEvent.ACTION_UP) mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
                 return true;
@@ -927,6 +936,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) lastBackPressedMs = 0;
         if (event.getAction() == MotionEvent.ACTION_DOWN && isResumeHintVisible()) {
             Rect bounds = new Rect();
             mResumeRestartHint.getGlobalVisibleRect(bounds);
@@ -937,6 +947,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     @Override
     protected void onPause() {
+        lastBackPressedMs = 0;
         dismissResumePrompt(false);
         mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
         if (mController != null) mController.cancelAutoNextCountdown();

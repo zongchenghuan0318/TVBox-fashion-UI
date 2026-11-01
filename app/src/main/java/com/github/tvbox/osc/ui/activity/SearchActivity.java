@@ -878,7 +878,7 @@ public class SearchActivity extends BaseActivity {
             if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (currentFocus != null && isChildOf(currentFocus, keyboard)) {
                     View next = currentFocus.focusSearch(View.FOCUS_RIGHT);
-                    if (next == null || isChildOf(next, keyboard)) {
+                    if (next == null || !isChildOf(next, keyboard)) {
                         if (llWord != null && llWord.getVisibility() == View.VISIBLE && mHotWordRV != null && mHotWordRV.getChildCount() > 0) {
                             mHotWordRV.requestFocus();
                             return true;
@@ -889,7 +889,7 @@ public class SearchActivity extends BaseActivity {
                     }
                 } else if (currentFocus != null && isChildOf(currentFocus, mHotWordRV)) {
                     View next = currentFocus.focusSearch(View.FOCUS_RIGHT);
-                    if (next == null || isChildOf(next, mHotWordRV)) {
+                    if (next == null || !isChildOf(next, mHotWordRV)) {
                         if (mSearchResultRV != null && mSearchResultRV.getVisibility() == View.VISIBLE && mSearchResultRV.getChildCount() > 0) {
                             mSearchResultRV.requestFocus();
                             return true;
@@ -899,7 +899,7 @@ public class SearchActivity extends BaseActivity {
             } else if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (currentFocus != null && isChildOf(currentFocus, mSearchResultRV)) {
                     View next = currentFocus.focusSearch(View.FOCUS_LEFT);
-                    if (next == null || isChildOf(next, mSearchResultRV)) {
+                    if (next == null || !isChildOf(next, mSearchResultRV)) {
                         if (llWord != null && llWord.getVisibility() == View.VISIBLE && mHotWordRV != null && mHotWordRV.getChildCount() > 0) {
                             mHotWordRV.requestFocus();
                             return true;
@@ -910,7 +910,7 @@ public class SearchActivity extends BaseActivity {
                     }
                 } else if (currentFocus != null && isChildOf(currentFocus, mHotWordRV)) {
                     View next = currentFocus.focusSearch(View.FOCUS_LEFT);
-                    if (next == null || isChildOf(next, mHotWordRV)) {
+                    if (next == null || !isChildOf(next, mHotWordRV)) {
                         if (keyboard != null && keyboard.getVisibility() == View.VISIBLE) {
                             keyboard.requestFocus();
                             return true;

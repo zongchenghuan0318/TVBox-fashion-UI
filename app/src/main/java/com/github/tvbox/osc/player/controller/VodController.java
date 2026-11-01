@@ -1054,7 +1054,7 @@ public class VodController extends BaseController {
         return findViewById(R.id.img_layout).getVisibility() == VISIBLE;
     }
 
-    void showBottom() {
+    public void showBottom() {
         boolean wasVisible = mBottomLayout.getVisibility() == VISIBLE;
         setControlsVisible(true);
         refreshProgressNow();
@@ -1113,6 +1113,20 @@ public class VodController extends BaseController {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
         if (keyCode == KeyEvent.KEYCODE_BACK) return false;
+        boolean confirmKey = keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER
+                || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER;
+        boolean directionKey = keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+        if (!confirmKey && !directionKey && keyCode != KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) return false;
+        if (bLocked) {
+            if (confirmKey && action == KeyEvent.ACTION_UP) {
+                lockImg.performClick();
+            } else if (action == KeyEvent.ACTION_DOWN) {
+                showLockImg();
+                lockImg.requestFocus();
+            }
+            return true;
+        }
         boolean seekBarFocused = mSeekBar != null && mSeekBar.hasFocus();
         if (action == KeyEvent.ACTION_DOWN) {
             if (isBottomVisible() && movePlaybackControlFocus(keyCode)) {
