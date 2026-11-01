@@ -1,9 +1,9 @@
 {
-  "versionCode": 172,
-  "versionName": "1.4.3",
-  "changelog": "遥控器焦点与返回操作修复，发布 1.4.3\n\n- 修正搜索页左右键的焦点边界判断，避免跳到清空历史。\n- 详情加载完成或确认播放线路后，焦点落到立即播放/续播按钮，并按观看记录显示按钮文字。\n- 播放页首次返回唤出完整操作面板，1.5 秒内再次返回退出；其他操作取消退出计时。\n- 选择当前选项也可确认关闭弹窗，清空收藏/历史默认聚焦取消。\n- 修正直播返回计时和播放/暂停键行为，锁定播放后阻止方向键快进并支持确认键解锁。\n- Release 构建及签名校验通过，电视实机交互仍待验证。\n- 版本号升级至 1.4.3（versionCode 172）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.3/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.3/Z.apk",
-  "sha256": "bd20914e966877d2283bc310b2fc5200ac20c0dbc58dcb3a69815b81f28e031a",
-  "size": 24763615
+  "versionCode": 173,
+  "versionName": "1.4.4",
+  "changelog": "快进与播放缓冲优化，发布 1.4.4\n\n- 合并连续快进操作，减少重复跳转造成的缓冲。\n- 保留完整视频片段 URL，避免不同查询参数的片段共享错误缓存。\n- 调整播放器预缓冲和网络读取配置，并按应用实际堆限制缓冲预算。\n- 缓冲预算边界测试通过；跳转后播放效果仍需电视实机验证。\n- 版本号升级至 1.4.4（versionCode 173）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.4/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.4/Z.apk",
+  "sha256": "09cf5b81c86bc27e2413fb393d3f9f6047f2f8f1b2f913a7a935ed765e34b43c",
+  "size": 24763494
 }

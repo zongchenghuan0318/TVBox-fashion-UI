@@ -48,12 +48,16 @@ import xyz.doikki.videoplayer.util.PlaybackBufferBudget;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    // 首播起播所需蓄水 1.0 秒，极速秒出画同时保障前序基础帧完整
-    private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
-    // 卡顿二次缓冲蓄水门槛 4.5 秒：彻底阻断“起播秒开但网络波动时反复短暂停顿”的恶性循环，水库蓄满才放行
-    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 4_500;
-    // Bound forward and backward RAM queues; disk caching handles older segments.
-    private static final int MAX_BUFFER_MS = 60_000;
+    // 首播起播所需蓄水 2.0 秒，保障起播秒开同时拥有基础关键帧
+    private static final int BUFFER_FOR_PLAYBACK_MS = 2_000;
+    // 卡顿/跳转二次缓冲蓄水门槛提升至 6.5 秒：水库必须蓄够安全垫才放行，彻底消灭“刚缓冲好又卡”的反复卡顿死循环
+    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 6_500;
+    // 现代大内存电视超大缓冲时间上限：120 秒（整整两分钟的安全库存），大内存轻松吞下
+    private static final int MAX_BUFFER_MS = 120_000;
+    // 最小向前持续缓冲时间：45 秒（保持宽裕余粮，平滑网络波动）
+    private static final int MIN_BUFFER_MS = 45_000;
+    // 增加回退缓冲（BackBuffer）至 20 秒并保留关键帧：往回快退 5~15 秒时直接内存秒开，无需重新联网拉流
+    private static final int BACK_BUFFER_MS = 20_000;
 
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
@@ -80,16 +84,16 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void initPlayer() {
         if (mLoadControl == null) {
             int bufferBytes = PlaybackBufferBudget.forDevice(mAppContext);
-            boolean smallBudget = bufferBytes <= 16 * 1024 * 1024;
+            boolean smallBudget = bufferBytes <= 32 * 1024 * 1024;
             mLoadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                            smallBudget ? 15_000 : 30_000,
+                            smallBudget ? 20_000 : MIN_BUFFER_MS,
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
-                    .setBackBuffer(smallBudget ? 0 : 5_000, false)
+                    .setBackBuffer(smallBudget ? 5_000 : BACK_BUFFER_MS, true)
                     .setTargetBufferBytes(bufferBytes)
-                    .setPrioritizeTimeOverSizeThresholds(false)
+                    .setPrioritizeTimeOverSizeThresholds(true)
                     .createDefaultLoadControl();
         }
         if (mRenderersFactory == null) {

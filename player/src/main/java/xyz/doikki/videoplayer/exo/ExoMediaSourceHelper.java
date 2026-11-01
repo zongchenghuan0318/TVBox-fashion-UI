@@ -146,36 +146,35 @@ public final class ExoMediaSourceHelper {
         }
     }
 
-    private static final long MIN_SAFE_CACHE_BYTES = 256 * 1024 * 1024L; // 256MB 极老设备/小闪存兜底
-    private static final long DEFAULT_CACHE_BYTES = 1024 * 1024 * 1024L; // 1GB 黄金平衡（容纳1部完整电影）
-    private static final long MAX_SAFE_CACHE_BYTES = 1800 * 1024 * 1024L; // 1.8GB 宽裕存储上限
-    private static final long DISK_SAFETY_RESERVE_BYTES = 600 * 1024 * 1024L; // 严格为电视系统预留至少 600MB 运行空间，绝不占满
+    private static final long MIN_SAFE_CACHE_BYTES = 256 * 1024 * 1024L; // 256MB 极小闪存兜底
+    private static final long DEFAULT_CACHE_BYTES = 1024 * 1024 * 1024L; // 1GB 基础平衡
+    private static final long MAX_SAFE_CACHE_BYTES = 3500 * 1024 * 1024L; // 3.5GB 现代大容量电视存储上限（可完整容纳整部 4K 电影）
+    private static final long DISK_SAFETY_RESERVE_BYTES = 800 * 1024 * 1024L; // 严格为电视系统预留至少 800MB 运行空间，绝不占满
 
     /**
-     * 智能计算安全的磁盘缓存上限：根据老旧电视剩余闪存动态伸缩，杜绝占满电视内部空间
+     * 智能计算安全的磁盘缓存上限：根据现代电视剩余闪存动态伸缩，兼顾 4K 大片缓存与存储安全
      */
     private long calculateSafeDiskCacheBytes(File base) {
         try {
             long usableSpace = base.getUsableSpace();
-            // 如果可用空间小于 1.2GB，说明老电视闪存极其紧张，严格预留 600MB，绝不让系统弹存储不足警告
-            if (usableSpace < 1200 * 1024 * 1024L) {
+            // 如果可用空间小于 1.5GB，说明闪存紧张，严格预留安全空间
+            if (usableSpace < 1500 * 1024 * 1024L) {
                 long availableForCache = Math.max(0, usableSpace - DISK_SAFETY_RESERVE_BYTES);
                 return Math.max(128 * 1024 * 1024L, Math.min(MIN_SAFE_CACHE_BYTES, availableForCache / 2));
             }
-            // 剩余空间 1.2GB ~ 4GB：取剩余空间的 25%，安全防爆满
-            if (usableSpace < 4L * 1024 * 1024 * 1024L) {
+            // 剩余空间 1.5GB ~ 6GB：取剩余空间的 25%
+            if (usableSpace < 6L * 1024 * 1024 * 1024L) {
                 return Math.min(DEFAULT_CACHE_BYTES, usableSpace / 4);
             }
-            // 剩余空间充裕（> 4GB）：放宽到 1.5GB ~ 1.8GB，整部电影/多集电视剧秒拉秒回
-            return Math.min(MAX_SAFE_CACHE_BYTES, usableSpace / 5);
+            // 现代大存储电视（剩余空间 > 6GB）：放宽至 2.5GB ~ 3.5GB，整部 4K 电影拖动零延迟回看
+            return Math.min(MAX_SAFE_CACHE_BYTES, usableSpace / 4);
         } catch (Throwable ignored) {
             return DEFAULT_CACHE_BYTES;
         }
     }
 
     /**
-     * 针对 HLS 视频切片的智能 CacheKey 生成器：
-     * 去除切片 URL 末尾的动态 Token/时间戳参数，使得片源刷新鉴权后，本地已存的切片依然 100% 命中缓存！
+     * 保留完整 URL：查询参数可能区分不同片段或字节范围。
      */
     private static final CacheKeyFactory SMART_CACHE_KEY_FACTORY = dataSpec -> {
         if (dataSpec.key != null) {
@@ -183,15 +182,7 @@ public final class ExoMediaSourceHelper {
         }
         Uri uri = dataSpec.uri;
         if (uri == null) return "";
-        String url = uri.toString();
-        int queryIndex = url.indexOf('?');
-        if (queryIndex > 0) {
-            String pathPart = url.substring(0, queryIndex).toLowerCase();
-            if (pathPart.endsWith(".ts") || pathPart.endsWith(".m4s") || pathPart.endsWith(".mp4")) {
-                return url.substring(0, queryIndex);
-            }
-        }
-        return url;
+        return uri.toString();
     };
 
     private synchronized DataSource.Factory getCacheDataSourceFactory(DataSource.Factory upstream) {

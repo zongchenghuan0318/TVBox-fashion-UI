@@ -43,18 +43,18 @@ public class OkGoHelper {
         builder.addInterceptor(loggingInterceptor);
 
         builder.connectTimeout(15, TimeUnit.SECONDS);
-        builder.readTimeout(20, TimeUnit.SECONDS);
+        builder.readTimeout(25, TimeUnit.SECONDS);
         builder.writeTimeout(15, TimeUnit.SECONDS);
 
         builder.retryOnConnectionFailure(true);
         builder.followRedirects(true);
         builder.followSslRedirects(true);
-        builder.connectionPool(new ConnectionPool(32, 5, TimeUnit.MINUTES));
+        builder.connectionPool(new ConnectionPool(64, 5, TimeUnit.MINUTES));
 
-        // 解除单 host 5 个并发限制，允许 HLS 视频切片全速并发预读蓄水
+        // 解除并发限制，允许高码率 4K/HLS 视频切片以最大吞吐量并发预读蓄水
         Dispatcher dispatcher = new Dispatcher();
-        dispatcher.setMaxRequests(64);
-        dispatcher.setMaxRequestsPerHost(16);
+        dispatcher.setMaxRequests(128);
+        dispatcher.setMaxRequestsPerHost(32);
         builder.dispatcher(dispatcher);
 
         try {

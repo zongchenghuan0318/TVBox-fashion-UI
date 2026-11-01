@@ -14,7 +14,7 @@ import xyz.doikki.videoplayer.util.PlaybackBufferBudget;
 
 public class IjkMediaPlayer extends IjkPlayer {
 
-    private static final long BUFFER_AHEAD_MS = 60000L;
+    private static final long BUFFER_AHEAD_MS = 120000L;
     private final int targetBufferBytes;
 
     private IJKCode codec = null;
@@ -34,20 +34,20 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(1, "reconnect_streamed", 1L);
         mMediaPlayer.setOption(1, "reconnect_delay_max", 3L);
         mMediaPlayer.setOption(1, "fflags", "fastseek");              // 拖动时跳过冗余逐帧解码，快速定位关键帧
-        mMediaPlayer.setOption(1, "buffer_size", 1024 * 1024L);       // 1MB TCP 接收窗口，跑满宽带吞吐量
+        mMediaPlayer.setOption(1, "buffer_size", 4 * 1024 * 1024L);   // 4MB TCP 接收窗口，跑满宽带吞吐量
         mMediaPlayer.setOption(1, "multiple_requests", 1L);           // 开启 HTTP 复用，避免切片频繁握手
         mMediaPlayer.setOption(1, "analyzeduration", 1500000L);       // 预读分析时间优化为 1.5 秒加速起播
-        mMediaPlayer.setOption(1, "probesize", 1024 * 1024L);         // 探测大小 1MB
-        mMediaPlayer.setOption(4, "framedrop", 1L);                  // 丢帧保音画同步，老电视芯片低速不音画脱节
+        mMediaPlayer.setOption(1, "probesize", 2 * 1024 * 1024L);     // 探测大小提升至 2MB，保障 4K 高分辨率元数据快速嗅探
+        mMediaPlayer.setOption(4, "framedrop", 1L);                  // 丢帧保音画同步
         mMediaPlayer.setOption(4, "soundtouch", 1L);                 // 倍速播放变速不变调
         mMediaPlayer.setOption(4, "skip-calc-frame-rate", 1L);
-        // 核心缓冲配置：确保首播起播快且之后不出现“刚播一下就微卡”的蓄水断层
+        // 核心缓冲配置：面向现代高配置电视，消除高画质高码率拖动断流
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
-        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1000L); // 首播起播蓄水 1.0 秒，极速起播
-        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 4000L);  // 重新缓冲时蓄水 4.0 秒，水库蓄满才放行，彻底消灭反复微卡顿
+        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1500L); // 首播起播蓄水 1.5 秒，极速起播
+        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 6000L);  // 重新缓冲时蓄水 6.0 秒，水库蓄满才放行，消灭反复抽搐卡顿
         mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS);
-        mMediaPlayer.setOption(4, "max-buffer-size", targetBufferBytes);
-        mMediaPlayer.setOption(4, "accurate-seek-timeout", 300L);
+        mMediaPlayer.setOption(4, "max-buffer-size", targetBufferBytes); // 128MB~256MB 超大包缓存
+        mMediaPlayer.setOption(4, "accurate-seek-timeout", 200L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;
         if (codecTmp != null) {
