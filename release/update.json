@@ -1,9 +1,9 @@
 {
-  "versionCode": 163,
-  "versionName": "1.3.4",
-  "changelog": "首页海报切换渐入修复，发布 1.3.4\n\n- 修复切换首页焦点卡片时背景海报黑闪的问题。\n- 背景新图加载完成后与旧图短暂交叉淡入淡出，平滑呈现切换效果。\n- 保留滚动期间暂停背景解码、停稳后加载当前海报的性能优化。\n- Gitee 更新源切换至 `ad159753/TVBox-fashion-UI`。\n- 版本号升级至 1.3.4（versionCode 163）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.4/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.4/Z.apk",
-  "sha256": "42576e793b090dea6ba8319dbe3fcf1430e6cfc2aaec6e27de12a3e0d092677f",
-  "size": 24750763
+  "versionCode": 164,
+  "versionName": "1.3.5",
+  "changelog": "远程更新流程验证版，发布 1.3.5\n\n- 仅递增版本号，用于验证从 1.3.4 在线检测、下载并覆盖升级到 1.3.5。\n- 无其他功能变化。\n- 版本号升级至 1.3.5（versionCode 164）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.5/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.5/Z.apk",
+  "sha256": "ebf76d531ff106c5cd60166070bce7c7834345ab447ed68bf7781dda1a70e601",
+  "size": 24750780
 }
