@@ -21,8 +21,8 @@ import okhttp3.Response;
 /** Public release traffic only. Never uses the playback client's relaxed TLS settings. */
 public final class UpdateClient {
     /** 主更新源：查询 Gitee 发行版，再读取该版本的清单附件。 */
-    public static final String GITEE_REPOSITORY = "https://gitee.com/the-eternal-cycle/TVBox-fashion-UI";
-    public static final String GITEE_LATEST_RELEASE_URL = "https://gitee.com/api/v5/repos/the-eternal-cycle/TVBox-fashion-UI/releases/latest";
+    public static final String GITEE_REPOSITORY = "https://gitee.com/ad159753/TVBox-fashion-UI";
+    public static final String GITEE_LATEST_RELEASE_URL = "https://gitee.com/api/v5/repos/ad159753/TVBox-fashion-UI/releases/latest";
     /** 备用更新源：GitHub 发行版，沿用原有三条加速线路。 */
     public static final String GITHUB_REPOSITORY = "https://github.com/zongchenghuan0318/TVBox-fashion-UI";
     public static final String GITHUB_MANIFEST_URL = GITHUB_REPOSITORY + "/releases/latest/download/update.json";

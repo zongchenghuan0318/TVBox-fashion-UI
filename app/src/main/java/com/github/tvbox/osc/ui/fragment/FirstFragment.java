@@ -1,5 +1,7 @@
 package com.github.tvbox.osc.ui.fragment;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.content.Intent;
 import android.os.Bundle;
@@ -100,6 +102,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private static final float HERO_ZOOM_MIN = 1.03f;
     private static final float HERO_ZOOM_MAX = 1.08f;
     private static final long HERO_ZOOM_DURATION = 6000L;
+    private static final long HERO_FADE_DURATION = 220L;
     private static final long PAGE_HERO_TRANSITION_DURATION = 100L;
     /** 正在跑的 hero 动画，换图时统一取消：两个动画半路互相打断会让背景亮度抖一下 */
     private final List<ObjectAnimator> mHeroAnims = new ArrayList<>();
@@ -1306,7 +1309,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                             // 已经换了别的海报，这张旧图别往背景上贴
                             return true;
                         }
-                        if (!mHeroShown) showHeroImage(seq, incoming, outgoing);
+                        if (!mHeroShown) {
+                            incoming.post(() -> showHeroImage(seq, incoming, outgoing));
+                        }
                         return false;
                     }
                 })
@@ -1324,21 +1329,36 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             incoming.setAlpha(1f);
             incoming.setScaleX(1f);
             incoming.setScaleY(1f);
+            clearOutgoingHero(outgoing);
         } else {
             float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
             float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
-            incoming.setAlpha(1f);
             startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleX", from, to), HERO_ZOOM_DURATION);
             startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), HERO_ZOOM_DURATION);
-        }
-        if (outgoing != null && outgoing != incoming) {
-            Glide.clear(outgoing);
-            outgoing.setImageDrawable(null);
-            outgoing.setAlpha(0f);
+            startHeroAnim(ObjectAnimator.ofFloat(incoming, "alpha", incoming.getAlpha(), 1f), HERO_FADE_DURATION);
+            if (outgoing != null && outgoing != incoming && outgoing.getDrawable() != null) {
+                ObjectAnimator fadeOut = ObjectAnimator.ofFloat(outgoing, "alpha", outgoing.getAlpha(), 0f);
+                fadeOut.addListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        if (seq == mHeroSeq && mHeroFront == incoming) {
+                            clearOutgoingHero(outgoing);
+                        }
+                    }
+                });
+                startHeroAnim(fadeOut, HERO_FADE_DURATION);
+            }
         }
         if (!mAutoScrollingCards) {
             scheduleAutoScroll();
         }
+    }
+
+    private void clearOutgoingHero(ImageView outgoing) {
+        if (outgoing == null || outgoing == mHeroFront) return;
+        Glide.clear(outgoing);
+        outgoing.setImageDrawable(null);
+        outgoing.setAlpha(0f);
     }
 
     private void startHeroAnim(ObjectAnimator animator, long duration) {
