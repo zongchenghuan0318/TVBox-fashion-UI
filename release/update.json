@@ -1,9 +1,9 @@
 {
-  "versionCode": 164,
-  "versionName": "1.3.5",
-  "changelog": "远程更新流程验证版，发布 1.3.5\n\n- 仅递增版本号，用于验证从 1.3.4 在线检测、下载并覆盖升级到 1.3.5。\n- 无其他功能变化。\n- 版本号升级至 1.3.5（versionCode 164）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.5/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.5/Z.apk",
-  "sha256": "ebf76d531ff106c5cd60166070bce7c7834345ab447ed68bf7781dda1a70e601",
-  "size": 24750780
+  "versionCode": 165,
+  "versionName": "1.3.6",
+  "changelog": "直播与浏览体验优化，发布 1.3.6\n\n- 直播播放时支持上下滑切换频道，左右滑继续切换线路。\n- 优化直播频道列表与设置栏的自动收起时机。\n- 详情页续播按钮显示当前集数，并随排序或选集状态更新。\n- 搜索建议和历史词条点击后收起键盘。\n- 历史记录显示已有的播放进度提示。\n- 版本号升级至 1.3.6（versionCode 165）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.6/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.6/Z.apk",
+  "sha256": "a2373eebbc37cc3961c5432e75afc288fe62e757384269a43888a9a7db27dcac",
+  "size": 24751696
 }

@@ -313,6 +313,7 @@ public class SearchActivity extends BaseActivity {
         wordAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+                hideSoftKeyboard();
                 search(wordAdapter.getItem(position));
             }
         });
@@ -327,6 +328,7 @@ public class SearchActivity extends BaseActivity {
         historyAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+                hideSoftKeyboard();
                 search(historyAdapter.getItem(position));
             }
         });
@@ -570,8 +572,14 @@ public class SearchActivity extends BaseActivity {
     private void hideSoftKeyboard() {
         System_UI.hideInputMethod(getBaseContext(), etSearch);
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm != null && getCurrentFocus() != null) {
-            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+        if (imm != null) {
+            View view = getCurrentFocus();
+            if (view == null) {
+                view = etSearch != null ? etSearch : getWindow().getDecorView();
+            }
+            if (view != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
         }
     }
 
@@ -595,6 +603,7 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void search(String wd) {
+        hideSoftKeyboard();
         stopSearchRequests();
         tvRetrySearch.setVisibility(View.GONE);
         cancelSuggestions();

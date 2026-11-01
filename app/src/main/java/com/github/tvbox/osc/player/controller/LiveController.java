@@ -18,6 +18,7 @@ public class LiveController extends BaseController {
     private int minFlingDistance = 100;             //最小识别距离
     private int minFlingVelocity = 10;              //最小识别速度
     private static final float MIN_HORIZONTAL_DOMINANCE = 1.25f;
+    private static final float MIN_VERTICAL_DOMINANCE = 1.25f;
 
     public LiveController(@NotNull Context context) {
         super(context);
@@ -66,6 +67,8 @@ public class LiveController extends BaseController {
         void playStateChanged(int playState);
 
         void changeSource(int direction);
+
+        void changeChannel(int direction);
     }
 
     private LiveController.LiveControlListener listener = null;
@@ -108,17 +111,33 @@ public class LiveController extends BaseController {
         }
         float distanceX = e2.getX() - e1.getX();
         float distanceY = e2.getY() - e1.getY();
-        if (Math.abs(distanceX) <= minFlingDistance
-                || Math.abs(distanceX) < Math.abs(distanceY) * MIN_HORIZONTAL_DOMINANCE
-                || Math.abs(velocityX) <= minFlingVelocity
-                || Math.abs(velocityX) < Math.abs(velocityY)) {
-            return false;
+
+        // 1. 水平滑动切换线路（换源）
+        if (Math.abs(distanceX) > minFlingDistance
+                && Math.abs(distanceX) >= Math.abs(distanceY) * MIN_HORIZONTAL_DOMINANCE
+                && Math.abs(velocityX) > minFlingVelocity
+                && Math.abs(velocityX) >= Math.abs(velocityY)) {
+            if (distanceX < 0) {
+                listener.changeSource(-1);          //左滑
+            } else {
+                listener.changeSource(1);           //右滑
+            }
+            return true;
         }
-        if (distanceX < 0) {
-            listener.changeSource(-1);          //左滑
-        } else {
-            listener.changeSource(1);           //右滑
+
+        // 2. 垂直滑动切换频道（上滑下一个频道，下滑上一个频道）
+        if (Math.abs(distanceY) > minFlingDistance
+                && Math.abs(distanceY) >= Math.abs(distanceX) * MIN_VERTICAL_DOMINANCE
+                && Math.abs(velocityY) > minFlingVelocity
+                && Math.abs(velocityY) >= Math.abs(velocityX)) {
+            if (distanceY < 0) {
+                listener.changeChannel(1);          //上滑
+            } else {
+                listener.changeChannel(-1);         //下滑
+            }
+            return true;
         }
+
         return false;
     }
 }

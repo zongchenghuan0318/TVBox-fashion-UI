@@ -79,6 +79,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private TextView tvDes;
     private TextView tvPlay;
     private TextView tvCollect;
+    private TextView tvSort;
     private TvRecyclerView mFlagGridView;
     private TvRecyclerView mSeriesRangeRV;
     private TvRecyclerView mSeriesGridView;
@@ -145,7 +146,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         tvDirector = findViewById(R.id.tvDirector);
         tvDes = findViewById(R.id.tvDes);
         tvPlay = findViewById(R.id.tvPlay);
-        TextView tvSort = findViewById(R.id.tvSort);
+        tvSort = findViewById(R.id.tvSort);
         tvCollect = findViewById(R.id.tvCollect);
         TextView tvQuickSearch = findViewById(R.id.tvQuickSearch);
         mEmptyLayout = findViewById(R.id.mEmptyPlaylist);
@@ -166,6 +167,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                 }
                 tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
                 refreshList(false);
+                updatePlayButtonText(mVodInfo);
             }
         });
         tvPlay.setOnClickListener(v -> {
@@ -307,10 +309,36 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
         mFlagAdapter.setNewData(mVodInfo.seriesFlags);
         mFlagGridView.scrollToPosition(flagScrollTo);
+        if (tvSort != null) {
+            tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
+        }
+        updatePlayButtonText(vodInfoRecord);
         refreshList(!autoPlayFromHistory);
         if (autoPlayFromHistory) {
             autoPlayFromHistory = false;
             mSeriesGridView.postDelayed(DetailActivity.this::jumpToPlay, 120L);
+        }
+    }
+
+    private void updatePlayButtonText(VodInfo vodInfoRecord) {
+        if (tvPlay == null || mVodInfo == null) return;
+        if (vodInfoRecord != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
+            List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+            if (list != null && mVodInfo.playIndex >= 0 && mVodInfo.playIndex < list.size()) {
+                VodInfo.VodSeries cur = list.get(mVodInfo.playIndex);
+                String epName = cur != null && cur.name != null ? cur.name.trim() : "";
+                if (!epName.isEmpty()) {
+                    if (epName.startsWith("第") || epName.length() <= 5) {
+                        tvPlay.setText("续播 " + epName);
+                    } else {
+                        tvPlay.setText("继续播放");
+                    }
+                    return;
+                }
+            }
+            tvPlay.setText("继续播放");
+        } else {
+            tvPlay.setText("立即播放");
         }
     }
 
@@ -513,6 +541,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     }
                     mSeriesAdapter.getData().get(mVodInfo.playIndex).selected = true;
                     mSeriesAdapter.notifyItemChanged(mVodInfo.playIndex);
+                    updatePlayButtonText(mVodInfo);
                     jumpToPlay();
                 }
             }

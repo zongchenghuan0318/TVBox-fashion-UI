@@ -324,13 +324,22 @@ public class LivePlayActivity extends BaseActivity {
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         super.onAnimationEnd(animation);
-                        mHandler.removeCallbacks(mHideChannelListRun);
+                        resetHideChannelListTimer();
                     }
                 });
                 animator.start();
             }
         }
     };
+
+    private void resetHideChannelListTimer() {
+        if (mHandler != null) {
+            mHandler.removeCallbacks(mHideChannelListRun);
+            if (llLeftChannelListLayout != null && llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
+                mHandler.postDelayed(mHideChannelListRun, getOverlayHideTimeout());
+            }
+        }
+    }
 
     private long getOverlayHideTimeout() {
         return com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000L : 5000L;
@@ -777,6 +786,27 @@ public class LivePlayActivity extends BaseActivity {
                     playPreSource();
                 }
             }
+
+            @Override
+            public void changeChannel(int direction) {
+                if (isListOrSettingLayoutVisible()) {
+                    if (llLeftChannelListLayout != null && llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
+                        mHandler.removeCallbacks(mHideChannelListRun);
+                        mHandler.post(mHideChannelListRun);
+                    }
+                    if (rightSettingLayout != null && rightSettingLayout.getVisibility() == View.VISIBLE) {
+                        mHandler.removeCallbacks(mHideSettingLayoutRun);
+                        mHandler.post(mHideSettingLayoutRun);
+                    }
+                    return;
+                }
+                if (mDigitChannelBuffer.length() > 0) {
+                    cancelDigitalTune();
+                }
+                boolean reverse = Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false);
+                int targetDir = reverse ? -direction : direction;
+                queueAdjacentChannel(targetDir);
+            }
         });
         controller.setCanChangePosition(false);
         controller.setEnableInNormal(true);
@@ -834,6 +864,9 @@ public class LivePlayActivity extends BaseActivity {
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 mHandler.removeCallbacks(mHideChannelListRun);
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    resetHideChannelListTimer();
+                }
             }
         });
 
@@ -846,6 +879,7 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 selectChannelGroup(position, true, -1);
+                resetHideChannelListTimer();
             }
 
             @Override
@@ -862,6 +896,7 @@ public class LivePlayActivity extends BaseActivity {
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
                 selectChannelGroup(position, false, -1);
+                resetHideChannelListTimer();
             }
         });
     }
@@ -892,6 +927,9 @@ public class LivePlayActivity extends BaseActivity {
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 mHandler.removeCallbacks(mHideChannelListRun);
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    resetHideChannelListTimer();
+                }
             }
         });
 
@@ -906,7 +944,7 @@ public class LivePlayActivity extends BaseActivity {
                 if (position < 0) return;
                 liveGroupAdapter.setFocusedGroupIndex(-1);
                 liveChannelItemAdapter.setFocusedChannelIndex(position);
-                mHandler.removeCallbacks(mHideChannelListRun);
+                resetHideChannelListTimer();
             }
 
             @Override
@@ -928,6 +966,10 @@ public class LivePlayActivity extends BaseActivity {
     private void clickLiveChannel(int position) {
         liveChannelItemAdapter.setSelectedChannelIndex(position);
         playChannel(liveGroupAdapter.getSelectedGroupIndex(), position, false);
+        if (llLeftChannelListLayout != null && llLeftChannelListLayout.getVisibility() == View.VISIBLE) {
+            mHandler.removeCallbacks(mHideChannelListRun);
+            mHandler.postDelayed(mHideChannelListRun, 300L);
+        }
     }
 
     private void initSettingGroupView() {

@@ -32,7 +32,12 @@ public class HistoryAdapter extends BaseQuickAdapter<VodInfo, BaseViewHolder> {
                 : sourceName == null || sourceName.trim().isEmpty() ? "未知片源" : sourceName);
         helper.setVisible(R.id.tvLang, false);
         helper.setVisible(R.id.tvArea, false);
-        helper.setVisible(R.id.tvNote, false);
+        if (item.playNote != null && !item.playNote.trim().isEmpty()) {
+            helper.setText(R.id.tvNote, item.playNote.trim());
+            helper.setVisible(R.id.tvNote, true);
+        } else {
+            helper.setVisible(R.id.tvNote, false);
+        }
         helper.setText(R.id.tvName, item.name);
         // helper.setText(R.id.tvActor, item.actor);
         ImageView ivThumb = helper.getView(R.id.ivThumb);
