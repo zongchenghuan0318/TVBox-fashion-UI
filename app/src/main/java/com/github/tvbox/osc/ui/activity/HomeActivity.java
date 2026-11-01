@@ -152,6 +152,21 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private final Runnable categoryMetadataTimeout = this::onCategoryMetadataTimeout;
     private boolean hasScheduledUpdateCheck = false;
     private boolean updateSourceReady = false;
+    private final Runnable automaticUpdateCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing() || isDestroyed()) return;
+            if (!Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true)) {
+                hasScheduledUpdateCheck = false;
+                return;
+            }
+            if (getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                UpdateManager.check(HomeActivity.this, false);
+            } else {
+                hasScheduledUpdateCheck = false;
+            }
+        }
+    };
     private final Runnable mClockRunnable = new Runnable() {
         @Override
         public void run() {
@@ -940,16 +955,14 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
      */
     private void checkUpdateIfSourceReady() {
         updateSourceReady = true;
+        if (!Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true)) {
+            mHandler.removeCallbacks(automaticUpdateCheck);
+            hasScheduledUpdateCheck = false;
+            return;
+        }
         if (hasScheduledUpdateCheck || isFinishing() || isDestroyed()) return;
         hasScheduledUpdateCheck = true;
-        mHandler.postDelayed(() -> {
-            if (isFinishing() || isDestroyed()) return;
-            if (getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
-                UpdateManager.check(HomeActivity.this, false);
-            } else {
-                hasScheduledUpdateCheck = false;
-            }
-        }, 4000L);
+        mHandler.postDelayed(automaticUpdateCheck, 4000L);
     }
 
     private String categoryCacheKey(SiteBean source) {

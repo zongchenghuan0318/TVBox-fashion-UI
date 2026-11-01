@@ -36,7 +36,7 @@
                 android:focusable="true"
                 android:clickable="true"
                 android:nextFocusUp="@id/title_setting_tv"
-                android:nextFocusDown="@id/llApi"
+                android:nextFocusDown="@id/llAutoUpdate"
                 android:background="@drawable/selector_settings_update">
 
                 <!-- 磨砂圆形微图标 -->
@@ -98,6 +98,21 @@
                     android:textColor="#FFFFFF" />
             </LinearLayout>
 
+            <LinearLayout
+                style="@style/SettingGroup"
+                android:layout_marginTop="8mm">
+
+                <LinearLayout
+                    android:id="@+id/llAutoUpdate"
+                    style="@style/SettingRow"
+                    android:nextFocusUp="@id/llAbout"
+                    android:nextFocusDown="@id/llApi">
+                    <TextView style="@style/SettingRowTitle" android:text="启动时自动检查更新" />
+                    <TextView android:id="@+id/tvAutoUpdateState" style="@style/SettingRowValue" />
+                    <TextView style="@style/SettingRowArrow" />
+                </LinearLayout>
+            </LinearLayout>
+
             <!-- 左右双栏对称设置网格 -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -127,7 +142,7 @@
                         <LinearLayout
                             android:id="@+id/llApi"
                             style="@style/SettingRow"
-                            android:nextFocusUp="@id/llAbout"
+                            android:nextFocusUp="@id/llAutoUpdate"
                             android:nextFocusDown="@id/llLiveSource"
                             android:nextFocusRight="@id/llPlay">
                             <TextView style="@style/SettingRowTitle" android:text="配置接口" />

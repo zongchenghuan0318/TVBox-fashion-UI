@@ -135,6 +135,30 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvSubtitleLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.SUBTITLE_LANGUAGE, "")));
         tvSubtitleOff.setText(Hawk.get(HawkConfig.SUBTITLE_OFF, false) ? "关闭" : "自动选择");
         final View aboutRow = findViewById(R.id.llAbout);
+        final View autoUpdateRow = findViewById(R.id.llAutoUpdate);
+        final TextView autoUpdateState = findViewById(R.id.tvAutoUpdateState);
+        boolean autoUpdateEnabled = Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true);
+        autoUpdateState.setText(autoUpdateEnabled ? "已开启" : "已关闭");
+        autoUpdateRow.setContentDescription("启动时自动检查更新，" + (autoUpdateEnabled ? "已开启" : "已关闭"));
+        autoUpdateRow.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(
+                    View host, android.view.accessibility.AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClassName(android.widget.Switch.class.getName());
+                info.setCheckable(true);
+                info.setChecked(Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true));
+            }
+        });
+        autoUpdateRow.setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            boolean enabled = !Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true);
+            Hawk.put(HawkConfig.AUTO_UPDATE_CHECK, enabled);
+            autoUpdateState.setText(enabled ? "已开启" : "已关闭");
+            v.setContentDescription("启动时自动检查更新，" + (enabled ? "已开启" : "已关闭"));
+            v.requestFocus();
+            v.announceForAccessibility(enabled ? "启动时自动检查更新已开启" : "启动时自动检查更新已关闭，仍可手动检查更新");
+        });
         final View easterEggTrigger = requireActivity().findViewById(R.id.settingEasterEggTrigger);
         final TextView easterEggTitle = requireActivity().findViewById(R.id.settingEasterEggTitle);
         easterEggTrigger.setOnClickListener(v -> handleEasterEggClick(v, easterEggTrigger, easterEggTitle));
