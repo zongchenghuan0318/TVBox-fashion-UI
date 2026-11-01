@@ -1,9 +1,9 @@
 {
-  "versionCode": 166,
-  "versionName": "1.3.7",
-  "changelog": "收藏历史与播放列表体验优化，发布 1.3.7\n\n- 收藏和历史为空时显示引导提示，隐藏空列表区域。\n- 搜索页复用打开时刷新传入的搜索内容。\n- 增强详情页空线路、无剧集及选集状态处理，避免空数据导致异常。\n- 优化播放器长剧集分段选择，并在短剧集时正确隐藏分段栏。\n- 版本号升级至 1.3.7（versionCode 166）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.7/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.7/Z.apk",
-  "sha256": "3578c79a6293644a8ac408137d32d5fd161550b1e706b64f74e31fc2d611ebc6",
-  "size": 24752184
+  "versionCode": 167,
+  "versionName": "1.3.8",
+  "changelog": "跨源快速搜索体验优化，发布 1.3.8\n\n- 快速搜索增加加载中和无结果提示，等待超时后显示空状态。\n- 搜索结果与分词关键词支持遥控器焦点上下切换和选择。\n- 关闭搜索弹窗时清理等待任务，避免延迟回调残留。\n- 版本号升级至 1.3.8（versionCode 167）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.8/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.8/Z.apk",
+  "sha256": "b9cfe187180720ee1db66a31e8958c811df75b2a7ef83c2147dd9c3c453ab008",
+  "size": 24753555
 }
