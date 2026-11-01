@@ -153,6 +153,13 @@ public class SearchActivity extends BaseActivity {
         super.onResume();
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        initData();
+    }
+
     private void initView() {
         EventBus.getDefault().register(this);
         ImageView backTv = findViewById(R.id.back_tv);

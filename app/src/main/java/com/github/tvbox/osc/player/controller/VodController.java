@@ -665,12 +665,13 @@ public class VodController extends BaseController {
         adapter.setCurrent(mCurrentEpisode);
         episodeGrid.setAdapter(adapter);
 
-        if (mEpisodes.size() > 30 && episodeRangeRV != null) {
+        PlayerEpisodeRangeAdapter rangeAdapter = null;
+        final int step = 30;
+        if (mEpisodes.size() > step && episodeRangeRV != null) {
             episodeRangeRV.setVisibility(View.VISIBLE);
             episodeRangeRV.setLayoutManager(new V7LinearLayoutManager(mActivity, 0, false));
-            PlayerEpisodeRangeAdapter rangeAdapter = new PlayerEpisodeRangeAdapter();
+            rangeAdapter = new PlayerEpisodeRangeAdapter();
             List<EpisodeRangeBean> rangeList = new ArrayList<>();
-            final int step = 30;
             for (int i = 0; i < mEpisodes.size(); i += step) {
                 int start = i + 1;
                 int end = Math.min(i + step, mEpisodes.size());
@@ -682,9 +683,10 @@ public class VodController extends BaseController {
             episodeRangeRV.setAdapter(rangeAdapter);
             episodeRangeRV.scrollToPosition(currentRange);
 
+            final PlayerEpisodeRangeAdapter finalRangeAdapter = rangeAdapter;
             PlayerEpisodeRangeAdapter.OnItemClickListener rangeClickListener = (baseQuickAdapter, v, position) -> {
                 if (position >= 0 && position < rangeList.size()) {
-                    rangeAdapter.setSelectedIndex(position);
+                    finalRangeAdapter.setSelectedIndex(position);
                     EpisodeRangeBean item = rangeList.get(position);
                     focusEpisodeItem(episodeGrid, dialog, item.startIndex, 0);
                 }
@@ -700,41 +702,42 @@ public class VodController extends BaseController {
                 @Override
                 public void onItemClick(TvRecyclerView parent, View itemView, int position) {
                     if (position >= 0 && position < rangeList.size()) {
-                        rangeAdapter.setSelectedIndex(position);
+                        finalRangeAdapter.setSelectedIndex(position);
                         EpisodeRangeBean item = rangeList.get(position);
                         focusEpisodeItem(episodeGrid, dialog, item.startIndex, 0);
                     }
                 }
             });
-
-            episodeGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
-                @Override
-                public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
-
-                @Override
-                public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                    if (position >= 0 && position < mEpisodes.size()) {
-                        int rIdx = position / step;
-                        if (rIdx != rangeAdapter.getSelectedIndex()) {
-                            rangeAdapter.setSelectedIndex(rIdx);
-                            episodeRangeRV.scrollToPosition(rIdx);
-                        }
-                    }
-                }
-
-                @Override
-                public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-                    if (position != mCurrentEpisode) {
-                        mCurrentEpisode = position;
-                        updateEpisodeButton();
-                        controlListener.playEpisode(position);
-                    }
-                    dialog.dismiss();
-                }
-            });
         } else {
             if (episodeRangeRV != null) episodeRangeRV.setVisibility(View.GONE);
         }
+
+        final PlayerEpisodeRangeAdapter effectiveRangeAdapter = rangeAdapter;
+        episodeGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
+                if (effectiveRangeAdapter != null && episodeRangeRV != null && position >= 0 && position < mEpisodes.size()) {
+                    int rIdx = position / step;
+                    if (rIdx != effectiveRangeAdapter.getSelectedIndex()) {
+                        effectiveRangeAdapter.setSelectedIndex(rIdx);
+                        episodeRangeRV.scrollToPosition(rIdx);
+                    }
+                }
+            }
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                if (position != mCurrentEpisode) {
+                    mCurrentEpisode = position;
+                    updateEpisodeButton();
+                    controlListener.playEpisode(position);
+                }
+                dialog.dismiss();
+            }
+        });
 
         adapter.setOnItemClickListener((baseQuickAdapter, view, position) -> {
             if (position != mCurrentEpisode) {

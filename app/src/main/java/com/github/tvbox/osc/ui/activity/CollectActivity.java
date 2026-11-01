@@ -32,6 +32,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
     private TextView tvDel;
     private TextView tvClearAll;
     private TextView tvDelTip;
+    private View llEmpty;
     private TvRecyclerView mGridView;
     private CollectAdapter collectAdapter;
     private TipDialog mClearDialog = null;
@@ -73,6 +74,12 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         boolean empty = collectAdapter.getData() == null || collectAdapter.getData().isEmpty();
         tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
         tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (llEmpty != null) {
+            llEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+        }
+        if (mGridView != null) {
+            mGridView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        }
         updateModeHint();
         if (empty && delMode) toggleDelMode();
     }
@@ -109,6 +116,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         findViewById(R.id.title_collect_tv).setOnClickListener(this);
         tvClearAll = findViewById(R.id.tvClearAll);
         tvDelTip = findViewById(R.id.tvDelTip);
+        llEmpty = findViewById(R.id.llEmpty);
         mGridView = findViewById(R.id.sortRV);
         mGridView.setHasFixedSize(true);
         mGridView.setLayoutManager(        new V7GridLayoutManager(this.mContext,

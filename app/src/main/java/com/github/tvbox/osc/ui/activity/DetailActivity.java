@@ -156,13 +156,15 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         setLoadSir(findViewById(R.id.llLayout));
 
         tvSort.setOnClickListener(v -> {
-            if (mVodInfo != null && mVodInfo.seriesMap.size() > 0) {
+            if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
                 mVodInfo.reverseSort = !mVodInfo.reverseSort;
                 mVodInfo.reverse();
-                List<VodInfo.VodSeries> currentSeries = mVodInfo.seriesMap.get(mVodInfo.playFlag);
-                if (currentSeries != null && currentSeries.size() > 0) {
-                    if (mVodInfo.playIndex >= 0 && mVodInfo.playIndex < currentSeries.size()) {
-                        mVodInfo.playIndex = currentSeries.size() - 1 - mVodInfo.playIndex;
+                if (mVodInfo.playFlag != null) {
+                    List<VodInfo.VodSeries> currentSeries = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                    if (currentSeries != null && currentSeries.size() > 0) {
+                        if (mVodInfo.playIndex >= 0 && mVodInfo.playIndex < currentSeries.size()) {
+                            mVodInfo.playIndex = currentSeries.size() - 1 - mVodInfo.playIndex;
+                        }
                     }
                 }
                 tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
@@ -531,33 +533,42 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
-                if (mVodInfo != null && mVodInfo.seriesMap.get(mVodInfo.playFlag).size() > 0) {
-                    if (mVodInfo.playIndex != position) {
-                        mSeriesAdapter.getData().get(mVodInfo.playIndex).selected = false;
-                        mSeriesAdapter.notifyItemChanged(mVodInfo.playIndex);
-                        mSeriesAdapter.getData().get(position).selected = true;
-                        mSeriesAdapter.notifyItemChanged(position);
+                if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
+                    List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                    if (list != null && position >= 0 && position < list.size()) {
+                        int prevIndex = mVodInfo.playIndex;
+                        if (prevIndex != position && prevIndex >= 0 && prevIndex < mSeriesAdapter.getData().size()) {
+                            mSeriesAdapter.getData().get(prevIndex).selected = false;
+                            mSeriesAdapter.notifyItemChanged(prevIndex);
+                        }
                         mVodInfo.playIndex = position;
+                        if (position < mSeriesAdapter.getData().size()) {
+                            mSeriesAdapter.getData().get(position).selected = true;
+                            mSeriesAdapter.notifyItemChanged(position);
+                        }
+                        updatePlayButtonText(mVodInfo);
+                        jumpToPlay();
                     }
-                    mSeriesAdapter.getData().get(mVodInfo.playIndex).selected = true;
-                    mSeriesAdapter.notifyItemChanged(mVodInfo.playIndex);
-                    updatePlayButtonText(mVodInfo);
-                    jumpToPlay();
                 }
             }
         });
     }
 
     private void jumpToPlay() {
-        if(UiHelper.canPlay(mVideo)&& UiHelper.canPlayName(mVideo)) {
-            if (mVodInfo != null && mVodInfo.seriesMap.get(mVodInfo.playFlag).size() > 0) {
-                Bundle bundle = new Bundle();
-                bundle.putString("sourceKey", sourceKey);
-                bundle.putSerializable("VodInfo", mVodInfo);
-                jumpActivity(PlayActivity.class, bundle);
+        if (UiHelper.canPlay(mVideo) && UiHelper.canPlayName(mVideo)) {
+            if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
+                List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                if (list != null && !list.isEmpty()) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("sourceKey", sourceKey);
+                    bundle.putSerializable("VodInfo", mVodInfo);
+                    jumpActivity(PlayActivity.class, bundle);
+                } else {
+                    Toast.makeText(this, "当前线路暂无可用剧集", Toast.LENGTH_SHORT).show();
+                }
             }
-        }else{
-            L.d(mVideo.type);
+        } else {
+            L.d(mVideo != null ? mVideo.type : "null");
         }
     }
 
@@ -566,18 +577,27 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     private void refreshList(boolean requestFocus) {
-        if (mVodInfo.seriesMap.get(mVodInfo.playFlag).size() <= mVodInfo.playIndex) {
+        if (mVodInfo == null || mVodInfo.seriesMap == null || mVodInfo.playFlag == null) {
+            return;
+        }
+        List<VodInfo.VodSeries> currentSeries = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (currentSeries == null || currentSeries.isEmpty()) {
+            mSeriesAdapter.setNewData(new ArrayList<>());
+            if (mSeriesRangeRV != null) mSeriesRangeRV.setVisibility(View.GONE);
+            return;
+        }
+
+        if (mVodInfo.playIndex < 0 || mVodInfo.playIndex >= currentSeries.size()) {
             mVodInfo.playIndex = 0;
         }
 
-        List<VodInfo.VodSeries> currentSeries = mVodInfo.seriesMap.get(mVodInfo.playFlag);
-        if (currentSeries != null) {
-            currentSeries.get(mVodInfo.playIndex).selected = true;
+        for (int i = 0; i < currentSeries.size(); i++) {
+            currentSeries.get(i).selected = (i == mVodInfo.playIndex);
         }
 
         mSeriesAdapter.setNewData(currentSeries);
 
-        if (currentSeries != null && currentSeries.size() > 30 && mSeriesRangeRV != null) {
+        if (currentSeries.size() > 30 && mSeriesRangeRV != null) {
             mSeriesRangeRV.setVisibility(View.VISIBLE);
             List<EpisodeRangeBean> rangeList = new ArrayList<>();
             final int step = 30;

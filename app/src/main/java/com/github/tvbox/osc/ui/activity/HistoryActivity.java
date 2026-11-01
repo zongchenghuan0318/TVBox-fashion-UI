@@ -36,6 +36,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
     private TextView tvDel;
     private TextView tvClearAll;
     private TextView tvDelTip;
+    private View llEmpty;
     private TvRecyclerView mGridView;
     private HistoryAdapter historyAdapter;
     private TipDialog mClearDialog = null;
@@ -70,6 +71,12 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         boolean empty = historyAdapter.getData() == null || historyAdapter.getData().isEmpty();
         tvClearAll.setVisibility(empty ? View.GONE : View.VISIBLE);
         tvDel.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (llEmpty != null) {
+            llEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+        }
+        if (mGridView != null) {
+            mGridView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        }
         updateModeHint();
         if (empty && delMode) toggleDelMode();
     }
@@ -126,6 +133,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         tvDel = findViewById(R.id.tvDel);
         tvClearAll = findViewById(R.id.tvClearAll);
         tvDelTip = findViewById(R.id.tvDelTip);
+        llEmpty = findViewById(R.id.llEmpty);
         mGridView = findViewById(R.id.sortRV);
         findViewById(R.id.title_history_tv).setOnClickListener(this);
         mGridView.setHasFixedSize(true);

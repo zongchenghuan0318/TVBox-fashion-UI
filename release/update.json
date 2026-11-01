@@ -1,9 +1,9 @@
 {
-  "versionCode": 165,
-  "versionName": "1.3.6",
-  "changelog": "直播与浏览体验优化，发布 1.3.6\n\n- 直播播放时支持上下滑切换频道，左右滑继续切换线路。\n- 优化直播频道列表与设置栏的自动收起时机。\n- 详情页续播按钮显示当前集数，并随排序或选集状态更新。\n- 搜索建议和历史词条点击后收起键盘。\n- 历史记录显示已有的播放进度提示。\n- 版本号升级至 1.3.6（versionCode 165）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.6/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.6/Z.apk",
-  "sha256": "a2373eebbc37cc3961c5432e75afc288fe62e757384269a43888a9a7db27dcac",
-  "size": 24751696
+  "versionCode": 166,
+  "versionName": "1.3.7",
+  "changelog": "收藏历史与播放列表体验优化，发布 1.3.7\n\n- 收藏和历史为空时显示引导提示，隐藏空列表区域。\n- 搜索页复用打开时刷新传入的搜索内容。\n- 增强详情页空线路、无剧集及选集状态处理，避免空数据导致异常。\n- 优化播放器长剧集分段选择，并在短剧集时正确隐藏分段栏。\n- 版本号升级至 1.3.7（versionCode 166）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.7/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.7/Z.apk",
+  "sha256": "3578c79a6293644a8ac408137d32d5fd161550b1e706b64f74e31fc2d611ebc6",
+  "size": 24752184
 }
