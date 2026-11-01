@@ -3,6 +3,8 @@ package com.github.tvbox.osc.ui.dialog;
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -34,9 +36,20 @@ public class QuickSearchDialog extends BaseDialog {
     private QuickSearchAdapter mSearchAdapter;
     private TvRecyclerView mRv;
     private TvRecyclerView mWordRV;
+    private View llLoading;
+    private View llEmpty;
     private String mSearchWd;
     private Activity mAct;
     private Runnable mOnDialogDismiss;
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mSearchAdapter == null || mSearchAdapter.getData().isEmpty()) {
+                showEmpty();
+            }
+        }
+    };
 
     public void setOnDialogDismissListener(Runnable listener) {
         mOnDialogDismiss = listener;
@@ -58,9 +71,50 @@ public class QuickSearchDialog extends BaseDialog {
         Window dialogWindow = getWindow();
         if (dialogWindow != null) {
             WindowManager.LayoutParams lp = dialogWindow.getAttributes();
-            lp.width = (int) (PhoneParams.getScreenWidth(mAct) * 0.7); // 宽度设置为屏幕的0.9
-            lp.height = (int) (PhoneParams.getScreenHeight(mAct) * 0.9); // 宽度设置为屏幕的0.9
+            lp.width = (int) (PhoneParams.getScreenWidth(mAct) * 0.7); // 宽度设置为屏幕的0.7
+            lp.height = (int) (PhoneParams.getScreenHeight(mAct) * 0.9); // 高度设置为屏幕的0.9
             dialogWindow.setAttributes(lp);
+        }
+    }
+
+    private void showLoading() {
+        mHandler.removeCallbacks(mTimeoutRunnable);
+        if (llLoading != null) llLoading.setVisibility(View.VISIBLE);
+        if (llEmpty != null) llEmpty.setVisibility(View.GONE);
+        mHandler.postDelayed(mTimeoutRunnable, 6000);
+    }
+
+    private void showEmpty() {
+        if (llLoading != null) llLoading.setVisibility(View.GONE);
+        if (llEmpty != null) llEmpty.setVisibility(View.VISIBLE);
+    }
+
+    private void showContent() {
+        mHandler.removeCallbacks(mTimeoutRunnable);
+        if (llLoading != null) llLoading.setVisibility(View.GONE);
+        if (llEmpty != null) llEmpty.setVisibility(View.GONE);
+    }
+
+    private void selectVideo(int position) {
+        if (mSearchAdapter != null && position >= 0 && position < mSearchAdapter.getData().size()) {
+            Movie.Video video = mSearchAdapter.getData().get(position);
+            if (video != null) {
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_SELECT, video));
+                dismiss();
+            }
+        }
+    }
+
+    private void selectWord(int position) {
+        if (mWordAdapter != null && position >= 0 && position < mWordAdapter.getData().size()) {
+            String word = mWordAdapter.getData().get(position);
+            if (word != null && !word.isEmpty()) {
+                mSearchAdapter.getData().clear();
+                mSearchAdapter.notifyDataSetChanged();
+                mSearchWd = word;
+                showLoading();
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_WORD_CHANGE, mSearchWd));
+            }
         }
     }
 
@@ -70,8 +124,11 @@ public class QuickSearchDialog extends BaseDialog {
             if (event.obj != null) {
                 List<Movie.Video> data = (List<Movie.Video>) event.obj;
                 List<Movie.Video> videos = filterVideoList(data, mSearchWd);
-                mSearchAdapter.addData(videos);
-                sortBySourceOrder();
+                if (videos != null && !videos.isEmpty()) {
+                    mSearchAdapter.addData(videos);
+                    sortBySourceOrder();
+                    showContent();
+                }
             }
         } else if (event.type == RefreshEvent.TYPE_QUICK_SEARCH_WORD) {
             if (event.obj != null) {
@@ -112,23 +169,44 @@ public class QuickSearchDialog extends BaseDialog {
         setOnDismissListener(new DialogInterface.OnDismissListener() {
             @Override
             public void onDismiss(DialogInterface dialog) {
+                mHandler.removeCallbacksAndMessages(null);
                 EventBus.getDefault().unregister(QuickSearchDialog.this);
                 if (mOnDialogDismiss != null) mOnDialogDismiss.run();
             }
         });
+
+        llLoading = findViewById(R.id.llQuickSearchLoading);
+        llEmpty = findViewById(R.id.llQuickSearchEmpty);
+
         mRv = findViewById(R.id.sortRV);
         mSearchAdapter = new QuickSearchAdapter();
         mRv.setHasFixedSize(true);
         mRv.setLayoutManager(new V7LinearLayoutManager(getContext(), 1, false));
         mRv.setAdapter(mSearchAdapter);
-        mSearchAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
+
+        // 遥控器与触摸/鼠标点击双重保障
+        mRv.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
-            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                Movie.Video video = mSearchAdapter.getData().get(position);
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_SELECT, video));
-                dismiss();
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                selectVideo(position);
             }
         });
+        mRv.setOnInBorderKeyEventListener((direction, focused) -> {
+            if (direction == View.FOCUS_UP) {
+                if (mWordRV != null && mWordRV.getChildCount() > 0) {
+                    mWordRV.requestFocus();
+                    return true;
+                }
+            }
+            return false;
+        });
+        mSearchAdapter.setOnItemClickListener((adapter, view, position) -> selectVideo(position));
         mSearchAdapter.setNewData(new ArrayList<>());
 
         //切换关键字搜索
@@ -136,13 +214,30 @@ public class QuickSearchDialog extends BaseDialog {
         mWordRV = findViewById(R.id.mGridViewWord);
         mWordRV.setAdapter(mWordAdapter);
         mWordRV.setLayoutManager(new V7LinearLayoutManager(context, 0, false));
-        mWordAdapter.setOnItemClickListener((adapter, view, position) -> {
-            mSearchAdapter.getData().clear();
-            mSearchAdapter.notifyDataSetChanged();
-            mSearchWd = mWordAdapter.getData().get(position);
-            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_WORD_CHANGE, mSearchWd));
+        mWordRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                selectWord(position);
+            }
         });
+        mWordRV.setOnInBorderKeyEventListener((direction, focused) -> {
+            if (direction == View.FOCUS_DOWN) {
+                if (mRv != null && mRv.getChildCount() > 0) {
+                    mRv.requestFocus();
+                    return true;
+                }
+            }
+            return false;
+        });
+        mWordAdapter.setOnItemClickListener((adapter, view, position) -> selectWord(position));
         mWordAdapter.setNewData(new ArrayList<>());
 
+        showLoading();
     }
 }

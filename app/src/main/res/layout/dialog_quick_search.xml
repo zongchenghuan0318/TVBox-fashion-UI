@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="其他数据源中的相关资源, 没有找到可以尝试选词重搜"
+            android:text="其他数据源中的相关资源，没有找到可以尝试选词重搜"
             android:textColor="@color/color_FFFFFF"
             android:textSize="@dimen/ts_22" />
 
@@ -31,15 +31,78 @@
             app:tv_selectedItemIsCentered="true"
             app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
 
-        <com.owen.tvrecyclerview.widget.TvRecyclerView
-            android:id="@+id/sortRV"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
-            app:tv_selectedItemIsCentered="true"
-            app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
+            android:layout_height="match_parent">
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/sortRV"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
+                app:tv_selectedItemIsCentered="true"
+                app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
+
+            <LinearLayout
+                android:id="@+id/llQuickSearchLoading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="visible">
+
+                <ProgressBar
+                    android:id="@+id/pbQuickSearch"
+                    android:layout_width="@dimen/vs_45"
+                    android:layout_height="@dimen/vs_45"
+                    android:indeterminate="true" />
+
+                <TextView
+                    android:id="@+id/tvQuickSearchLoading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_12"
+                    android:text="正在搜索其他数据源…"
+                    android:textColor="@color/color_CCFFFFFF"
+                    android:textSize="@dimen/ts_20" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llQuickSearchEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="@dimen/vs_80"
+                    android:layout_height="@dimen/vs_80"
+                    android:alpha="0.4"
+                    android:src="@drawable/icon_empty" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_12"
+                    android:text="未在其他源中找到相关片源"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="@dimen/ts_22"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_6"
+                    android:text="可尝试点击上方分词关键词重新检索"
+                    android:textColor="@color/color_6CFFFFFF"
+                    android:textSize="@dimen/ts_16" />
+            </LinearLayout>
+        </FrameLayout>
 
     </LinearLayout>
 </FrameLayout>
