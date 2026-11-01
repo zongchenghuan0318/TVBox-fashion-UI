@@ -196,8 +196,31 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
         return super.dispatchKeyEvent(event);
     }
 
+    private boolean isChildOf(View child, View parent) {
+        if (child == null || parent == null) return false;
+        View current = child;
+        while (current != null) {
+            if (current == parent) return true;
+            if (current.getParent() instanceof View) {
+                current = (View) current.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void onBackPressed() {
+        View current = getCurrentFocus();
+        // 电视端层级返回体验优化：若焦点在右侧设置项内容区（ViewPager），按返回键先将焦点退回到左侧设置菜单列表
+        if (current != null && mViewPager != null && isChildOf(current, mViewPager)) {
+            if (mGridView != null && mGridView.isShown()) {
+                mGridView.requestFocus();
+                return;
+            }
+        }
+
         String newHomeKey = ApiConfig.getInstance().getHomeBean().getKey();
         //切换回自动选择，没重新加载
         if (!oldHomeKey.equals(newHomeKey)

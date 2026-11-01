@@ -48,14 +48,14 @@ import xyz.doikki.videoplayer.util.PlaybackBufferBudget;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    // 首播起播所需蓄水 2.0 秒，保障起播秒开同时拥有基础关键帧
-    private static final int BUFFER_FOR_PLAYBACK_MS = 2_000;
-    // 卡顿/跳转二次缓冲蓄水门槛提升至 6.5 秒：水库必须蓄够安全垫才放行，彻底消灭“刚缓冲好又卡”的反复卡顿死循环
-    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 6_500;
-    // 现代大内存电视超大缓冲时间上限：120 秒（整整两分钟的安全库存），大内存轻松吞下
+    // 首播起播极速蓄水 1.0 秒：秒出画，实现跳转直接接上
+    private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
+    // 卡顿二次缓冲门槛 2.0 秒：短小精悍，快速恢复，避免长时间转圈
+    private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_000;
+    // 现代大内存电视超大缓冲时间上限：120 秒（两分钟安全库存），大内存轻松吞下
     private static final int MAX_BUFFER_MS = 120_000;
-    // 最小向前持续缓冲时间：45 秒（保持宽裕余粮，平滑网络波动）
-    private static final int MIN_BUFFER_MS = 45_000;
+    // 最小向前持续缓冲时间：50 秒（开播后后台持续全速推进，彻底消灭二次卡顿）
+    private static final int MIN_BUFFER_MS = 50_000;
     // 增加回退缓冲（BackBuffer）至 20 秒并保留关键帧：往回快退 5~15 秒时直接内存秒开，无需重新联网拉流
     private static final int BACK_BUFFER_MS = 20_000;
 
@@ -84,15 +84,16 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void initPlayer() {
         if (mLoadControl == null) {
             int bufferBytes = PlaybackBufferBudget.forDevice(mAppContext);
-            boolean smallBudget = bufferBytes <= 32 * 1024 * 1024;
+            // 现代大内存电视环境下保障充裕内存水库，高码率下后台预读绝不因单秒字节大而提前停摆
+            int targetBufferBytes = Math.max(bufferBytes, 128 * 1024 * 1024);
             mLoadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                            smallBudget ? 20_000 : MIN_BUFFER_MS,
+                            MIN_BUFFER_MS,
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
-                    .setBackBuffer(smallBudget ? 5_000 : BACK_BUFFER_MS, true)
-                    .setTargetBufferBytes(bufferBytes)
+                    .setBackBuffer(BACK_BUFFER_MS, true)
+                    .setTargetBufferBytes(targetBufferBytes)
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .createDefaultLoadControl();
         }
@@ -108,6 +109,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
                         }
                         return decoders;
                     })
+                    .setAllowedVideoJoiningTimeMs(5000L)
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                     .setEnableDecoderFallback(true);
         }
@@ -441,8 +443,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void setOptions() {
         //准备好就开始播放
         mInternalPlayer.setPlayWhenReady(true);
-        // 关键帧极速定位：拖动落点跳到最近关键帧瞬间出画，避免从前一个关键帧软件补帧解码 1~3 秒导致的拖动卡顿
-        mInternalPlayer.setSeekParameters(SeekParameters.CLOSEST_SYNC);
+        // 定位到前一个同步关键帧：确保参考帧完整，消除因跳过头缺失参考帧导致的解码器卡死与反复卡顿
+        mInternalPlayer.setSeekParameters(SeekParameters.PREVIOUS_SYNC);
     }
 
     @Override

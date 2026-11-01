@@ -922,6 +922,19 @@ public class SearchActivity extends BaseActivity {
         return super.dispatchKeyEvent(event);
     }
 
+    @Override
+    public void onBackPressed() {
+        View currentFocus = getCurrentFocus();
+        // 电视端层级返回：若焦点在搜索结果或热搜词上，按返回键先将焦点送回键盘区，继续在键盘区按返回才退出
+        if (currentFocus != null && (isChildOf(currentFocus, mSearchResultRV) || isChildOf(currentFocus, mHotWordRV))) {
+            if (keyboard != null && keyboard.getVisibility() == View.VISIBLE) {
+                keyboard.requestFocus();
+                return;
+            }
+        }
+        super.onBackPressed();
+    }
+
     private boolean isChildOf(View child, View parent) {
         if (child == null || parent == null) return false;
         if (child == parent) return true;

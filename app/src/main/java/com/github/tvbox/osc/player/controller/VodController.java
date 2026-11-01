@@ -1082,7 +1082,8 @@ public class VodController extends BaseController {
         }
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
         setControlsVisible(false);
-        if (force) requestFocus();
+        // 电视端防丢焦点：底栏无论是自然超时隐藏还是强制隐藏，都主动将焦点拉回 Controller 容器，杜绝悬空焦点吞按键
+        requestFocus();
     }
 
     private void setControlsVisible(boolean visible) {
@@ -1147,6 +1148,12 @@ public class VodController extends BaseController {
                         showBottom();
                         return true;
                     }
+                }
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (!isBottomVisible() && !bLocked) {
+                    showBottom();
+                    return true;
                 }
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {

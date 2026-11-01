@@ -12,6 +12,8 @@ import com.google.android.exoplayer2.ext.rtmp.RtmpDataSourceFactory;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
+import com.google.android.exoplayer2.extractor.ts.DefaultTsPayloadReaderFactory;
+import com.google.android.exoplayer2.source.hls.DefaultHlsExtractorFactory;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.rtsp.RtspMediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
@@ -101,17 +103,25 @@ public final class ExoMediaSourceHelper {
         int contentType = inferContentType(uri);
         DataSource.Factory upstream = getDataSourceFactory(headers);
         DataSource.Factory factory;
-        if (isCache) {
+        if (isCache && contentType != C.TYPE_HLS && contentType != C.TYPE_DASH) {
+            // 切片流（HLS/DASH）坚决走纯内存 Upstream 直通，彻底消除磁盘写入锁争用、残缺切片与闪存 IO 阻塞
+            // 仅对单文件点播（MP4/MKV等）使用磁盘缓存
             factory = getCacheDataSourceFactory(upstream);
         } else {
             factory = upstream;
         }
         switch (contentType) {
             case C.TYPE_DASH:
-                return new DashMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
+                return new DashMediaSource.Factory(upstream).createMediaSource(MediaItem.fromUri(contentUri));
             case C.TYPE_HLS:
-                return new HlsMediaSource.Factory(factory)
-                        .setAllowChunklessPreparation(true)
+                DefaultHlsExtractorFactory extractorFactory = new DefaultHlsExtractorFactory(
+                        DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
+                                | DefaultTsPayloadReaderFactory.FLAG_IGNORE_SPLICE_INFO_STREAM
+                                | DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS,
+                        true);
+                return new HlsMediaSource.Factory(upstream)
+                        .setExtractorFactory(extractorFactory)
+                        .setAllowChunklessPreparation(false)
                         .createMediaSource(MediaItem.fromUri(contentUri));
             default:
             case C.TYPE_OTHER:

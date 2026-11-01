@@ -830,9 +830,66 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         }
     }
 
+    private boolean isChildOf(View child, View parent) {
+        if (child == null || parent == null) return false;
+        View current = child;
+        while (current != null) {
+            if (current == parent) return true;
+            if (current.getParent() instanceof View) {
+                current = (View) current.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void onBackPressed() {
-        if (bSeriesSelect) {
+        View current = getCurrentFocus();
+        if (current != null) {
+            // 1. 焦点在集数列表（第1集、第2集...）时，按返回键优先退回到分集区间或线路栏，最后到播放按钮，绝不直接关页
+            if (mSeriesGridView != null && isChildOf(current, mSeriesGridView)) {
+                if (mSeriesRangeRV != null && mSeriesRangeRV.getVisibility() == View.VISIBLE && mSeriesRangeRV.getChildCount() > 0) {
+                    mSeriesRangeRV.requestFocus();
+                    return;
+                }
+                if (mFlagGridView != null && mFlagGridView.getVisibility() == View.VISIBLE && mFlagGridView.getChildCount() > 0) {
+                    if (mFocusView != null && mFocusView.isShown()) {
+                        mFocusView.requestFocus();
+                    } else {
+                        mFlagGridView.requestFocus();
+                    }
+                    return;
+                }
+                if (tvPlay != null && tvPlay.isShown()) {
+                    tvPlay.requestFocus();
+                    return;
+                }
+            }
+            // 2. 焦点在分集区间栏（如 1-30, 31-60）时，按返回键退回线路栏或播放按钮
+            else if (mSeriesRangeRV != null && isChildOf(current, mSeriesRangeRV)) {
+                if (mFlagGridView != null && mFlagGridView.getVisibility() == View.VISIBLE && mFlagGridView.getChildCount() > 0) {
+                    if (mFocusView != null && mFocusView.isShown()) {
+                        mFocusView.requestFocus();
+                    } else {
+                        mFlagGridView.requestFocus();
+                    }
+                    return;
+                }
+                if (tvPlay != null && tvPlay.isShown()) {
+                    tvPlay.requestFocus();
+                    return;
+                }
+            }
+            // 3. 焦点在线路栏（4K专线、蓝光极速等）时，按返回键退回顶部核心操作按钮（立即播放）
+            else if (mFlagGridView != null && isChildOf(current, mFlagGridView)) {
+                if (tvPlay != null && tvPlay.isShown()) {
+                    tvPlay.requestFocus();
+                    return;
+                }
+            }
+        } else if (bSeriesSelect) {
             if (mFocusView != null && !mFocusView.isFocused()) {
                 mFocusView.requestFocus();
                 return;

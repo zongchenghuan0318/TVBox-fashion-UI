@@ -41,12 +41,12 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(4, "framedrop", 1L);                  // 丢帧保音画同步
         mMediaPlayer.setOption(4, "soundtouch", 1L);                 // 倍速播放变速不变调
         mMediaPlayer.setOption(4, "skip-calc-frame-rate", 1L);
-        // 核心缓冲配置：面向现代高配置电视，消除高画质高码率拖动断流
+        // 核心缓冲配置：极速接上 + 120 秒后台长蓄水
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
-        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 1500L); // 首播起播蓄水 1.5 秒，极速起播
-        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 6000L);  // 重新缓冲时蓄水 6.0 秒，水库蓄满才放行，消灭反复抽搐卡顿
+        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 800L);  // 首播起播蓄水 0.8 秒，瞬间接上
+        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2000L);  // 重新缓冲时蓄水 2.0 秒，快速恢复
         mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS);
-        mMediaPlayer.setOption(4, "max-buffer-size", targetBufferBytes); // 128MB~256MB 超大包缓存
+        mMediaPlayer.setOption(4, "max-buffer-size", Math.max(targetBufferBytes, 128 * 1024 * 1024)); // 128MB~256MB 超大包缓存
         mMediaPlayer.setOption(4, "accurate-seek-timeout", 200L);
 
         IJKCode codecTmp = this.codec == null ? ApiConfig.getInstance().getCurrentIJKCode() : this.codec;

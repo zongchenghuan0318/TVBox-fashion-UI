@@ -879,6 +879,12 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             mController.cancelAutoNextCountdown();
             mController.cancelSpeedBoost(true);
         }
+        // 电视端层级返回体验优化：若底栏正处于呼出展示状态，按返回键首选动作是收起底栏回到纯净全屏，绝不误触退出！
+        if (mController != null && mController.isBottomVisible()) {
+            mController.hideBottom(true);
+            lastBackPressedMs = 0;
+            return;
+        }
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastBackPressedMs != 0 && now - lastBackPressedMs <= BACK_EXIT_INTERVAL_MS) {
             lastBackPressedMs = 0;
@@ -886,8 +892,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             return;
         }
         lastBackPressedMs = now;
-        showOverlaysThenAutoHide();
-        if (mController != null) mController.showBottom();
+        showTipsView("再按一次返回键退出播放", true, false);
     }
 
     @Override
