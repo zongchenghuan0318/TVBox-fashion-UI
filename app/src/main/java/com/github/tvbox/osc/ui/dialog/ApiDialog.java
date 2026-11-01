@@ -32,6 +32,7 @@ import com.lcstudio.commonsurport.util.SPDataUtil;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 
+import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
@@ -78,7 +79,27 @@ public class ApiDialog extends BaseDialog {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
         if (event.type == RefreshEvent.TYPE_API_URL_CHANGE) {
-            apiEdit.setText((String) event.obj);
+            String url = (String) event.obj;
+            if (url != null && apiEdit != null) {
+                apiEdit.setText(url);
+                apiEdit.setSelection(url.length());
+            }
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().unregister(this);
         }
     }
 

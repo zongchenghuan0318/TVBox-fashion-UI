@@ -564,8 +564,9 @@ public class LivePlayActivity extends BaseActivity {
             Toast.makeText(this, "该频道没有可用线路", Toast.LENGTH_SHORT).show();
             return false;
         }
-        if ((group == groupIndex && channel == channelIndex && !bChangeSource)
-                || (bChangeSource && targetChannel.getSourceNum() <= 1)) {
+        boolean isCurrentPlaying = mVideoView != null && mVideoView.isPlaying();
+        if ((group == groupIndex && channel == channelIndex && !bChangeSource && isCurrentPlaying)
+                || (bChangeSource && targetChannel.getSourceNum() <= 1 && isCurrentPlaying)) {
             showChannelInfo();
             L.d("playChannel() return  ");
             return true;
@@ -606,11 +607,20 @@ public class LivePlayActivity extends BaseActivity {
         int group = pendingGroupIndex >= 0 ? pendingGroupIndex : groupIndex;
         int channel = pendingGroupIndex >= 0 ? pendingChannelIndex : channelIndex;
         Integer[] next = getNextGroupChannel(direction, group, channel);
-        if (next == null) {
+        if (next == null || next.length < 2) {
             Toast.makeText(this, "没有其他可播放频道", Toast.LENGTH_SHORT).show();
             return;
         }
-        LiveChannelItem target = getGroupLiveChannels(next[0]).get(next[1]);
+        if (mChannelGroupList == null || next[0] < 0 || next[0] >= mChannelGroupList.size()) {
+            Toast.makeText(this, "没有其他可播放频道", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ArrayList<LiveChannelItem> channels = getGroupLiveChannels(next[0]);
+        if (channels == null || next[1] < 0 || next[1] >= channels.size()) {
+            Toast.makeText(this, "没有其他可播放频道", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        LiveChannelItem target = channels.get(next[1]);
         if (target == null || target.getSourceNum() <= 0) {
             Toast.makeText(this, "该频道没有可用线路", Toast.LENGTH_SHORT).show();
             return;

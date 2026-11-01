@@ -1,9 +1,9 @@
 {
-  "versionCode": 169,
-  "versionName": "1.4.0",
-  "changelog": "遥控器操作与播放手势优化，发布 1.4.0\n\n- 搜索结果、热词和历史词条支持遥控器焦点点击，并增强结果卡片焦点反馈。\n- 收藏、历史和搜索源管理列表支持遥控器点击及安全的位置检查。\n- 直播滑动换台时避免与亮度、音量调节手势冲突。\n- 优化直播设置栏的自动收起时机。\n- 详情页选集逻辑复用统一处理，减少重复触发差异。\n- 剪贴板没有有效播放地址时显示明确提示。\n- 版本号升级至 1.4.0（versionCode 169）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.0/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.0/Z.apk",
-  "sha256": "2fb6ac342e1308f798fc372a604c821c3f7685e3edaba820eb706a4a95327d6e",
-  "size": 24755222
+  "versionCode": 170,
+  "versionName": "1.4.1",
+  "changelog": "播放与弹窗操作修复，发布 1.4.1\n\n- 打开剧集选择器时定位并聚焦当前播放集，切换剧集分组时保留预期焦点。\n- 增强直播换台的频道索引和播放状态检查，减少无效切换。\n- 选择弹窗支持遥控器确认键触发选项。\n- 接口配置弹窗安全处理返回结果，并在接口地址更新后定位光标。\n- 仅对识别为有效视频格式的地址启动播放，剪贴板和空列表交互更加稳妥。\n- 版本号升级至 1.4.1（versionCode 170）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.1/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.1/Z.apk",
+  "sha256": "386e6ebcb8025f2d3f09f2eaf9344ec4e194724b8f9a5bbd9d92cfb8ea1bd2e2",
+  "size": 24755916
 }

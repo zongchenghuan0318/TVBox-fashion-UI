@@ -777,6 +777,9 @@ public class VodController extends BaseController {
         window.setAttributes(windowParams);
         dialog.show();
         window.setLayout(windowParams.width, WindowManager.LayoutParams.MATCH_PARENT);
+        if (mCurrentEpisode >= 0 && mCurrentEpisode < mEpisodes.size()) {
+            episodeGrid.scrollToPosition(mCurrentEpisode);
+        }
         episodeGrid.post(() -> focusEpisodeItem(episodeGrid, dialog, mCurrentEpisode, 0));
     }
 
@@ -784,10 +787,14 @@ public class VodController extends BaseController {
         if (!dialog.isShowing() || mActivity == null || grid.getLayoutManager() == null) {
             return;
         }
+        if (retry == 0) {
+            grid.scrollToPosition(position);
+        }
         if (grid.getLayoutManager().findViewByPosition(position) != null || retry >= 10) {
             grid.setSelection(position);
             grid.requestFocus();
         } else {
+            grid.scrollToPosition(position);
             grid.postDelayed(() -> focusEpisodeItem(grid, dialog, position, retry + 1), 60);
         }
     }

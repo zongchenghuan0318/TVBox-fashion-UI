@@ -103,7 +103,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
     public void activityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == UpdateManager.INSTALL_PERMISSION_REQUEST) return;
         L.d("onActivityResult（）");
-        mApiDialog.onActivityResult(requestCode, resultCode, data);
+        if (mApiDialog != null) {
+            mApiDialog.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.github.tvbox.osc.ui.dialog;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
 
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
@@ -38,6 +39,20 @@ public class SelectDialog<T> extends BaseDialog {
         adapter.setData(data, select);
         TvRecyclerView tvRecyclerView = ((TvRecyclerView) findViewById(R.id.list));
         tvRecyclerView.setAdapter(adapter);
+        tvRecyclerView.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                if (itemView != null) {
+                    itemView.performClick();
+                }
+            }
+        });
         tvRecyclerView.setSelectedPosition(select);
         tvRecyclerView.post(new Runnable() {
             @Override

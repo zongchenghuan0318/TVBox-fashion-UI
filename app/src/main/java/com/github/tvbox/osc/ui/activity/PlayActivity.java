@@ -1461,9 +1461,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
             if (checkVideoFormat(url)) {
                 m_bLoadFound = true;
+                playVideo(url, headers);
+                stopLoadWebView(false);
             }
-            playVideo(url, headers);
-            stopLoadWebView(false);
             return isAd || m_bLoadFound ? AdBlocker.createEmptyResource() : null;
         }
     }

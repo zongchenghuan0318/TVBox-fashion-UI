@@ -185,6 +185,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_WORD, wordList));
             quickSearchDialog.show();
             quickSearchDialog.setOnDialogDismissListener(() -> {
+                bHadQuickStart = false;
                 quickSearchRequestId++;
                 OkGo.getInstance().cancelTag("search");
             });
@@ -414,6 +415,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         if (vid != null) {
             vodId = vid;
             sourceKey = key;
+            bHadQuickStart = false;
             // 换源搜索会重新加载详情，这里重置焦点标记，保证重新进入时焦点仍落在当前集
             bNeedFocusSeries = true;
             mFocusSeriesRetry = 0;
@@ -445,15 +447,15 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                refresh(itemView, position);
+                refresh(itemView, position, false);
             }
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-                refresh(itemView, position);
+                refresh(itemView, position, false);
             }
 
-            private void refresh(View itemView, int position) {
+            private void refresh(View itemView, int position, boolean requestFocus) {
                 String newFlag = mFlagAdapter.getData().get(position).name;
                 if (mVodInfo != null && !mVodInfo.playFlag.equals(newFlag)) {
                     for (int i = 0; i < mVodInfo.seriesFlags.size(); i++) {
@@ -468,7 +470,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     flag.selected = true;
                     mVodInfo.playFlag = newFlag;
                     mFlagAdapter.notifyItemChanged(position);
-                    refreshList();
+                    refreshList(requestFocus);
                 }
                 mFocusView = itemView;
             }
