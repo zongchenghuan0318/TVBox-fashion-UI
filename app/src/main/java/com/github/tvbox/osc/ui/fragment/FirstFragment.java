@@ -91,23 +91,16 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     /** 当前正在显示背景的那层；还没显示过任何海报时为 null */
     private ImageView mHeroFront;
     private int mHeroSeq = 0;
-    /** 本轮这张海报是否已经淡入到位：防止重复淡入，也防止低清图反过来盖掉已经清晰的那层 */
+    /** 本轮背景图是否已经就绪：防止同一请求重复更新背景 */
     private boolean mHeroShown = false;
     /** 当前卡片的背景已准备好；背景未就绪时不启动自动轮播，避免首屏卡片空转。 */
     private boolean mHeroReady;
     private boolean mLowPowerHome;
-    /** 背景推镜的起止比例：每张图接着上一张的当前比例继续推，淡入时画面不会突然缩放 */
+    /** 背景推镜比例：每张图接着上一张的当前比例继续推，切图时画面不会突然缩放 */
     private static final float HERO_ZOOM_MIN = 1.03f;
     private static final float HERO_ZOOM_MAX = 1.08f;
     private static final long HERO_ZOOM_DURATION = 6000L;
-    /** 兜底预览层尺寸：只用于「背景先跟上」，分辨率约全屏 1/3，解码快 */
-    private static final int HERO_PREVIEW_WIDTH = 786;
-    private static final int HERO_PREVIEW_HEIGHT = 360;
-    /** 两层背景交叉淡入的时长：够长才看得出「渐变」，太短会像硬切 */
-    private static final long HERO_FADE_DURATION = 750L;
     private static final long PAGE_HERO_TRANSITION_DURATION = 100L;
-    /** 高清图超过这个时间还没解好，才用低清预览先把背景跟上；正常网络下不会走到 */
-    private static final long HERO_PREVIEW_GRACE = 700L;
     /** 正在跑的 hero 动画，换图时统一取消：两个动画半路互相打断会让背景亮度抖一下 */
     private final List<ObjectAnimator> mHeroAnims = new ArrayList<>();
     private Movie.Video mHeroVod;
@@ -129,7 +122,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     };
     /** 聚焦缩放时长与整排滑动时长保持一致（见 HomeCardRecyclerView），滑动与放大是一个动作 */
     private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
-    private static final float CARD_FRONT_SCALE = 2.0f;
+    private static final float CARD_FRONT_SCALE = 1.08f;
     private static final float CARD_MIN_ALPHA = 0.48f;
     private static final float CARD_ARC_ROTATION = 42f;
     private int mFocusedCardPosition;
@@ -419,15 +412,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                if (newState == RecyclerView.SCROLL_STATE_SETTLING) {
-                    try {
-                        if (mContext != null) Glide.with(mContext).pauseRequests();
-                    } catch (Exception ignored) {}
+                if (newState != RecyclerView.SCROLL_STATE_IDLE) {
                     mHeroHandler.removeCallbacks(mHeroImageRun);
+                    cancelPendingHeroImage();
                 } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    try {
-                        if (mContext != null) Glide.with(mContext).resumeRequests();
-                    } catch (Exception ignored) {}
                     if (mAdapter != null && mFocusedCardPosition >= 0 && mFocusedCardPosition < mAdapter.getData().size()) {
                         bindHero(mAdapter.getData().get(mFocusedCardPosition));
                     }
@@ -502,8 +490,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         mFocusedCardPosition = position;
         mHotGridView.setSelectedPosition(position);
-        if (mHotGridView.getScrollState() == RecyclerView.SCROLL_STATE_SETTLING) {
-            // 快速惯性滚动中仅更新标题文字，不触发重度背景高斯与解码
+        if (mHotGridView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
+            // 手动拖动或惯性滚动中只更新文字，停稳后再加载当前卡片海报
             applyHeroInfo(data.get(position));
         } else {
             bindHero(data.get(position));
@@ -760,7 +748,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         List<Movie.Video> data = mAdapter.getData();
         int position = holder.getLayoutPosition();
         if (position < 0 || position >= data.size()) return;
-        bindHero(data.get(position));
+        if (mHotGridView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
+            mHeroVod = data.get(position);
+            applyHeroInfo(mHeroVod);
+        } else {
+            bindHero(data.get(position));
+        }
     }
 
     private void getVideos() {
@@ -1205,39 +1198,25 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         mHeroReady = false;
         mHeroHandler.postDelayed(mHeroImageRun, mLowPowerHome ? 300L : HERO_IMAGE_SETTLE_DELAY);
-        // 顺手把下一张卡的海报预热好：轮播隔 6 秒才切，这段时间足够把它解码进内存缓存，
-        // 到时那一次切换就是纯淡入，不会出现「等大图」的空档
-        if (!mLowPowerHome) preloadHeroNext(vod);
     }
 
-    /**
-     * 预热下一张卡的海报（按轮播方向），让 6 秒后那次切换不用现下载现解码。
-     * 请求参数与真正加载时保持一致（同一尺寸、同一锐化），否则命中不了同一份缓存。
-     */
-    private void preloadHeroNext(Movie.Video vod) {
-        if (mAdapter == null || mHeroBackdrop == null) {
-            return;
+    private void cancelPendingHeroImage() {
+        ++mHeroSeq;
+        mHeroPic = null;
+        mHeroShown = false;
+        mHeroReady = mHeroFront != null && mHeroFront.getDrawable() != null;
+        cancelHeroAnim();
+        if (mHeroFront != null && mHeroFront.getDrawable() != null) {
+            mHeroFront.setAlpha(1f);
         }
-        List<Movie.Video> data = mAdapter.getData();
-        int index = data.indexOf(vod);
-        int next = index + 1;
-        if (next >= data.size()) {
-            next = 0;
+        ImageView pending = mHeroFront == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
+        if (pending != null) {
+            Glide.clear(pending);
+            pending.setImageDrawable(null);
+            pending.setAlpha(0f);
+            pending.setScaleX(1f);
+            pending.setScaleY(1f);
         }
-        if (next < 0 || next >= data.size() || next == index) {
-            return;
-        }
-        Movie.Video nextVod = data.get(next);
-        int width = mHeroBackdrop.getWidth();
-        int height = mHeroBackdrop.getHeight();
-        if (nextVod == null || nextVod.isMore || NullUtil.isNull(nextVod.pic) || width <= 0 || height <= 0) {
-            return;
-        }
-        Glide.with(mContext)
-                .load(GlideImg.heroModel(nextVod.pic))
-                .override(width, height)
-                .bitmapTransform(new SharpenTransformation(mContext))
-                .preload(width, height);
     }
 
     /** 更新 hero 区的文字信息（片名、备注、元信息、简介） */
@@ -1264,12 +1243,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
     }
 
-    /**
-     * 加载背景海报。关键是「先解好、再融过去」：
-     * 高清图先在看不见的那层解好（下载 + 裁切放大 + 锐化），就绪之后才和旧海报交叉淡入，
-     * 旧海报全程保持全亮——中间不会插进一张糊图，也不会出现两层都半透明让背景发暗的一闪。
-     * 只有高清图实在慢（网络差）时，才用低清预览先把背景跟上，等高清到了就地变清晰。
-     */
+    /** 解码完成后直接切换背景层，避免快速切卡时两张海报长时间叠影。 */
     private void loadHeroImage(Movie.Video vod) {
         if (!mViewActive || !mHeroVisible || vod == null || NullUtil.isNull(vod.pic)
                 || mHeroBackdrop == null || mHeroBackdropAlt == null) {
@@ -1280,8 +1254,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         final ImageView outgoing = mHeroFront;
         final ImageView incoming = mLowPowerHome ? mHeroBackdrop
                 : outgoing == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
-        // 上一轮可能还在淡入：先停手，并让正在显示的那层回到全亮。
-        // 两层同时半透明会让整个背景变暗，那正是「中间闪一下」的来源
+        // 停止上一轮推镜动画，并保持当前显示层全亮。
         cancelHeroAnim();
         incoming.setAlpha(mLowPowerHome ? 1f : 0f);
         if (outgoing != null && outgoing.getDrawable() != null) {
@@ -1307,7 +1280,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             request = request.bitmapTransform(new SharpenTransformation(mContext));
         }
         if (!mLowPowerHome && width > 0 && height > 0) {
-            // 和预热请求用同一尺寸，才能命中同一份缓存，切换时不用现解码
+            // 固定目标尺寸，避免按海报原始尺寸解出过大的位图
             request = request.override(width, height);
         }
         request.listener(new RequestListener<Object, GlideDrawable>() {
@@ -1315,7 +1288,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
                         // 还没有任何背景时（首次加载就失败）退一张占位图上去，别留一块空背景
                         if (seq == mHeroSeq && mHeroFront == null) {
-                            crossfadeHero(seq, incoming, outgoing);
+                            incoming.setImageResource(R.drawable.shape_home_hero_placeholder);
+                            showHeroImage(seq, incoming, outgoing);
+                        } else if (seq == mHeroSeq) {
+                            mHeroPic = null;
+                            mHeroReady = true;
+                            scheduleAutoScroll();
                         }
                         // 已经有旧海报在显示：什么都不做，继续用它垫着，不会闪
                         return true;
@@ -1328,59 +1306,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                             // 已经换了别的海报，这张旧图别往背景上贴
                             return true;
                         }
-                        if (!mHeroShown) {
-                            // 低清预览已经先顶上时只换图不再淡入一次，画面直接变清晰
-                            crossfadeHero(seq, incoming, outgoing);
-                        }
-                        return false;
-                    }
-                })
-                .into(incoming);
-
-        if (mLowPowerHome) return;
-
-        // 高清图还没好就先用低清预览把背景跟上：只淡入一次，等高清到了就地变清晰
-        mHeroHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (seq == mHeroSeq && !mHeroShown) {
-                    fadeInPreview(seq, incoming, outgoing, pic);
-                }
-            }
-        }, HERO_PREVIEW_GRACE);
-    }
-
-    /** 兜底：低清预览图先顶上，让背景跟得住卡片；高清图随后会把这层就地换清楚 */
-    private void fadeInPreview(final int seq, final ImageView incoming, final ImageView outgoing, String pic) {
-        Glide.with(mContext)
-                .load(GlideImg.model(pic))
-                .override(HERO_PREVIEW_WIDTH, HERO_PREVIEW_HEIGHT)
-                .dontAnimate()
-                .listener(new RequestListener<Object, GlideDrawable>() {
-                    @Override
-                    public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean onResourceReady(GlideDrawable resource, Object model, Target<GlideDrawable> target,
-                                                   boolean isFromMemoryCache, boolean isFirstResource) {
-                        if (seq != mHeroSeq || mHeroShown) {
-                            // 高清图已经上去了（或已经换卡）：这张低清图别再把背景糊回去
-                            return true;
-                        }
-                        crossfadeHero(seq, incoming, outgoing);
+                        if (!mHeroShown) showHeroImage(seq, incoming, outgoing);
                         return false;
                     }
                 })
                 .into(incoming);
     }
 
-    /**
-     * 新海报就绪：和旧海报交叉淡入，并接上旧图的推镜比例继续缓慢推近，
-     * 淡入过程里画面既不突然缩放，也不会出现亮度塌陷。
-     */
-    private void crossfadeHero(int seq, ImageView incoming, ImageView outgoing) {
+    private void showHeroImage(int seq, ImageView incoming, ImageView outgoing) {
         if (seq != mHeroSeq || mHeroShown) {
             return;
         }
@@ -1391,15 +1324,17 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             incoming.setAlpha(1f);
             incoming.setScaleX(1f);
             incoming.setScaleY(1f);
-            return;
+        } else {
+            float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
+            float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
+            incoming.setAlpha(1f);
+            startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleX", from, to), HERO_ZOOM_DURATION);
+            startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), HERO_ZOOM_DURATION);
         }
-        float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
-        float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
-        startHeroAnim(ObjectAnimator.ofFloat(incoming, "alpha", incoming.getAlpha(), 1f), HERO_FADE_DURATION);
-        startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleX", from, to), HERO_ZOOM_DURATION);
-        startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), HERO_ZOOM_DURATION);
-        if (outgoing != null && outgoing.getDrawable() != null) {
-            startHeroAnim(ObjectAnimator.ofFloat(outgoing, "alpha", outgoing.getAlpha(), 0f), HERO_FADE_DURATION);
+        if (outgoing != null && outgoing != incoming) {
+            Glide.clear(outgoing);
+            outgoing.setImageDrawable(null);
+            outgoing.setAlpha(0f);
         }
         if (!mAutoScrollingCards) {
             scheduleAutoScroll();
@@ -1411,7 +1346,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         animator.setDuration(duration).start();
     }
 
-    /** 换图前把上一轮的淡入/推镜全部停掉，否则两个动画抢同一个属性会把画面打断 */
+    /** 换图前停止上一轮推镜动画，避免动画抢同一个属性。 */
     private void cancelHeroAnim() {
         for (ObjectAnimator animator : mHeroAnims) {
             animator.cancel();
