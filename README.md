@@ -226,4 +226,6 @@ player/src/main/
 ## 交流
 
 - QQ ：2020997318
-- 有问题请联系开发者：宗成焕
+- 有问题请联系开发者
+##开发不易；如果有余力的话可以打赏一下😁
+<img width="1080" height="1474" alt="9e5eb1a90ee0cdc01a13084787e6f4fc" src="https://github.com/user-attachments/assets/7945bc38-8b5f-486d-91c3-e85836f8c9c0" />
