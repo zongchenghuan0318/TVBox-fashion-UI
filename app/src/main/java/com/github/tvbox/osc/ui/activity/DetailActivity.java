@@ -296,6 +296,14 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             mVodInfo.reverse();
         }
 
+        if (mVodInfo.seriesMap == null || mVodInfo.seriesMap.isEmpty()) {
+            mFlagGridView.setVisibility(View.GONE);
+            mSeriesGridView.setVisibility(View.GONE);
+            tvPlay.setVisibility(View.GONE);
+            mEmptyLayout.setVisibility(View.VISIBLE);
+            return;
+        }
+
         if (mVodInfo.playFlag == null || !mVodInfo.seriesMap.containsKey(mVodInfo.playFlag))
             mVodInfo.playFlag = (String) mVodInfo.seriesMap.keySet().toArray()[0];
 
@@ -527,31 +535,36 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                selectSeriesItem(position);
             }
         });
         mSeriesAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
-                if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
-                    List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
-                    if (list != null && position >= 0 && position < list.size()) {
-                        int prevIndex = mVodInfo.playIndex;
-                        if (prevIndex != position && prevIndex >= 0 && prevIndex < mSeriesAdapter.getData().size()) {
-                            mSeriesAdapter.getData().get(prevIndex).selected = false;
-                            mSeriesAdapter.notifyItemChanged(prevIndex);
-                        }
-                        mVodInfo.playIndex = position;
-                        if (position < mSeriesAdapter.getData().size()) {
-                            mSeriesAdapter.getData().get(position).selected = true;
-                            mSeriesAdapter.notifyItemChanged(position);
-                        }
-                        updatePlayButtonText(mVodInfo);
-                        jumpToPlay();
-                    }
-                }
+                selectSeriesItem(position);
             }
         });
+    }
+
+    private void selectSeriesItem(int position) {
+        if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
+            List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+            if (list != null && position >= 0 && position < list.size()) {
+                int prevIndex = mVodInfo.playIndex;
+                if (prevIndex != position && prevIndex >= 0 && prevIndex < mSeriesAdapter.getData().size()) {
+                    mSeriesAdapter.getData().get(prevIndex).selected = false;
+                    mSeriesAdapter.notifyItemChanged(prevIndex);
+                }
+                mVodInfo.playIndex = position;
+                if (position < mSeriesAdapter.getData().size()) {
+                    mSeriesAdapter.getData().get(position).selected = true;
+                    mSeriesAdapter.notifyItemChanged(position);
+                }
+                updatePlayButtonText(mVodInfo);
+                jumpToPlay();
+            }
+        }
     }
 
     private void jumpToPlay() {

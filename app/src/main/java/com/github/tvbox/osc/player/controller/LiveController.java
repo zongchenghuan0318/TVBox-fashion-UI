@@ -109,6 +109,9 @@ public class LiveController extends BaseController {
         if (e1 == null || e2 == null || listener == null) {
             return false;
         }
+        if (isChangingBrightnessOrVolume()) {
+            return false;
+        }
         float distanceX = e2.getX() - e1.getX();
         float distanceY = e2.getY() - e1.getY();
 

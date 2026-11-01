@@ -39,18 +39,23 @@ public class PushActivity extends BaseActivity {
             public void onClick(View v) {
                 try {
                     ClipboardManager manager = (ClipboardManager) PushActivity.this.getSystemService(Context.CLIPBOARD_SERVICE);
-                    if (manager != null) {
-                        if (manager.hasPrimaryClip() && manager.getPrimaryClip() != null && manager.getPrimaryClip().getItemCount() > 0) {
-                            ClipData.Item addedText = manager.getPrimaryClip().getItemAt(0);
-                            Intent newIntent = new Intent(mContext, DetailActivity.class);
-                            newIntent.putExtra("id", addedText.getText().toString().trim());
-                            newIntent.putExtra("sourceKey", "push_agent");
-                            newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                            PushActivity.this.startActivity(newIntent);
+                    if (manager != null && manager.hasPrimaryClip() && manager.getPrimaryClip() != null && manager.getPrimaryClip().getItemCount() > 0) {
+                        ClipData.Item addedText = manager.getPrimaryClip().getItemAt(0);
+                        if (addedText != null && addedText.getText() != null) {
+                            String text = addedText.getText().toString().trim();
+                            if (!text.isEmpty()) {
+                                Intent newIntent = new Intent(mContext, DetailActivity.class);
+                                newIntent.putExtra("id", text);
+                                newIntent.putExtra("sourceKey", "push_agent");
+                                newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                PushActivity.this.startActivity(newIntent);
+                                return;
+                            }
                         }
                     }
+                    android.widget.Toast.makeText(PushActivity.this, "剪贴板暂无有效播放地址", android.widget.Toast.LENGTH_SHORT).show();
                 } catch (Throwable th) {
-
+                    android.widget.Toast.makeText(PushActivity.this, "读取剪贴板失败", android.widget.Toast.LENGTH_SHORT).show();
                 }
             }
         });

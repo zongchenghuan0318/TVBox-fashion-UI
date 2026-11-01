@@ -155,31 +155,14 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-
+                clickCollectItem(position);
             }
         });
         collectAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
-                VodCollect vodInfo = collectAdapter.getData().get(position);
-                if (vodInfo != null) {
-                    if (delMode) {
-                        deleteCollectItem(position);
-                    } else {
-                        if (ApiConfig.getInstance().getSiteBean(vodInfo.sourceKey) != null) {
-                            Bundle bundle = new Bundle();
-                            bundle.putString("id", vodInfo.vodId);
-                            bundle.putString("sourceKey", vodInfo.sourceKey);
-                            jumpActivity(DetailActivity.class, bundle);
-                        } else {
-                            Intent newIntent = new Intent(mContext, SearchActivity.class);
-                            newIntent.putExtra("title", vodInfo.name);
-                            newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                            startActivity(newIntent);
-                        }
-                    }
-                }
+                clickCollectItem(position);
             }
         });
         collectAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
@@ -193,6 +176,28 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
                 return false;
             }
         });
+    }
+
+    private void clickCollectItem(int position) {
+        if (collectAdapter == null || position < 0 || position >= collectAdapter.getData().size()) return;
+        VodCollect vodInfo = collectAdapter.getData().get(position);
+        if (vodInfo != null) {
+            if (delMode) {
+                deleteCollectItem(position);
+            } else {
+                if (ApiConfig.getInstance().getSiteBean(vodInfo.sourceKey) != null) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("id", vodInfo.vodId);
+                    bundle.putString("sourceKey", vodInfo.sourceKey);
+                    jumpActivity(DetailActivity.class, bundle);
+                } else {
+                    Intent newIntent = new Intent(mContext, SearchActivity.class);
+                    newIntent.putExtra("title", vodInfo.name);
+                    newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(newIntent);
+                }
+            }
+        }
     }
 
     private void initData() {

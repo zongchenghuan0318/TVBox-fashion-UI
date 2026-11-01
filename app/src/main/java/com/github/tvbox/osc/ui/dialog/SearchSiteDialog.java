@@ -1,6 +1,7 @@
 package com.github.tvbox.osc.ui.dialog;
 
 import android.content.Context;
+import android.view.View;
 
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.SiteBean;
@@ -57,10 +58,10 @@ public class SearchSiteDialog extends BaseDialog {
         fillMissingChecked();
         refreshRank();
 
-        adapter = new SearchSiteAdapter();
-        adapter.setOnRowAction(new SearchSiteAdapter.OnRowAction() {
+        SearchSiteAdapter.OnRowAction action = new SearchSiteAdapter.OnRowAction() {
             @Override
             public void onRow(SearchSiteAdapter.Row row) {
+                if (row == null) return;
                 if (row.type == SearchSiteAdapter.TYPE_SELECT_ALL) {
                     setAllChecked(true);
                 } else if (row.type == SearchSiteAdapter.TYPE_UNSELECT_ALL) {
@@ -79,11 +80,27 @@ public class SearchSiteDialog extends BaseDialog {
                     save();
                 }
             }
-        });
+        };
+        adapter = new SearchSiteAdapter();
+        adapter.setOnRowAction(action);
         adapter.setNewData(rows);
 
         TvRecyclerView list = findViewById(R.id.list);
         list.setAdapter(adapter);
+        list.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                if (position >= 0 && position < rows.size()) {
+                    action.onRow(rows.get(position));
+                }
+            }
+        });
         list.setSelectedPosition(0);
         // 打开即把顺序表与勾选状态对齐写回，保证首次进入后顺序就是确定的
         save();

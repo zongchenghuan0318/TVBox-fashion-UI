@@ -474,18 +474,18 @@ public abstract class BaseController extends BaseVideoController implements Gest
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         //滑动结束时事件处理
-        if (!mGestureDetector.onTouchEvent(event)) {
-            int action = event.getAction();
-            switch (action) {
-                case MotionEvent.ACTION_UP:
-                    finishPositionGesture(true);
-                    break;
-                case MotionEvent.ACTION_CANCEL:
-                    finishPositionGesture(false);
-                    break;
-            }
+        boolean result = mGestureDetector.onTouchEvent(event);
+        int action = event.getAction();
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            finishPositionGesture(action == MotionEvent.ACTION_UP);
+            bChangeBrightness = false;
+            bChangeVolume = false;
         }
-        return super.onTouchEvent(event);
+        return result || super.onTouchEvent(event);
+    }
+
+    protected boolean isChangingBrightnessOrVolume() {
+        return bChangeBrightness || bChangeVolume;
     }
 
     protected boolean isGestureSeeking() {

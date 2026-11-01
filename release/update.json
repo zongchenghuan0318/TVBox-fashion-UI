@@ -1,9 +1,9 @@
 {
-  "versionCode": 168,
-  "versionName": "1.3.9",
-  "changelog": "自动更新检查设置，发布 1.3.9\n\n- 设置页新增“启动时自动检查更新”开关，默认开启。\n- 关闭后不再自动检查或提示更新；设置页的“检查更新”入口仍可手动使用。\n- 版本号升级至 1.3.9（versionCode 168）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.3.9/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.3.9/Z.apk",
-  "sha256": "4ad8244f721afc37e28cb3bad0ef13c363c0912df9ceeee809dafdd542bd8c04",
-  "size": 24754063
+  "versionCode": 169,
+  "versionName": "1.4.0",
+  "changelog": "遥控器操作与播放手势优化，发布 1.4.0\n\n- 搜索结果、热词和历史词条支持遥控器焦点点击，并增强结果卡片焦点反馈。\n- 收藏、历史和搜索源管理列表支持遥控器点击及安全的位置检查。\n- 直播滑动换台时避免与亮度、音量调节手势冲突。\n- 优化直播设置栏的自动收起时机。\n- 详情页选集逻辑复用统一处理，减少重复触发差异。\n- 剪贴板没有有效播放地址时显示明确提示。\n- 版本号升级至 1.4.0（versionCode 169）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.0/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.0/Z.apk",
+  "sha256": "2fb6ac342e1308f798fc372a604c821c3f7685e3edaba820eb706a4a95327d6e",
+  "size": 24755222
 }

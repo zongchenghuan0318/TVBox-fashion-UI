@@ -181,20 +181,14 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                clickHistoryItem(position);
             }
         });
         historyAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
-                VodInfo vodInfo = historyAdapter.getData().get(position);
-                if (vodInfo != null) {
-                    if (delMode) {
-                        deleteHistoryItem(position);
-                    } else {
-                        openHistoryItem(vodInfo, true);
-                    }
-                }
+                clickHistoryItem(position);
             }
         });
         historyAdapter.setOnItemLongClickListener((adapter, view, position) -> {
@@ -205,6 +199,18 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
             }
             return true;
         });
+    }
+
+    private void clickHistoryItem(int position) {
+        if (historyAdapter == null || position < 0 || position >= historyAdapter.getData().size()) return;
+        VodInfo vodInfo = historyAdapter.getData().get(position);
+        if (vodInfo != null) {
+            if (delMode) {
+                deleteHistoryItem(position);
+            } else {
+                openHistoryItem(vodInfo, true);
+            }
+        }
     }
 
     private void initData() {

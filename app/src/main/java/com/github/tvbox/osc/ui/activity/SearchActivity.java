@@ -294,22 +294,43 @@ public class SearchActivity extends BaseActivity {
         }
         searchResultAdapter = new SearchResultAdapter();
         mSearchResultRV.setAdapter(searchResultAdapter);
+        mSearchResultRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
+                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start();
+            }
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
+                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150).start();
+            }
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                openSearchResult(position);
+            }
+        });
         searchResultAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
-                Movie.Video video = searchResultAdapter.getData().get(position);
-                if (video != null) {
-                    stopSearchRequests();
-                    Bundle bundle = new Bundle();
-                    bundle.putString("id", video.id);
-                    bundle.putString("sourceKey", video.sourceKey);
-                    bundle.putString("note", video.note);
-                    bundle.putString("movieName", video.name);
-                    jumpActivity(DetailActivity.class, bundle);
-                }
+                openSearchResult(position);
             }
         });
+    }
+
+    private void openSearchResult(int position) {
+        if (searchResultAdapter == null || position < 0 || position >= searchResultAdapter.getData().size()) return;
+        Movie.Video video = searchResultAdapter.getData().get(position);
+        if (video != null) {
+            stopSearchRequests();
+            Bundle bundle = new Bundle();
+            bundle.putString("id", video.id);
+            bundle.putString("sourceKey", video.sourceKey);
+            bundle.putString("note", video.note);
+            bundle.putString("movieName", video.name);
+            jumpActivity(DetailActivity.class, bundle);
+        }
     }
 
     private void initHotRecycleView() {
@@ -317,13 +338,30 @@ public class SearchActivity extends BaseActivity {
         mHotWordRV.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         wordAdapter = new PinyinAdapter();
         mHotWordRV.setAdapter(wordAdapter);
+        mHotWordRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                selectHotWord(position);
+            }
+        });
         wordAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                hideSoftKeyboard();
-                search(wordAdapter.getItem(position));
+                selectHotWord(position);
             }
         });
+    }
+
+    private void selectHotWord(int position) {
+        if (wordAdapter == null || position < 0 || position >= wordAdapter.getData().size()) return;
+        hideSoftKeyboard();
+        search(wordAdapter.getItem(position));
     }
 
     private void initHistoryView() {
@@ -332,11 +370,22 @@ public class SearchActivity extends BaseActivity {
                 false));
         historyAdapter = new SearchHistoryAdapter();
         mSearchHistoryRV.setAdapter(historyAdapter);
+        mSearchHistoryRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {}
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+                selectHistoryWord(position);
+            }
+        });
         historyAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                hideSoftKeyboard();
-                search(historyAdapter.getItem(position));
+                selectHistoryWord(position);
             }
         });
         historyAdapter.setOnItemLongClickListener((adapter, view, position) -> {
@@ -348,6 +397,12 @@ public class SearchActivity extends BaseActivity {
             return true;
         });
         refreshHistoryView();
+    }
+
+    private void selectHistoryWord(int position) {
+        if (historyAdapter == null || position < 0 || position >= historyAdapter.getData().size()) return;
+        hideSoftKeyboard();
+        search(historyAdapter.getItem(position));
     }
 
     private void deleteSingleHistoryItem(String wd) {

@@ -1107,6 +1107,10 @@ public class LivePlayActivity extends BaseActivity {
                 sourceTimes = 0;
                 currentLiveChannelItem.setSourceIndex(position);
                 playChannel(groupIndex, channelIndex, true);
+                if (rightSettingLayout != null && rightSettingLayout.getVisibility() == View.VISIBLE) {
+                    mHandler.removeCallbacks(mHideSettingLayoutRun);
+                    mHandler.postDelayed(mHideSettingLayoutRun, 300L);
+                }
                 break;
             case 1://画面比例
                 livePlayerManager.changeLivePlayerScale(mVideoView, position, currentLiveChannelItem.getChannelName());
