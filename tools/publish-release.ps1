@@ -148,8 +148,11 @@ try {
             if ($taskVersionCode -le [long]$taskOldInfo.versionCode) { throw 'versionCode must exceed all published stable versions.' }
         }
     }
-    if ($taskReleases | Where-Object { $_.draft -and $_.tag_name -eq $taskTag }) {
-        throw 'A draft exists for this version. Inspect or remove the draft before retrying; it was not overwritten.'
+    $taskDraftExisting = @($taskReleases | Where-Object { $_.draft -and $_.tag_name -eq $taskTag })
+    if ($taskDraftExisting.Count -gt 0) {
+        foreach ($d in $taskDraftExisting) {
+            Invoke-GitHub DELETE "$taskApi/releases/$($d.id)"
+        }
     }
     $taskRef = Invoke-GitHub GET "$taskApi/git/matching-refs/tags/$taskTag"
     if (@($taskRef | Where-Object { $_.ref -eq "refs/tags/$taskTag" }).Count -gt 0) {
