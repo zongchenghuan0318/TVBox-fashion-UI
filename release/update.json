@@ -1,9 +1,9 @@
 {
-    "versionCode":  180,
-    "versionName":  "1.5.1",
-    "changelog":  "## 更新内容\n- 修复点击首页影片或打开搜索页时，页面崩溃并反复重启的问题。\n\n## 安装包\n- 版本：1.5.1（versionCode 180）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.1/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.1/Z.apk",
-    "sha256":  "db1d938c3d4750b4a65d75d0c7d4233adb1218dfb3fd85d4ffeca02d57d80842",
-    "size":  24911317
+    "versionCode":  181,
+    "versionName":  "1.5.2",
+    "changelog":  "## 更新内容\n- 隐藏所有分类页的筛选按钮，避免与设置按钮重叠并干扰焦点操作。\n\n## 安装包\n- 版本：1.5.2（versionCode 181）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.2/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.2/Z.apk",
+    "sha256":  "a90e7e4a93bfca8ac6371207e979c84dc9f0085fe82e942bd4f22fd93c7464f7",
+    "size":  24911324
 }

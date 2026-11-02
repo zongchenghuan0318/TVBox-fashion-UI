@@ -69,7 +69,8 @@
             android:gravity="center"
             android:text="筛选"
             android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_20" />
+            android:textSize="@dimen/ts_20"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvCategoryReset"

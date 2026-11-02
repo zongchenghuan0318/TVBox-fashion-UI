@@ -141,8 +141,8 @@ public class GridFragment extends BaseLazyFragment {
             mPage = 1;
             maxPage = 1;
             resetGridPosition();
-            mCategoryFilter.requestFocus();
             updateFilterSummary();
+            focusRememberedItem();
             initData();
         });
         updateFilterSummary();
@@ -379,8 +379,6 @@ public class GridFragment extends BaseLazyFragment {
             }
         }
         mCategorySummary.setText(summary);
-        mCategoryFilter.setVisibility(View.VISIBLE);
-        mCategoryFilter.setText(mSortData.filters.isEmpty() ? "无筛选" : "筛选");
         mCategoryReset.setVisibility(mSortData.filterSelect.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
