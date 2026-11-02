@@ -76,6 +76,7 @@ For first-time setup, see the **[Z影视 User Guide](./使用指南.md)** (Chine
 
 ## Recent updates
 
+- **1.5.5**: Enlarged home-screen media cards for better readability on large displays.
 - **1.5.3**: Faster category switching and resume.
 - **1.5.2**: Hid the category filter button.
 - **1.5.1**: Fixed a crash when opening the search page.
