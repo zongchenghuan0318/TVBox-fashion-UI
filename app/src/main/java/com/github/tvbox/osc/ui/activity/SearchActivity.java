@@ -75,7 +75,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.DiffUtil;
 
 public class SearchActivity extends BaseActivity {
-    private LinearLayout llLayout;
+    private View llLayout;
     private LinearLayout llWord;
     private LinearLayout llClearHistory;
     private TvRecyclerView mSearchResultRV;

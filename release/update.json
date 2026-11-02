@@ -1,9 +1,9 @@
 {
-  "versionCode": 179,
-  "versionName": "1.5.0",
-  "changelog": "## 更新内容\n- 图片加载引擎升级到 Glide 4.14.2，新增自定义 GlideModule，统一内存/磁盘缓存与解码策略，滑动更顺畅、占用更低\n- 新增海报预加载器：首页与分类页提前预热相邻卡片海报，切换时减少白屏与闪烁\n- 重写模糊与锐化后处理，降低大图处理时的内存峰值与卡顿\n- 首页、分类页海报加载与滚动预取优化\n- 搜索结果与详情页图片加载细节修复\n\n## 安装包\n- 版本：1.5.0（versionCode 179）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.0/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.0/Z.apk",
-  "sha256": "ba72357567af9ce78de0835305c6e69a973b84c6c666f3a184983c4f4803d966",
-  "size": 24911598
+    "versionCode":  180,
+    "versionName":  "1.5.1",
+    "changelog":  "## 更新内容\n- 修复点击首页影片或打开搜索页时，页面崩溃并反复重启的问题。\n\n## 安装包\n- 版本：1.5.1（versionCode 180）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.1/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.1/Z.apk",
+    "sha256":  "db1d938c3d4750b4a65d75d0c7d4233adb1218dfb3fd85d4ffeca02d57d80842",
+    "size":  24911317
 }
