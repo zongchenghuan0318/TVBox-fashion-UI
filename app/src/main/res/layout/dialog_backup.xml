@@ -57,6 +57,8 @@
                 android:background="@drawable/button_dialog_main"
                 android:focusable="true"
                 android:gravity="center"
+                android:nextFocusRight="@+id/storagePermission"
+                android:nextFocusDown="@+id/list"
                 android:text="立即备份"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_22" />
@@ -69,6 +71,8 @@
                 android:background="@drawable/button_dialog_main"
                 android:focusable="true"
                 android:gravity="center"
+                android:nextFocusLeft="@+id/backupNow"
+                android:nextFocusDown="@+id/list"
                 android:text="存储权限"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_22" />

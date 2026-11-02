@@ -125,9 +125,17 @@ public class QuickSearchDialog extends BaseDialog {
                 List<Movie.Video> data = (List<Movie.Video>) event.obj;
                 List<Movie.Video> videos = filterVideoList(data, mSearchWd);
                 if (videos != null && !videos.isEmpty()) {
+                    boolean hadFocus = (mRv != null && mRv.hasFocus()) || (mWordRV != null && mWordRV.hasFocus());
                     mSearchAdapter.addData(videos);
                     sortBySourceOrder();
                     showContent();
+                    if (!hadFocus && mRv != null) {
+                        mRv.post(() -> {
+                            if (mRv != null && !mRv.hasFocus() && (mWordRV == null || !mWordRV.hasFocus())) {
+                                mRv.requestFocus();
+                            }
+                        });
+                    }
                 }
             }
         } else if (event.type == RefreshEvent.TYPE_QUICK_SEARCH_WORD) {

@@ -1,9 +1,9 @@
 {
-  "versionCode": 177,
-  "versionName": "1.4.8",
-  "changelog": "## 更新内容\n- 搜索结果列表修复：进度条改为浮层叠加，不再挤压结果区，结果列表始终从第一条开始显示\n- 搜索开始时强制回到顶部，首批结果到达时再次滚顶，避免首条被居中滚动卷出屏幕\n- 搜索完成且有结果时自动隐藏进度文字，结果列表无遮挡；无结果时显示空状态\n- 保留 1.4.7 的起播秒开、超大内存缓冲与全链路分层返回\n\n## 安装包\n- 版本：1.4.8（versionCode 177）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.8/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.8/Z.apk",
-  "sha256": "f8502568e2c7927185a3e292b32d2f72e0e36d7d90619122866ddd7ce78dc014",
-  "size": 24763584
+  "versionCode": 178,
+  "versionName": "1.4.9",
+  "changelog": "## 更新内容\n- 全量修复遥控器焦点与按键处理：设置、收藏、历史、详情、直播等页面返回键与顶部导航的焦点切换更可靠\n- 弹窗在部分厂商 TV 固件上偶发无法获取焦点，现于显示后主动补一次焦点请求\n- 首页极简顶栏不再抢走用户焦点或强制收起，焦点在顶栏时暂停闲置倒计时\n- 菜单键长按只响应一次；有筛选项但弹窗未弹出时同样消费按键，避免 UP/DOWN 漏给系统\n- 信息提示弹窗按钮顺序修正为「取消 · 确定」\n- 播放页快进/快退与进度条焦点逻辑补强\n- 直播页长按菜单键只响应一次、加密分组仅在选择频道时弹密码框、列表收起后焦点回到播放器\n\n## 安装包\n- 版本：1.4.9（versionCode 178）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.9/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.9/Z.apk",
+  "sha256": "2377492921d63ea0ae4026c9281e5b2e704933d5e85b1a66fb80dd753c22621e",
+  "size": 24766248
 }

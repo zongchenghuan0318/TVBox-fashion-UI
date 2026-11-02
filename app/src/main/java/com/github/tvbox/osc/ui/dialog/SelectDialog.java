@@ -61,6 +61,8 @@ public class SelectDialog<T> extends BaseDialog {
                     tvRecyclerView.scrollToPosition(select);
                 }catch (Exception e){
                 }
+                // 确保弹窗打开后列表立即获得焦点，防止部分厂商 TV 固件遥控器方向键失效
+                tvRecyclerView.requestFocus();
             }
         });
     }

@@ -102,6 +102,7 @@ public class SearchSiteDialog extends BaseDialog {
             }
         });
         list.setSelectedPosition(0);
+        list.post(() -> list.requestFocus()); // 弹窗打开后列表立即获焦，防止遥控器方向键失效
         // 打开即把顺序表与勾选状态对齐写回，保证首次进入后顺序就是确定的
         save();
     }

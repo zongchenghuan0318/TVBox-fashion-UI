@@ -108,6 +108,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private List<String> wordList = new ArrayList<>();
     public ExecutorService mExecutorService;
     private final Handler detailHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingFlagSwitchRunnable;
     private final Runnable detailTimeout = new Runnable() {
         @Override
         public void run() {
@@ -457,6 +458,26 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
     private void selectPlaybackFlag(View itemView, int position, boolean requestFocus) {
         if (mVodInfo == null || position < 0 || position >= mFlagAdapter.getData().size()) return;
+        mFocusView = itemView;
+        if (pendingFlagSwitchRunnable != null) {
+            detailHandler.removeCallbacks(pendingFlagSwitchRunnable);
+            pendingFlagSwitchRunnable = null;
+        }
+
+        if (requestFocus) {
+            applyPlaybackFlag(position);
+            focusPlayButton();
+        } else {
+            pendingFlagSwitchRunnable = () -> {
+                if (isFinishing() || isDestroyed()) return;
+                applyPlaybackFlag(position);
+            };
+            detailHandler.postDelayed(pendingFlagSwitchRunnable, 300L);
+        }
+    }
+
+    private void applyPlaybackFlag(int position) {
+        if (mVodInfo == null || position < 0 || position >= mFlagAdapter.getData().size()) return;
         String newFlag = mFlagAdapter.getData().get(position).name;
         if (!android.text.TextUtils.equals(mVodInfo.playFlag, newFlag)) {
             for (int i = 0; i < mVodInfo.seriesFlags.size(); i++) {
@@ -474,8 +495,6 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             refreshList(false);
             updatePlayButtonText();
         }
-        mFocusView = itemView;
-        if (requestFocus) focusPlayButton();
     }
 
     private void initSeriesGridView(){

@@ -40,6 +40,7 @@ public class ApiHistoryDialog extends BaseDialog {
             @Override
             public void run() {
                 tvRecyclerView.scrollToPosition(focusedPosition);
+                tvRecyclerView.requestFocus();
             }
         });
     }

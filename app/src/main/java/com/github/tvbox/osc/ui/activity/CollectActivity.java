@@ -133,9 +133,19 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
             @Override
             public boolean onInBorderKeyEvent(int direction, View focused) {
                 if (direction == View.FOCUS_UP) {
-                    tvClearAll.setFocusable(true);
-                    tvDel.setFocusable(true);
-                    tvDel.requestFocus();
+                    View backBtn = findViewById(R.id.title_collect_tv);
+                    if (backBtn != null && backBtn.isFocusable() && focused != null && focused.getLeft() < mGridView.getWidth() / 3) {
+                        backBtn.requestFocus();
+                        return true;
+                    }
+                    if (tvClearAll != null && tvClearAll.getVisibility() == View.VISIBLE) {
+                        tvClearAll.requestFocus();
+                        return true;
+                    }
+                    if (tvDel != null && tvDel.getVisibility() == View.VISIBLE) {
+                        tvDel.requestFocus();
+                        return true;
+                    }
                 }
                 return false;
             }

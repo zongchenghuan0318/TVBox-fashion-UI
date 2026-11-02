@@ -25,6 +25,14 @@ public class BaseDialog extends Dialog {
         super.show();
         hideSysBar();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+        // 部分厂商 TV 固件 clearFlags 后不会自动把焦点推入弹窗，手动触发一次确保遥控器可操作
+        View decorView = getWindow().getDecorView();
+        decorView.post(() -> {
+            View focused = decorView.findFocus();
+            if (focused == null) {
+                decorView.requestFocus();
+            }
+        });
     }
 
     private void hideSysBar() {

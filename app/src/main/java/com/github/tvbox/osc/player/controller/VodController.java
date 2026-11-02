@@ -102,6 +102,7 @@ public class VodController extends BaseController {
     private boolean mDownNextPending;
     private boolean mCenterPressed;
     private boolean mCenterLongHandled;
+    private boolean mPendingDirectionKeyUp;
     private final Runnable mCenterLongPressRunnable = new Runnable() {
         @Override
         public void run() {
@@ -1128,9 +1129,44 @@ public class VodController extends BaseController {
             }
             return true;
         }
+        if (mAutoNextPending && directionKey) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                // 播完自动下一集倒计时面板：方向键不得把焦点带离面板（默认焦点搜索会飘到底栏/顶栏），
+                // 确认键保持原生行为让面板按钮自行处理点击
+                View focused = findFocus();
+                if (focused != mAutoNextCancel && focused != mAutoNextNow
+                        && mAutoNextNow != null && mAutoNextNow.isShown()) {
+                    mAutoNextNow.requestFocus();
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    mPendingDirectionKeyUp = true;
+                }
+                showBottom();
+                return true;
+            }
+            return true;
+        }
         boolean seekBarFocused = mSeekBar != null && mSeekBar.hasFocus();
         if (action == KeyEvent.ACTION_DOWN) {
             if (isBottomVisible() && movePlaybackControlFocus(keyCode)) {
+                showBottom();
+                return true;
+            }
+            if (isBottomVisible() && seekBarFocused && !isInPlayback
+                    && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                // 焦点在进度条上但未起播/出错态，本次左右键不会走 seek 路径，对称消费避免逃逸；
+                // 起播状态下不拦截，保留进度条左右键快进能力
+                mPendingDirectionKeyUp = true;
+                showBottom();
+                return true;
+            }
+            if (isBottomVisible() && !hasFocusedControl() && !seekBarFocused
+                    && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+                    || keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
+                // 电视端焦点兜底：底栏可见但焦点悬空（容器自身持焦）时，左右/上键不允许
+                // 穿透到 Activity 层的其他可聚焦控件，统一拉回默认控制按钮。
+                focusDefaultControl();
+                mPendingDirectionKeyUp = true;
                 showBottom();
                 return true;
             }
@@ -1216,6 +1252,10 @@ public class VodController extends BaseController {
                     mPlayingBtn.requestFocus();
                     return true;
                 }
+                // 底栏已在屏幕最底部：焦点在控件上按↓无非地方可去，消费掉避免默认焦点搜索把焦点带出播放器
+                if (isBottomVisible() && hasFocusedControl()) {
+                    return true;
+                }
             }
             showBottom();
         } else if (action == KeyEvent.ACTION_UP) {
@@ -1236,6 +1276,11 @@ public class VodController extends BaseController {
                 }
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (mPendingDirectionKeyUp) {
+                    // 对称消费：对应 DOWN 已被本控制器处理（焦点迁移/兜底拦截），UP 不再漏给默认分发
+                    mPendingDirectionKeyUp = false;
+                    return true;
+                }
                 if (!seekBarFocused && !bSimSlideStart) {
                     return false;
                 }
@@ -1247,6 +1292,9 @@ public class VodController extends BaseController {
                     return true;
                 }
             }
+        }
+        if (action == KeyEvent.ACTION_UP) {
+            mPendingDirectionKeyUp = false;
         }
         return false;
     }
@@ -1260,17 +1308,39 @@ public class VodController extends BaseController {
         for (int i = 0; i < controls.length; i++) {
             if (focused == null || focused != controls[i]) continue;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                return mSeekBar != null && mSeekBar.isEnabled() && mSeekBar.requestFocus();
+                if (mSeekBar != null && mSeekBar.isEnabled()) {
+                    return mSeekBar.requestFocus();
+                }
+                // 进度条禁用（起播瞬间 duration 未就绪）：不穿透，停在本控件上
+                return true;
             }
             int direction = keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1;
             for (int next = i + direction; next >= 0 && next < controls.length; next += direction) {
                 View target = controls[next];
-                if (target != null && target.isShown() && target.isEnabled() && target.isFocusable()
-                        && target.requestFocus()) return true;
+                if (isFocusableControl(target) && target.requestFocus()) return true;
+            }
+            // 端点回绕：焦点在最左按←/最右按→时跳到另一端第一个可用控件，避免死键
+            int wrapStart = direction > 0 ? 0 : controls.length - 1;
+            int wrapEnd = direction > 0 ? controls.length : -1;
+            for (int next = wrapStart; next != wrapEnd; next += direction) {
+                View target = controls[next];
+                if (isFocusableControl(target) && target.requestFocus()) return true;
             }
             return true;
         }
         return false;
+    }
+
+    private boolean isFocusableControl(View target) {
+        return target != null && target.isShown() && target.isEnabled() && target.isFocusable();
+    }
+
+    private void focusDefaultControl() {
+        if (mPlayingBtn != null && mPlayingBtn.isShown() && mPlayingBtn.requestFocus()) return;
+        for (View target : new View[]{mPreBtn, mNextBtn, mEpisodeBtn, mSeekBar}) {
+            if (isFocusableControl(target) && target.requestFocus()) return;
+        }
+        requestFocus();
     }
 
     public long getCurrentOrPendingPosition() {

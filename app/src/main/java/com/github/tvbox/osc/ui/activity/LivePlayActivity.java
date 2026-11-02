@@ -159,10 +159,12 @@ public class LivePlayActivity extends BaseActivity {
             int keyCode = event.getKeyCode();
             if (keyCode != KeyEvent.KEYCODE_BACK) firstTimes = 0;
             if (keyCode == KeyEvent.KEYCODE_MENU) {
+                if (event.getRepeatCount() > 0) return true; // 长按 MENU 只响应一次
                 if (mDigitChannelBuffer.length() > 0) {
                     cancelDigitalTune();
                 }
                 showSettingGroup();
+                return true;
             } else if (!isListOrSettingLayoutVisible()) {
                 if (isNumberKey(keyCode)) {
                     handleNumberInput(getNumberFromKey(keyCode));
@@ -221,7 +223,8 @@ public class LivePlayActivity extends BaseActivity {
             }
         } else if (event.getAction() == KeyEvent.ACTION_UP) {
             int keyCode = event.getKeyCode();
-            if (isNumberKey(keyCode)) {
+            if (isNumberKey(keyCode) || keyCode == KeyEvent.KEYCODE_MENU) {
+                // 数字键/MENU 的 UP 对称消费：DOWN 已处理动作，UP 不得再漏给系统或触发默认 CLICK
                 return true;
             }
         }
@@ -366,6 +369,9 @@ public class LivePlayActivity extends BaseActivity {
                     public void onAnimationEnd(Animator animation) {
                         super.onAnimationEnd(animation);
                         llLeftChannelListLayout.setVisibility(View.INVISIBLE);
+                        if (mVideoView != null && !isFinishing() && !isDestroyed()) {
+                            mVideoView.requestFocus();
+                        }
                     }
                 });
                 animator.start();
@@ -729,6 +735,9 @@ public class LivePlayActivity extends BaseActivity {
                         super.onAnimationEnd(animation);
                         rightSettingLayout.setVisibility(View.INVISIBLE);
                         liveSettingGroupAdapter.setSelectedGroupIndex(-1);
+                        if (mVideoView != null && !isFinishing() && !isDestroyed()) {
+                            mVideoView.requestFocus();
+                        }
                     }
                 });
                 animator.start();
@@ -925,11 +934,14 @@ public class LivePlayActivity extends BaseActivity {
             liveChannelItemAdapter.setFocusedChannelIndex(-1);
         }
         if ((groupIndex > -1 && groupIndex != liveGroupAdapter.getSelectedGroupIndex()) || isNeedInputPassword(groupIndex)) {
-            liveGroupAdapter.setSelectedGroupIndex(groupIndex);
             if (isNeedInputPassword(groupIndex)) {
-                showPasswordDialog(groupIndex, liveChannelIndex);
+                // 如果只是遥控器上下滑动经过加密分组（liveChannelIndex == -1），不要强行弹出密码框打断浏览
+                if (liveChannelIndex > -1) {
+                    showPasswordDialog(groupIndex, liveChannelIndex);
+                }
                 return;
             }
+            liveGroupAdapter.setSelectedGroupIndex(groupIndex);
             loadChannelGroupDataAndPlay(groupIndex, liveChannelIndex);
         }
     }

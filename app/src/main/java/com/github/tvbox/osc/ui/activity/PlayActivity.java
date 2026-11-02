@@ -1055,7 +1055,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         boolean hadFocus = mResumeRestartHint.hasFocus();
         mResumeRestartHint.animate().cancel();
         mResumeRestartHint.setVisibility(View.GONE);
-        if (restoreFocus && hadFocus && mController != null && isActivityActive()) mController.requestFocus();
+        if (hadFocus && mController != null && isActivityActive() && !isFinishing() && !isDestroyed()) {
+            mController.requestFocus();
+        }
     }
 
     @Override

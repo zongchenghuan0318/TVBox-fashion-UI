@@ -27,12 +27,17 @@ public class LivePasswordDialog extends BaseDialog {
         setOwnerActivity((Activity) context);
         setContentView(R.layout.dialog_live_password);
         inputPassword = findViewById(R.id.input);
+        if (inputPassword != null) {
+            inputPassword.post(inputPassword::requestFocus);
+        }
         findViewById(R.id.inputSubmit).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String password = inputPassword.getText().toString().trim();
                 if (!password.isEmpty()) {
-                    listener.onChange(password);
+                    if (listener != null) {
+                        listener.onChange(password);
+                    }
                     dismiss();
                 }
             }
@@ -42,7 +47,9 @@ public class LivePasswordDialog extends BaseDialog {
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-        listener.onCancel();
+        if (listener != null) {
+            listener.onCancel();
+        }
         dismiss();
     }
 

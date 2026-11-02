@@ -45,7 +45,22 @@ public class BackupDialog extends BaseDialog {
             @Override
             public void onItemChildClick(BaseQuickAdapter adapter, View view, int position) {
                 if (view.getId() == R.id.tvName) {
-                    restore((String) adapter.getItem(position));
+                    String target = (String) adapter.getItem(position);
+                    TipDialog tipDialog = new TipDialog(getContext(), "确定要从备份 [" + target + "] 恢复数据吗？当前数据将被覆盖。", "确定恢复", "取消", new TipDialog.OnListener() {
+                        @Override
+                        public void left() {
+                            restore(target);
+                        }
+
+                        @Override
+                        public void right() {
+                        }
+
+                        @Override
+                        public void cancel() {
+                        }
+                    });
+                    tipDialog.show();
                 }
             }
         });
@@ -86,6 +101,15 @@ public class BackupDialog extends BaseDialog {
                 }
             }
         });
+    }
+
+    @Override
+    public void show() {
+        super.show();
+        View backupNow = findViewById(R.id.backupNow);
+        if (backupNow != null) {
+            backupNow.post(backupNow::requestFocus);
+        }
     }
 
     List<String> allBackup() {

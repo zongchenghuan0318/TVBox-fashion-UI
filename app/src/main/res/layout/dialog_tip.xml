@@ -33,7 +33,7 @@
             android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/leftBtn"
+                android:id="@+id/rightBtn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -42,12 +42,12 @@
                 android:focusable="true"
                 android:gravity="center"
                 android:padding="@dimen/vs_10"
-                android:text="确定"
+                android:text="取消"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_22" />
 
             <TextView
-                android:id="@+id/rightBtn"
+                android:id="@+id/leftBtn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -56,7 +56,7 @@
                 android:focusable="true"
                 android:gravity="center"
                 android:padding="@dimen/vs_10"
-                android:text="取消"
+                android:text="确定"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_22" />
         </LinearLayout>

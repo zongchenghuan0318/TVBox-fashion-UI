@@ -109,9 +109,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         @Override
         public void run() {
             if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null) {
-                // 如果当前顶栏仍持有焦点，主动将焦点归还给下方内容区，确保不发生焦点丢失
+                // 如果当前顶栏仍持有焦点，绝不强制收起或强夺用户焦点，重新检查防止打断用户
                 if (topNavPanel.hasFocus()) {
-                    enterSelectedCategoryContent();
+                    scheduleImmersiveTopBarFadeOut(3500L);
+                    return;
                 }
                 int height = topNavPanel.getHeight() > 0 ? topNavPanel.getHeight() : AutoSizeUtils.dp2px(HomeActivity.this, 60);
                 topNavPanel.animate().cancel();
@@ -219,9 +220,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     boolean hadFocus = isViewOrDescendant(oldFocus, topNavPanel);
                     boolean hasFocus = isViewOrDescendant(newFocus, topNavPanel);
                     if (hasFocus) {
-                        scheduleImmersiveTopBarFadeOut(3500L);
+                        mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
                     } else if (hadFocus) {
-                        scheduleImmersiveTopBarFadeOut(150L);
+                        scheduleImmersiveTopBarFadeOut(300L);
                     }
                 }
             });
@@ -841,9 +842,13 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 }
             }
 
-            // 极简沉浸模式：若顶栏正处于显示状态，每次遥控器按键操作都重新刷新 3.5 秒闲置倒计时
+            // 极简沉浸模式：若顶栏正处于显示状态且焦点不在顶栏上，每次遥控器按键操作都重新刷新 3.5 秒闲置倒计时
             if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE) {
-                scheduleImmersiveTopBarFadeOut(3500L);
+                if (!topNavPanel.hasFocus()) {
+                    scheduleImmersiveTopBarFadeOut(3500L);
+                } else {
+                    mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
+                }
             }
 
             // 3. Apple TV 顶栏模式 & 极简沉浸模式：
@@ -896,18 +901,19 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             }
         }
 
-        if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_MENU && event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getRepeatCount() == 0) {
             if (mSortFocusView != null && mSortFocusView.hasFocus()) selectCategory(mSortFocused);
             if (mCurrentSelected >= 0 && mCurrentSelected < fragments.size()
                     && fragments.get(mCurrentSelected) instanceof GridFragment) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                    if (((GridFragment) fragments.get(mCurrentSelected)).showFilter()) return true;
-                } else if (event.getAction() == KeyEvent.ACTION_UP
-                        && sortAdapter.getItem(mCurrentSelected) != null
+                if (((GridFragment) fragments.get(mCurrentSelected)).showFilter()) return true;
+                // 分类有筛选项但弹窗未能打开时同样消费按键，防止 MENU 的 UP/DOWN 漏给系统
+                if (sortAdapter.getItem(mCurrentSelected) != null
                         && !sortAdapter.getItem(mCurrentSelected).filters.isEmpty()) {
                     return true;
                 }
             }
+            return super.dispatchKeyEvent(event);
         }
         return super.dispatchKeyEvent(event);
     }
