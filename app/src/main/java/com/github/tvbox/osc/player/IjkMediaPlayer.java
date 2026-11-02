@@ -33,18 +33,20 @@ public class IjkMediaPlayer extends IjkPlayer {
         mMediaPlayer.setOption(1, "reconnect", 1L);
         mMediaPlayer.setOption(1, "reconnect_streamed", 1L);
         mMediaPlayer.setOption(1, "reconnect_delay_max", 3L);
+        mMediaPlayer.setOption(1, "http-detect-range-support", 0L);   // 禁用无效的 HTTP HEAD Range 探活，少走一次 HTTP 握手 RTT（立省 100~300ms）
         mMediaPlayer.setOption(1, "fflags", "fastseek");              // 拖动时跳过冗余逐帧解码，快速定位关键帧
         mMediaPlayer.setOption(1, "buffer_size", 4 * 1024 * 1024L);   // 4MB TCP 接收窗口，跑满宽带吞吐量
         mMediaPlayer.setOption(1, "multiple_requests", 1L);           // 开启 HTTP 复用，避免切片频繁握手
-        mMediaPlayer.setOption(1, "analyzeduration", 1500000L);       // 预读分析时间优化为 1.5 秒加速起播
-        mMediaPlayer.setOption(1, "probesize", 2 * 1024 * 1024L);     // 探测大小提升至 2MB，保障 4K 高分辨率元数据快速嗅探
+        mMediaPlayer.setOption(1, "analyzeduration", 800000L);        // 预读分析时间收紧为 0.8 秒（探测已有 2MB 保障），大幅消灭起播卡壳
+        mMediaPlayer.setOption(1, "probesize", 2 * 1024 * 1024L);     // 探测大小维持 2MB，保障 4K 高分辨率元数据快速嗅探
         mMediaPlayer.setOption(4, "framedrop", 1L);                  // 丢帧保音画同步
         mMediaPlayer.setOption(4, "soundtouch", 1L);                 // 倍速播放变速不变调
         mMediaPlayer.setOption(4, "skip-calc-frame-rate", 1L);
-        // 核心缓冲配置：极速接上 + 120 秒后台长蓄水
+        mMediaPlayer.setOption(4, "start-on-prepared", 1L);           // 底层 Native 解码准备完毕立刻出画，消除 JNI 线程调度延迟
+        // 核心缓冲配置：极速秒开 + 120 秒后台长蓄水
         mMediaPlayer.setOption(4, "packet-buffering", 1L);
-        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 800L);  // 首播起播蓄水 0.8 秒，瞬间接上
-        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2000L);  // 重新缓冲时蓄水 2.0 秒，快速恢复
+        mMediaPlayer.setOption(4, "first-high-water-mark-ms", 350L);  // 首播起播蓄水压缩至 0.35 秒，首帧瞬间出画
+        mMediaPlayer.setOption(4, "next-high-water-mark-ms", 2000L);  // 重新缓冲时维持 2.0 秒充足水库，快速恢复且抗抖动
         mMediaPlayer.setOption(4, "last-high-water-mark-ms", BUFFER_AHEAD_MS);
         mMediaPlayer.setOption(4, "max-buffer-size", Math.max(targetBufferBytes, 128 * 1024 * 1024)); // 128MB~256MB 超大包缓存
         mMediaPlayer.setOption(4, "accurate-seek-timeout", 200L);

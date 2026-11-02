@@ -1,9 +1,9 @@
 {
-  "versionCode": 173,
-  "versionName": "1.4.4",
-  "changelog": "快进与播放缓冲优化，发布 1.4.4\n\n- 合并连续快进操作，减少重复跳转造成的缓冲。\n- 保留完整视频片段 URL，避免不同查询参数的片段共享错误缓存。\n- 调整播放器预缓冲和网络读取配置，并按应用实际堆限制缓冲预算。\n- 缓冲预算边界测试通过；跳转后播放效果仍需电视实机验证。\n- 版本号升级至 1.4.4（versionCode 173）。",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.4/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.4/Z.apk",
-  "sha256": "09cf5b81c86bc27e2413fb393d3f9f6047f2f8f1b2f913a7a935ed765e34b43c",
-  "size": 24763494
+  "versionCode": 176,
+  "versionName": "1.4.7",
+  "changelog": "优化起播首帧秒开与电视端返回体验，发布 1.4.7\n\n- 起播蓄水门槛压缩至 400ms，配合 25Mbps 初始宽带预估，实现点击秒开出画。\n- IJK 播放内核解复用探测时间收紧至 0.8s，关闭冗余 HTTP HEAD 探活，出画提速。\n- 保持 50~120 秒超大内存稳态水库与纯内存直通，彻底保障持续播放不卡顿。\n- 修复退出播放二次确认提示改用原生轻量 Toast，避免加载提示与菊花圈常驻屏幕。\n- 详情页与设置页实现遥控器层级返回，避免选集或修改选项时按返回键直接关闭页面。\n- 版本号升级至 1.4.7（versionCode 176）。",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.7/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.7/Z.apk",
+  "sha256": "6f90a2622118bcfb3187ed59ef0ef68dbd93a76127e0a7aee67a3b6d5074de97",
+  "size": 24764039
 }

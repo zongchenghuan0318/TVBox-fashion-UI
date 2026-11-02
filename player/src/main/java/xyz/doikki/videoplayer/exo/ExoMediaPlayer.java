@@ -48,8 +48,8 @@ import xyz.doikki.videoplayer.util.PlaybackBufferBudget;
 
 public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
-    // 首播起播极速蓄水 1.0 秒：秒出画，实现跳转直接接上
-    private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
+    // 首播起播极速蓄水 0.4 秒：秒出画，首帧瞬间呈现（起播速度翻倍）
+    private static final int BUFFER_FOR_PLAYBACK_MS = 400;
     // 卡顿二次缓冲门槛 2.0 秒：短小精悍，快速恢复，避免长时间转圈
     private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_000;
     // 现代大内存电视超大缓冲时间上限：120 秒（两分钟安全库存），大内存轻松吞下
@@ -113,13 +113,16 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                     .setEnableDecoderFallback(true);
         }
+        DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter.Builder(mAppContext)
+                .setInitialBitrateEstimate(25_000_000L) // 初始预估 25Mbps 现代宽带，多码率流起播无需等待低速爬坡
+                .build();
         mInternalPlayer = new SimpleExoPlayer.Builder(
                 mAppContext,
                 mRenderersFactory,
                 mTrackSelector == null ? mTrackSelector = new DefaultTrackSelector(mAppContext) : mTrackSelector,
                 new DefaultMediaSourceFactory(mAppContext),
                 mLoadControl,
-                DefaultBandwidthMeter.getSingletonInstance(mAppContext),
+                bandwidthMeter,
                 new AnalyticsCollector(Clock.DEFAULT))
                 .build();
         setOptions();
