@@ -188,66 +188,30 @@
             app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
     </LinearLayout>
 
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/llLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
         android:padding="@dimen/vs_20">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/vs_8"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/tvSearchProgress"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:singleLine="true"
-                android:textColor="@color/color_rail_text_muted"
-                android:textSize="@dimen/ts_16"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tvRetrySearch"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/vs_50"
-                android:layout_marginStart="@dimen/vs_10"
-                android:background="@drawable/selector_user_focus"
-                android:focusable="true"
-                android:gravity="center"
-                android:minWidth="@dimen/vs_120"
-                android:paddingStart="@dimen/vs_12"
-                android:paddingEnd="@dimen/vs_12"
-                android:text="重试未响应来源"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_16"
-                android:visibility="gone" />
-        </LinearLayout>
-
+        <!-- 搜索结果列表：始终占满全部空间，不被进度条挤压 -->
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/sortRV"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="match_parent"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:visibility="invisible"
             android:nextFocusLeft="@+id/keyBoardRoot"
             app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
-            app:tv_selectedItemIsCentered="true"
+            app:tv_selectedItemIsCentered="false"
             app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
 
+        <!-- 空结果提示：叠加在结果列表上方居中显示 -->
         <LinearLayout
             android:id="@+id/llSearchEmpty"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
             android:visibility="gone">
@@ -290,5 +254,42 @@
                 android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_18" />
         </LinearLayout>
-    </LinearLayout>
+
+        <!-- 进度条 + 重试按钮：悬浮在结果列表顶部，不占结果列表空间 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvSearchProgress"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/color_rail_text_muted"
+                android:textSize="@dimen/ts_16"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvRetrySearch"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/vs_50"
+                android:layout_marginStart="@dimen/vs_10"
+                android:background="@drawable/selector_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="@dimen/vs_120"
+                android:paddingStart="@dimen/vs_12"
+                android:paddingEnd="@dimen/vs_12"
+                android:text="重试未响应来源"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_16"
+                android:visibility="gone" />
+        </LinearLayout>
+    </RelativeLayout>
 </LinearLayout>

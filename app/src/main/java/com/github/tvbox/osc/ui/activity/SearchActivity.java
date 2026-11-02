@@ -683,6 +683,7 @@ public class SearchActivity extends BaseActivity {
         tvSearchProgress.setText("正在准备搜索来源…");
         mSearchResultRV.setVisibility(View.VISIBLE);
         searchResultAdapter.setNewData(new ArrayList<>());
+        mSearchResultRV.scrollToPosition(0);
         doSearch();
         if (searchSourceCount > 0) {
             searchHandler.postDelayed(searchTimeout, 15000L);
@@ -798,22 +799,23 @@ public class SearchActivity extends BaseActivity {
 
     private void updateSearchProgress(boolean timedOut) {
         if (tvSearchProgress == null) return;
-        tvSearchProgress.setVisibility(View.VISIBLE);
-        if (timedOut && completedSearchSources < searchSourceCount && !searchResultAdapter.getData().isEmpty()) {
-            tvSearchProgress.setText("已找到 " + searchResultAdapter.getData().size() + " 条，" + completedSearchSources
-                    + "/" + searchSourceCount + " 个来源已响应；其余来源超时");
-        } else if (timedOut && completedSearchSources < searchSourceCount) {
-            tvSearchProgress.setText("搜索超时，没有找到结果；可重试未响应来源");
-        } else if (completedSearchSources >= searchSourceCount && searchSourceCount > 0) {
-            int count = searchResultAdapter.getData().size();
-            tvSearchProgress.setText(count == 0
-                    ? "搜索完成（" + searchSourceCount + " 个来源），没有匹配结果"
-                    : "搜索完成 · " + count + " 条结果 · " + searchSourceCount + " 个来源");
-        } else {
-            tvSearchProgress.setText("正在搜索 · 已收到 " + completedSearchSources + "/" + searchSourceCount + " 个来源的响应");
-        }
         boolean hasResults = !searchResultAdapter.getData().isEmpty();
         boolean finished = timedOut || (searchSourceCount > 0 && completedSearchSources >= searchSourceCount) || searchFinished;
+        if (finished && hasResults) {
+            // 搜索完成且有结果：隐藏进度文字，结果列表直接顶到最上面不被遮挡
+            tvSearchProgress.setVisibility(View.GONE);
+        } else if (timedOut && completedSearchSources < searchSourceCount && !hasResults) {
+            // 超时且无结果：显示提示
+            tvSearchProgress.setVisibility(View.VISIBLE);
+            tvSearchProgress.setText("搜索超时，没有找到结果；可重试未响应来源");
+        } else if (finished && !hasResults) {
+            // 完成但无结果：隐藏进度文字（空状态图已经显示了）
+            tvSearchProgress.setVisibility(View.GONE);
+        } else {
+            // 搜索进行中：显示进度
+            tvSearchProgress.setVisibility(View.VISIBLE);
+            tvSearchProgress.setText("正在搜索 · 已收到 " + completedSearchSources + "/" + searchSourceCount + " 个来源的响应");
+        }
         if (llSearchEmpty != null) {
             llSearchEmpty.setVisibility(!hasResults && finished ? View.VISIBLE : View.GONE);
         }
@@ -864,6 +866,10 @@ public class SearchActivity extends BaseActivity {
                     showSuccess();
                     if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
                     mSearchResultRV.setVisibility(View.VISIBLE);
+                    // 首批结果到来时自动滚回顶部，避免搜索结果从中途位置开始显示
+                    if (old.isEmpty()) {
+                        mSearchResultRV.scrollToPosition(0);
+                    }
                 }
                 updateSearchProgress(searchFinished && completedSearchSources < searchSourceCount);
                 if (!pendingResults.isEmpty()) searchHandler.postDelayed(mergeResults, 200L);
