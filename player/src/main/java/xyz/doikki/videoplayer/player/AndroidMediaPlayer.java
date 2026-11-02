@@ -17,7 +17,7 @@ import java.util.Map;
 public class AndroidMediaPlayer extends AbstractPlayer implements MediaPlayer.OnErrorListener,
         MediaPlayer.OnCompletionListener, MediaPlayer.OnInfoListener,
         MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnPreparedListener,
-        MediaPlayer.OnVideoSizeChangedListener {
+        MediaPlayer.OnVideoSizeChangedListener, MediaPlayer.OnSeekCompleteListener {
 
     protected MediaPlayer mMediaPlayer;
     private int mBufferedPercent;
@@ -39,6 +39,12 @@ public class AndroidMediaPlayer extends AbstractPlayer implements MediaPlayer.On
         mMediaPlayer.setOnBufferingUpdateListener(this);
         mMediaPlayer.setOnPreparedListener(this);
         mMediaPlayer.setOnVideoSizeChangedListener(this);
+        mMediaPlayer.setOnSeekCompleteListener(this);
+    }
+
+    @Override
+    public void onSeekComplete(MediaPlayer mp) {
+        notifySeekComplete();
     }
 
     @Override

@@ -1,144 +1,164 @@
-# ZYingshi (Z影视)
+<img width="2358" height="1080" alt="3a333afb64c43b7d1875991f8ceb6252" src="https://github.com/user-attachments/assets/85c6f696-fd7e-4018-9085-115b589f4139" />
+<img width="2358" height="1080" alt="fb49b4a6c40a7d93a88ed2e6d3576992" src="https://github.com/user-attachments/assets/f810db62-0641-4fca-aa2d-0028b98c831c" />
+<img width="2358" height="1080" alt="7707b998cc63466a2fe7e06b92029893" src="https://github.com/user-attachments/assets/8b7c8e99-ab26-4fca-ae25-24bb6a4a99d9" />
+<img width="2358" height="1080" alt="9aa364a29bd910b53affa1123cb48d89" src="https://github.com/user-attachments/assets/750c239d-13a9-4dad-a699-66edbb69014f" />
+<img width="2358" height="1080" alt="133a8cc6bbccfc5c0dc8ebd7da8060c9" src="https://github.com/user-attachments/assets/0bda9125-1813-4af9-bf33-d7e083d4d6da" />
 
-An Android aggregated video client for TV boxes, TVs and landscape phones, built on top of the open-source [TVBoxOSC](https://github.com/CatVodTVOfficial/TVBoxOSC) project (CatVodTVOfficial).
+# Z影视 (ZYingshi)
 
-This project ships the client only: **all video resources and third-party APIs come from the Internet. The app stores and distributes no video content.**
+Z影视 is a video aggregation client designed for TV screens. It suits TV boxes and smart TVs, and also works on landscape phones. It is fully usable with a TV remote.
 
-> The app and all video APIs are completely free. Do not trust any advertisements.
+It does not provide any video itself. It brings together the video sources you configure: search once, every checked source is queried together, results are ordered by your source priority, and you can play what you pick.
+
+> The app and the video interfaces are free. Do not trust any advertisements.
+> Video resources come from third parties on the Internet. This software does not store or distribute any video content.
+
+For first-time setup, see the **[Z影视 User Guide](./使用指南.md)** (Chinese).
+
+| Item | Details |
+| --- | --- |
+| Current version | v1.5.3 |
+| Requirements | Android 5.0 or later |
+| Devices | TV boxes and smart TVs (primary); phones and tablets in landscape |
+| CPU architecture | armeabi-v7a only |
+| App updates | Check manually in Settings, or enable automatic check at launch |
 
 ---
-
-## Introduction
-
-ZYingshi is a multi-source aggregated video client. It does not provide sources itself; instead it aggregates the collection/parsing sites listed in a config file into one place: a single search queries every enabled site at once, results are ordered by the priority you configure, and playback is handled by the built-in player.
-
-Compared with the stock TVBoxOSC, this project reworks the home, category, search, favorites/history and player pages, focusing on the issues that hurt real usage the most — blank home pages, empty category pages, jumbled search order and unsuitable picture scaling.
-
-- Default config URL: `https://tv.xn--yhqu5zs87a.top`
-- Package name: `com.studio.osc`
-- Android 5.0+ (minSdk 21 / targetSdk 28)
-- Current version: `v1.0.13` (versionCode 13)
 
 ## Features
 
 ### Home
-- Default data source is pinned to **Douban Recommendations** and placed first in the source list
-- **Four-layer fallback** so the home page is never blank: Douban direct → local cache → current source recommendations → automatic switch to another available source
-- Ships built-in mainstream collection sites (Feifan, Liangzi, Baofeng, Jisu) placed at the front of the site list, and prefers collection sites for the home source, avoiding unstable cloud-drive sites
-- Cards with a full-screen backdrop poster; the backdrop switches in sync with the cards
-- Cards are laid out on an **arc**: the selected card sits at the apex (tallest / brightest / largest, and grows a bit more when focused) while its neighbours sink, dim and tilt outward; the focused card always stays centered and card transitions use a fixed 350 ms eased curve
-- Card sizes are tightened so **more cards fit on screen**; after 6 s idle it slides to the next card, wrapping from the last card back to the first
+- The default data source is Douban recommendations, listed first.
+- Recommendation cards are arranged in an arc. The selected card sits at the top and is largest; cards on either side step down and dim.
+- The full-screen background poster follows the selected card.
+- After 6 seconds with no input, the home screen advances to the next card. Any key press or focus change stops the timer and restarts it.
+- Home has several fallbacks: if the Douban request fails, the app uses a local cache, then the current source's recommendations, then another available source.
+- Selecting a card searches its title directly.
 
 ### Categories
-- Sidebar categories are fixed to: Home, Movie, TV Series, Variety, Anime, Documentary (other categories hidden); the sidebar also carries a **Live** entry, whose channels can be customised in Settings (multiple M3U / TVBox JSON source URLs, merged automatically)
-- Category matching prefers **leaf categories** of each site, avoiding empty pages caused by parent categories returning zero results
-- Tapping a card jumps straight to the aggregated search page by title
+- The sidebar categories are fixed: Movies, TV Series, Variety, Anime, Documentaries.
+- Live TV has its own entry. Live sources are configured in Settings.
+- Selecting a card searches its title.
 
 ### Search
-- One search queries all enabled sites, and **the check order is the display order**; every search screen follows it strictly
-- Search source management supports per-site checkboxes and Select All / Deselect All, **defaulting to all selected**
-- Default priority: `文采┃秒播` > `非凡┃影视` > the rest (a user-defined order takes precedence)
-- **15 s timeout guard**: when it fires the search is wrapped up — results already returned stay visible, and only a completely empty search shows the "search timed out" notice
-- With no source checked it does not spin: it tells you to check at least one source instead
-- Search history can be cleared in one tap; the section collapses when empty
+- One search queries every checked source at once.
+- Results follow the order of the checked sources, so higher-priority sources appear first.
+- Everything is checked by default. The default priority is `文采┃秒播`, then `非凡┃影视`, then the others. Once you reorder the list, your order is used instead.
+- Search waits up to 15 seconds. If some sources have not responded, a short notice appears and a Retry button is shown. Results found so far stay on screen.
 
-### Favorites & History
-- Both are grid views with a per-item delete mode
-- Clearing everything requires a **confirmation dialog**
+### Favorites and history
+- Both are shown as grids and support a delete mode.
+- Clearing either list asks for confirmation first.
 
 ### Playback
-- Default picture scale is **crop** (center-crop to fill the screen); switchable to Default / 16:9 / 4:3 / Fill / Original
-- The progress bar has its own row with distinct played / buffered / track colors and clear drag and focus feedback
-- The program info, clock and bottom notice auto-hide after 5 s of inactivity and reappear on any key or touch; the "buffering…" notice is the exception — it disappears the moment buffering finishes. Any notice that carries a retry button stays on screen
-- Episodes panel and gesture seeking are available straight from the player
-- **20 s start timeout**: if playback has not started in time the app retries on its own, and if it still fails it shows "video playback error" with a retry entry point
+- **Aspect ratio** cycles through Default → 16:9 → 4:3 → Fill → Original → Crop. The default is Default.
+- **Speed** cycles through 0.5 → 1.0 → 1.5 → 2.0 → 3.0 → 0.5.
+- **Remote**: OK plays or pauses. Left and right seek about 10 seconds, and holding them speeds up. Up opens the episode list when there is more than one episode. Down shows the control bar.
+- **Long-press speed-up**: holding OK during playback runs at 2×. On touch screens, holding the picture gives 2×, dragging right gives 3×, and swiping down locks the speed.
+- **Lock**: press any direction key to show the lock icon, then press OK to unlock.
+- **Auto-hide**: the control bar hides after about 4 seconds and the bottom bar after about 6 seconds (about 10 seconds with Senior Mode).
+- **Auto next episode**: an 8-second countdown appears after an episode ends. You can cancel it or play the next episode immediately.
+- **Subtitles and audio**: embedded subtitles, source subtitles and local subtitle files (SRT, VTT, ASS, SSA). The audio track is matched by your language preference.
+- **Resume**: the position is saved every 5 seconds and when you leave. The same episode resumes from the saved point. A finished episode clears its position.
+- **Start timeout**: if no picture appears within 20 seconds, the app shows "播放超时，请检查线路或网络" with a retry button. It does not retry automatically.
 
 ### Settings
-- Config URL validation: it is saved only after validation passes, the dialog is locked while validating, failures show the exact reason, and both total and searchable site counts are displayed
-- The config dialog was reworked into a **"config library / saved addresses"** picker: pasting config content by hand is no longer supported, you pick a saved address instead and it is validated and applied in one tap
-- **Config failover**: when the current config URL cannot be reached, the app tries the candidates in order — current URL → config library → built-in backup URLs → default URL — and adopts the first one that works; if all fail it falls back to the local cache and says so
-- Home data source, search source management, player engine / render / scale, DNS and search layout (list / grid) settings
-- Settings are grouped as: config & sources (config file / live source URLs / default site), home & search (home recommendations / search display / search source management), playback (player / IJK decode method / render / scale / sniffer webview / secure DNS) and other (share with friends / about)
+- **Config address**: the address is verified before it is saved. Failures show the reason, plus the total site count and the searchable site count.
+- **Config library and saved addresses**: choose from saved addresses.
+- **Automatic fallback**: if the current address cannot be reached, the app tries the config library, built-in backup addresses and the default address in turn. If all fail, it uses the cached config.
+- **Live sources**: enter one M3U or TVBox JSON source per line. Sources are merged.
+- **Playback options**: player, IJK decoder, render mode, aspect ratio, subtitles and audio, skip intro/outro, step length, secure DNS.
+- **Senior Mode**: larger text and longer control-bar display.
+- **LAN web page**: scan a QR code to open the current config on a phone, or push content to the TV (default port 9978).
+- **Check for updates**: manual, or automatic at launch.
 
-## Source structure
+---
 
-A Gradle multi-module project (`rootProject.name = "MoviePlayer"`) with two modules: `app` (the application) and `player` (the playback core). The Chinese [README.md](./README.md) documents every package in detail; the essentials:
+## Recent updates
 
-```
-tvbox_source/
-├── app/            application module (applicationId com.studio.osc)
-│   ├── libs/       thunder.jar, uiSupport-release.aar (closed-source UI lib)
-│   └── src/main/   AndroidManifest.xml, assets (tvbox.jar, js/, parse.html),
-│                   python/ (Chaquopy spiders), java/com/github/{tvbox/osc,
-│                   catvod, com/fongmi/quickjs, okhttp3/dnsoverhttps}, res/
-├── player/         IJK kernel (tv/danmaku/ijk) + video player framework
-│                   (xyz/doikki/videoplayer), armeabi-v7a only
-├── gradle/         wrapper and China mirror config
-├── settings.gradle include ':app' ':player'
-├── site.json       built-in site config sample
-└── README.md / README.en.md / 使用指南.md / LICENSE
-```
+- **1.5.3**: Faster category switching and resume.
+- **1.5.2**: Hid the category filter button.
+- **1.5.1**: Fixed a crash when opening the search page.
+- **1.5.0**: Upgraded the image loader and added poster preloading.
+- **2026-10-24**: Playback improvements: long-press speed-up, subtitle and audio selection, skip intro/outro, more accurate resume.
+- **2026-10-20**: Config fallback, config library and saved addresses, live source settings, 15-second search timeout, start-timeout notice.
 
-Key packages under `com.github.tvbox.osc`: `api` (config parsing and site management), `bean` (data models), `cache` (Room + local cache), `server` (LAN HTTP service and push-control), `receiver` (broadcast entry points), `player` (player kernel adapters), `ui.activity` (Home / Play / Search / Detail / Setting / Collect / History / Push …), `ui.fragment`, `ui.adapter`, `ui.dialog`, `ui.tv` (TV widgets incl. the home card view), `util`.
+---
 
-Tech stack: Java 8, `compileSdk 30` / `buildTools 30.0.3`, `minSdk 21` / `targetSdk 28`, armeabi-v7a, multiDex; Room 2.3.0, OkGo 3.0.4 / OkHttp 3.12.1, Glide 3.7.0, BaseRecyclerViewAdapterHelper, TV-RecyclerView, LoadSir; QuickJS 2.4.5 and Chaquopy Python 3.8 for script spiders; NanoHTTPD for the built-in server.
+## FAQ
 
-## Docs
+- **No results on home or search**: check your network, then check that the sources in Search Source Management are checked.
+- **Home spins or stays blank**: Douban may be rate-limiting your network. The app pauses direct Douban requests for about 5 minutes. Wait a few minutes before trying again.
+- **Video does not play**: try another line or another source. If it still fails, change the player or the IJK decoder.
 
-| Document | Content |
-| --- | --- |
-| [README.en.md](./README.en.md) | This file: overview, features, source structure, build |
-| [README.md](./README.md) | Chinese version, more detailed (adds per-package tables and the full changelog) |
-| [使用指南](./使用指南.md) | Chinese user manual: install, first launch, remote keys, home / category / search / detail / playback / favorites, every setting explained, FAQ |
+See the [User Guide](./使用指南.md) for more questions (Chinese).
 
-## Changelog
+---
 
-> See the repository commits page for the full history. Recent highlights:
+## Technical details
 
-### 2026-10-20
-- Docs: README gained the source-structure, package and tech-stack sections; the user guide gained the version number and the search-timeout / slow-start FAQ entries
-- Playback: the "buffering…" notice hides as soon as buffering ends, no longer waiting out the full 5 s
-- Home: card sizes moved to `home_card_*` size tokens (with a `values-sw600dp` override), the focused card grows further, idle carousel back to 6 s
-- Stability: 15 s timeout on the search chain, 20 s start timeout with request de-duplication on playback
-- **Config failover**: the config URL is now a candidate chain (current → config library → built-in backups → default), first reachable one wins; falls back to the local cache when none work
-- **Config library / saved addresses**: the config dialog was reworked, the paste box is gone, and picking a saved address validates and applies it immediately
-- **Live TV**: a new "live source URLs" setting (multi-line M3U / TVBox JSON, de-duplicated and merged) plus a Live entry in the sidebar; clearing the setting falls back to the sources shipped in the config
-- **Robustness fixes**: search requests tracked as `Future`s and stopped when the page is destroyed, detail-page executor shut down with the page, EventBus unregister fixed, out-of-range guards in the config-library list, app restart only when the config URL really changed
+### Home
+- Cards are drawn by `HomeCardRecyclerView`. Arc placement, scale and opacity depend on position. Switching takes 350 ms.
+- Card sizes come from the `home_card_*` dimension tokens. `values-sw600dp` provides large-screen overrides.
+- The background poster is an Activity-level layer, so it does not linger after switching pages. Posters are sharpened with `SharpenTransformation`.
+- The auto-scroll interval is 6000 ms (`AUTO_SCROLL_DELAY`).
+- After a Douban rate-limit, the app enters a 5-minute cooldown (`FirstFragment`). The cooldown is kept in memory only, so restarting the app clears it.
 
-### 2026-10-17
-- Home backdrop promoted from the ViewPager fragments to an Activity-level layer, so category pages no longer leak the previous page's backdrop; sidebar glass restyle
-- Home cards: ring 3D carousel → virtual infinite loop → back to a plain list loop (last card wraps to the first), arc depth reworked and cards shrunk so more fit on screen
-- Player: episode panel and gesture seeking added
+### Search
+- Search tasks are managed with `Future` and are cancelled when the page is destroyed or a new search starts.
+- Results are sorted by the checked-source order after each batch.
+- The search timeout is 15 seconds (`SearchActivity`).
+- The default priority is defined in `DefaultConfig.SEARCH_SITE_PRIORITY`.
 
-### 2026-10-16
-- Home: Douban Recommendations pinned first, four-layer fallback so it is never blank, backdrop poster USM sharpening and `l`-grade covers, arc layout / 350 ms transitions / centered selection
-- Search: all sources checked by default with a built-in priority (`文采┃秒播` > `非凡┃影视` > the rest), check order = display order
-- Player: notices auto-hide after 5 s, ad notice moved into the control bar, progress bar redrawn as its own row
-- Settings: grouped layout rebuild; the config-URL dialog is locked until validation finishes
-- Initial commit: repackaged TVBoxOSC baseline
+### Playback
+- The player wraps IJKPlayer and ExoPlayer (`player` module). Third-party players are not offered in the player list.
+- The resume key is built from source, title, line and episode URL (`PlayActivity.buildEpisodeProgressKey`). The position is saved every 5 seconds.
+- The start timeout is 20 seconds (`playbackStartTimeout`). On timeout, the app shows an error with a retry option.
+- Speed steps are `{0.5, 1.0, 1.5, 2.0, 3.0}` (`VodController`).
+- Aspect-ratio values use the `VideoView.SCREEN_SCALE_*` constants. The default is `SCREEN_SCALE_DEFAULT` (index 0).
+- Remote long-press OK starts a 2× boost after 400 ms (`BaseController.startKeySpeedBoost`), and only while playing.
+- Touch speed boost is managed by `SpeedGestureState` (states: 2×, 3×, locked).
+- Subtitles are parsed by `ExternalSubtitle`, with separate handling for ASS/SSA and SRT/VTT.
+- Control-bar timeouts are set with `setDismissTimeout`: 4 seconds normally, 10 seconds in Senior Mode. The bottom bar hides after 6 seconds (10 seconds in Senior Mode).
+- The auto-next countdown is 8 seconds (`AUTO_NEXT_COUNTDOWN_SECONDS`).
 
-## Build
+### Config sources
+- Verification is done by `ApiConfig.verifyConfig`: download, parse JSON, then count sites.
+- Fallback order: current address, config library, `DEFAULT_API_SAVED_CONFIGS`, default address. The read timeout during fallback is 7 seconds.
+- Built-in sources (`DefaultConfig.EXTRA_SITES`) are Feiyan (非凡), Liangzi (量子), Baofeng (暴风) and Jisu (极速). They are placed at the top of the site list.
+- Live source input may start with `{`, `[` or `#EXTM3U`. Entries are de-duplicated with a `LinkedHashSet`.
 
-```bash
-# debug
-./gradlew :app:assembleDebug
-# output: app/build/outputs/apk/debug/app-debug.apk
+### Updates
+- The primary update source is the Gitee release. The fallback is the GitHub release (`UpdateClient`).
+- GitHub downloads try `gh-proxy.com`, `ghfast.top` and then a direct link.
+- The update manifest includes a SHA-256 checksum, and the APK must match it before installation.
+- Installation goes through the system installer. There is no silent install.
 
-# release
-./gradlew :app:assembleRelease
-```
+### Other
+- Image loading uses Glide 4.14.2. Networking uses OkGo 3.0.4 and OkHttp 3.12.1.
+- Storage uses Room 2.3.0 and Hawk 2.0.1.
+- Script runtimes: QuickJS (`wang.harlon.quickjs` 2.4.5) and Chaquopy Python. The bundled `tvbox.jar` is loaded with `DexClassLoader`.
+- The LAN service uses NanoHTTPD 2.3.1 (`RemoteServer`, default port 9978).
 
-Dependency downloads are configured with China-based mirrors (Maven → Aliyun / Tencent, Gradle distribution → Tencent mirror).
-Note: Chaquopy Android wheels are only served from `chaquo.com/pypi-7.0`, so the `pip{}` block in `build.gradle` must not set an `indexUrl` mirror, otherwise ABI wheel resolution fails.
+Source layout, packages and build instructions are in [docs/开发说明.md](./docs/开发说明.md) (Chinese).
+
+---
 
 ## Disclaimer
 
-- This project is for learning and technical research only. All videos, images and APIs come from third parties on the Internet; this app does not provide, store or distribute any video resource.
-- The app and all video APIs are completely free. Do not use them commercially, and do not pay for this app in any app store.
-- Any consequences of using this app are borne by the user; the developer assumes no responsibility.
-- If anything infringes your rights, please contact us for removal.
+- This project is for study and technical research only. All films, images and interfaces come from third parties on the Internet. This software does not provide, store or distribute any video resources.
+- The software and video interfaces are completely free. Do not use them commercially, and do not pay for this software in any app store.
+- You are responsible for any consequences of using this software. The developer accepts no liability.
+- If you believe your rights have been infringed, please contact us to have the content removed.
 
 ## Contact
 
-- QQ group: 879811030
-- Developer: 宗成焕
+- QQ: 2020997318
+- For questions, contact the developer.
+
+---
+
+## Support
+
+Development takes a lot of work. If you can, consider a donation.
+<img width="1080" height="1474" alt="9e5eb1a90ee0cdc01a13084787e6f4fc" src="https://github.com/user-attachments/assets/7945bc38-8b5f-486d-91c3-e85836f8c9c0" />

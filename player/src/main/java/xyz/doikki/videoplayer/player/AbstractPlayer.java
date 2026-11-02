@@ -34,6 +34,12 @@ public abstract class AbstractPlayer {
         mSubtitleTextListener = null;
     }
 
+    /** 内核 seek 完成时调用，转发给 VideoView */
+    protected final void notifySeekComplete() {
+        PlayerEventListener listener = mPlayerEventListener;
+        if (listener != null) listener.onSeekComplete();
+    }
+
     public boolean supportsMediaTracks() { return false; }
 
     public List<MediaTrack> getMediaTracks(int type) { return Collections.emptyList(); }
@@ -196,6 +202,9 @@ public abstract class AbstractPlayer {
         void onInfo(int what, int extra);
 
         void onPrepared();
+
+        /** 一次 seek 已在播放器内完成（位置已真正落到目标或最近的可播位置） */
+        void onSeekComplete();
 
         void onVideoSizeChanged(int width, int height);
 

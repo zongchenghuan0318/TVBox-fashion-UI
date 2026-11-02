@@ -182,6 +182,12 @@ public abstract class BaseVideoController extends FrameLayout  implements IVideo
     }
 
     /**
+     * {@link VideoView}在播放器完成一次 seek 后调用此方法，子类可据此确认定位已生效
+     */
+    public void onPlayerSeekComplete() {
+    }
+
+    /**
      * {@link VideoView}调用此方法向控制器设置播放器状态
      */
     @CallSuper

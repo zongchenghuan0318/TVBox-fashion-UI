@@ -544,6 +544,14 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
     }
 
     /**
+     * 播放器 seek 完成回调，转发给控制器
+     */
+    @Override
+    public void onSeekComplete() {
+        if (mVideoController != null) mVideoController.onPlayerSeekComplete();
+    }
+
+    /**
      * 视频播放完成回调
      */
     @Override

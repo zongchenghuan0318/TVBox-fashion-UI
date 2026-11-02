@@ -93,6 +93,8 @@ public class VodController extends BaseController {
     private View mOptionsReturnFocus;
     private int mPendingSeekPosition = -1;
     private long mPendingSeekTime;
+    /** 尚未收到播放器 seek 完成事件的 seek 次数，归零时才真正结束"待定位置"显示 */
+    private int mPendingSeekCount;
     private int mLastValidDuration = 0;
     private VodControlListener controlListener;
     private boolean bSkipEnd = true;
@@ -824,10 +826,12 @@ public class VodController extends BaseController {
         boolean pendingSeek = false;
         if (mPendingSeekPosition >= 0 && duration > 0) {
             long elapsed = android.os.SystemClock.uptimeMillis() - mPendingSeekTime;
-            // Native player decoders take 150-400ms to seek. Within 400ms, always keep the target position.
-            // After 400ms, only clear once player caught up or on timeout (4000ms).
-            if (elapsed > 400 && (Math.abs(position - mPendingSeekPosition) <= 2000 || elapsed >= 4000)) {
+            // 待定位置只由播放器的 seek 完成事件结束（见 onPlayerSeekComplete），
+            // 不再按距离判断：关键帧 seek 会落在目标之前，按距离会让进度条停在目标处、与画面不一致。
+            // 4 秒超时仅作兜底，防止事件丢失时进度条一直卡住。
+            if (elapsed >= 4000) {
                 mPendingSeekPosition = -1;
+                mPendingSeekCount = 0;
             } else {
                 position = Math.min(duration, mPendingSeekPosition);
                 pendingSeek = true;
@@ -930,6 +934,26 @@ public class VodController extends BaseController {
     protected void onSeekRequested(int position) {
         mPendingSeekPosition = Math.max(0, position);
         mPendingSeekTime = android.os.SystemClock.uptimeMillis();
+        mPendingSeekCount++;
+    }
+
+    /** 播放器 seek 完成：与 onSeekRequested 配对，全部完成后立即以播放器真实位置刷新进度条 */
+    @Override
+    public void onPlayerSeekComplete() {
+        mBaseHandler.post(() -> {
+            if (mPendingSeekCount > 0) mPendingSeekCount--;
+            if (mPendingSeekCount == 0 && mPendingSeekPosition >= 0) {
+                mPendingSeekPosition = -1;
+                refreshProgressNow();
+            }
+        });
+    }
+
+    /** 上一次 seek 还没完成时，播放器可能返回 0 或旧位置，此时以待定目标为准，避免连续快进时跳回开头 */
+    @Override
+    protected long getSeekBasePosition() {
+        if (mPendingSeekPosition >= 0) return mPendingSeekPosition;
+        return super.getSeekBasePosition();
     }
 
     @Override
@@ -1003,6 +1027,7 @@ public class VodController extends BaseController {
             case VideoView.STATE_PREPARING:
                 mLastValidDuration = 0;
                 mPendingSeekPosition = -1;
+                mPendingSeekCount = 0;
                 mIsDragging = false;
                 bSimSlideStart = false;
                 simSlideOffset = 0;

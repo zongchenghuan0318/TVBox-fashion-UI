@@ -135,6 +135,11 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
         mInternalPlayer.addListener(this);
         mInternalPlayer.addAnalyticsListener(new AnalyticsListener() {
             @Override
+            public void onSeekProcessed(EventTime eventTime) {
+                notifySeekComplete();
+            }
+
+            @Override
             public void onVideoDecoderInitialized(EventTime eventTime, String decoderName,
                     long initializedTimestampMs, long initializationDurationMs) {
                 Log.i("PlaybackHealth", "videoDecoder=" + decoderName);

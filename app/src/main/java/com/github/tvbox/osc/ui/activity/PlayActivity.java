@@ -70,6 +70,7 @@ import org.json.JSONObject;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -119,6 +120,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     /** 本次实际播放地址：旧版本以播放 URL 作为进度 key，用它兜底读取老进度 */
     private String mCurrentPlayUrl;
     private String mResumeKey;
+    /** 刚看完并已切到下一集的那一集的 key：切集过程中不再回写它的进度，避免把片尾位置写回去 */
+    private String mFinishedProgressKey;
     private long mResumePosition;
     private boolean mHasSavedResumePosition;
     private boolean mResumePromptShown;
@@ -130,6 +133,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private static final long BACK_EXIT_INTERVAL_MS = 1500L;
     private final Runnable mResumeHintTick = this::refreshResumeHintCountdown;
     private static final long RESUME_PROMPT_MIN_POSITION_MS = 30_000L;
+    // 进度的内存副本（进程内有效），保证写入后立即可读，不依赖后台写库的完成时机
+    private static final Map<String, Long> PROGRESS_LATEST = new ConcurrentHashMap<>();
     private boolean playbackStartPending;
     private final Runnable mProgressSaveRunnable = new Runnable() {
         @Override
@@ -434,10 +439,17 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
             @Override
             public void playNext(boolean rmProgress) {
-                String preProgressKey = buildStableProgressKey();
+                // 必须在切集前取当前集的 key（切集后 playIndex 已变）；删除要用和保存一致的 v3 key
+                String finishedKey = mResumeKey != null ? mResumeKey : buildEpisodeProgressKey();
+                boolean leavingEpisode = mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null
+                        && mVodInfo.seriesMap.get(mVodInfo.playFlag) != null
+                        && mVodInfo.playIndex + 1 < mVodInfo.seriesMap.get(mVodInfo.playFlag).size();
                 PlayActivity.this.playNext();
-                if (rmProgress && preProgressKey != null) {
-                    final String k = preProgressKey;
+                if (rmProgress && finishedKey != null && !finishedKey.trim().isEmpty()) {
+                    if (leavingEpisode) mFinishedProgressKey = finishedKey;
+                    // 置 0 而不是只删库：内存副本立即生效，不会因后台删除未完成而读到旧进度
+                    PROGRESS_LATEST.put(finishedKey, 0L);
+                    final String k = finishedKey;
                     AsyncTask.SERIAL_EXECUTOR.execute(() -> {
                         try {
                             CacheManager.delete(MD5.string2MD5(k), 0);
@@ -519,12 +531,17 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
     private long readSavedProgress(String key) {
         if (key == null || key.trim().isEmpty()) return 0L;
+        // 先取内存里最新写入的值：后台写库可能还没完成，直接读库会拿到旧进度
+        Long latest = PROGRESS_LATEST.get(key);
+        if (latest != null) return Math.max(0L, latest);
         Object cached = CacheManager.getCache(MD5.string2MD5(key));
         return cached instanceof Number ? Math.max(0L, ((Number) cached).longValue()) : 0L;
     }
 
     private void saveProgressValue(String key, long position) {
         if (key == null || key.trim().isEmpty()) return;
+        // 先同步更新内存，之后任何读取都能拿到最新值
+        PROGRESS_LATEST.put(key, position);
         // 播放进度高频保存改走异步线程，消除主线程每 5 秒同步写库导致的微卡顿
         AsyncTask.SERIAL_EXECUTOR.execute(() -> {
             try {
@@ -978,6 +995,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         if (position <= 0 || (duration > 0 && position >= duration - 1000)) return;
         // 切集时 playIndex 已先变成下一集，这里必须用当前正在播放的那一集的 key，否则进度会写错集
         String key = mResumeKey != null ? mResumeKey : buildEpisodeProgressKey();
+        // 已看完并切走的那一集不再回写进度
+        if (mFinishedProgressKey != null && mFinishedProgressKey.equals(key)) return;
         saveProgressValue(key, position);
         L.d("resume save key=" + key + " position=" + position);
     }
@@ -985,6 +1004,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private void prepareResumePosition() {
         dismissResumePrompt(false);
         mResumePromptShown = false;
+        mFinishedProgressKey = null;
         mResumeKey = buildEpisodeProgressKey();
         mResumePosition = readSavedProgress(mResumeKey);
         mHasSavedResumePosition = mResumePosition >= RESUME_PROMPT_MIN_POSITION_MS;

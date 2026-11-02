@@ -47,6 +47,7 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
         mMediaPlayer.setOnPreparedListener(this);
         mMediaPlayer.setOnVideoSizeChangedListener(this);
         mMediaPlayer.setOnNativeInvokeListener(this);
+        mMediaPlayer.setOnSeekCompleteListener(mp -> notifySeekComplete());
         mMediaPlayer.setOnTimedTextListener((player, text) ->
                 dispatchSubtitleText(text == null ? "" : text.getText()));
     }
@@ -233,6 +234,7 @@ public class IjkPlayer extends AbstractPlayer implements IMediaPlayer.OnErrorLis
         mMediaPlayer.setOnBufferingUpdateListener(null);
         mMediaPlayer.setOnPreparedListener(null);
         mMediaPlayer.setOnVideoSizeChangedListener(null);
+        mMediaPlayer.setOnSeekCompleteListener(null);
         final IjkMediaPlayer releasingPlayer = mMediaPlayer;
         mMediaPlayer = null;
         new Thread() {

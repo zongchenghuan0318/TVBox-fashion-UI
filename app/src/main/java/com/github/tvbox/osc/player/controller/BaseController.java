@@ -301,7 +301,7 @@ public abstract class BaseController extends BaseVideoController implements Gest
         bChangeBrightness = false;
         bChangeVolume = false;
         mSeekPosition = -1;
-        mGestureStartPosition = mControlWrapper.getCurrentPosition();
+        mGestureStartPosition = getSeekBasePosition();
         mSpeedDownX = e.getRawX();
         mSpeedDownY = e.getRawY();
         mSpeedGesture.pointerDown(mSpeedDownX, mSpeedDownY);
@@ -337,6 +337,11 @@ public abstract class BaseController extends BaseVideoController implements Gest
         return true;
     }
 
+    /** seek 的基准位置：子类可覆盖，例如上一次 seek 未完成时以其目标位置为准 */
+    protected long getSeekBasePosition() {
+        return mControlWrapper.getCurrentPosition();
+    }
+
     public void seekDelta(int deltaMs) {
         if (mControlWrapper == null) return;
         long duration = mControlWrapper.getDuration();
@@ -344,7 +349,7 @@ public abstract class BaseController extends BaseVideoController implements Gest
             togglePlay();
             return;
         }
-        long current = mControlWrapper.getCurrentPosition();
+        long current = getSeekBasePosition();
         long target = Math.max(0, Math.min(duration, current + deltaMs));
         onSeekRequested((int) target);
         mControlWrapper.seekTo((int) target);

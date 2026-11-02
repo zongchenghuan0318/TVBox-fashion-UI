@@ -1,9 +1,9 @@
 {
-    "versionCode":  182,
-    "versionName":  "1.5.3",
-    "changelog":  "## 更新内容\n- 顶栏分类改为按确认键切换，避免焦点移动时误切换。\n- 升级时一次性将播放器切换为 Exo，之后仍可在设置中修改。\n- 修复切集时播放进度可能记录到错误剧集的问题。\n\n## 安装包\n- 版本：1.5.3（versionCode 182）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.3/Z.apk",
-    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.3/Z.apk",
-    "sha256":  "e4b8369a63805ab72f509e734a4c823672aeda3806a363edfecf711368062298",
-    "size":  24911134
+    "versionCode":  183,
+    "versionName":  "1.5.4",
+    "changelog":  "## 更新内容\n- 优化连续快进、拖动定位及进度条更新，减少播放位置回跳和显示不同步。\n- 改进剧集播放进度保存与播放完成后的清理。\n- 更新使用指南、项目介绍和开发说明。\n\n## 安装包\n- 版本：1.5.4（versionCode 183）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.4/Z.apk",
+    "apkUrlFallback":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.4/Z.apk",
+    "sha256":  "51a6daa47733d7a2be37d682527e1bc2820c8832ace15d0fa57c6006679c4e50",
+    "size":  24912206
 }
