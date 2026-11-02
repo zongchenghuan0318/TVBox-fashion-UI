@@ -37,6 +37,8 @@ public class HawkConfig {
     public static final int PLAY_TYPE_DEFAULT = PLAY_TYPE_EXO;
     /** 默认内核迁移标记：老版本默认停在 IJK 的配置只切换一次，之后用户手动选择不再覆盖 */
     public static final String PLAY_TYPE_DEFAULT_APPLIED = "play_type_default_exo";
+    /** 强制默认播放器为 Exo 的一次性迁移标记：不论之前存的是系统/IJK，升级后统一切到 Exo，之后手动选择照常保留 */
+    public static final String PLAY_TYPE_EXO_FORCED = "play_type_exo_forced_v1";
     public static final String PLAY_RENDER = "play_render"; // 0 TextureView, 1 SurfaceView
     /** 电视端播放渲染控件默认值：1 = SurfaceView，直通硬件叠加层，消除 4K/60fps 掉帧并降低约 30% GPU 开销 */
     public static final int PLAY_RENDER_DEFAULT = 1;

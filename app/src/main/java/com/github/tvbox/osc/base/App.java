@@ -71,6 +71,11 @@ public class App extends MultiDexApplication {
             }
             Hawk.put(HawkConfig.PLAY_TYPE_DEFAULT_APPLIED, true);
         }
+        // 强制默认播放器为 Exo（只执行一次，之后用户在设置里选的仍然生效）
+        if (!Hawk.get(HawkConfig.PLAY_TYPE_EXO_FORCED, false)) {
+            Hawk.put(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_EXO);
+            Hawk.put(HawkConfig.PLAY_TYPE_EXO_FORCED, true);
+        }
         // 固化默认配置地址：未配置过（首次安装/清除数据/手动清空）时预置，
         // 装好即有内容，用户仍可在设置里改成自己的接口
         String apiUrl = Hawk.get(HawkConfig.API_URL, "");

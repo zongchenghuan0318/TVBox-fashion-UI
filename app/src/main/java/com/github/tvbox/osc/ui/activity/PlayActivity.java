@@ -976,7 +976,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         long position = mController != null ? mController.getCurrentOrPendingPosition() : mVideoView.getCurrentPosition();
         long duration = mVideoView.getDuration();
         if (position <= 0 || (duration > 0 && position >= duration - 1000)) return;
-        String key = buildEpisodeProgressKey();
+        // 切集时 playIndex 已先变成下一集，这里必须用当前正在播放的那一集的 key，否则进度会写错集
+        String key = mResumeKey != null ? mResumeKey : buildEpisodeProgressKey();
         saveProgressValue(key, position);
         L.d("resume save key=" + key + " position=" + position);
     }

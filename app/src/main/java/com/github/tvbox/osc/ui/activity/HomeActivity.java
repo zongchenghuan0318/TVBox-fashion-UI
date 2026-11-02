@@ -94,8 +94,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private TextView tvTopDate;
     private TvRecyclerView sortTopRV;
     private SortTopAdapter sortTopAdapter;
-    private View mTopSortFocusView = null;
-    private int mTopSortFocused = 0;
     private boolean isDrawerOpen = false;
 
     // 触控交互优化支持（手机/平板横屏优化）
@@ -133,8 +131,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private final Runnable switchCategoryRunnable = () -> {
         if (pendingCategoryPosition == this.mSortFocused && this.mSortFocusView != null && this.mSortFocusView.hasFocus()) {
-            selectCategory(pendingCategoryPosition);
-        } else if (pendingCategoryPosition == this.mTopSortFocused && this.mTopSortFocusView != null && this.mTopSortFocusView.hasFocus()) {
             selectCategory(pendingCategoryPosition);
         }
     };
@@ -381,13 +377,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                         textView.setTextColor(getResources().getColor(R.color.color_rail_text_active));
                         textView.invalidate();
                     }
-                    mTopSortFocusView = view;
-                    mTopSortFocused = position;
-                    mHandler.removeCallbacks(switchCategoryRunnable);
-                    pendingCategoryPosition = position;
-                    if (position != mCurrentSelected) {
-                        mHandler.postDelayed(switchCategoryRunnable, 200L);
-                    }
+                    // 顶栏只做焦点高亮，不自动切换分类；需按确认键（onItemClick）才切换
                 }
             }
 
