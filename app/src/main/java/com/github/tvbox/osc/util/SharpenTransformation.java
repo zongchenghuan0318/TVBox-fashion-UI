@@ -6,35 +6,45 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 
+import androidx.annotation.NonNull;
+
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
+
+import java.security.MessageDigest;
 
 /**
  * 豆瓣图床最大只提供 1080px 宽的封面，而首页全屏背景要铺满约 2358px，
  * 直接交给 ImageView 放大 2 倍多，边缘必然发虚（卡片是缩小的，所以显得比背景清楚）。
- * 这里在裁切放大到目标尺寸之后补一次轻度 USM 锐化，把放大丢掉的边缘找回来。
+ * 这里在裁剪放大到目标尺寸之后补一次轻度 USM 锐化，把放大丢掉的边缘找回来。
  * 只在全屏背景上使用，卡片保持原图不动。
  */
 public class SharpenTransformation extends BitmapTransformation {
 
-    private static final String ID = "SharpenTransformation";
+    private static final String ID = "com.github.tvbox.osc.util.SharpenTransformation";
 
     /** 锐化强度：过大时强边缘会出现白边光晕 */
     private final float amount;
 
-    public SharpenTransformation(Context context) {
-        this(context, 0.28f);
+    public SharpenTransformation() {
+        this(0.28f);
     }
 
-    public SharpenTransformation(Context context, float amount) {
-        super(context);
+    public SharpenTransformation(float amount) {
         this.amount = amount;
     }
 
+    public SharpenTransformation(Context context) {
+        this(0.28f);
+    }
+
+    public SharpenTransformation(Context context, float amount) {
+        this(amount);
+    }
+
     @Override
-    protected Bitmap transform(BitmapPool pool, Bitmap toTransform, int outWidth, int outHeight) {
-        if (toTransform == null || outWidth <= 0 || outHeight <= 0
-                || toTransform.getWidth() <= 0 || toTransform.getHeight() <= 0) {
+    protected Bitmap transform(@NonNull BitmapPool pool, @NonNull Bitmap toTransform, int outWidth, int outHeight) {
+        if (outWidth <= 0 || outHeight <= 0 || toTransform.getWidth() <= 0 || toTransform.getHeight() <= 0) {
             return toTransform;
         }
         Bitmap scaled = centerCrop(pool, toTransform, outWidth, outHeight);
@@ -44,24 +54,18 @@ public class SharpenTransformation extends BitmapTransformation {
         int w = scaled.getWidth();
         int h = scaled.getHeight();
         Bitmap.Config config = Bitmap.Config.RGB_565; // 背景大图无透明通道，RGB_565 内存直降 50%，极大缓解电视 GC 停顿
-        Bitmap sharpened = pool != null ? pool.get(w, h, config) : null;
-        if (sharpened == null) {
-            sharpened = Bitmap.createBitmap(w, h, config);
-        }
+        Bitmap sharpened = pool.get(w, h, config);
+
         applySharpen(scaled, sharpened, w, h);
-        if (pool != null) {
-            pool.put(scaled); // 归还中间位图到内存池复用，杜绝频繁触发全屏 GC
-        } else {
-            scaled.recycle();
-        }
+        pool.put(scaled); // 归还中间位图到内存池复用，杜绝频繁触发全局 GC
         return sharpened;
     }
 
-    /** 按 centerCrop 规则裁切并缩放到目标尺寸（放大时保留双线性过滤，复用 BitmapPool） */
+    /** 按 centerCrop 规则裁剪并缩放到目标尺寸（放大时保留双线性过滤，复用 BitmapPool） */
     private Bitmap centerCrop(BitmapPool pool, Bitmap src, int outWidth, int outHeight) {
         int sw = src.getWidth();
         int sh = src.getHeight();
-        //以填满目标框为准算缩放比，再居中裁掉多余部分
+        // 以填满目标框为准算缩放比，再居中裁掉多余部分
         float scale = Math.max(outWidth / (float) sw, outHeight / (float) sh);
         int cropW = Math.max(1, Math.min(sw, Math.round(outWidth / scale)));
         int cropH = Math.max(1, Math.min(sh, Math.round(outHeight / scale)));
@@ -69,10 +73,7 @@ public class SharpenTransformation extends BitmapTransformation {
         int top = (sh - cropH) / 2;
 
         Bitmap.Config config = Bitmap.Config.RGB_565;
-        Bitmap out = pool != null ? pool.get(outWidth, outHeight, config) : null;
-        if (out == null) {
-            out = Bitmap.createBitmap(outWidth, outHeight, config);
-        }
+        Bitmap out = pool.get(outWidth, outHeight, config);
         Canvas canvas = new Canvas(out);
         Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
         canvas.drawBitmap(src, new Rect(left, top, left + cropW, top + cropH),
@@ -109,7 +110,7 @@ public class SharpenTransformation extends BitmapTransformation {
                 line[x] = (c & 0xFF000000) | (r << 16) | (g << 8) | b;
             }
             dst.setPixels(line, 0, w, 0, y, w, 1);
-            //三行滚动复用，避免整图数组（2358x1080 的整图数组会多占 10MB）
+            // 三行滚动复用，避免整图数组（2358x1080 的整图数组会多占 10MB）
             int[] tmp = prev;
             prev = cur;
             cur = next;
@@ -135,8 +136,8 @@ public class SharpenTransformation extends BitmapTransformation {
     }
 
     @Override
-    public String getId() {
-        return ID + amount;
+    public void updateDiskCacheKey(@NonNull MessageDigest messageDigest) {
+        messageDigest.update((ID + ":" + amount).getBytes(CHARSET));
     }
 
     @Override
@@ -152,6 +153,6 @@ public class SharpenTransformation extends BitmapTransformation {
 
     @Override
     public int hashCode() {
-        return ID.hashCode() * 31 + Float.floatToIntBits(amount);
+        return (ID + ":" + amount).hashCode();
     }
 }

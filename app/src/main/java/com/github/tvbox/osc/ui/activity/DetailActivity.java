@@ -234,7 +234,8 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                                 .load(GlideImg.heroModel(mVideo.pic))
                                 .dontAnimate()
                                 .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                .bitmapTransform(new BlurTransformation(DetailActivity.this, 18, 5))
+                                .override(960, 540)
+                                .transform(new BlurTransformation(DetailActivity.this, 18, 5))
                                 .into(ivDetailBackdrop);
                     }
 

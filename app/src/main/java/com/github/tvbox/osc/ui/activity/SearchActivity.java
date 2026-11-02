@@ -29,6 +29,7 @@ import com.github.tvbox.osc.event.ServerEvent;
 import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchHistoryAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchResultAdapter;
+import com.github.tvbox.osc.util.PosterPreloader;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.tv.widget.SearchKeyboard;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
@@ -294,6 +295,21 @@ public class SearchActivity extends BaseActivity {
         }
         searchResultAdapter = new SearchResultAdapter();
         mSearchResultRV.setAdapter(searchResultAdapter);
+        PosterPreloader.setup(this, mSearchResultRV, new PosterPreloader.PosterProvider() {
+            @Override
+            public int getCount() {
+                return searchResultAdapter != null ? searchResultAdapter.getData().size() : 0;
+            }
+
+            @Override
+            public String getPosterUrl(int position) {
+                if (searchResultAdapter != null && position >= 0 && position < searchResultAdapter.getData().size()) {
+                    Movie.Video item = searchResultAdapter.getData().get(position);
+                    return item != null ? item.pic : null;
+                }
+                return null;
+            }
+        }, 6);
         mSearchResultRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {

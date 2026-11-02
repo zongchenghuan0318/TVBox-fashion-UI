@@ -5,47 +5,53 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 
+import androidx.annotation.NonNull;
+
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
 
+import java.security.MessageDigest;
+
 /**
- * Glide 电影海报高斯毛玻璃滤镜
+ * Glide 4 电影海报高斯毛玻璃滤镜
  * 先进行下采样缩减像素数量，再结合 RGB_565 与纯算法 StackBlur 快速模糊，
  * 显存开销仅 ~100KB，电视端执行时间 < 5ms，营造影院级沉浸式氛围背景。
  */
 public class BlurTransformation extends BitmapTransformation {
 
+    private static final String ID = "com.github.tvbox.osc.util.BlurTransformation";
     private static final int DEFAULT_DOWN_SAMPLING = 6;
     private static final int DEFAULT_RADIUS = 15;
 
     private final int radius;
     private final int sampling;
 
+    public BlurTransformation() {
+        this(DEFAULT_RADIUS, DEFAULT_DOWN_SAMPLING);
+    }
+
+    public BlurTransformation(int radius, int sampling) {
+        this.radius = radius;
+        this.sampling = sampling > 0 ? sampling : DEFAULT_DOWN_SAMPLING;
+    }
+
     public BlurTransformation(Context context) {
         this(context, DEFAULT_RADIUS, DEFAULT_DOWN_SAMPLING);
     }
 
     public BlurTransformation(Context context, int radius, int sampling) {
-        super(context);
-        this.radius = radius;
-        this.sampling = sampling > 0 ? sampling : DEFAULT_DOWN_SAMPLING;
+        this(radius, sampling);
     }
 
     @Override
-    protected Bitmap transform(BitmapPool pool, Bitmap toTransform, int outWidth, int outHeight) {
-        if (toTransform == null) {
-            return null;
-        }
+    protected Bitmap transform(@NonNull BitmapPool pool, @NonNull Bitmap toTransform, int outWidth, int outHeight) {
         int width = toTransform.getWidth();
         int height = toTransform.getHeight();
         int scaledWidth = Math.max(1, width / sampling);
         int scaledHeight = Math.max(1, height / sampling);
 
-        Bitmap.Config config = Bitmap.Config.RGB_565; // 背景大图无透明通道，RGB_565 减少50%内存
-        Bitmap bitmap = pool != null ? pool.get(scaledWidth, scaledHeight, config) : null;
-        if (bitmap == null) {
-            bitmap = Bitmap.createBitmap(scaledWidth, scaledHeight, config);
-        }
+        Bitmap.Config config = Bitmap.Config.RGB_565; // 背景大图无透明通道，RGB_565 减少 50% 显存
+        Bitmap bitmap = pool.get(scaledWidth, scaledHeight, config);
 
         Canvas canvas = new Canvas(bitmap);
         canvas.scale(1f / sampling, 1f / sampling);
@@ -56,7 +62,21 @@ public class BlurTransformation extends BitmapTransformation {
     }
 
     @Override
-    public String getId() {
-        return "BlurTransformation(radius=" + radius + ",sampling=" + sampling + ")";
+    public void updateDiskCacheKey(@NonNull MessageDigest messageDigest) {
+        messageDigest.update((ID + ":" + radius + ":" + sampling).getBytes(CHARSET));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof BlurTransformation) {
+            BlurTransformation other = (BlurTransformation) o;
+            return radius == other.radius && sampling == other.sampling;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return (ID + ":" + radius + ":" + sampling).hashCode();
     }
 }

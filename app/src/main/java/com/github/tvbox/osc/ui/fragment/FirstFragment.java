@@ -17,9 +17,12 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.DrawableRequestBuilder;
+import android.graphics.drawable.Drawable;
+import androidx.annotation.Nullable;
+import com.bumptech.glide.RequestBuilder;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.github.tvbox.osc.api.ApiConfig;
@@ -35,6 +38,7 @@ import com.github.tvbox.osc.ui.activity.LivePlayActivity;
 import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.adapter.HomeHotVodAdapter;
+import com.github.tvbox.osc.util.PosterPreloader;
 import com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
@@ -254,13 +258,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         stopAutoScroll();
         cancelHeroAnim();
         if (mHeroBackdrop != null) {
-            Glide.clear(mHeroBackdrop);
+            if (mContext != null) Glide.with(mContext).clear(mHeroBackdrop);
             mHeroBackdrop.setImageDrawable(null);
             mHeroBackdrop.setScaleX(1f);
             mHeroBackdrop.setScaleY(1f);
         }
         if (mHeroBackdropAlt != null) {
-            Glide.clear(mHeroBackdropAlt);
+            if (mContext != null) Glide.with(mContext).clear(mHeroBackdropAlt);
             mHeroBackdropAlt.setImageDrawable(null);
             mHeroBackdropAlt.setAlpha(0f);
             mHeroBackdropAlt.setScaleX(1f);
@@ -431,6 +435,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.addOnLayoutChangeListener((v, left, top, right, bottom,
                                                 oldLeft, oldTop, oldRight, oldBottom) -> updateCardDepth());
         mHotGridView.setAdapter(mAdapter);
+        PosterPreloader.setup(mContext, mHotGridView, new PosterPreloader.PosterProvider() {
+            @Override
+            public int getCount() {
+                return mAdapter != null ? mAdapter.getData().size() : 0;
+            }
+
+            @Override
+            public String getPosterUrl(int position) {
+                if (mAdapter != null && position >= 0 && position < mAdapter.getData().size()) {
+                    Movie.Video item = mAdapter.getData().get(position);
+                    return item != null ? item.pic : null;
+                }
+                return null;
+            }
+        }, 6);
     }
 
     /**
@@ -1214,7 +1233,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         ImageView pending = mHeroFront == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
         if (pending != null) {
-            Glide.clear(pending);
+            if (mContext != null) Glide.with(mContext).clear(pending);
             pending.setImageDrawable(null);
             pending.setAlpha(0f);
             pending.setScaleX(1f);
@@ -1273,22 +1292,22 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
         final int width = mHeroBackdrop.getWidth();
         final int height = mHeroBackdrop.getHeight();
-        DrawableRequestBuilder<Object> request = Glide.with(mContext)
+        RequestBuilder<Drawable> request = Glide.with(mContext)
                 .load(GlideImg.heroModel(pic))
                 .error(R.drawable.shape_home_hero_placeholder)
                 .dontAnimate();
         if (mLowPowerHome) {
             request = request.override(960, 540).centerCrop();
         } else {
-            request = request.bitmapTransform(new SharpenTransformation(mContext));
+            request = request.transform(new SharpenTransformation(mContext));
         }
         if (!mLowPowerHome && width > 0 && height > 0) {
             // 固定目标尺寸，避免按海报原始尺寸解出过大的位图
             request = request.override(width, height);
         }
-        request.listener(new RequestListener<Object, GlideDrawable>() {
+        request.listener(new RequestListener<Drawable>() {
                     @Override
-                    public boolean onException(Exception e, Object model, Target<GlideDrawable> target, boolean isFirstResource) {
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
                         // 还没有任何背景时（首次加载就失败）退一张占位图上去，别留一块空背景
                         if (seq == mHeroSeq && mHeroFront == null) {
                             incoming.setImageResource(R.drawable.shape_home_hero_placeholder);
@@ -1303,8 +1322,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     }
 
                     @Override
-                    public boolean onResourceReady(GlideDrawable resource, Object model, Target<GlideDrawable> target,
-                                                   boolean isFromMemoryCache, boolean isFirstResource) {
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target,
+                                                   DataSource dataSource, boolean isFirstResource) {
                         if (seq != mHeroSeq) {
                             // 已经换了别的海报，这张旧图别往背景上贴
                             return true;
@@ -1356,7 +1375,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void clearOutgoingHero(ImageView outgoing) {
         if (outgoing == null || outgoing == mHeroFront) return;
-        Glide.clear(outgoing);
+        if (mContext != null) Glide.with(mContext).clear(outgoing);
         outgoing.setImageDrawable(null);
         outgoing.setAlpha(0f);
     }

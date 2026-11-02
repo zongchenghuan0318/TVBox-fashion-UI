@@ -1,9 +1,9 @@
 {
-  "versionCode": 178,
-  "versionName": "1.4.9",
-  "changelog": "## 更新内容\n- 全量修复遥控器焦点与按键处理：设置、收藏、历史、详情、直播等页面返回键与顶部导航的焦点切换更可靠\n- 弹窗在部分厂商 TV 固件上偶发无法获取焦点，现于显示后主动补一次焦点请求\n- 首页极简顶栏不再抢走用户焦点或强制收起，焦点在顶栏时暂停闲置倒计时\n- 菜单键长按只响应一次；有筛选项但弹窗未弹出时同样消费按键，避免 UP/DOWN 漏给系统\n- 信息提示弹窗按钮顺序修正为「取消 · 确定」\n- 播放页快进/快退与进度条焦点逻辑补强\n- 直播页长按菜单键只响应一次、加密分组仅在选择频道时弹密码框、列表收起后焦点回到播放器\n\n## 安装包\n- 版本：1.4.9（versionCode 178）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.4.9/Z.apk",
-  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.4.9/Z.apk",
-  "sha256": "2377492921d63ea0ae4026c9281e5b2e704933d5e85b1a66fb80dd753c22621e",
-  "size": 24766248
+  "versionCode": 179,
+  "versionName": "1.5.0",
+  "changelog": "## 更新内容\n- 图片加载引擎升级到 Glide 4.14.2，新增自定义 GlideModule，统一内存/磁盘缓存与解码策略，滑动更顺畅、占用更低\n- 新增海报预加载器：首页与分类页提前预热相邻卡片海报，切换时减少白屏与闪烁\n- 重写模糊与锐化后处理，降低大图处理时的内存峰值与卡顿\n- 首页、分类页海报加载与滚动预取优化\n- 搜索结果与详情页图片加载细节修复\n\n## 安装包\n- 版本：1.5.0（versionCode 179）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+  "apkUrl": "https://gitee.com/ad159753/TVBox-fashion-UI/releases/download/v1.5.0/Z.apk",
+  "apkUrlFallback": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.0/Z.apk",
+  "sha256": "ba72357567af9ce78de0835305c6e69a973b84c6c666f3a184983c4f4803d966",
+  "size": 24911598
 }

@@ -17,6 +17,7 @@ import com.github.tvbox.osc.bean.MovieSort;
 import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.ui.activity.HomeActivity;
 import com.github.tvbox.osc.ui.adapter.GridAdapter;
+import com.github.tvbox.osc.util.PosterPreloader;
 import com.github.tvbox.osc.ui.dialog.GridFilterDialog;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
@@ -150,6 +151,21 @@ public class GridFragment extends BaseLazyFragment {
         mGridAdapter = new GridAdapter();
         mGridView.setAdapter(mGridAdapter);
         setupGridLayout();
+        PosterPreloader.setup(mContext, mGridView, new PosterPreloader.PosterProvider() {
+            @Override
+            public int getCount() {
+                return mGridAdapter != null ? mGridAdapter.getData().size() : 0;
+            }
+
+            @Override
+            public String getPosterUrl(int position) {
+                if (mGridAdapter != null && position >= 0 && position < mGridAdapter.getData().size()) {
+                    Movie.Video item = mGridAdapter.getData().get(position);
+                    return item != null ? item.pic : null;
+                }
+                return null;
+            }
+        }, 6);
         mGridAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
             @Override
             public void onLoadMoreRequested() {
