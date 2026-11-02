@@ -32,8 +32,8 @@ android {
         applicationId 'com.studio.osc'
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 176
-        versionName '1.4.7'
+        versionCode 177
+        versionName '1.4.8'
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
