@@ -322,8 +322,12 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             // 只有用户主动选过内核（或本片已自动回退过）才用影片自己存的 pl；
             // 旧版本没这个标记，存下来的只是当年的默认值，统一跟随全局默认，
             // 否则升级后老片仍停在 IJK，磁盘缓存等于没开。
+            // 只有用户在播放页手动切换过内核（带 pl_pinned_manual 标记）才沿用影片自己的 pl；
+            // 旧版本因 Exo 报错自动回退写入的 pl_pinned 不带该标记，忽略它，跟随全局 Exo 设置
             int globalPlayType = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
-            if (!mVodPlayerCfgJsonObject.optBoolean("pl_pinned", false)) {
+            boolean manualPinned = mVodPlayerCfgJsonObject.optBoolean("pl_pinned", false)
+                    && mVodPlayerCfgJsonObject.optBoolean("pl_pinned_manual", false);
+            if (!manualPinned) {
                 mVodPlayerCfgJsonObject.put("pl", globalPlayType);
             }
             if (!mVodPlayerCfgJsonObject.has("pr")) {
@@ -650,8 +654,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         }
         try {
             mVodPlayerCfgJsonObject.put("pl", HawkConfig.PLAY_TYPE_IJK);
-            // 标记为已固定：下次打开本片继续用 IJK，不再反复撞 Exo 的错误
-            mVodPlayerCfgJsonObject.put("pl_pinned", true);
+            // 注意：自动回退不写 pl_pinned，只对本次播放生效；下次打开仍跟随全局 Exo 设置，
+            // 否则一次 Exo 报错就会把整部片永久锁在 IJK，全局设成 Exo 也不生效
         } catch (JSONException ignored) {
         }
         savePlayerConfig();

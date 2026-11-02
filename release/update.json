@@ -1,8 +1,8 @@
 {
-    "versionCode":  184,
-    "versionName":  "1.5.5",
-    "changelog":  "## 更新内容\n- 放大首页影视卡片，提升电视和大屏设备上的海报可读性。\n- 同步增加卡片行高度，保持焦点缩放、横向滚动和底部内容完整显示。\n\n## 安装包\n- 版本：1.5.5（versionCode 184）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.5/Z.apk",
-    "sha256":  "f03e9d9c1a8ace5bc5fdf77a46e072fb3f6d69b1863f3c0a6d0ea1c41b1ee6fc",
-    "size":  24912205
+    "versionCode":  185,
+    "versionName":  "1.5.6",
+    "changelog":  "# 1.5.6\r\n\r\n## 更新内容\r\n\r\n- 优化连续快进、拖动定位及进度条更新，减少播放位置回跳和显示不同步。\r\n- 改进剧集播放进度保存与播放完成后的清理。\r\n- 增加 HLS 预取，改善连续播放时的首帧等待。\r\n- 放大首页影视卡片，提升电视和大屏设备上的海报可读性。\r\n\r\n## 安装包\r\n\r\n- 版本：1.5.6（versionCode 185）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.6/Z.apk",
+    "sha256":  "504ad4eeba2e56b86862146bdb8b62f2296b678e1e930909b29384a45726b1af",
+    "size":  24914820
 }

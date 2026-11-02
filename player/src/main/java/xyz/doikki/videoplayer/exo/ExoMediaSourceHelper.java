@@ -103,23 +103,22 @@ public final class ExoMediaSourceHelper {
         int contentType = inferContentType(uri);
         DataSource.Factory upstream = getDataSourceFactory(headers);
         DataSource.Factory factory;
-        if (isCache && contentType != C.TYPE_HLS && contentType != C.TYPE_DASH) {
-            // 切片流（HLS/DASH）坚决走纯内存 Upstream 直通，彻底消除磁盘写入锁争用、残缺切片与闪存 IO 阻塞
-            // 仅对单文件点播（MP4/MKV等）使用磁盘缓存
+        if (isCache) {
+            // HLS/DASH 切片同样走磁盘缓存：已播放/已下载的切片落盘，往后拖直接本地读取
             factory = getCacheDataSourceFactory(upstream);
         } else {
             factory = upstream;
         }
         switch (contentType) {
             case C.TYPE_DASH:
-                return new DashMediaSource.Factory(upstream).createMediaSource(MediaItem.fromUri(contentUri));
+                return new DashMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
             case C.TYPE_HLS:
                 DefaultHlsExtractorFactory extractorFactory = new DefaultHlsExtractorFactory(
                         DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
                                 | DefaultTsPayloadReaderFactory.FLAG_IGNORE_SPLICE_INFO_STREAM
                                 | DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS,
                         true);
-                return new HlsMediaSource.Factory(upstream)
+                return new HlsMediaSource.Factory(factory)
                         .setExtractorFactory(extractorFactory)
                         .setAllowChunklessPreparation(false)
                         .createMediaSource(MediaItem.fromUri(contentUri));
@@ -184,7 +183,8 @@ public final class ExoMediaSourceHelper {
     }
 
     /**
-     * 保留完整 URL：查询参数可能区分不同片段或字节范围。
+     * 切片/媒体文件的缓存键：去掉 .ts/.m4s/.mp4 的动态 Token 查询参数，
+     * 使鉴权刷新后同一切片仍命中已有缓存；播放列表（.m3u8）保留完整 URL。
      */
     private static final CacheKeyFactory SMART_CACHE_KEY_FACTORY = dataSpec -> {
         if (dataSpec.key != null) {
@@ -192,7 +192,15 @@ public final class ExoMediaSourceHelper {
         }
         Uri uri = dataSpec.uri;
         if (uri == null) return "";
-        return uri.toString();
+        String url = uri.toString();
+        int queryIndex = url.indexOf('?');
+        if (queryIndex > 0) {
+            String pathPart = url.substring(0, queryIndex).toLowerCase();
+            if (pathPart.endsWith(".ts") || pathPart.endsWith(".m4s") || pathPart.endsWith(".mp4")) {
+                return url.substring(0, queryIndex);
+            }
+        }
+        return url;
     };
 
     private synchronized DataSource.Factory getCacheDataSourceFactory(DataSource.Factory upstream) {
@@ -204,6 +212,12 @@ public final class ExoMediaSourceHelper {
                 .setUpstreamDataSourceFactory(upstream)
                 .setCacheKeyFactory(SMART_CACHE_KEY_FACTORY)
                 .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
+    }
+
+    /** 预取用数据源：与播放器共用同一磁盘缓存与缓存键 */
+    CacheDataSource createPrefetchDataSource(Map<String, String> headers) {
+        DataSource.Factory factory = getCacheDataSourceFactory(getDataSourceFactory(headers));
+        return (CacheDataSource) factory.createDataSource();
     }
 
     private Cache newCache() {

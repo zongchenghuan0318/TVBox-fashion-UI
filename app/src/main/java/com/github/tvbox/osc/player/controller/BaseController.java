@@ -207,6 +207,9 @@ public abstract class BaseController extends BaseVideoController implements Gest
     public boolean onTouch(View v, MotionEvent event) {
         if (handleSpeedTouch(event, false)) return true;
         boolean handled = mGestureDetector.onTouchEvent(event);
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN || event.getActionMasked() == MotionEvent.ACTION_UP) {
+            android.util.Log.w("SeekDiag", "baseTouch action=" + event.getActionMasked() + " handled=" + handled);
+        }
         if (event.getActionMasked() == MotionEvent.ACTION_UP
                 || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             finishPositionGesture(event.getActionMasked() == MotionEvent.ACTION_UP);
@@ -361,6 +364,9 @@ public abstract class BaseController extends BaseVideoController implements Gest
     // 在屏幕上滑动
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+        android.util.Log.w("SeekDiag", "onScroll locked=" + bLocked + " playing=" + isInPlaybackState()
+                + " gesture=" + mIsGestureEnabled + " canSlide=" + bCanSlide + " edge=" + PlayerUtils.isEdge(getContext(), e1)
+                + " canPos=" + bCanChangePosition);
         if (bLocked) return true;
         if (!isInPlaybackState() //不处于播放状态
                 || !mIsGestureEnabled //关闭了手势

@@ -2,6 +2,8 @@ package xyz.doikki.videoplayer.exo;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -25,6 +27,8 @@ import com.google.android.exoplayer2.source.DefaultMediaSourceFactory;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.TrackGroup;
 import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.source.hls.HlsManifest;
+import com.google.android.exoplayer2.source.hls.playlist.HlsMediaPlaylist;
 import com.google.android.exoplayer2.text.Cue;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
@@ -56,8 +60,8 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     private static final int MAX_BUFFER_MS = 120_000;
     // 最小向前持续缓冲时间：50 秒（开播后后台持续全速推进，彻底消灭二次卡顿）
     private static final int MIN_BUFFER_MS = 50_000;
-    // 增加回退缓冲（BackBuffer）至 20 秒并保留关键帧：往回快退 5~15 秒时直接内存秒开，无需重新联网拉流
-    private static final int BACK_BUFFER_MS = 20_000;
+    // 回退缓冲取消：不再为往回拖保留内存数据，内存全部用于往后播放
+    private static final int BACK_BUFFER_MS = 0;
 
     protected Context mAppContext;
     protected SimpleExoPlayer mInternalPlayer;
@@ -74,6 +78,12 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     private LoadControl mLoadControl;
     private RenderersFactory mRenderersFactory;
     private TrackSelector mTrackSelector;
+
+    /** 当前播放的请求头，预取时复用 */
+    private Map<String, String> mHeaders;
+    private HlsPrefetcher mPrefetcher;
+    private volatile long mPlayheadMs;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     public ExoMediaPlayer(Context context) {
         mAppContext = context.getApplicationContext();
@@ -92,7 +102,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
                             MAX_BUFFER_MS,
                             BUFFER_FOR_PLAYBACK_MS,
                             BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
-                    .setBackBuffer(BACK_BUFFER_MS, true)
+                    .setBackBuffer(BACK_BUFFER_MS, false)
                     .setTargetBufferBytes(targetBufferBytes)
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .createDefaultLoadControl();
@@ -288,12 +298,46 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void setDataSource(String path, Map<String, String> headers) {
         String previous = mCacheUri;
         mCacheUri = path;
+        mHeaders = headers;
+        stopPrefetch();
         // 换集时释放上一集占用的磁盘缓存，避免缓存越滚越大
         if (previous != null && !previous.equals(path)) {
             evictCacheAsync(previous);
         }
         mMediaSource = mMediaSourceHelper.getMediaSource(path, headers, mMediaSourceHelper.isCacheEnabled());
     }
+
+    /** 启动往后预取（仅点播 HLS 生效） */
+    private void startPrefetchIfNeeded() {
+        if (mPrefetcher != null || mInternalPlayer == null || !mMediaSourceHelper.isCacheEnabled()) return;
+        Object manifest = mInternalPlayer.getCurrentManifest();
+        if (!(manifest instanceof HlsManifest)) return;
+        HlsMediaPlaylist playlist = ((HlsManifest) manifest).mediaPlaylist;
+        if (playlist == null || !playlist.hasEndTag || playlist.segments.isEmpty()) return;
+        mPrefetcher = new HlsPrefetcher(
+                mMediaSourceHelper.createPrefetchDataSource(mHeaders), playlist, () -> mPlayheadMs);
+        mPrefetcher.start();
+        mMainHandler.removeCallbacks(mPlayheadTick);
+        mMainHandler.post(mPlayheadTick);
+    }
+
+    /** 播放位置快照：在主线程刷新，供预取线程读取（Exo 不允许跨线程访问） */
+    private final Runnable mPlayheadTick = new Runnable() {
+        @Override
+        public void run() {
+            if (mInternalPlayer != null) mPlayheadMs = mInternalPlayer.getCurrentPosition();
+            if (mPrefetcher != null) mMainHandler.postDelayed(this, 1_000L);
+        }
+    };
+
+    private void stopPrefetch() {
+        mMainHandler.removeCallbacks(mPlayheadTick);
+        if (mPrefetcher != null) {
+            mPrefetcher.release();
+            mPrefetcher = null;
+        }
+    }
+
 
     /** 后台线程删除缓存，避免在播放线程做磁盘删除 */
     private void evictCacheAsync(final String uri) {
@@ -347,6 +391,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void reset() {
+        stopPrefetch();
         clearSubtitleTextListener();
         if (mTrackSelector instanceof DefaultTrackSelector) {
             DefaultTrackSelector selector = (DefaultTrackSelector) mTrackSelector;
@@ -385,11 +430,14 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void seekTo(long time) {
         if (mInternalPlayer == null)
             return;
+        Log.w("SeekDiag", "seekTo target=" + time + " pos=" + mInternalPlayer.getCurrentPosition()
+                + " buffered=" + mInternalPlayer.getBufferedPosition() + " dur=" + mInternalPlayer.getDuration());
         mInternalPlayer.seekTo(time);
     }
 
     @Override
     public void release() {
+        stopPrefetch();
         clearSubtitleTextListener();
         if (mInternalPlayer != null) {
             mInternalPlayer.removeListener(this);
@@ -480,6 +528,11 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void onPlaybackStateChanged(int playbackState) {
+        if (playbackState == Player.STATE_READY) startPrefetchIfNeeded();
+        if (mInternalPlayer != null) {
+            Log.w("SeekDiag", "state=" + playbackState + " pos=" + mInternalPlayer.getCurrentPosition()
+                    + " buffered=" + mInternalPlayer.getBufferedPosition());
+        }
         if (mPlayerEventListener == null) return;
         if (mIsPreparing) {
             if (playbackState == Player.STATE_READY) {

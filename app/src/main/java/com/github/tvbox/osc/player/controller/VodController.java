@@ -261,6 +261,7 @@ public class VodController extends BaseController {
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
+                android.util.Log.w("SeekDiag", "startTrack locked=" + bLocked);
                 if(bLocked) return;
                 mIsDragging = true;
                 mControlWrapper.stopProgress();
@@ -270,6 +271,7 @@ public class VodController extends BaseController {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                android.util.Log.w("SeekDiag", "stopTrack dragging=" + mIsDragging + " locked=" + bLocked + " progress=" + seekBar.getProgress());
                 if (!mIsDragging) return;
                 //先恢复刷新，再处理跳转：中途被锁定也不能让进度条停在原地
                 mIsDragging = false;
@@ -371,6 +373,7 @@ public class VodController extends BaseController {
                 mJsonObject.put("pl", playerType);
                 // 记住这是用户主动选的内核，之后打开本片不再被全局默认覆盖
                 mJsonObject.put("pl_pinned", true);
+                mJsonObject.put("pl_pinned_manual", true);
                 updatePlayerCfgView();
                 controlListener.updatePlayerCfg();
                 controlListener.replay();
