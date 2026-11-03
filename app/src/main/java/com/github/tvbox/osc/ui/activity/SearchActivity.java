@@ -87,7 +87,6 @@ public class SearchActivity extends BaseActivity {
     private EditText etSearch;
     private TextView tvSearch;
     private TextView tvSearchProgress;
-    private TextView tvRetrySearch;
     private TextView tvClear;
     private SearchKeyboard keyboard;
     private SearchResultAdapter searchResultAdapter;
@@ -126,9 +125,7 @@ public class SearchActivity extends BaseActivity {
                 searchFinished = true;
                 OkGo.getInstance().cancelTag("search");
                 updateSearchProgress(true);
-                List<SiteBean> pending = getUnresponsiveSites();
-                tvRetrySearch.setVisibility(pending.isEmpty() ? View.GONE : View.VISIBLE);
-                if (!searchResultAdapter.getData().isEmpty() && !pending.isEmpty()) {
+                if (!searchResultAdapter.getData().isEmpty() && completedSearchSources < searchSourceCount) {
                     Toast.makeText(SearchActivity.this, "已显示部分搜索结果，部分来源响应超时", Toast.LENGTH_SHORT).show();
                 }
             }
@@ -175,7 +172,6 @@ public class SearchActivity extends BaseActivity {
         etSearch.setOnClickListener(v -> showSoftKeyboard(etSearch));
         tvSearch = findViewById(R.id.tvSearch);
         tvSearchProgress = findViewById(R.id.tvSearchProgress);
-        tvRetrySearch = findViewById(R.id.tvRetrySearch);
         tvClear = findViewById(R.id.tvClear);
         mSearchResultRV = findViewById(R.id.sortRV);
         keyboard = findViewById(R.id.keyBoardRoot);
@@ -214,7 +210,6 @@ public class SearchActivity extends BaseActivity {
                 searchClick();
             }
         });
-        tvRetrySearch.setOnClickListener(v -> retryUnresponsiveSources());
         tvClear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -671,7 +666,6 @@ public class SearchActivity extends BaseActivity {
             if (completedSearchSources >= searchSourceCount) {
                 searchFinished = true;
                 searchHandler.removeCallbacks(searchTimeout);
-                tvRetrySearch.setVisibility(View.GONE);
             }
         }
     }
@@ -712,7 +706,6 @@ public class SearchActivity extends BaseActivity {
     private void search(String wd) {
         hideSoftKeyboard();
         stopSearchRequests();
-        tvRetrySearch.setVisibility(View.GONE);
         cancelSuggestions();
         wordAdapter.setNewData(new ArrayList<>());
         updateHotWordPanel();
@@ -782,43 +775,6 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
-    private List<SiteBean> getUnresponsiveSites() {
-        List<SiteBean> pending = new ArrayList<>();
-        for (SiteBean siteBean : activeSearchSites) {
-            if (!respondedSourceKeys.contains(siteBean.getKey())) pending.add(siteBean);
-        }
-        return pending;
-    }
-
-    private void retryUnresponsiveSources() {
-        if (resultMergeRunning || !pendingResults.isEmpty()) {
-            if (!resultMergeRunning) {
-                searchHandler.removeCallbacks(mergeResults);
-                mergePendingResults();
-            }
-            final int generation = resultGeneration;
-            searchHandler.postDelayed(() -> {
-                if (generation == resultGeneration) retryUnresponsiveSources();
-            }, 100L);
-            return;
-        }
-        List<SiteBean> pending = getUnresponsiveSites();
-        if (pending.isEmpty()) {
-            tvRetrySearch.setVisibility(View.GONE);
-            return;
-        }
-        stopSearchRequests();
-        searchRequestId++;
-        searchFinished = false;
-        completedSearchSources = 0;
-        searchSourceCount = pending.size();
-        activeSearchSites = new ArrayList<>(pending);
-        tvRetrySearch.setVisibility(View.GONE);
-        updateSearchProgress(false);
-        submitSearchSources(pending);
-        searchHandler.postDelayed(searchTimeout, 15000L);
-    }
-
     private void stopSearchRequests() {
         searchFinished = true;
         resultGeneration++;
@@ -852,7 +808,7 @@ public class SearchActivity extends BaseActivity {
         } else if (timedOut && completedSearchSources < searchSourceCount && !hasResults) {
             // 超时且无结果：显示提示
             tvSearchProgress.setVisibility(View.VISIBLE);
-            tvSearchProgress.setText("搜索超时，没有找到结果；可重试未响应来源");
+            tvSearchProgress.setText("搜索超时，没有找到结果");
         } else if (finished && !hasResults) {
             // 完成但无结果：隐藏进度文字（空状态图已经显示了）
             tvSearchProgress.setVisibility(View.GONE);

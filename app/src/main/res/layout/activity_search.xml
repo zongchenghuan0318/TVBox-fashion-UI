@@ -286,21 +286,6 @@
                 android:textSize="@dimen/ts_20"
                 android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/tvRetrySearch"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/vs_50"
-                android:layout_marginStart="@dimen/vs_10"
-                android:background="@drawable/selector_user_focus"
-                android:focusable="true"
-                android:gravity="center"
-                android:minWidth="@dimen/vs_120"
-                android:paddingStart="@dimen/vs_12"
-                android:paddingEnd="@dimen/vs_12"
-                android:text="重试未响应来源"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20"
-                android:visibility="gone" />
         </LinearLayout>
     </RelativeLayout>
 </LinearLayout>
