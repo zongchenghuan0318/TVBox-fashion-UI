@@ -1,8 +1,8 @@
 {
-    "versionCode":  188,
-    "versionName":  "1.5.9",
-    "changelog":  "# 1.5.9\n\n## 更新内容\n\n- 搜索结果按“搜索源管理”中设置的源顺序显示：排在前面的源响应后，后面源的结果才依次进入列表，列表不再因结果到达顺序而跳动。\n- 搜索超时后，不再等待未响应的源，已到的结果按源顺序显示。\n\n## 安装包\n\n- 版本：1.5.9（versionCode 188）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.5.9/Z.apk",
-    "sha256":  "708a54be0ecfb7ccc1f8cd7cfc703eeebd45cbf2d050f92abe7bd0b6f890456e",
-    "size":  24918933
+    "versionCode":  189,
+    "versionName":  "1.6.0",
+    "changelog":  "# 1.6.0\n\n## 更新内容\n\n- 首页默认布局改为“极简画报沉浸”。已在设置中手动选择过首页布局的用户，保留原有选择。\n- 搜索结果按“搜索源管理”中设置的源顺序显示，列表不再因结果到达顺序而跳动。\n- 搜索超时后，不再等待未响应的源，已到的结果按源顺序显示。\n\n## 安装包\n\n- 版本：1.6.0（versionCode 189）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.0/Z.apk",
+    "sha256":  "fdcfbb638a93d8681d67a5f9ed1e995f8a2ab1dc4104b8249109a8f7d1f1cb9b",
+    "size":  24918888
 }
