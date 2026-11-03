@@ -525,6 +525,24 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- 顶栏图标的功能名称：绝对定位在顶栏下方右侧，只在焦点落到图标时显示，不占用顶栏的布局空间 -->
+    <TextView
+        android:id="@+id/tvTopActionLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|right"
+        android:layout_marginTop="@dimen/vs_60"
+        android:layout_marginRight="@dimen/vs_24"
+        android:background="@drawable/shape_settings_inset"
+        android:paddingLeft="@dimen/vs_12"
+        android:paddingRight="@dimen/vs_12"
+        android:paddingTop="@dimen/vs_4"
+        android:paddingBottom="@dimen/vs_4"
+        android:singleLine="true"
+        android:textColor="@color/color_rail_text_normal"
+        android:textSize="@dimen/ts_18"
+        android:visibility="gone" />
+
     <!-- 打开画面：配置与首页数据全部就绪后再淡出 -->
     <FrameLayout
         android:id="@+id/loadingView"
@@ -532,8 +550,8 @@
         android:layout_height="match_parent"
         android:background="@color/color_home_base"
         android:clickable="true"
-        android:focusable="true"
-        android:focusableInTouchMode="true">
+        android:focusable="false"
+        android:focusableInTouchMode="false">
 
         <LinearLayout
             android:layout_width="wrap_content"

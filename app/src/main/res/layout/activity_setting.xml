@@ -34,7 +34,7 @@
             android:focusableInTouchMode="false"
             android:contentDescription="返回"
             android:nextFocusRight="@id/settingEasterEggTrigger"
-            android:nextFocusDown="@id/llAbout">
+            android:nextFocusDown="@id/navPlay">
 
             <ImageView
                 android:layout_width="18mm"
@@ -58,7 +58,7 @@
             android:clickable="true"
             android:focusable="true"
             android:nextFocusLeft="@id/title_setting_tv"
-            android:nextFocusDown="@id/llAbout"
+            android:nextFocusDown="@id/navPlay"
             android:orientation="vertical">
 
             <TextView

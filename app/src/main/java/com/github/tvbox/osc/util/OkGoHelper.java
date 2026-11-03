@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.util;
 
+import com.lcstudio.commonsurport.L;
 import com.github.tvbox.osc.base.App;
 import com.github.tvbox.osc.util.SSL.SSLSocketFactoryCompat;
 import com.lzy.okgo.OkGo;
@@ -60,7 +61,7 @@ public class OkGoHelper {
         try {
             setOkHttpSsl(builder);
         } catch (Throwable th) {
-            th.printStackTrace();
+            L.e(th);
         }
         if (dnsOverHttps != null) {
             builder.dns(dnsOverHttps);
@@ -116,7 +117,7 @@ public class OkGoHelper {
         try {
             setOkHttpSsl(builder);
         } catch (Throwable th) {
-            th.printStackTrace();
+            L.e(th);
         }
         builder.cache(getDohCache());
         OkHttpClient dohClient = builder.build();
@@ -126,7 +127,7 @@ public class OkGoHelper {
             try {
                 dnsOverHttps = new DnsOverHttps.Builder().client(dohClient).url(HttpUrl.get(dohUrl)).build();
             } catch (Throwable e) {
-                e.printStackTrace();
+                L.e(e);
                 dnsOverHttps = null;
             }
         } else {
@@ -169,7 +170,7 @@ public class OkGoHelper {
         try {
             setOkHttpSsl(builder);
         } catch (Throwable th) {
-            th.printStackTrace();
+            L.e(th);
         }
 
         HttpHeaders.setUserAgent(Version.userAgent());

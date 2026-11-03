@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.player.thirdparty;
 
+import com.lcstudio.commonsurport.L;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
@@ -71,7 +72,7 @@ public class ReexPlayer {
                 }
                 intent.putExtra("reex.extra.http_header", json.toString());
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         }
         if (subtitle != null && !subtitle.isEmpty()) {

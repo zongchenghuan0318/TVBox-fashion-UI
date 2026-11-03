@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.util.python;
 
+import com.lcstudio.commonsurport.L;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
 import com.github.tvbox.osc.base.App;
@@ -25,7 +26,7 @@ public class PyLoader {
                         pySpider.init(App.getInstance(), ext);
                         spider = pySpider;
                     } catch (Throwable e) {
-                        e.printStackTrace();
+                        L.e(e);
                         spider = new SpiderNull();
                     }
                     spiders.put(key, spider);

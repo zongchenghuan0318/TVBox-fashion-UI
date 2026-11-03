@@ -90,7 +90,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
         if (vodInfo == null) return;
         collectAdapter.remove(position);
         updateDeleteButtons();
-        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             RoomDataManger.deleteVodCollect(vodInfo.getId());
         });
         String title = vodInfo.name != null ? vodInfo.name : "";
@@ -99,7 +99,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
             int restorePosition = Math.min(position, collectAdapter.getData().size());
             collectAdapter.addData(restorePosition, vodInfo);
             updateDeleteButtons();
-            android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
                 RoomDataManger.restoreVodCollect(vodInfo);
             });
         }, mGridView);
@@ -212,7 +212,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
 
     private void initData() {
         final int generation = ++loadGeneration;
-        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             List<VodCollect> records = RoomDataManger.getAllVodCollect();
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed() || generation != loadGeneration) return;
@@ -234,7 +234,7 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
             @Override
             public void left() {
                 mClearDialog.dismiss();
-                android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
                     RoomDataManger.deleteAllVodCollect();
                     runOnUiThread(() -> {
                         if (isFinishing() || isDestroyed()) return;

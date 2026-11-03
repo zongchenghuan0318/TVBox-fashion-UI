@@ -87,7 +87,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         if (vodInfo == null) return;
         historyAdapter.remove(position);
         updateDeleteButtons();
-        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
         });
         getUndoBar().show("已删除观看记录", () -> {
@@ -95,7 +95,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
             int restorePosition = Math.min(position, historyAdapter.getData().size());
             historyAdapter.addData(restorePosition, vodInfo);
             updateDeleteButtons();
-            android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+            com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
                 RoomDataManger.insertVodRecord(vodInfo.sourceKey, vodInfo);
             });
         }, mGridView);
@@ -225,7 +225,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
 
     private void initData() {
         final int generation = ++loadGeneration;
-        android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             List<VodInfo> records = RoomDataManger.getAllVodRecord(100);
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed() || generation != loadGeneration) return;
@@ -247,7 +247,7 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
             @Override
             public void left() {
                 mClearDialog.dismiss();
-                android.os.AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
                     RoomDataManger.deleteAllVodRecord();
                     runOnUiThread(() -> {
                         if (isFinishing() || isDestroyed()) return;

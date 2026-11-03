@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.data;
 
+import com.lcstudio.commonsurport.L;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 
@@ -47,7 +48,7 @@ public class AppDataManager {
             try {
                 database.execSQL("ALTER TABLE sourceState ADD COLUMN tidSort TEXT");
             } catch (SQLiteException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         }
     };
@@ -90,7 +91,7 @@ public class AppDataManager {
             try {
                 database.execSQL("ALTER TABLE vodRecord ADD COLUMN dataJson TEXT");
             } catch (SQLiteException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         }
     };
@@ -101,7 +102,7 @@ public class AppDataManager {
             try {
                 database.execSQL("ALTER TABLE localSource ADD COLUMN type INTEGER NOT NULL DEFAULT 0");
             } catch (SQLiteException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         }
     };

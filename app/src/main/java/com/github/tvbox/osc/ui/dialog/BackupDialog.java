@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.ui.dialog;
 
+import com.lcstudio.commonsurport.L;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -132,18 +133,28 @@ public class BackupDialog extends BaseDialog {
                 }
             });
             for (File f : list) {
-                if (result.size() > 10) {
-                    FileUtils.recursiveDelete(f);
-                    continue;
-                }
+                // 旧备份不再自动删除：备份是用户数据，打开弹窗时静默清理会造成不可恢复的丢失
                 if (f.isDirectory()) {
                     result.add(f.getName());
                 }
             }
         } catch (Throwable e) {
-            e.printStackTrace();
+            L.e(e);
         }
         return result;
+    }
+
+    /** 恢复数据后重启应用，让内存中的缓存（Hawk 等）重新从存储读取 */
+    private void restartApp() {
+        Context context = getContext();
+        android.content.Intent intent = context.getPackageManager()
+                .getLaunchIntentForPackage(context.getPackageName());
+        if (intent != null) {
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            context.startActivity(intent);
+        }
+        android.os.Process.killProcess(android.os.Process.myPid());
     }
 
     void restore(String dir) {
@@ -168,7 +179,13 @@ public class BackupDialog extends BaseDialog {
                                 sharedPreferences.edit().putString(key, value).commit();
                             }
                         }
-                        Toast.makeText(getContext(), "恢复成功,请重启应用!", Toast.LENGTH_SHORT).show();
+                        new androidx.appcompat.app.AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(
+                                getContext(), R.style.DarkAlertDialog))
+                                .setTitle("恢复成功")
+                                .setMessage("需要重启应用后数据才会完全生效，现在重启吗？")
+                                .setPositiveButton("立即重启", (d, w) -> restartApp())
+                                .setNegativeButton("稍后", null)
+                                .show();
                     } else {
                        // Toast.makeText(getContext(), "Hawk恢复失败!", Toast.LENGTH_SHORT).show();
                     }
@@ -177,7 +194,7 @@ public class BackupDialog extends BaseDialog {
                 }
             }
         } catch (Throwable e) {
-            e.printStackTrace();
+            L.e(e);
         }
     }
 
@@ -213,7 +230,7 @@ public class BackupDialog extends BaseDialog {
                 backup.delete();
             }
         } catch (Throwable e) {
-            e.printStackTrace();
+            L.e(e);
             Toast.makeText(getContext(), "备份失败!", Toast.LENGTH_SHORT).show();
         }
     }

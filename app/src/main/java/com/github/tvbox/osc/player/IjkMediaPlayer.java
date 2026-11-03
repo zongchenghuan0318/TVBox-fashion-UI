@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.player;
 
+import com.lcstudio.commonsurport.L;
 import android.content.Context;
 import android.text.TextUtils;
 
@@ -103,7 +104,7 @@ public class IjkMediaPlayer extends IjkPlayer {
                 mMediaPlayer.setOption(1, "rtsp_flags", "prefer_tcp");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
         }
         super.setDataSource(path, headers);
     }

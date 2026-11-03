@@ -105,7 +105,7 @@ public class Thunder {
                                 XLTaskHelper.instance().addMagentTask(url, cacheRoot, fileName) :
                                 XLTaskHelper.instance().addThunderTask(url, cacheRoot, fileName);
                     } catch (Exception exception) {
-                        exception.printStackTrace();
+                        L.e(exception);
                         currentTask = 0;
                     }
                     if (currentTask <= 0) {
@@ -148,7 +148,7 @@ public class Thunder {
                                         }
                                     }
                                 } catch (Throwable throwable) {
-                                    throwable.printStackTrace();
+                                    L.e(throwable);
                                     callback.status(-1, "解析失败");
                                 }
                                 return;
@@ -165,7 +165,7 @@ public class Thunder {
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            L.e(e);
                         }
                     }
                 }
@@ -215,7 +215,7 @@ public class Thunder {
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            L.e(e);
                         }
                     }
                 }

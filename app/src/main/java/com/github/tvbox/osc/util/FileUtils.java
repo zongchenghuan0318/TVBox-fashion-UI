@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.util;
 
+import com.lcstudio.commonsurport.L;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -22,7 +23,7 @@ public class FileUtils {
                 return true;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            L.e(e);
         }
         return false;
     }
@@ -38,7 +39,7 @@ public class FileUtils {
             }
             return baos.toByteArray();
         } catch (IOException e) {
-            e.printStackTrace();
+            L.e(e);
         }
         return null;
     }

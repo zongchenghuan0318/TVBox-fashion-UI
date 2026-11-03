@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.cache;
 
+import com.lcstudio.commonsurport.L;
 import android.os.AsyncTask;
 import android.util.LruCache;
 
@@ -31,7 +32,7 @@ public class CacheManager {
             ois = new ObjectInputStream(bais);
             return ois.readObject();
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
         } finally {
             try {
                 if (bais != null) {
@@ -41,7 +42,7 @@ public class CacheManager {
                     ois.close();
                 }
             } catch (Exception ignore) {
-                ignore.printStackTrace();
+                L.e(ignore);
             }
         }
         return null;
@@ -58,7 +59,7 @@ public class CacheManager {
             oos.flush();
             return baos.toByteArray();
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
         } finally {
             try {
                 if (baos != null) {
@@ -68,7 +69,7 @@ public class CacheManager {
                     oos.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                L.e(e);
             }
         }
         return new byte[0];

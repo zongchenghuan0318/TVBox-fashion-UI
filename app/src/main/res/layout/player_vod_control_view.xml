@@ -35,7 +35,7 @@
             android:orientation="horizontal" android:gravity="center_vertical">
             <TextView android:id="@+id/curr_time" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:minWidth="64dp" android:layout_marginRight="12dp"
-                android:fontFamily="monospace" android:text="00:00" android:textSize="14sp"
+                android:fontFamily="monospace" android:text="00:00" android:textSize="18sp"
                 android:textColor="#FFFFFF" android:singleLine="true" />
             <SeekBar android:id="@+id/seekBar" android:layout_width="0dp" android:layout_height="48dp"
                 android:layout_weight="1" android:background="@null" android:max="10000"
@@ -47,7 +47,7 @@
                 android:thumb="@drawable/shape_player_control_vod_seek_thumb" android:thumbOffset="0dp" />
             <TextView android:id="@+id/total_time" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:minWidth="64dp" android:layout_marginLeft="12dp"
-                android:fontFamily="monospace" android:text="--:--" android:textSize="14sp"
+                android:fontFamily="monospace" android:text="--:--" android:textSize="18sp"
                 android:textColor="#D9FFFFFF" android:gravity="end" android:singleLine="true" />
         </LinearLayout>
         <!-- 左侧播放操作，右侧观看设置，左右两端与顶部栏使用相同留白。 -->
@@ -77,9 +77,6 @@
                     android:src="@drawable/ic_player_aspect" android:contentDescription="画面比例" android:layout_marginRight="8dp" />
                 </LinearLayout>
             </HorizontalScrollView>
-            <ImageView android:id="@+id/port_img" style="@style/PlayerOverlayIcon"
-                android:src="@drawable/ic_player_rotate" android:contentDescription="切换横竖屏"
-                android:layout_marginLeft="8dp" />
         </LinearLayout>
         <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:fillViewport="false" android:focusable="false" android:scrollbars="none">

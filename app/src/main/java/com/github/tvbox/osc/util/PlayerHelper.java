@@ -45,7 +45,7 @@ public class PlayerHelper {
             ijkCode = playerCfg.getString("ijk");
             scale = playerCfg.getInt("sc");
         } catch (JSONException e) {
-            e.printStackTrace();
+            L.e(e);
         }
         IJKCode codec = ApiConfig.getInstance().getIJKCodec(ijkCode);
         PlayerFactory playerFactory;
@@ -64,12 +64,12 @@ public class PlayerHelper {
                             L.d(" System.loadLibrary()");
                             System.loadLibrary(s);
                         } catch (Throwable th) {
-                            th.printStackTrace();
+                            L.e(th);
                         }
                     }
                 });
             } catch (Throwable th) {
-                th.printStackTrace();
+                L.e(th);
             }
         } else if (playerType == 2) {
             playerFactory = ExoMediaPlayerFactory.create();
@@ -112,12 +112,12 @@ public class PlayerHelper {
                         try {
                             System.loadLibrary(s);
                         } catch (Throwable th) {
-                            th.printStackTrace();
+                            L.e(th);
                         }
                     }
                 });
             } catch (Throwable th) {
-                th.printStackTrace();
+                L.e(th);
             }
         } else if (playType == 2) {
             playerFactory = ExoMediaPlayerFactory.create();
@@ -148,12 +148,12 @@ public class PlayerHelper {
                     try {
                         System.loadLibrary(s);
                     } catch (Throwable th) {
-                        th.printStackTrace();
+                        L.e(th);
                     }
                 }
             });
         } catch (Throwable th) {
-            th.printStackTrace();
+            L.e(th);
         }
     }
 

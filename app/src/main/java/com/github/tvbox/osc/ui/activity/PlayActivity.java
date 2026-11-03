@@ -96,6 +96,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         }
     };
     private ImageView mPlayErrImg;
+    private View mPlayErrActions;
+    private TextView mPlayErrRetryBtn;
+    private TextView mPlayErrSwitchBtn;
     private ProgressBar mPlayLoadingPb;
     private VodController mController;
     private PlaybackOptionsManager mPlaybackOptions;
@@ -125,7 +128,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private long mResumePosition;
     private boolean mHasSavedResumePosition;
     private boolean mResumePromptShown;
-    private TextView mResumeRestartHint;
+    private View mResumeRestartHint;
+    private TextView mResumeContinueBtn;
+    private TextView mResumeRestartBtn;
     private boolean mResumeHintPending;
     private long mResumeHintDeadline;
     private int mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
@@ -224,13 +229,28 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         // 点播开启磁盘缓存：边看边存，拖动/回看命中本地缓存（看完即释放由播放器负责）
         xyz.doikki.videoplayer.exo.ExoMediaSourceHelper.getInstance(this).setCacheEnabled(true);
         mResumeRestartHint = findViewById(R.id.resume_restart_hint);
-        mResumeRestartHint.setOnClickListener(v -> restartFromResumeHint());
+        mResumeContinueBtn = findViewById(R.id.resume_continue_btn);
+        mResumeRestartBtn = findViewById(R.id.resume_restart_btn);
+        // 续播位置在 STATE_PREPARED 时已经 seek 好，“继续播放”只需收起提示
+        mResumeContinueBtn.setOnClickListener(v -> dismissResumePrompt(true));
+        mResumeRestartBtn.setOnClickListener(v -> restartFromResumeHint());
         mTimeTV = findViewById(R.id.system_time_tv);
         mPlayLoadTipTV = findViewById(R.id.play_load_tip);
         mMovieNameTV = findViewById(R.id.movie_name_tv);
         mAdTipTV = findViewById(R.id.play_ad_tip);
         mPlayLoadingPb = findViewById(R.id.play_loading);
         mPlayErrImg = findViewById(R.id.play_load_error);
+        mPlayErrActions = findViewById(R.id.play_error_actions);
+        mPlayErrRetryBtn = findViewById(R.id.play_error_retry);
+        mPlayErrSwitchBtn = findViewById(R.id.play_error_switch);
+        mPlayErrRetryBtn.setOnClickListener(v -> {
+            hideTipsView();
+            autoRetryCount = 0;
+            preGetPlayUrl();
+        });
+        mPlayErrSwitchBtn.setOnClickListener(v -> {
+            if (mController != null) mController.showEpisodeSelector();
+        });
         mVideoView.addOnStateChangeListener(new VideoView.SimpleOnStateChangeListener() {
             @Override
             public void onPlayStateChanged(int playState) {
@@ -924,6 +944,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                 return super.dispatchKeyEvent(event);
             }
             if (event.getAction() == KeyEvent.ACTION_DOWN) lastBackPressedMs = 0;
+            // 播放失败的操作按钮（重试 / 选集）有焦点时，按键直接交给按钮，不进入控制器
+            if (mPlayErrActions != null && mPlayErrActions.getVisibility() == View.VISIBLE
+                    && mPlayErrActions.hasFocus()) {
+                return super.dispatchKeyEvent(event);
+            }
             if (mResumeHintConsumedKey != KeyEvent.KEYCODE_UNKNOWN && keyCode == mResumeHintConsumedKey) {
                 if (event.getAction() == KeyEvent.ACTION_UP) mResumeHintConsumedKey = KeyEvent.KEYCODE_UNKNOWN;
                 return true;
@@ -931,17 +956,29 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             if (isResumeHintVisible() && event.getAction() == KeyEvent.ACTION_DOWN) {
                 boolean volumeKey = keyCode == KeyEvent.KEYCODE_VOLUME_UP
                         || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_MUTE;
-                if (!volumeKey) {
+                boolean horizontalKey = keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                        || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+                boolean selectKey = keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                        || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER;
+                if (horizontalKey) {
+                    // 左右键在“继续播放 / 从头开始”之间移动焦点
+                    return super.dispatchKeyEvent(event);
+                }
+                if (selectKey) {
                     mResumeHintConsumedKey = keyCode;
-                    if (event.getRepeatCount() == 0 && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
-                            || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
-                        restartFromResumeHint();
-                    } else {
-                        dismissResumePrompt(true);
+                    if (event.getRepeatCount() == 0) {
+                        if (getCurrentFocus() == mResumeRestartBtn) {
+                            restartFromResumeHint();
+                        } else {
+                            dismissResumePrompt(true);
+                        }
                     }
                     return true;
                 }
-                dismissResumePrompt(true);
+                if (!volumeKey) {
+                    // 其他操作键：收起提示，但按键本身照常处理，不吞掉
+                    dismissResumePrompt(true);
+                }
             }
             //有按键操作时重新显示已自动收起的节目介绍/时间/右下提示，5 秒后再次收起
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -1034,11 +1071,11 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mResumeHintPending = false;
         if (mVideoView == null || !isActivityActive() || mResumePromptShown) return;
         mResumePromptShown = true;
-        mResumeHintDeadline = SystemClock.uptimeMillis() + 5000L;
+        mResumeHintDeadline = SystemClock.uptimeMillis() + 8000L;
         mResumeRestartHint.setVisibility(View.VISIBLE);
         mResumeRestartHint.setAlpha(0f);
         mResumeRestartHint.animate().alpha(1f).setDuration(150L).start();
-        mResumeRestartHint.requestFocus();
+        mResumeContinueBtn.requestFocus();
         refreshResumeHintCountdown();
     }
 
@@ -1053,7 +1090,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             dismissResumePrompt(true);
             return;
         }
-        mResumeRestartHint.setText("从头开始 · " + ((remaining + 999L) / 1000L) + "秒");
+        mResumeRestartBtn.setText("从头开始 · " + ((remaining + 999L) / 1000L) + "秒");
         mHandler.removeCallbacks(mResumeHintTick);
         mHandler.postDelayed(mResumeHintTick, Math.min(1000L, remaining));
     }
@@ -1338,6 +1375,10 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             mPlayLoadTipTV.setVisibility(View.VISIBLE);
             mPlayLoadingPb.setVisibility(loading ? View.VISIBLE : View.GONE);
             mPlayErrImg.setVisibility(err ? View.VISIBLE : View.GONE);
+            if (mPlayErrActions != null) {
+                mPlayErrActions.setVisibility(err ? View.VISIBLE : View.GONE);
+                if (err && mPlayErrRetryBtn != null) mPlayErrRetryBtn.requestFocus();
+            }
         });
     }
 
@@ -1349,6 +1390,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             mPlayLoadTipTV.setVisibility(View.GONE);
             mPlayLoadingPb.setVisibility(View.GONE);
             mPlayErrImg.setVisibility(View.GONE);
+            if (mPlayErrActions != null) mPlayErrActions.setVisibility(View.GONE);
         });
     }
 

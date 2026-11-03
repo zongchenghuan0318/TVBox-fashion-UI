@@ -205,7 +205,7 @@ public class ApiDialog extends BaseDialog {
             @Override
             public void run() {
                 super.run();
-                final ApiConfig.VerifyResult result = ApiConfig.verifyConfig(configAddress, "");
+                final ApiConfig.VerifyResult result = ApiConfig.verifyConfigWithRetry(configAddress, "", 0);
                 mAct.runOnUiThread(() -> onVerifyDone(configAddress, result));
             }
         }.start();
@@ -335,7 +335,7 @@ public class ApiDialog extends BaseDialog {
                 @Override
                 public void run() {
                     super.run();
-                    ApiConfig.VerifyResult result = ApiConfig.verifyConfig(address, "");
+                    ApiConfig.VerifyResult result = ApiConfig.verifyConfigWithRetry(address, "", 0);
                     mAct.runOnUiThread(() -> {
                         setVerifying(false);
                         showStatus((result.ok ? "✓ " : "✗ ") + result.message,

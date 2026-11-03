@@ -50,22 +50,23 @@ public final class SeniorMode {
         if (root.getTag(R.id.senior_mode_layout_listener) == null) {
             ViewTreeObserver.OnGlobalLayoutListener layoutListener =
                     new ViewTreeObserver.OnGlobalLayoutListener() {
-                        private boolean isApplying = false;
+                        private boolean walkScheduled = false;
 
                         @Override
                         public void onGlobalLayout() {
-                            if (isApplying) return;
                             if (!isEnabled()) {
                                 apply(root);
                                 return;
                             }
-                            try {
-                                isApplying = true;
+                            // 同一帧内的多次布局只安排一次遍历；隐藏的子树不参与遍历（显示时会再次触发布局）
+                            if (walkScheduled) return;
+                            walkScheduled = true;
+                            root.postOnAnimation(() -> {
+                                walkScheduled = false;
+                                if (!isEnabled()) return;
                                 applyToTree(root, true);
                                 updateFocus(root.findFocus(), true);
-                            } finally {
-                                isApplying = false;
-                            }
+                            });
                         }
                     };
             root.setTag(R.id.senior_mode_layout_listener, layoutListener);
@@ -104,6 +105,10 @@ public final class SeniorMode {
     }
 
     private static void applyToTree(View view, boolean enabled) {
+        // 隐藏的子树不需要放大，显示时布局变化会重新遍历到它
+        if (enabled && view.getVisibility() == View.GONE) {
+            return;
+        }
         if (view instanceof TextView) {
             TextView textView = (TextView) view;
             Object originalSize = textView.getTag(R.id.senior_mode_original_text_size);
@@ -183,7 +188,7 @@ public final class SeniorMode {
             paint.setColor(Color.BLACK);
             paint.setStrokeWidth(7f * density);
             canvas.drawRoundRect(bounds, radius, radius, paint);
-            paint.setColor(0xFFFFD54F);
+            paint.setColor(0xFFFFFFFF); // 中性白色焦点环，与磨砂玻璃风格一致
             paint.setStrokeWidth(3f * density);
             canvas.drawRoundRect(bounds, radius, radius, paint);
         }

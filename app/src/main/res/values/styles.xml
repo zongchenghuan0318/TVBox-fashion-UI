@@ -130,6 +130,28 @@
     </style>
 
     <!-- 设置页：行当前值（聚焦时亮白，未聚焦中性灰；宽度吃满剩余空间并右对齐） -->
+    <style name="SettingRowSpacer">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:layout_weight">1</item>
+    </style>
+
+    <!-- 设置左侧分组导航项 -->
+    <style name="SettingNavItem">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">56mm</item>
+        <item name="android:layout_marginBottom">8mm</item>
+        <item name="android:paddingLeft">18mm</item>
+        <item name="android:paddingRight">18mm</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:background">@drawable/selector_settings_nav</item>
+        <item name="android:textColor">@color/selector_settings_nav_text</item>
+        <item name="android:textSize">19mm</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
     <style name="SettingRowValue">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_weight">1</item>

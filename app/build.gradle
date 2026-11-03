@@ -2,6 +2,9 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.chaquo.python'
 
 def releaseSigning = new Properties()
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) localPropsFile.withInputStream { localProps.load(it) }
 def releaseSigningFile = rootProject.file('release-signing.properties')
 if (releaseSigningFile.exists()) releaseSigningFile.withInputStream { releaseSigning.load(it) }
 
@@ -32,8 +35,8 @@ android {
         applicationId 'com.studio.osc'
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 185
-        versionName '1.5.6'
+        versionCode 186
+        versionName '1.5.7'
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
@@ -47,7 +50,10 @@ android {
         // Chaquopy Python 引擎（对齐 v6.1.7 的 Python 爬虫载荷）
         python {
             // host 构建用 Python 3.8（便携免安装版，仅存于 E 盘）
-            buildPython "E:/code-tools/TraeREA/Python38/tools/python.exe"
+            // 构建机器相关的 Python 路径从 local.properties 读取（chaquopy.buildPython），不写死在工程里
+            if (localProps.getProperty('chaquopy.buildPython')) {
+                buildPython localProps.getProperty('chaquopy.buildPython')
+            }
             pip {
                 install "requests==2.32.4"
                 install "urllib3==2.2.3"

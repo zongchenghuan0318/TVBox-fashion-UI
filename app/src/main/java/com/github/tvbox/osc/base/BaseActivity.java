@@ -46,7 +46,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                 screenRatio = (float) Math.max(screenWidth, screenHeight) / (float) Math.min(screenWidth, screenHeight);
             }
         } catch (Throwable th) {
-            th.printStackTrace();
+            L.e(th);
         }
         super.onCreate(savedInstanceState);
         setContentView(getLayoutResID());
@@ -106,7 +106,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         try {
             has = PermissionChecker.checkSelfPermission(this, permission) == PermissionChecker.PERMISSION_GRANTED;
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
         }
         return has;
     }
@@ -143,6 +143,20 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
+    /**
+     * 为空态覆盖层增加一个第二操作按钮（如“换源搜索”）。每次显示空态时生效。
+     */
+    protected void setEmptyAction(String text, View.OnClickListener listener) {
+        if (mLoadService == null) return;
+        mLoadService.setCallBack(EmptyCallback.class, (context, view) -> {
+            android.widget.TextView btn = view.findViewById(com.studio.osc.R.id.btnEmptySwitch);
+            if (btn == null) return;
+            btn.setText(text);
+            btn.setOnClickListener(listener);
+            btn.setVisibility(View.VISIBLE);
+        });
+    }
+
     protected void showSuccess() {
         if (null != mLoadService) {
             mLoadService.showSuccess();
@@ -177,7 +191,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
             }
             return stringBuilder.toString();
         } catch (IOException e) {
-            e.printStackTrace();
+            L.e(e);
         }
         return "";
     }

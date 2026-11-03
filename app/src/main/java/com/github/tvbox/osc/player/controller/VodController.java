@@ -3,8 +3,6 @@ package com.github.tvbox.osc.player.controller;
 import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.pm.ActivityInfo;
-import android.content.res.Configuration;
 import android.os.Message;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -80,7 +78,6 @@ public class VodController extends BaseController {
     private TextView mPlayerTimeSkipTV;
     private TextView mPlayerTimeStepTV;
     private ImageView lockImg;
-    private ImageView portHorImg;
     private ImageButton mPlayingBtn;
     private JSONObject mJsonObject = null;
     private boolean bMxPlayerExist = false;
@@ -152,7 +149,7 @@ public class VodController extends BaseController {
 
     public VodController(Context context) {
         super(context);
-        setDismissTimeout(com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000 : 4000);
+        setDismissTimeout(com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000 : 8000);
     }
     @Override
     protected int getLayoutId() {
@@ -182,7 +179,7 @@ public class VodController extends BaseController {
                         float speed = (float) mJsonObject.getDouble("sp");
                         mControlWrapper.setSpeed(speed);
                     } catch (JSONException e) {
-                        e.printStackTrace();
+                        L.e(e);
                     }
                 } else {
                     mBaseHandler.sendEmptyMessageDelayed(1004, 100);
@@ -226,7 +223,6 @@ public class VodController extends BaseController {
         mAutoNextCancel = findViewById(R.id.auto_next_cancel);
         mAutoNextNow = findViewById(R.id.auto_next_now);
         lockImg = findViewById(R.id.lock_img);
-        portHorImg = findViewById(R.id.port_img);
 
         initClickListener();
 
@@ -327,7 +323,7 @@ public class VodController extends BaseController {
                 controlListener.updatePlayerCfg();
                 mControlWrapper.setScreenScaleType(scaleType);
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         });
         mPlayerSpeedBtn.setOnClickListener(view -> {
@@ -349,7 +345,7 @@ public class VodController extends BaseController {
                 controlListener.updatePlayerCfg();
                 mControlWrapper.setSpeed(speed);
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         });
         mPlayerTV.setOnClickListener(view -> {
@@ -379,7 +375,7 @@ public class VodController extends BaseController {
                 controlListener.replay();
                 // hideBottom();
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         });
         mPlayerIJKTV.setOnClickListener(view -> {
@@ -403,7 +399,7 @@ public class VodController extends BaseController {
                 controlListener.replay();
                 hideBottom();
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         });
         mPlayerTimeStartTV.setOnClickListener(view -> {
@@ -419,7 +415,7 @@ public class VodController extends BaseController {
                 updatePlayerCfgView();
                 controlListener.updatePlayerCfg();
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         });
         mPlayerTimeSkipTV.setOnClickListener(view -> {
@@ -435,7 +431,7 @@ public class VodController extends BaseController {
                 updatePlayerCfgView();
                 controlListener.updatePlayerCfg();
             } catch (JSONException e) {
-                e.printStackTrace();
+                L.e(e);
             }
         });
         mPlayerTimeStepTV.setOnClickListener(view -> {
@@ -474,14 +470,6 @@ public class VodController extends BaseController {
                 lockImg.setImageResource(R.drawable.ic_player_locked);
             } else {
                 lockImg.setImageResource(R.drawable.ic_player_unlock);
-            }
-        });
-
-        portHorImg.setOnClickListener(v -> {
-            if (mActivity.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-            } else if (mActivity.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
-                mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             }
         });
     }
@@ -548,7 +536,7 @@ public class VodController extends BaseController {
             mPlayerTimeSkipTV.setText("片尾 " + PlayerUtils.stringForTime(mJsonObject.getInt("et") * 1000));
             mPlayerTimeStepTV.setText("步长 " + Hawk.get(HawkConfig.PLAY_TIME_STEP, 5) + "秒");
         } catch (JSONException e) {
-            e.printStackTrace();
+            L.e(e);
         }
     }
 
@@ -694,7 +682,7 @@ public class VodController extends BaseController {
                 if (position >= 0 && position < rangeList.size()) {
                     finalRangeAdapter.setSelectedIndex(position);
                     EpisodeRangeBean item = rangeList.get(position);
-                    focusEpisodeItem(episodeGrid, dialog, item.startIndex, 0);
+                    focusEpisodeWhenLaidOut(episodeGrid, dialog, item.startIndex);
                 }
             };
             rangeAdapter.setOnItemClickListener(rangeClickListener);
@@ -710,7 +698,7 @@ public class VodController extends BaseController {
                     if (position >= 0 && position < rangeList.size()) {
                         finalRangeAdapter.setSelectedIndex(position);
                         EpisodeRangeBean item = rangeList.get(position);
-                        focusEpisodeItem(episodeGrid, dialog, item.startIndex, 0);
+                        focusEpisodeWhenLaidOut(episodeGrid, dialog, item.startIndex);
                     }
                 }
             });
@@ -786,23 +774,30 @@ public class VodController extends BaseController {
         if (mCurrentEpisode >= 0 && mCurrentEpisode < mEpisodes.size()) {
             episodeGrid.scrollToPosition(mCurrentEpisode);
         }
-        episodeGrid.post(() -> focusEpisodeItem(episodeGrid, dialog, mCurrentEpisode, 0));
+        episodeGrid.post(() -> focusEpisodeWhenLaidOut(episodeGrid, dialog, mCurrentEpisode));
     }
 
-    private void focusEpisodeItem(TvRecyclerView grid, Dialog dialog, int position, int retry) {
-        if (!dialog.isShowing() || mActivity == null || grid.getLayoutManager() == null) {
-            return;
-        }
-        if (retry == 0) {
-            grid.scrollToPosition(position);
-        }
-        if (grid.getLayoutManager().findViewByPosition(position) != null || retry >= 10) {
-            grid.setSelection(position);
-            grid.requestFocus();
-        } else {
-            grid.scrollToPosition(position);
-            grid.postDelayed(() -> focusEpisodeItem(grid, dialog, position, retry + 1), 60);
-        }
+    /**
+     * 选集列表布局完成后再把焦点交给当前集：由 RecyclerView 的布局回调触发，不再轮询等待。
+     * 若目标项已经在布局中则立即完成，否则等下一次布局变化。
+     */
+    private void focusEpisodeWhenLaidOut(TvRecyclerView grid, Dialog dialog, int position) {
+        if (position < 0 || position >= mEpisodes.size()) return;
+        final View.OnLayoutChangeListener[] listener = new View.OnLayoutChangeListener[1];
+        final Runnable tryFocus = () -> {
+            if (!dialog.isShowing() || mActivity == null || grid.getLayoutManager() == null) {
+                grid.removeOnLayoutChangeListener(listener[0]);
+                return;
+            }
+            if (grid.getLayoutManager().findViewByPosition(position) != null) {
+                grid.removeOnLayoutChangeListener(listener[0]);
+                grid.setSelection(position);
+                grid.requestFocus();
+            }
+        };
+        listener[0] = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> tryFocus.run();
+        grid.addOnLayoutChangeListener(listener[0]);
+        grid.post(tryFocus);
     }
 
     private String episodeName(int index) {
@@ -848,7 +843,7 @@ public class VodController extends BaseController {
                 try {
                     et = mJsonObject.getInt("et");
                 } catch (JSONException e) {
-                    e.printStackTrace();
+                    L.e(e);
                 }
             }
             if (controlListener != null && et > 0 && et * 1000L < duration
@@ -1093,7 +1088,7 @@ public class VodController extends BaseController {
         }
         mBaseHandler.removeCallbacks(mSeniorModeHideBottomRunnable);
         if (!mOptionsOpen && !mIsDragging) mBaseHandler.postDelayed(mSeniorModeHideBottomRunnable,
-                com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000L : 6000L);
+                com.github.tvbox.osc.util.SeniorMode.isEnabled() ? 10000L : 9000L);
     }
 
     public void hideBottom() {
@@ -1332,7 +1327,7 @@ public class VodController extends BaseController {
                 && keyCode != KeyEvent.KEYCODE_DPAD_UP) return false;
         View focused = findFocus();
         View[] controls = {mPreBtn, mPlayingBtn, mNextBtn, mPlayerRetryTv, mPlayerTV,
-                mPlayerIJKTV, mPlayerSpeedBtn, mEpisodeBtn, mPlayerScaleBtn, portHorImg};
+                mPlayerIJKTV, mPlayerSpeedBtn, mEpisodeBtn, mPlayerScaleBtn};
         for (int i = 0; i < controls.length; i++) {
             if (focused == null || focused != controls[i]) continue;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {

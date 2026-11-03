@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.cache;
 
+import com.lcstudio.commonsurport.L;
 import android.text.TextUtils;
 
 import com.github.tvbox.osc.bean.VodInfo;
@@ -64,7 +65,7 @@ public class RoomDataManger {
                 return vodInfo;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
         }
         return null;
     }
@@ -94,7 +95,7 @@ public class RoomDataManger {
                             info = null;
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    L.e(e);
                 }
                 if (info != null)
                     vodInfoList.add(info);

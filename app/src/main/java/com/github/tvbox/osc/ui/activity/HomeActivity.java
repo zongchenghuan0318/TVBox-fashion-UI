@@ -202,8 +202,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             this.drawerScrim.setOnClickListener(v -> closeDrawer());
         }
         this.drawerTabHandle = findViewById(R.id.drawerTabHandle);
-        if (this.drawerTabHandle != null) {
-            this.drawerTabHandle.setOnClickListener(v -> openDrawer());
+        if (drawerTabHandle != null) {
+            // 拉手只在按下确认键（或触屏点击）时展开；焦点经过不会自动弹出，避免从内容区向左走时误开抽屉
+            drawerTabHandle.setOnClickListener(v -> openDrawer());
+            drawerTabHandle.setFocusable(true);
+            drawerTabHandle.setFocusableInTouchMode(false);
+            drawerTabHandle.setContentDescription("展开分类抽屉，按确定打开");
         }
         this.topNavPanel = findViewById(R.id.topNavPanel);
         this.tvTopBrand = findViewById(R.id.tvTopBrand);
@@ -242,6 +246,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (topCollect != null) topCollect.setOnClickListener(this);
         View topSetting = findViewById(R.id.top_layout_setting);
         if (topSetting != null) topSetting.setOnClickListener(this);
+        bindTopActionLabels();
 
         this.mMovieSortRV = findViewById(R.id.sortRV);
         this.mContentViewPager = findViewById(R.id.viewPager);
@@ -267,8 +272,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
         if (leftNavPanel != null) {
             leftNavPanel.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            // 允许触控事件自然传递给子视图（RecyclerView与功能按钮）
-            leftNavPanel.setOnTouchListener((v, event) -> false);
         }
 
         initCutoutSafeInsets();
@@ -1071,20 +1074,30 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             @Override
             public void run() {
                 mLoadingView.setVisibility(View.GONE);
-                if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV || mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
-                    if (sortTopRV != null) {
-                        sortTopRV.setSelection(0);
-                        sortTopRV.requestFocus();
-                    }
-                } else {
-                    if (mMovieSortRV != null) {
-                        // 电视端：进入主页时光标固定停在左侧「首页」分类上
-                        mMovieSortRV.setSelection(0);
-                        mMovieSortRV.requestFocus();
-                    }
-                }
+                focusHomeEntry();
             }
         }).start();
+    }
+
+    /**
+     * 首页的默认焦点入口，按当前布局决定：顶栏布局落在顶部分类；抽屉布局落在内容区（左侧导航此时是隐藏的）；
+     * 经典侧栏落在左侧分类。
+     */
+    private void focusHomeEntry() {
+        if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_APPLE_TV || mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
+            if (sortTopRV != null) {
+                sortTopRV.setSelection(0);
+                sortTopRV.requestFocus();
+            }
+        } else if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER) {
+            if (!enterSelectedCategoryContent() && mMovieSortRV != null) {
+                mMovieSortRV.requestFocus();
+            }
+        } else if (mMovieSortRV != null) {
+            // 电视端：进入主页时光标固定停在左侧「首页」分类上
+            mMovieSortRV.setSelection(0);
+            mMovieSortRV.requestFocus();
+        }
     }
 
     //获取site.file配置
@@ -1311,6 +1324,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         int savedLayout = Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT);
         if (savedLayout != mCurrentLayoutStyle) {
             applyLayoutStyle(savedLayout);
+            // 切换后原焦点所在的视图可能已经隐藏，把焦点交给新布局的入口
+            if (mLoadingView == null || mLoadingView.getVisibility() != View.VISIBLE) {
+                focusHomeEntry();
+            }
         } else if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
             if (topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE) {
                 scheduleImmersiveTopBarFadeOut(3500L);
@@ -1343,6 +1360,25 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             mContentViewPager.setAdapter(null);
         }
         super.onDestroy();
+    }
+
+    /** 顶栏图标只有图标没有文字：补充无障碍描述，并在焦点落到图标时在旁边显示名称 */
+    private void bindTopActionLabels() {
+        TextView label = findViewById(R.id.tvTopActionLabel);
+        int[] ids = {R.id.top_layout_search, R.id.top_layout_history, R.id.top_layout_live,
+                R.id.top_layout_collect, R.id.top_layout_setting};
+        String[] names = {"搜索", "观看历史", "直播", "收藏", "设置"};
+        for (int i = 0; i < ids.length; i++) {
+            View v = findViewById(ids[i]);
+            if (v == null) continue;
+            final String name = names[i];
+            v.setContentDescription(name);
+            v.setOnFocusChangeListener((view, hasFocus) -> {
+                if (label == null) return;
+                label.setText(name);
+                label.setVisibility(hasFocus ? View.VISIBLE : View.GONE);
+            });
+        }
     }
 
     @Override

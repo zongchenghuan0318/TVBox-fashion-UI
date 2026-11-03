@@ -75,7 +75,7 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
             tvName.setText(name);
             tvName.setSelected(isSelected);
             tvName.getPaint().setFakeBoldText(isSelected);
-            tvName.setTextColor(isSelected ? 0xFFFFFFFF : 0xCCFFFFFF);
+            tvName.setTextColor(androidx.core.content.ContextCompat.getColor(tvName.getContext(), isSelected ? R.color.color_dialog_option_selected : R.color.color_dialog_option));
         }
         TextView tvSub = (TextView) holder.itemView.findViewById(R.id.tvSub);
         if (tvSub != null) {
@@ -83,7 +83,7 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
             if (sub != null && !sub.isEmpty()) {
                 tvSub.setText(sub);
                 tvSub.setVisibility(View.VISIBLE);
-                tvSub.setTextColor(isSelected ? 0xB3FFFFFF : 0x80FFFFFF);
+                tvSub.setTextColor(androidx.core.content.ContextCompat.getColor(tvSub.getContext(), isSelected ? R.color.color_dialog_sub_selected : R.color.color_dialog_sub));
             } else {
                 tvSub.setVisibility(View.GONE);
             }

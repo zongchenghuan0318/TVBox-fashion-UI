@@ -1,22 +1,20 @@
 package com.github.tvbox.osc.ui.fragment;
 
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.app.AlertDialog;
-import android.app.Dialog;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.app.Dialog;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.AsyncTask;
-import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.github.tvbox.osc.api.ApiConfig;
@@ -25,45 +23,53 @@ import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.cache.CacheManager;
-import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity;
-import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
+import com.github.tvbox.osc.ui.activity.SettingActivity;
 import com.github.tvbox.osc.ui.dialog.ApiDialog;
 import com.github.tvbox.osc.ui.dialog.BackupDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
+import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
+import com.github.tvbox.osc.ui.view.CapsuleSwitch;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.FileUtils;
 import com.github.tvbox.osc.util.HawkConfig;
-import com.github.tvbox.osc.util.OkGoHelper;
 import com.github.tvbox.osc.util.PlayerHelper;
+import com.github.tvbox.osc.util.SeniorMode;
+import com.github.tvbox.osc.util.UpdateManager;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.PhoneParams;
-import com.lcstudio.commonsurport.util.SystemUitl;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
-import com.uisupport.UiConstans;
-import com.github.tvbox.osc.util.UpdateManager;
 
 import org.greenrobot.eventbus.EventBus;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DiffUtil;
-import okhttp3.HttpUrl;
-import tv.danmaku.ijk.media.player.IjkMediaPlayer;
-
 /**
+ * 设置页：左侧四个分组导航（播放 / 首页与搜索 / 数据与缓存 / 关于），右侧一次只显示当前分组。
+ *
  * @author pj567
  * @date :2020/12/23
  * @description:
  */
 public class ModelSettingFragment extends BaseLazyFragment {
+    private static final int GROUP_PLAY = 0;
+    private static final int GROUP_HOME = 1;
+    private static final int GROUP_DATA = 2;
+    private static final int GROUP_ABOUT = 3;
+
+    private static final String[] LANGUAGE_CODES = {"", "zh", "en", "ja", "ko", "fr", "de", "es"};
+    private static final String[] LANGUAGE_NAMES = {"自动选择", "中文 zh", "英文 en", "日语 ja",
+            "韩语 ko", "法语 fr", "德语 de", "西班牙语 es"};
+
+    private View[] navItems;
+    private View[] groups;
     private TextView tvDebugOpen;
     private TextView tvMediaCodec;
     private TextView tvPlay;
@@ -72,7 +78,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvApi;
     private TextView tvLiveSource;
     private TextView tvHomeApi;
-    private TextView tvDns;
+    private TextView tvHomeMode;
     private TextView tvHomeRec;
     private TextView tvHomeLayout;
     private TextView tvSearchView;
@@ -82,8 +88,11 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvPlayTimeEnd;
     private TextView tvAudioLanguage;
     private TextView tvSubtitleLanguage;
-    private TextView tvSubtitleOff;
-    private ApiDialog mApiDialog =null;
+    private TextView tvClearCache;
+    private CapsuleSwitch switchSubtitle;
+    private CapsuleSwitch switchAutoUpdate;
+    private CapsuleSwitch switchSeniorMode;
+    private ApiDialog mApiDialog = null;
     private int easterEggClicks;
     private long lastEasterEggClick;
 
@@ -110,6 +119,23 @@ public class ModelSettingFragment extends BaseLazyFragment {
 
     @Override
     protected void init() {
+        bindViews();
+        bindNavigation();
+        bindTexts();
+        bindToggles();
+        bindPlayback();
+        bindHome();
+        bindData();
+        bindAbout();
+        SettingActivity.callback = new SettingActivity.DevModeCallback() {
+            @Override
+            public void onChange() {
+                findViewById(R.id.llDebug).setVisibility(View.VISIBLE);
+            }
+        };
+    }
+
+    private void bindViews() {
         tvDebugOpen = findViewById(R.id.tvDebugOpen);
         tvMediaCodec = findViewById(R.id.tvMediaCodec);
         tvPlay = findViewById(R.id.tvPlay);
@@ -118,7 +144,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvApi = findViewById(R.id.tvApi);
         tvLiveSource = findViewById(R.id.tvLiveSource);
         tvHomeApi = findViewById(R.id.tvHomeApi);
-        tvDns = findViewById(R.id.tvDns);
+        tvHomeMode = findViewById(R.id.tvHomeMode);
         tvHomeRec = findViewById(R.id.tvHomeRec);
         tvHomeLayout = findViewById(R.id.tvHomeLayout);
         tvSearchView = findViewById(R.id.tvSearchView);
@@ -128,438 +154,238 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvPlayTimeEnd = findViewById(R.id.tvPlayTimeEnd);
         tvAudioLanguage = findViewById(R.id.tvAudioLanguage);
         tvSubtitleLanguage = findViewById(R.id.tvSubtitleLanguage);
-        tvSubtitleOff = findViewById(R.id.tvSubtitleOff);
+        tvClearCache = findViewById(R.id.tvClearCache);
+        switchSubtitle = findViewById(R.id.switchSubtitle);
+        switchAutoUpdate = findViewById(R.id.switchAutoUpdate);
+        switchSeniorMode = findViewById(R.id.switchSeniorMode);
+        navItems = new View[]{findViewById(R.id.navPlay), findViewById(R.id.navHome),
+                findViewById(R.id.navData), findViewById(R.id.navAbout)};
+        groups = new View[]{findViewById(R.id.groupPlay), findViewById(R.id.groupHome),
+                findViewById(R.id.groupData), findViewById(R.id.groupAbout)};
+    }
+
+    /** 左侧导航：焦点或点击切换分组，右侧只显示当前分组 */
+    private void bindNavigation() {
+        // 每个导航项的“向右”焦点明确指向本分组第一行，不依赖系统的焦点猜测
+        int[] firstRows = {R.id.llPlay, R.id.llHomeApi, R.id.llApi, R.id.llAbout};
+        for (int i = 0; i < navItems.length; i++) {
+            final int index = i;
+            navItems[i].setNextFocusRightId(firstRows[i]);
+            navItems[i].setOnClickListener(v -> showGroup(index));
+            navItems[i].setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) showGroup(index);
+            });
+        }
+        showGroup(GROUP_PLAY);
+    }
+
+    private void showGroup(int index) {
+        for (int i = 0; i < groups.length; i++) {
+            groups[i].setVisibility(i == index ? View.VISIBLE : View.GONE);
+            navItems[i].setSelected(i == index);
+        }
+        ScrollView scroll = findViewById(R.id.settingsScroll);
+        if (scroll != null) scroll.scrollTo(0, 0);
+    }
+
+    private void bindTexts() {
         tvSearchSite.setText(getSearchSiteSummary());
         tvPlayTimeStep.setText(getPlayTimeStepSummary(Hawk.get(HawkConfig.PLAY_TIME_STEP, 5)));
         tvPlayTimeStart.setText(getPlayTimeSummary(Hawk.get(HawkConfig.PLAY_TIME_START, 0)));
         tvPlayTimeEnd.setText(getPlayTimeSummary(Hawk.get(HawkConfig.PLAY_TIME_END, 0)));
         tvAudioLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.AUDIO_LANGUAGE, "")));
         tvSubtitleLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.SUBTITLE_LANGUAGE, "")));
-        tvSubtitleOff.setText(Hawk.get(HawkConfig.SUBTITLE_OFF, false) ? "关闭" : "自动选择");
-        final View aboutRow = findViewById(R.id.llAbout);
-        final View autoUpdateRow = findViewById(R.id.llAutoUpdate);
-        final TextView autoUpdateState = findViewById(R.id.tvAutoUpdateState);
-        boolean autoUpdateEnabled = Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true);
-        autoUpdateState.setText(autoUpdateEnabled ? "已开启" : "已关闭");
-        autoUpdateRow.setContentDescription("启动时自动检查更新，" + (autoUpdateEnabled ? "已开启" : "已关闭"));
-        autoUpdateRow.setAccessibilityDelegate(new View.AccessibilityDelegate() {
-            @Override
-            public void onInitializeAccessibilityNodeInfo(
-                    View host, android.view.accessibility.AccessibilityNodeInfo info) {
-                super.onInitializeAccessibilityNodeInfo(host, info);
-                info.setClassName(android.widget.Switch.class.getName());
-                info.setCheckable(true);
-                info.setChecked(Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true));
-            }
-        });
-        autoUpdateRow.setOnClickListener(v -> {
-            FastClickCheckUtil.check(v);
-            boolean enabled = !Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true);
-            Hawk.put(HawkConfig.AUTO_UPDATE_CHECK, enabled);
-            autoUpdateState.setText(enabled ? "已开启" : "已关闭");
-            v.setContentDescription("启动时自动检查更新，" + (enabled ? "已开启" : "已关闭"));
-            v.requestFocus();
-            v.announceForAccessibility(enabled ? "启动时自动检查更新已开启" : "启动时自动检查更新已关闭，仍可手动检查更新");
-        });
-        final View easterEggTrigger = requireActivity().findViewById(R.id.settingEasterEggTrigger);
-        final TextView easterEggTitle = requireActivity().findViewById(R.id.settingEasterEggTitle);
-        easterEggTrigger.setOnClickListener(v -> handleEasterEggClick(v, easterEggTrigger, easterEggTitle));
-        final TextView seniorModeState = findViewById(R.id.tvSeniorModeState);
-        View seniorModeRow = findViewById(R.id.llSeniorMode);
-        boolean seniorModeEnabled = com.github.tvbox.osc.util.SeniorMode.isEnabled();
-        seniorModeState.setText(seniorModeEnabled ? "已开启" : "已关闭");
-        seniorModeRow.setContentDescription(
-                "长辈模式，" + (seniorModeEnabled ? "已开启" : "已关闭"));
-        seniorModeRow.setAccessibilityDelegate(new View.AccessibilityDelegate() {
-            @Override
-            public void onInitializeAccessibilityNodeInfo(
-                    View host, android.view.accessibility.AccessibilityNodeInfo info) {
-                super.onInitializeAccessibilityNodeInfo(host, info);
-                info.setClassName(android.widget.Switch.class.getName());
-                info.setCheckable(true);
-                info.setChecked(com.github.tvbox.osc.util.SeniorMode.isEnabled());
-            }
-        });
-        seniorModeRow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                boolean enabled = !com.github.tvbox.osc.util.SeniorMode.isEnabled();
-                Hawk.put(HawkConfig.SENIOR_MODE, enabled);
-                seniorModeState.setText(enabled ? "已开启" : "已关闭");
-                v.setContentDescription("长辈模式，" + (enabled ? "已开启" : "已关闭"));
-                com.github.tvbox.osc.util.SeniorMode.apply(getView());
-                v.requestFocus();
-                v.announceForAccessibility(enabled ? "长辈模式已开启" : "长辈模式已关闭");
-            }
-        });
         tvMediaCodec.setText(Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT));
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
         tvApi.setText(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL));
         tvLiveSource.setText("打开管理");
-        tvDns.setText(OkGoHelper.dnsHttpsList.get(Hawk.get(HawkConfig.DOH_URL, 0)));
         tvHomeRec.setText(getHomeRecName(Hawk.get(HawkConfig.HOME_REC, 0)));
-        if (tvHomeLayout != null) {
-            tvHomeLayout.setText(getHomeLayoutName(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT)));
-        }
+        tvHomeLayout.setText(getHomeLayoutName(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT)));
+        tvHomeMode.setText(Hawk.get(HawkConfig.HOME_LOW_POWER, false) ? "低压力首页" : "当前首页");
         tvSearchView.setText(getSearchView(Hawk.get(HawkConfig.SEARCH_VIEW, 1)));
         tvHomeApi.setText(ApiConfig.getInstance().getHomeBean().getName());
         tvScale.setText(PlayerHelper.getScaleName(Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT)));
         tvPlay.setText(PlayerHelper.getPlayerName(Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT)));
         tvRender.setText(PlayerHelper.getRenderName(Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT)));
-        findViewById(R.id.llDebug).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                Hawk.put(HawkConfig.DEBUG_OPEN, !Hawk.get(HawkConfig.DEBUG_OPEN, false));
-                tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
-            }
+        refreshMediaCodecRow();
+    }
+
+    /** 开关类设置用胶囊开关显示状态，整行点击切换 */
+    private void bindToggles() {
+        View autoUpdateRow = findViewById(R.id.llAutoUpdate);
+        switchAutoUpdate.setChecked(Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true));
+        autoUpdateRow.setContentDescription("启动时自动检查更新，" + (switchAutoUpdate.isChecked() ? "已开启" : "已关闭"));
+        autoUpdateRow.setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            boolean enabled = !Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true);
+            Hawk.put(HawkConfig.AUTO_UPDATE_CHECK, enabled);
+            switchAutoUpdate.setChecked(enabled);
+            v.setContentDescription("启动时自动检查更新，" + (enabled ? "已开启" : "已关闭"));
+            v.announceForAccessibility(enabled ? "启动时自动检查更新已开启" : "启动时自动检查更新已关闭，仍可手动检查更新");
         });
-        final TextView tvClearCache = findViewById(R.id.tvClearCache);
-        View clearCacheRow = findViewById(R.id.llClearCache);
-        if (clearCacheRow != null) {
-            clearCacheRow.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    FastClickCheckUtil.check(v);
-                    if (tvClearCache != null) tvClearCache.setText("清理中...");
-                    AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
-                        long freedBytes = 0;
-                        try {
-                            File glideCacheDir = com.bumptech.glide.Glide.getPhotoCacheDir(requireContext());
-                            if (glideCacheDir != null && glideCacheDir.exists()) {
-                                freedBytes += getFolderSize(glideCacheDir);
-                                com.bumptech.glide.Glide.get(requireContext()).clearDiskCache();
-                            }
-                        } catch (Throwable ignored) {
+
+        View seniorRow = findViewById(R.id.llSeniorMode);
+        switchSeniorMode.setChecked(SeniorMode.isEnabled());
+        seniorRow.setContentDescription("长辈模式，" + (SeniorMode.isEnabled() ? "已开启" : "已关闭"));
+        seniorRow.setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            boolean enabled = !SeniorMode.isEnabled();
+            Hawk.put(HawkConfig.SENIOR_MODE, enabled);
+            switchSeniorMode.setChecked(enabled);
+            v.setContentDescription("长辈模式，" + (enabled ? "已开启" : "已关闭"));
+            SeniorMode.apply(getView());
+            v.announceForAccessibility(enabled ? "长辈模式已开启" : "长辈模式已关闭");
+        });
+
+        // 字幕开关显示的是“显示字幕”，内部存储的是“关闭字幕”（subtitle_off）
+        switchSubtitle.setChecked(!Hawk.get(HawkConfig.SUBTITLE_OFF, false));
+        findViewById(R.id.llSubtitleOff).setOnClickListener(v -> {
+            boolean showSubtitle = !switchSubtitle.isChecked();
+            Hawk.put(HawkConfig.SUBTITLE_OFF, !showSubtitle);
+            switchSubtitle.setChecked(showSubtitle);
+        });
+
+        findViewById(R.id.llDebug).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            Hawk.put(HawkConfig.DEBUG_OPEN, !Hawk.get(HawkConfig.DEBUG_OPEN, false));
+            tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
+        });
+    }
+
+    private void bindPlayback() {
+        findViewById(R.id.llPlay).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<Integer> players = Arrays.asList(0, 1, 2);
+            SelectDialog.pick(mActivity, "请选择默认播放器", players,
+                    players.indexOf(Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT)),
+                    new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                        @Override
+                        public void click(Integer value, int pos) {
+                            Hawk.put(HawkConfig.PLAY_TYPE, value);
+                            tvPlay.setText(PlayerHelper.getPlayerName(value));
+                            PlayerHelper.init();
+                            refreshMediaCodecRow();
                         }
-                        try {
-                            File videoCache = new File(requireContext().getCacheDir(), "video-cache");
-                            if (videoCache.exists()) {
-                                freedBytes += getFolderSize(videoCache);
-                                FileUtils.recursiveDelete(videoCache);
-                            }
-                        } catch (Throwable ignored) {
-                        }
-                        try {
-                            CacheManager.clearAll();
-                        } catch (Throwable ignored) {
-                        }
-                        final long totalFreed = freedBytes;
-                        if (isAdded() && getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                try {
-                                    com.bumptech.glide.Glide.get(requireContext()).clearMemory();
-                                } catch (Throwable ignored) {
-                                }
-                                if (tvClearCache != null) tvClearCache.setText("已清理");
-                                String freedStr = totalFreed > 1024 * 1024
-                                        ? String.format(java.util.Locale.getDefault(), "%.1f MB", totalFreed / (1024.0 * 1024.0))
-                                        : "已释放空间";
-                                android.widget.Toast.makeText(requireContext(), "缓存清理完成 (" + freedStr + ")", android.widget.Toast.LENGTH_SHORT).show();
-                            });
+
+                        @Override
+                        public String getDisplay(Integer val) {
+                            return PlayerHelper.getPlayerName(val);
                         }
                     });
-                }
-            });
-        }
-        findViewById(R.id.llBackup).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                new BackupDialog(getActivity()).show();
-            }
         });
-        aboutRow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                UpdateManager.check(getActivity(), true);
-            }
-        });
-        ((TextView) findViewById(R.id.versionTV)).setText(PhoneParams.getAppSelfVersionName(getContext()));
-        findViewById(R.id.llHomeApi).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                List<SiteBean> sites = ApiConfig.getInstance().getSiteBeanList();
-                if (!NullUtil.isNull(sites)) {
-                    //添加自动选择，避免弹窗重复打开时累加
-                    if (sites.isEmpty() || !"".equals(sites.get(0).getKey())) {
-                        SiteBean auto = new SiteBean();
-                        auto.setKey("");
-                        auto.setName("自动选择");
-                        auto.setApi("api");
-                        auto.setSearchable(0);
-                        sites.add(0, auto);
-                    }
 
-                    SelectDialog<SiteBean> dialog = new SelectDialog<>(mActivity);
-                    dialog.setTip("请选择首页数据源");
-                    dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<SiteBean>() {
+        findViewById(R.id.llMediaCodec).setOnClickListener(v -> {
+            if (!isIjkPlayer()) {
+                android.widget.Toast.makeText(mActivity, "解码方式仅 IJK 播放器可用，请先在「播放器」中切换", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            FastClickCheckUtil.check(v);
+            List<IJKCode> ijkCodes = ApiConfig.getInstance().getmIjkCodes();
+            if (ijkCodes == null || ijkCodes.isEmpty()) return;
+            int defaultPos = 0;
+            String ijkSel = Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
+            for (int j = 0; j < ijkCodes.size(); j++) {
+                if (ijkSel.equals(ijkCodes.get(j).getName())) {
+                    defaultPos = j;
+                    break;
+                }
+            }
+            SelectDialog.pick(mActivity, "请选择IJK解码", ijkCodes, defaultPos,
+                    new SelectDialogAdapter.SelectDialogInterface<IJKCode>() {
+                        @Override
+                        public void click(IJKCode value, int pos) {
+                            value.selected(true);
+                            tvMediaCodec.setText(value.getName());
+                        }
+
+                        @Override
+                        public String getDisplay(IJKCode val) {
+                            return val.getName();
+                        }
+                    });
+        });
+
+        findViewById(R.id.llRender).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<Integer> renders = Arrays.asList(0, 1);
+            SelectDialog.pick(mActivity, "请选择默认渲染方式", renders,
+                    renders.indexOf(Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT)),
+                    new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                        @Override
+                        public void click(Integer value, int pos) {
+                            Hawk.put(HawkConfig.PLAY_RENDER, value);
+                            tvRender.setText(PlayerHelper.getRenderName(value));
+                            PlayerHelper.init();
+                        }
+
+                        @Override
+                        public String getDisplay(Integer val) {
+                            return PlayerHelper.getRenderName(val);
+                        }
+                    });
+        });
+
+        findViewById(R.id.llScale).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<Integer> scales = Arrays.asList(0, 1, 2, 3, 4, 5);
+            SelectDialog.pick(mActivity, "请选择默认画面缩放", scales,
+                    scales.indexOf(Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT)),
+                    new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                        @Override
+                        public void click(Integer value, int pos) {
+                            Hawk.put(HawkConfig.PLAY_SCALE, value);
+                            tvScale.setText(PlayerHelper.getScaleName(value));
+                        }
+
+                        @Override
+                        public String getDisplay(Integer val) {
+                            return PlayerHelper.getScaleName(val);
+                        }
+                    });
+        });
+
+        findViewById(R.id.llAudioLanguage).setOnClickListener(
+                v -> showLanguageDialog(HawkConfig.AUDIO_LANGUAGE, tvAudioLanguage, "默认音轨语言"));
+        findViewById(R.id.llSubtitleLanguage).setOnClickListener(
+                v -> showLanguageDialog(HawkConfig.SUBTITLE_LANGUAGE, tvSubtitleLanguage, "默认字幕语言"));
+        findViewById(R.id.llPlayTimeStart).setOnClickListener(
+                v -> showPlayTimeDialog(HawkConfig.PLAY_TIME_START, tvPlayTimeStart, "片头跳过时间"));
+        findViewById(R.id.llPlayTimeEnd).setOnClickListener(
+                v -> showPlayTimeDialog(HawkConfig.PLAY_TIME_END, tvPlayTimeEnd, "片尾跳过时间"));
+        findViewById(R.id.llPlayTimeStep).setOnClickListener(v -> showPlayTimeStepDialog());
+    }
+
+    private void bindHome() {
+        findViewById(R.id.llHomeApi).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<SiteBean> sites = ApiConfig.getInstance().getSiteBeanList();
+            if (NullUtil.isNull(sites)) return;
+            // 添加“自动选择”，避免弹窗重复打开时累加
+            if (sites.isEmpty() || !"".equals(sites.get(0).getKey())) {
+                SiteBean auto = new SiteBean();
+                auto.setKey("");
+                auto.setName("自动选择");
+                auto.setApi("api");
+                auto.setSearchable(0);
+                sites.add(0, auto);
+            }
+            SelectDialog.pick(mActivity, "请选择首页数据源", sites,
+                    sites.indexOf(ApiConfig.getInstance().getHomeBean()),
+                    new SelectDialogAdapter.SelectDialogInterface<SiteBean>() {
                         @Override
                         public void click(SiteBean value, int pos) {
-                            //选中自动选择时，相当于清掉了USER_HOME_API
+                            // 选中“自动选择”时相当于清掉了 USER_HOME_API
                             ApiConfig.getInstance().setUserHomeBean(value);
                             tvHomeApi.setText(value.getName());
-                            dialog.dismiss();
                         }
 
                         @Override
                         public String getDisplay(SiteBean val) {
                             return val.getName();
                         }
-                    }, new DiffUtil.ItemCallback<SiteBean>() {
-                        @Override
-                        public boolean areItemsTheSame(@NotNull SiteBean oldItem, @NotNull SiteBean newItem) {
-                            return oldItem == newItem;
-                        }
-
-                        @Override
-                        public boolean areContentsTheSame(@NotNull SiteBean oldItem, @NotNull SiteBean newItem) {
-                            return oldItem.getKey().equals(newItem.getKey());
-                        }
-                    }, sites, sites.indexOf(ApiConfig.getInstance().getHomeBean()));
-                    dialog.show();
-                }
-            }
+                    });
         });
-        findViewById(R.id.llDns).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                int dohUrl = Hawk.get(HawkConfig.DOH_URL, 0);
 
-                SelectDialog<String> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择安全DNS");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<String>() {
-                    @Override
-                    public void click(String value, int pos) {
-                        tvDns.setText(OkGoHelper.dnsHttpsList.get(pos));
-                        Hawk.put(HawkConfig.DOH_URL, pos);
-                        String url = OkGoHelper.getDohUrl(pos);
-                        OkGoHelper.dnsOverHttps.setUrl(url.isEmpty() ? null : HttpUrl.get(url));
-                        IjkMediaPlayer.toggleDotPort(pos > 0);
-                    }
-
-                    @Override
-                    public String getDisplay(String val) {
-                        return val;
-                    }
-                }, new DiffUtil.ItemCallback<String>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull String oldItem, @NonNull @NotNull String newItem) {
-                        return oldItem.equals(newItem);
-                    }
-
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull String oldItem, @NonNull @NotNull String newItem) {
-                        return oldItem.equals(newItem);
-                    }
-                }, OkGoHelper.dnsHttpsList, dohUrl);
-                dialog.show();
-            }
-        });
-        findViewById(R.id.llApi).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                if (mApiDialog != null) {
-                    mApiDialog.dismiss();
-                    mApiDialog = null;
-                }
-                mApiDialog = new ApiDialog(mActivity);
-                EventBus.getDefault().register(mApiDialog);
-                mApiDialog.setOnListener(new ApiDialog.OnListener() {
-                    @Override
-                    public void onchange(String api) {
-                        tvApi.setText(api);
-                    }
-                });
-                mApiDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        ((BaseActivity) mActivity).hideSysBar();
-                        EventBus.getDefault().unregister(dialog);
-                    }
-                });
-                mApiDialog.show();
-            }
-        });
-        findViewById(R.id.llLiveSource).setOnClickListener(v ->
-                startActivity(new Intent(mActivity, LiveSourceManagerActivity.class)));
-        findViewById(R.id.llMediaCodec).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                List<IJKCode> ijkCodes = ApiConfig.getInstance().getmIjkCodes();
-                if (ijkCodes == null || ijkCodes.size() == 0)
-                    return;
-                FastClickCheckUtil.check(v);
-
-                int defaultPos = 0;
-                String ijkSel = Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
-                for (int j = 0; j < ijkCodes.size(); j++) {
-                    if (ijkSel.equals(ijkCodes.get(j).getName())) {
-                        defaultPos = j;
-                        break;
-                    }
-                }
-
-                SelectDialog<IJKCode> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择IJK解码");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<IJKCode>() {
-                    @Override
-                    public void click(IJKCode value, int pos) {
-                        value.selected(true);
-                        tvMediaCodec.setText(value.getName());
-                    }
-
-                    @Override
-                    public String getDisplay(IJKCode val) {
-                        return val.getName();
-                    }
-                }, new DiffUtil.ItemCallback<IJKCode>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull IJKCode oldItem, @NonNull @NotNull IJKCode newItem) {
-                        return oldItem == newItem;
-                    }
-
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull IJKCode oldItem, @NonNull @NotNull IJKCode newItem) {
-                        return oldItem.getName().equals(newItem.getName());
-                    }
-                }, ijkCodes, defaultPos);
-                dialog.show();
-            }
-        });
-        findViewById(R.id.llPlayTimeStep).setOnClickListener(v -> showPlayTimeStepDialog());
-        findViewById(R.id.llPlayTimeStart).setOnClickListener(
-                v -> showPlayTimeDialog(HawkConfig.PLAY_TIME_START, tvPlayTimeStart, "片头跳过时间"));
-        findViewById(R.id.llPlayTimeEnd).setOnClickListener(
-                v -> showPlayTimeDialog(HawkConfig.PLAY_TIME_END, tvPlayTimeEnd, "片尾跳过时间"));
-        findViewById(R.id.llAudioLanguage).setOnClickListener(
-                v -> showLanguageDialog(HawkConfig.AUDIO_LANGUAGE, tvAudioLanguage, "默认音轨语言"));
-        findViewById(R.id.llSubtitleLanguage).setOnClickListener(
-                v -> showLanguageDialog(HawkConfig.SUBTITLE_LANGUAGE, tvSubtitleLanguage, "默认字幕语言"));
-        findViewById(R.id.llSubtitleOff).setOnClickListener(v -> {
-            boolean off = !Hawk.get(HawkConfig.SUBTITLE_OFF, false);
-            Hawk.put(HawkConfig.SUBTITLE_OFF, off);
-            tvSubtitleOff.setText(off ? "关闭" : "自动选择");
-        });
-        findViewById(R.id.llScale).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                int defaultPos = Hawk.get(HawkConfig.PLAY_SCALE, HawkConfig.PLAY_SCALE_DEFAULT);
-                ArrayList<Integer> players = new ArrayList<>();
-                players.add(0);
-                players.add(1);
-                players.add(2);
-                players.add(3);
-                players.add(4);
-                players.add(5);
-                SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择默认画面缩放");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-                    @Override
-                    public void click(Integer value, int pos) {
-                        Hawk.put(HawkConfig.PLAY_SCALE, value);
-                        tvScale.setText(PlayerHelper.getScaleName(value));
-                    }
-
-                    @Override
-                    public String getDisplay(Integer val) {
-                        return PlayerHelper.getScaleName(val);
-                    }
-                }, new DiffUtil.ItemCallback<Integer>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-                }, players, defaultPos);
-                dialog.show();
-            }
-        });
-        findViewById(R.id.llPlay).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                int defaultPos = Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT);
-                ArrayList<Integer> players = new ArrayList<>();
-                players.add(0);
-                players.add(1);
-                players.add(2);
-                SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择默认播放器");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-                    @Override
-                    public void click(Integer value, int pos) {
-                        Hawk.put(HawkConfig.PLAY_TYPE, value);
-                        tvPlay.setText(PlayerHelper.getPlayerName(value));
-                        PlayerHelper.init();
-                    }
-
-                    @Override
-                    public String getDisplay(Integer val) {
-                        return PlayerHelper.getPlayerName(val);
-                    }
-                }, new DiffUtil.ItemCallback<Integer>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-                }, players, defaultPos);
-                dialog.show();
-            }
-        });
-        findViewById(R.id.llRender).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                int defaultPos = Hawk.get(HawkConfig.PLAY_RENDER, HawkConfig.PLAY_RENDER_DEFAULT);
-                ArrayList<Integer> renders = new ArrayList<>();
-                renders.add(0);
-                renders.add(1);
-                SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择默认渲染方式");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-                    @Override
-                    public void click(Integer value, int pos) {
-                        Hawk.put(HawkConfig.PLAY_RENDER, value);
-                        tvRender.setText(PlayerHelper.getRenderName(value));
-                        PlayerHelper.init();
-                    }
-
-                    @Override
-                    public String getDisplay(Integer val) {
-                        return PlayerHelper.getRenderName(val);
-                    }
-                }, new DiffUtil.ItemCallback<Integer>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-                }, renders, defaultPos);
-                dialog.show();
-            }
-        });
-        final TextView homeMode = findViewById(R.id.tvHomeMode);
-        homeMode.setText(Hawk.get(HawkConfig.HOME_LOW_POWER, false) ? "低压力首页" : "当前首页");
         findViewById(R.id.llHomeMode).setOnClickListener(v -> {
             FastClickCheckUtil.check(v);
             new androidx.appcompat.app.AlertDialog.Builder(mActivity)
@@ -568,74 +394,48 @@ public class ModelSettingFragment extends BaseLazyFragment {
                             Hawk.get(HawkConfig.HOME_LOW_POWER, false) ? 1 : 0,
                             (dialog, which) -> {
                                 Hawk.put(HawkConfig.HOME_LOW_POWER, which == 1);
-                                homeMode.setText(which == 1 ? "低压力首页" : "当前首页");
+                                tvHomeMode.setText(which == 1 ? "低压力首页" : "当前首页");
                                 dialog.dismiss();
                             })
                     .setNegativeButton("取消", null)
                     .show();
         });
-        findViewById(R.id.llHomeRec).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                int defaultPos = Hawk.get(HawkConfig.HOME_REC, 0);
-                ArrayList<Integer> types = new ArrayList<>();
-                types.add(0);
-                types.add(1);
-                types.add(2);
-                SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择首页列表数据");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-                    @Override
-                    public void click(Integer value, int pos) {
-                        Hawk.put(HawkConfig.HOME_REC, value);
-                        tvHomeRec.setText(getHomeRecName(value));
-                    }
 
-                    @Override
-                    public String getDisplay(Integer val) {
-                        return getHomeRecName(val);
-                    }
+        findViewById(R.id.llHomeRec).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<Integer> types = Arrays.asList(0, 1, 2);
+            SelectDialog.pick(mActivity, "请选择首页列表数据", types,
+                    types.indexOf(Hawk.get(HawkConfig.HOME_REC, 0)),
+                    new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                        @Override
+                        public void click(Integer value, int pos) {
+                            Hawk.put(HawkConfig.HOME_REC, value);
+                            tvHomeRec.setText(getHomeRecName(value));
+                        }
 
-                    @Override
-                    public String getSubDisplay(Integer val) {
-                        return getHomeRecDesc(val);
-                    }
-                }, new DiffUtil.ItemCallback<Integer>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
+                        @Override
+                        public String getDisplay(Integer val) {
+                            return getHomeRecName(val);
+                        }
 
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-                }, types, defaultPos);
-                dialog.show();
-            }
+                        @Override
+                        public String getSubDisplay(Integer val) {
+                            return getHomeRecDesc(val);
+                        }
+                    });
         });
-        View llHomeLayout = findViewById(R.id.llHomeLayout);
-        if (llHomeLayout != null) {
-            llHomeLayout.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    FastClickCheckUtil.check(v);
-                    int defaultPos = Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT);
-                    ArrayList<Integer> types = new ArrayList<>();
-                    types.add(HawkConfig.HOME_LAYOUT_SIDEBAR);
-                    types.add(HawkConfig.HOME_LAYOUT_APPLE_TV);
-                    types.add(HawkConfig.HOME_LAYOUT_DRAWER);
-                    types.add(HawkConfig.HOME_LAYOUT_IMMERSIVE);
-                    SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-                    dialog.setTip("请选择首页布局风格");
-                    dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+
+        findViewById(R.id.llHomeLayout).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<Integer> layouts = Arrays.asList(HawkConfig.HOME_LAYOUT_SIDEBAR, HawkConfig.HOME_LAYOUT_APPLE_TV,
+                    HawkConfig.HOME_LAYOUT_DRAWER, HawkConfig.HOME_LAYOUT_IMMERSIVE);
+            SelectDialog.pick(mActivity, "请选择首页布局风格", layouts,
+                    layouts.indexOf(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT)),
+                    new SelectDialogAdapter.SelectDialogInterface<Integer>() {
                         @Override
                         public void click(Integer value, int pos) {
                             Hawk.put(HawkConfig.HOME_LAYOUT_STYLE, value);
-                            if (tvHomeLayout != null) {
-                                tvHomeLayout.setText(getHomeLayoutName(value));
-                            }
+                            tvHomeLayout.setText(getHomeLayoutName(value));
                             android.widget.Toast.makeText(mActivity, "已切换为：" + getHomeLayoutName(value) + "（返回首页即生效）", android.widget.Toast.LENGTH_SHORT).show();
                         }
 
@@ -648,77 +448,120 @@ public class ModelSettingFragment extends BaseLazyFragment {
                         public String getSubDisplay(Integer val) {
                             return getHomeLayoutDesc(val);
                         }
-                    }, new DiffUtil.ItemCallback<Integer>() {
+                    });
+        });
+
+        findViewById(R.id.llSearchView).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            List<Integer> types = Arrays.asList(0, 1);
+            SelectDialog.pick(mActivity, "请选择搜索视图", types,
+                    types.indexOf(Hawk.get(HawkConfig.SEARCH_VIEW, 1)),
+                    new SelectDialogAdapter.SelectDialogInterface<Integer>() {
                         @Override
-                        public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                            return oldItem.intValue() == newItem.intValue();
+                        public void click(Integer value, int pos) {
+                            Hawk.put(HawkConfig.SEARCH_VIEW, value);
+                            tvSearchView.setText(getSearchView(value));
                         }
 
                         @Override
-                        public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                            return oldItem.intValue() == newItem.intValue();
+                        public String getDisplay(Integer val) {
+                            return getSearchView(val);
                         }
-                    }, types, defaultPos);
-                    dialog.show();
+                    });
+        });
+
+        findViewById(R.id.llSearchSite).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            SearchSiteDialog dialog = new SearchSiteDialog(mActivity);
+            dialog.setOnChanged(() -> tvSearchSite.setText(getSearchSiteSummary()));
+            dialog.init();
+            dialog.show();
+        });
+    }
+
+    private void bindData() {
+        findViewById(R.id.llApi).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            if (mApiDialog != null) {
+                mApiDialog.dismiss();
+                mApiDialog = null;
+            }
+            mApiDialog = new ApiDialog(mActivity);
+            EventBus.getDefault().register(mApiDialog);
+            mApiDialog.setOnListener(api -> tvApi.setText(api));
+            mApiDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                @Override
+                public void onDismiss(DialogInterface dialog) {
+                    ((BaseActivity) mActivity).hideSysBar();
+                    EventBus.getDefault().unregister(dialog);
                 }
             });
-        }
-        findViewById(R.id.llSearchView).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                int defaultPos = Hawk.get(HawkConfig.SEARCH_VIEW, 1);
-                ArrayList<Integer> types = new ArrayList<>();
-                types.add(0);
-                types.add(1);
-                SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-                dialog.setTip("请选择搜索视图");
-                dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-                    @Override
-                    public void click(Integer value, int pos) {
-                        Hawk.put(HawkConfig.SEARCH_VIEW, value);
-                        tvSearchView.setText(getSearchView(value));
-                    }
-
-                    @Override
-                    public String getDisplay(Integer val) {
-                        return getSearchView(val);
-                    }
-                }, new DiffUtil.ItemCallback<Integer>() {
-                    @Override
-                    public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-
-                    @Override
-                    public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem, @NonNull @NotNull Integer newItem) {
-                        return oldItem.intValue() == newItem.intValue();
-                    }
-                }, types, defaultPos);
-                dialog.show();
-            }
+            mApiDialog.show();
         });
-        findViewById(R.id.llSearchSite).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                SearchSiteDialog dialog = new SearchSiteDialog(mActivity);
-                dialog.setOnChanged(new SearchSiteDialog.OnChanged() {
-                    @Override
-                    public void onChanged() {
-                        tvSearchSite.setText(getSearchSiteSummary());
+
+        findViewById(R.id.llLiveSource).setOnClickListener(v ->
+                startActivity(new Intent(mActivity, LiveSourceManagerActivity.class)));
+
+        findViewById(R.id.llClearCache).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            tvClearCache.setText("清理中...");
+            com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
+                long freedBytes = 0;
+                try {
+                    File glideCacheDir = com.bumptech.glide.Glide.getPhotoCacheDir(requireContext());
+                    if (glideCacheDir != null && glideCacheDir.exists()) {
+                        freedBytes += getFolderSize(glideCacheDir);
+                        com.bumptech.glide.Glide.get(requireContext()).clearDiskCache();
                     }
-                });
-                dialog.init();
-                dialog.show();
-            }
+                } catch (Throwable ignored) {
+                }
+                try {
+                    File videoCache = new File(requireContext().getCacheDir(), "video-cache");
+                    if (videoCache.exists()) {
+                        freedBytes += getFolderSize(videoCache);
+                        FileUtils.recursiveDelete(videoCache);
+                    }
+                } catch (Throwable ignored) {
+                }
+                try {
+                    CacheManager.clearAll();
+                } catch (Throwable ignored) {
+                }
+                final long totalFreed = freedBytes;
+                if (isAdded() && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        try {
+                            com.bumptech.glide.Glide.get(requireContext()).clearMemory();
+                        } catch (Throwable ignored) {
+                        }
+                        tvClearCache.setText("已清理");
+                        // 几秒后恢复按钮文字，方便再次清理
+                        tvClearCache.postDelayed(() -> tvClearCache.setText("一键释放"), 3000L);
+                        String freedStr = totalFreed > 1024 * 1024
+                                ? String.format(java.util.Locale.getDefault(), "%.1f MB", totalFreed / (1024.0 * 1024.0))
+                                : "已释放空间";
+                        android.widget.Toast.makeText(requireContext(), "缓存清理完成 (" + freedStr + ")", android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
         });
-        SettingActivity.callback = new SettingActivity.DevModeCallback() {
-            @Override
-            public void onChange() {
-                findViewById(R.id.llDebug).setVisibility(View.VISIBLE);
-            }
-        };
+
+        findViewById(R.id.llBackup).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            new BackupDialog(getActivity()).show();
+        });
+    }
+
+    private void bindAbout() {
+        ((TextView) findViewById(R.id.versionTV)).setText(PhoneParams.getAppSelfVersionName(getContext()));
+        findViewById(R.id.llAbout).setOnClickListener(v -> {
+            FastClickCheckUtil.check(v);
+            UpdateManager.check(getActivity(), true);
+        });
+
+        final View easterEggTrigger = requireActivity().findViewById(R.id.settingEasterEggTrigger);
+        final TextView easterEggTitle = requireActivity().findViewById(R.id.settingEasterEggTitle);
+        easterEggTrigger.setOnClickListener(v -> handleEasterEggClick(v, easterEggTrigger, easterEggTitle));
     }
 
     @Override
@@ -726,6 +569,106 @@ public class ModelSettingFragment extends BaseLazyFragment {
         UpdateManager.cancelFor(getActivity());
         super.onDestroyView();
         SettingActivity.callback = null;
+    }
+
+    private boolean isIjkPlayer() {
+        return Hawk.get(HawkConfig.PLAY_TYPE, HawkConfig.PLAY_TYPE_DEFAULT) == HawkConfig.PLAY_TYPE_IJK;
+    }
+
+    /** 解码方式只对 IJK 播放器生效：非 IJK 时整行变淡，点击给出说明 */
+    private void refreshMediaCodecRow() {
+        View row = findViewById(R.id.llMediaCodec);
+        if (row == null) return;
+        boolean ijk = isIjkPlayer();
+        row.setAlpha(ijk ? 1f : 0.4f);
+        row.setContentDescription(ijk ? "解码方式" : "解码方式，仅 IJK 播放器可用");
+    }
+
+    private String getLanguageSummary(String language) {
+        return displayLanguage(language);
+    }
+
+    private String displayLanguage(String code) {
+        if (code == null || code.trim().isEmpty()) return "自动选择";
+        for (int i = 0; i < LANGUAGE_CODES.length; i++) {
+            if (LANGUAGE_CODES[i].equals(code)) return LANGUAGE_NAMES[i];
+        }
+        return code; // 旧版本自由输入的自定义代码，原样保留显示
+    }
+
+    /** 语言改为列表选择，避免用户自行输入语言代码 */
+    private void showLanguageDialog(String key, TextView summary, String title) {
+        FastClickCheckUtil.check(summary);
+        ArrayList<String> values = new ArrayList<>(Arrays.asList(LANGUAGE_CODES));
+        String current = Hawk.get(key, "");
+        if (current == null) current = "";
+        if (!values.contains(current)) values.add(current);
+        SelectDialog.pick(mActivity, title, values, values.indexOf(current),
+                new SelectDialogAdapter.SelectDialogInterface<String>() {
+                    @Override
+                    public void click(String value, int pos) {
+                        Hawk.put(key, value);
+                        summary.setText(getLanguageSummary(value));
+                    }
+
+                    @Override
+                    public String getDisplay(String value) {
+                        return displayLanguage(value);
+                    }
+                });
+    }
+
+    private String getPlayTimeStepSummary(int step) {
+        return step + " 秒";
+    }
+
+    private String getPlayTimeSummary(int seconds) {
+        return seconds == 0 ? "关闭" : seconds + " 秒";
+    }
+
+    /** 片头片尾改为常用档位；当前值不在档位中（旧版自定义值）时补充进列表 */
+    private void showPlayTimeDialog(String key, TextView summary, String title) {
+        FastClickCheckUtil.check(summary);
+        int[] presets = {0, 10, 20, 30, 45, 60, 90, 120, 180, 240, 300};
+        ArrayList<Integer> values = new ArrayList<>();
+        for (int seconds : presets) values.add(seconds);
+        int current = Hawk.get(key, 0);
+        if (!values.contains(current)) {
+            values.add(current);
+            Collections.sort(values);
+        }
+        SelectDialog.pick(mActivity, title + "（0 秒为关闭）", values, values.indexOf(current),
+                new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                    @Override
+                    public void click(Integer value, int pos) {
+                        Hawk.put(key, value);
+                        summary.setText(getPlayTimeSummary(value));
+                    }
+
+                    @Override
+                    public String getDisplay(Integer value) {
+                        return getPlayTimeSummary(value);
+                    }
+                });
+    }
+
+    private void showPlayTimeStepDialog() {
+        FastClickCheckUtil.check(tvPlayTimeStep);
+        List<Integer> steps = Arrays.asList(5, 10, 15, 20, 30);
+        int current = Hawk.get(HawkConfig.PLAY_TIME_STEP, 5);
+        SelectDialog.pick(mActivity, "请选择片头片尾调整步长", steps, steps.indexOf(current),
+                new SelectDialogAdapter.SelectDialogInterface<Integer>() {
+                    @Override
+                    public void click(Integer value, int pos) {
+                        Hawk.put(HawkConfig.PLAY_TIME_STEP, value);
+                        tvPlayTimeStep.setText(getPlayTimeStepSummary(value));
+                    }
+
+                    @Override
+                    public String getDisplay(Integer value) {
+                        return getPlayTimeStepSummary(value);
+                    }
+                });
     }
 
     String getHomeRecName(int type) {
@@ -779,186 +722,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     }
 
     String getSearchView(int type) {
-        if (type == 0) {
-            return "文字列表";
-        } else {
-            return "缩略图";
-        }
-    }
-
-    private void showLiveSourceDialog() {
-        EditText input = new EditText(mActivity);
-        input.setSingleLine(false);
-        input.setMinLines(5);
-        input.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        input.setHint("每行填写一个直播配置地址（可带端口）");
-        String liveSources = getMigratedLiveSources();
-        input.setText(liveSources);
-        input.setSelection(input.length());
-
-        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(mActivity, R.style.DarkAlertDialog))
-                .setTitle("设置直播源地址")
-                .setMessage("每行一个地址，支持 M3U 和 TVBox JSON；多个源会同时合并显示。留空则使用总配置中的直播源。保存后下次进入直播页生效。")
-                .setView(input)
-                .setPositiveButton("保存", (dialog, which) -> {
-                    String url = input.getText().toString().trim();
-                    Hawk.put(HawkConfig.LIVE_SOURCE_URL, url);
-                    tvLiveSource.setText(getLiveSourceSummary(url));
-                })
-                .setNeutralButton("清除", (dialog, which) -> {
-                    Hawk.put(HawkConfig.LIVE_SOURCE_URL, "");
-                    tvLiveSource.setText("使用总配置");
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private String getMigratedLiveSources() {
-        String saved = Hawk.get(HawkConfig.LIVE_SOURCE_URL, "");
-        StringBuilder result = new StringBuilder();
-        String firstSource = "193.123.86.190:14888/TV/iptv.php";
-        result.append(firstSource);
-        if (saved != null) {
-            for (String line : saved.split("\\r?\\n")) {
-                String value = line.trim();
-                if (value.isEmpty()
-                        || value.equals("https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u")
-                        || value.equals(firstSource)
-                        || result.toString().contains(value)) {
-                    continue;
-                }
-                if (result.length() > 0) result.append('\n');
-                result.append(value);
-            }
-        }
-        for (String line : HawkConfig.DEFAULT_LIVE_SOURCE_URLS.split("\\r?\\n")) {
-            String value = line.trim();
-            if (value.isEmpty() || result.toString().contains(value)) continue;
-            if (result.length() > 0) result.append('\n');
-            result.append(value);
-        }
-        String migrated = result.toString();
-        Hawk.put(HawkConfig.LIVE_SOURCE_URL, migrated);
-        return migrated;
-    }
-
-    private String getLiveSourceSummary(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return "使用默认";
-        }
-        return url.trim();
-    }
-
-    private String getPlayTimeStepSummary(int step) {
-        return step + " 秒";
-    }
-
-    private String getPlayTimeSummary(int seconds) {
-        return seconds == 0 ? "关闭" : seconds + " 秒";
-    }
-
-    private String getLanguageSummary(String language) {
-        return language == null || language.trim().isEmpty() ? "自动选择" : language;
-    }
-
-    private void showLanguageDialog(String key, TextView summary, String title) {
-        EditText input = new EditText(mActivity);
-        input.setSingleLine(true);
-        input.setHint("例如 zh、en、ja；留空为自动选择");
-        input.setText(Hawk.get(key, ""));
-        input.setSelection(input.length());
-        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(
-                mActivity, R.style.DarkAlertDialog))
-                .setTitle(title)
-                .setView(input)
-                .setPositiveButton("保存", (dialog, which) -> {
-                    String value = input.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
-                    Hawk.put(key, value);
-                    summary.setText(getLanguageSummary(value));
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void showPlayTimeDialog(String key, TextView summary, String title) {
-        FastClickCheckUtil.check(summary);
-        ArrayList<Integer> values = new ArrayList<>();
-        values.add(0);
-        for (int seconds = 5; seconds <= 600; seconds += 5) values.add(seconds);
-        int current = Hawk.get(key, 0);
-        int defaultPos = values.indexOf(current);
-        if (defaultPos < 0) defaultPos = 0;
-        SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-        dialog.setTip(title + "（0 秒为关闭）");
-        dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-            @Override
-            public void click(Integer value, int pos) {
-                Hawk.put(key, value);
-                summary.setText(getPlayTimeSummary(value));
-                dialog.dismiss();
-            }
-
-            @Override
-            public String getDisplay(Integer value) {
-                return getPlayTimeSummary(value);
-            }
-        }, new DiffUtil.ItemCallback<Integer>() {
-            @Override
-            public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem,
-                                           @NonNull @NotNull Integer newItem) {
-                return oldItem.equals(newItem);
-            }
-
-            @Override
-            public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem,
-                                              @NonNull @NotNull Integer newItem) {
-                return oldItem.equals(newItem);
-            }
-        }, values, defaultPos);
-        dialog.show();
-    }
-
-    private void showPlayTimeStepDialog() {
-        FastClickCheckUtil.check(tvPlayTimeStep);
-        ArrayList<Integer> steps = new ArrayList<>();
-        steps.add(5);
-        steps.add(10);
-        steps.add(15);
-        steps.add(20);
-        steps.add(30);
-        int current = Hawk.get(HawkConfig.PLAY_TIME_STEP, 5);
-        int defaultPos = steps.indexOf(current);
-        if (defaultPos < 0) defaultPos = 0;
-
-        SelectDialog<Integer> dialog = new SelectDialog<>(mActivity);
-        dialog.setTip("请选择片头片尾调整步长");
-        dialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<Integer>() {
-            @Override
-            public void click(Integer value, int pos) {
-                Hawk.put(HawkConfig.PLAY_TIME_STEP, value);
-                tvPlayTimeStep.setText(getPlayTimeStepSummary(value));
-                dialog.dismiss();
-            }
-
-            @Override
-            public String getDisplay(Integer value) {
-                return getPlayTimeStepSummary(value);
-            }
-        }, new DiffUtil.ItemCallback<Integer>() {
-            @Override
-            public boolean areItemsTheSame(@NonNull @NotNull Integer oldItem,
-                                           @NonNull @NotNull Integer newItem) {
-                return oldItem.equals(newItem);
-            }
-
-            @Override
-            public boolean areContentsTheSame(@NonNull @NotNull Integer oldItem,
-                                              @NonNull @NotNull Integer newItem) {
-                return oldItem.equals(newItem);
-            }
-        }, steps, defaultPos);
-        dialog.show();
+        return type == 0 ? "文字列表" : "缩略图";
     }
 
     /** 搜索源管理入口右侧摘要：全部 / 已选 x/y / 未勾选 */
@@ -1069,9 +833,11 @@ public class ModelSettingFragment extends BaseLazyFragment {
         FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
                 dp(330), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
         root.addView(card, cardParams);
+
         root.setOnClickListener(v -> dialog.dismiss());
         card.setOnClickListener(v -> dialog.dismiss());
         close.setOnClickListener(v -> dialog.dismiss());
+
         dialog.setContentView(root);
         dialog.setCanceledOnTouchOutside(true);
         Window window = dialog.getWindow();

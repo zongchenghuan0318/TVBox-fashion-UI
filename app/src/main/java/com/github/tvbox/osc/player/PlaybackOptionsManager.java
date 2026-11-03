@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.github.tvbox.osc.player.subtitle.ExternalSubtitle;
 import com.github.tvbox.osc.player.subtitle.ExternalSubtitleLoader;
+import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.SeniorMode;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
@@ -453,26 +454,24 @@ public final class PlaybackOptionsManager {
         if (released || activity.isFinishing() || activity.isDestroyed()) return;
         final long menuSession = session;
         if (dialog != null) dialog.dismiss();
-        SelectDialog<String> shown = new SelectDialog<>(activity);
-        dialog = shown;
-        shown.setTip(title);
-        TvRecyclerView list = shown.findViewById(R.id.list);
-        // Action menus must allow activating the current choice too. The generic
-        // SelectDialogAdapter intentionally ignores it, so use an action adapter.
-        list.setAdapter(new RecyclerView.Adapter<ChoiceHolder>() {
-            @NonNull @Override public ChoiceHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-                return new ChoiceHolder(LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_dialog_select, parent, false));
-            }
-            @Override public void onBindViewHolder(@NonNull ChoiceHolder holder, int position) {
-                ((TextView) holder.itemView.findViewById(R.id.tvName)).setText(labels.get(position));
-                holder.itemView.setOnClickListener(view -> {
-                    shown.dismiss();
-                    if (!released && active && menuSession == session) choice.selected(position);
+        // 统一的单选弹窗：动作菜单里当前项也允许再次选中（select = -1 表示没有“√”标记）
+        final SelectDialog<String> shown = SelectDialog.create(activity, title, labels, -1,
+                new SelectDialogAdapter.SelectDialogInterface<String>() {
+                    @Override
+                    public void click(String value, int position) {
+                        // 先让弹窗关闭（由 SelectDialog 完成），再执行选项，避免选项里打开的新弹窗被旧弹窗关掉
+                        handler.post(() -> {
+                            if (!released && active && menuSession == session) choice.selected(position);
+                        });
+                    }
+
+                    @Override
+                    public String getDisplay(String val) {
+                        return val;
+                    }
                 });
-            }
-            @Override public int getItemCount() { return labels.size(); }
-        });
+        dialog = shown;
+        TvRecyclerView list = shown.findViewById(R.id.list);
         shown.setOnDismissListener(ignored -> {
             if (dialog == shown) dialog = null;
             if (!released && dialogClosed != null) dialogClosed.run();
@@ -486,10 +485,6 @@ public final class PlaybackOptionsManager {
             View first = list.getLayoutManager() == null ? null : list.getLayoutManager().findViewByPosition(0);
             if (first != null) first.requestFocus(); else list.requestFocus();
         });
-    }
-
-    private static final class ChoiceHolder extends RecyclerView.ViewHolder {
-        ChoiceHolder(View item) { super(item); }
     }
 
     public void onPause() {

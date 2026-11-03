@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.util;
 
+import com.lcstudio.commonsurport.L;
 import android.app.Activity;
 
 import java.util.Stack;
@@ -130,7 +131,7 @@ public class AppManager {
             System.exit(code);
         } catch (Exception e) {
             activityStack.clear();
-            e.printStackTrace();
+            L.e(e);
         }
     }
 }

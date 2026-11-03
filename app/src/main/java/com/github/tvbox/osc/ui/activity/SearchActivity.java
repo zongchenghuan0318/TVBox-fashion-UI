@@ -60,6 +60,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -78,6 +79,7 @@ public class SearchActivity extends BaseActivity {
     private View llLayout;
     private LinearLayout llWord;
     private LinearLayout llClearHistory;
+    private TextView tvHistoryHint;
     private TvRecyclerView mSearchResultRV;
     private TvRecyclerView mHotWordRV;
     private TvRecyclerView mSearchHistoryRV;
@@ -180,6 +182,7 @@ public class SearchActivity extends BaseActivity {
         mHotWordRV = findViewById(R.id.mGridViewWord);
         mSearchHistoryRV = findViewById(R.id.serch_history_rv);
         llClearHistory = findViewById(R.id.llClearHistory);
+        tvHistoryHint = findViewById(R.id.tvHistoryHint);
         llSearchEmpty = findViewById(R.id.llSearchEmpty);
         btnEmptyManageSources = findViewById(R.id.btnEmptyManageSources);
         if (btnEmptyManageSources != null) {
@@ -450,6 +453,7 @@ public class SearchActivity extends BaseActivity {
         mSearchHistoryRV.setVisibility(empty ? View.GONE : View.VISIBLE);
         if (llClearHistory != null) {
             llClearHistory.setVisibility(empty ? View.GONE : View.VISIBLE);
+            if (tvHistoryHint != null) tvHistoryHint.setVisibility(empty ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -487,6 +491,15 @@ public class SearchActivity extends BaseActivity {
         spDataUtil.saveObjectValue("histroys", historys);
     }
     private void clearHistory() {
+        new androidx.appcompat.app.AlertDialog.Builder(this, R.style.DarkAlertDialog)
+                .setTitle("清空搜索历史？")
+                .setMessage("清空后将无法恢复这些搜索记录。")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("清空", (d, w) -> doClearHistory())
+                .show();
+    }
+
+    private void doClearHistory() {
         spDataUtil.saveObjectValue("histroys", new ArrayList<String>());
         refreshHistoryView();
         //按钮清空后自己会隐藏，把焦点交回搜索键，避免焦点悬空
@@ -543,7 +556,7 @@ public class SearchActivity extends BaseActivity {
                                 wordAdapter.setNewData(hots);
                                 updateHotWordPanel();
                             } catch (Throwable th) {
-                                th.printStackTrace();
+                                L.e(th);
                             }
                         }
 
@@ -594,8 +607,14 @@ public class SearchActivity extends BaseActivity {
                             wordAdapter.setNewData(hots);
                             updateHotWordPanel();
                         } catch (Throwable th) {
-                            th.printStackTrace();
+                            L.e(th);
+                            applyFallbackHotWords(generation);
                         }
+                    }
+
+                    @Override
+                    public void onError(Response<String> response) {
+                        applyFallbackHotWords(generation);
                     }
 
                     @Override
@@ -604,6 +623,16 @@ public class SearchActivity extends BaseActivity {
                     }
                 });
     }
+    /** 热词接口失败时的内置兜底，避免热门区域直接消失 */
+    private static final String[] FALLBACK_HOT_WORDS = {"狂飙", "三体", "繁花", "庆余年", "黑镜", "漫长的季节"};
+
+    private void applyFallbackHotWords(int generation) {
+        if (!canShowHotWords(generation) || wordAdapter == null) return;
+        if (wordAdapter.getData() != null && !wordAdapter.getData().isEmpty()) return;
+        wordAdapter.setNewData(new ArrayList<>(Arrays.asList(FALLBACK_HOT_WORDS)));
+        updateHotWordPanel();
+    }
+
     private boolean canShowHotWords(int generation) {
         return !isFinishing() && !isDestroyed() && generation == suggestionRequestId
                 && etSearch != null && TextUtils.isEmpty(etSearch.getText().toString().trim())
@@ -712,7 +741,7 @@ public class SearchActivity extends BaseActivity {
         }
         saveHistoryWords(wd);
         refreshHistoryView();
-        tvSearch.requestFocus();
+        // 不在这里抢焦点：焦点由首批结果到来时决定（见 mergeResults）
     }
 
     private void doSearch() {
@@ -885,6 +914,13 @@ public class SearchActivity extends BaseActivity {
                     // 首批结果到来时自动滚回顶部，避免搜索结果从中途位置开始显示
                     if (old.isEmpty()) {
                         mSearchResultRV.scrollToPosition(0);
+                        // 用户是在“搜索”按钮上确认的，首批结果出来后直接把焦点交给结果第一项
+                        if (tvSearch != null && tvSearch.hasFocus()) {
+                            mSearchResultRV.post(() -> {
+                                mSearchResultRV.setSelection(0);
+                                mSearchResultRV.requestFocus();
+                            });
+                        }
                     }
                 }
                 updateSearchProgress(searchFinished && completedSearchSources < searchSourceCount);

@@ -64,7 +64,7 @@
                 android:paddingRight="@dimen/vs_5"
                 android:singleLine="true"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_16" />
+                android:textSize="@dimen/ts_20" />
 
             <TextView
                 android:id="@+id/tvName"

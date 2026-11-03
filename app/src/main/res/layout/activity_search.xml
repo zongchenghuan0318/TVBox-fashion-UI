@@ -121,6 +121,17 @@
                     android:visibility="gone"
                     android:layout_height="wrap_content" />
             </LinearLayout>
+
+            <!-- 操作提示：长按历史词删除单条（遥控器与触屏都适用） -->
+            <TextView
+                android:id="@+id/tvHistoryHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_4"
+                android:gravity="center"
+                android:text="长按历史词可删除单条"
+                android:textColor="@color/color_rail_text_muted"
+                android:textSize="@dimen/ts_18" />
         </LinearLayout>
 
         <com.github.tvbox.osc.ui.tv.widget.SearchKeyboard
@@ -237,7 +248,7 @@
                 android:layout_marginTop="@dimen/vs_6"
                 android:text="建议缩短片名，或在搜索源管理中开启更多数据源"
                 android:textColor="@color/color_rail_text_muted"
-                android:textSize="@dimen/ts_16" />
+                android:textSize="@dimen/ts_20" />
 
             <TextView
                 android:id="@+id/btnEmptyManageSources"
@@ -272,7 +283,7 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:textColor="@color/color_rail_text_muted"
-                android:textSize="@dimen/ts_16"
+                android:textSize="@dimen/ts_20"
                 android:visibility="gone" />
 
             <TextView
@@ -288,7 +299,7 @@
                 android:paddingEnd="@dimen/vs_12"
                 android:text="重试未响应来源"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_16"
+                android:textSize="@dimen/ts_20"
                 android:visibility="gone" />
         </LinearLayout>
     </RelativeLayout>

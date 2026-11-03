@@ -90,6 +90,16 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private SeriesFlagAdapter mFlagAdapter;
     private SeriesAdapter mSeriesAdapter;
     private PlayerEpisodeRangeAdapter mSeriesRangeAdapter;
+    private static final int RANGE_STEP = 30;
+    /** 每个线路记住用户最后查看的分段 */
+    private final java.util.Map<String, Integer> mViewedRange = new java.util.HashMap<>();
+    /** 每个线路记住上一次播放所在的分段，用来判断播放位置是否已经换到别的分段 */
+    private final java.util.Map<String, Integer> mPlayedRange = new java.util.HashMap<>();
+
+    private void rememberViewedRange(int range) {
+        if (mVodInfo == null || mVodInfo.playFlag == null) return;
+        mViewedRange.put(mVodInfo.playFlag, range);
+    }
     public String vodId;
     public String sourceKey;
     public String noteStr;
@@ -154,6 +164,11 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         initSeriesGridView();
         initFlagGridView();
         setLoadSir(findViewById(R.id.llLayout));
+        // 空态/超时覆盖层会遮住顶部操作区，这里在覆盖层里补一个“换源搜索”入口
+        setEmptyAction("换源搜索", v -> {
+            View quick = findViewById(R.id.tvQuickSearch);
+            if (quick != null) quick.performClick();
+        });
 
         tvSort.setOnClickListener(v -> {
             if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
@@ -167,7 +182,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                         }
                     }
                 }
-                tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
+                tvSort.setText(mVodInfo.reverseSort ? "正序" : "倒序");
                 refreshList(false);
                 updatePlayButtonText();
             }
@@ -251,7 +266,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                         final int curReqId = detailRequestId;
 
                         // 异步读取 Room 数据库与 JSON 反序列化，彻底消除电视端打开详情弹窗时 50-150ms 的主线程掉帧与卡顿
-                        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
                             VodInfo vodInfoRecord = RoomDataManger.getVodInfo(curSourceKey, curVodId);
                             runOnUiThread(() -> {
                                 if (isFinishing() || isDestroyed() || curReqId != detailRequestId || curVodInfo != mVodInfo) {
@@ -323,7 +338,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         mFlagAdapter.setNewData(mVodInfo.seriesFlags);
         mFlagGridView.scrollToPosition(flagScrollTo);
         if (tvSort != null) {
-            tvSort.setText(mVodInfo.reverseSort ? "正\t序" : "倒\t序");
+            tvSort.setText(mVodInfo.reverseSort ? "正序" : "倒序");
         }
         updatePlayButtonText();
         refreshList(!autoPlayFromHistory);
@@ -359,7 +374,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         if (tvCollect == null || mVodInfo == null) return;
         final String curSource = mVodInfo.sourceKey;
         final String curId = mVodInfo.id;
-        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             VodCollect record = RoomDataManger.getVodCollect(curSource, curId);
             boolean collected = record != null;
             runOnUiThread(() -> {
@@ -380,7 +395,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         final VodInfo info = mVodInfo;
         final String curSource = info.sourceKey;
         final String curId = info.id;
-        AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             VodCollect record = RoomDataManger.getVodCollect(curSource, curId);
             boolean wasCollected = record != null;
             if (wasCollected) {
@@ -515,6 +530,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
                 if (position >= 0 && position < mSeriesRangeAdapter.getData().size()) {
                     mSeriesRangeAdapter.setSelectedIndex(position);
+                rememberViewedRange(position);
                     EpisodeRangeBean item = mSeriesRangeAdapter.getData().get(position);
                     mSeriesGridView.scrollToPosition(item.startIndex);
                     mSeriesGridView.setSelection(item.startIndex);
@@ -524,6 +540,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         mSeriesRangeAdapter.setOnItemClickListener((adapter, view, position) -> {
             if (position >= 0 && position < mSeriesRangeAdapter.getData().size()) {
                 mSeriesRangeAdapter.setSelectedIndex(position);
+                rememberViewedRange(position);
                 EpisodeRangeBean item = mSeriesRangeAdapter.getData().get(position);
                 mSeriesGridView.scrollToPosition(item.startIndex);
                 mSeriesGridView.setSelection(item.startIndex);
@@ -548,8 +565,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 bSeriesSelect = true;
                 if (position >= 0 && mSeriesRangeAdapter != null && mSeriesRangeRV != null && mSeriesRangeRV.getVisibility() == View.VISIBLE) {
-                    int rIdx = position / 30;
+                    int rIdx = position / RANGE_STEP;
                     if (rIdx != mSeriesRangeAdapter.getSelectedIndex()) {
+                        rememberViewedRange(rIdx);
                         mSeriesRangeAdapter.setSelectedIndex(rIdx);
                         mSeriesRangeRV.scrollToPosition(rIdx);
                     }
@@ -638,14 +656,22 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         if (currentSeries.size() > 30 && mSeriesRangeRV != null) {
             mSeriesRangeRV.setVisibility(View.VISIBLE);
             List<EpisodeRangeBean> rangeList = new ArrayList<>();
-            final int step = 30;
+            final int step = RANGE_STEP;
             for (int i = 0; i < currentSeries.size(); i += step) {
                 int start = i + 1;
                 int end = Math.min(i + step, currentSeries.size());
                 rangeList.add(new EpisodeRangeBean(i, end - 1, start + "-" + end));
             }
             mSeriesRangeAdapter.setNewData(rangeList);
-            int currentRange = mVodInfo.playIndex / step;
+            // 分段选择规则：播放位置没有换到别的分段时，保留用户最后查看的分段；播放位置换段了则跟随播放位置
+            String flag = mVodInfo.playFlag;
+            int playRange = mVodInfo.playIndex / step;
+            Integer lastPlayed = mPlayedRange.get(flag);
+            Integer viewed = mViewedRange.get(flag);
+            int currentRange = (viewed != null && lastPlayed != null && lastPlayed == playRange) ? viewed : playRange;
+            currentRange = Math.max(0, Math.min(currentRange, rangeList.size() - 1));
+            mPlayedRange.put(flag, playRange);
+            mViewedRange.put(flag, currentRange);
             mSeriesRangeAdapter.setSelectedIndex(currentRange);
             mSeriesRangeRV.scrollToPosition(currentRange);
         } else if (mSeriesRangeRV != null) {

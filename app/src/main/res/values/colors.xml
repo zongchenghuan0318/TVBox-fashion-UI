@@ -45,4 +45,9 @@
     <!-- 弹窗体系：深色 surface 与内嵌控件底色 -->
     <color name="color_dialog_surface">#F214161E</color>
     <color name="color_dialog_field">#14FFFFFF</color>
+    <!-- 单选弹窗选项文字：选中 / 未选中 / 副标题 -->
+    <color name="color_dialog_option_selected">#FFFFFFFF</color>
+    <color name="color_dialog_option">#CCFFFFFF</color>
+    <color name="color_dialog_sub_selected">#E6FFFFFF</color>
+    <color name="color_dialog_sub">#B3FFFFFF</color>
 </resources>

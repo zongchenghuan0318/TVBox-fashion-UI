@@ -1,5 +1,6 @@
 package com.undcover.freedom.pyramid;
 
+import com.lcstudio.commonsurport.L;
 import android.content.Context;
 
 import com.chaquo.python.PyObject;
@@ -76,7 +77,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
             result[3] = header ? getHeader(list.get(3)) : null;
             return result;
         } catch (Throwable e) {
-            e.printStackTrace();
+            L.e(e);
             return null;
         }
     }

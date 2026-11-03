@@ -43,28 +43,102 @@
         android:textColor="@color/color_CCFFFFFF"
         android:textSize="@dimen/ts_24" />
 
+    <!-- 播放失败时的可聚焦操作：遥控器无需呼出控制栏即可重试或换集/换线路 -->
+    <LinearLayout
+        android:id="@+id/play_error_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="@dimen/vs_120"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/play_error_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/vs_44"
+            android:background="@drawable/selector_resume_restart_hint"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minWidth="@dimen/vs_160"
+            android:paddingLeft="@dimen/vs_16"
+            android:paddingRight="@dimen/vs_16"
+            android:nextFocusRight="@id/play_error_switch"
+            android:text="重试本集"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_22" />
+
+        <TextView
+            android:id="@+id/play_error_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/vs_44"
+            android:layout_marginLeft="@dimen/vs_16"
+            android:background="@drawable/selector_resume_restart_hint"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minWidth="@dimen/vs_160"
+            android:paddingLeft="@dimen/vs_16"
+            android:paddingRight="@dimen/vs_16"
+            android:nextFocusLeft="@id/play_error_retry"
+            android:text="选集 / 换线路"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_22" />
+    </LinearLayout>
+
     <include layout="@layout/player_top_bar" />
     
-    <TextView
+    <!-- 续播提示：默认焦点在“继续播放”（即保留已定位的续播进度），“从头开始”需要主动选择 -->
+    <LinearLayout
         android:id="@+id/resume_restart_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_marginStart="24dp"
         android:layout_marginBottom="24dp"
-        android:background="@drawable/selector_resume_restart_hint"
-        android:clickable="true"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:contentDescription="从头开始，按确定从零秒播放"
-        android:gravity="center"
-        android:minHeight="48dp"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:text="从头开始 · 5秒"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/resume_continue_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/selector_resume_restart_hint"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minHeight="48dp"
+            android:minWidth="120dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:nextFocusRight="@id/resume_restart_btn"
+            android:text="继续播放"
+            android:textColor="@android:color/white"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/resume_restart_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/selector_resume_restart_hint"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minHeight="48dp"
+            android:minWidth="120dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:nextFocusLeft="@id/resume_continue_btn"
+            android:text="从头开始 · 8秒"
+            android:textColor="@android:color/white"
+            android:textSize="16sp" />
+    </LinearLayout>
 </FrameLayout>

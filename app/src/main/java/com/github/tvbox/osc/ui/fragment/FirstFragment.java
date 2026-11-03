@@ -76,9 +76,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private LinearLayout tvLive;
     private LinearLayout tvSearch;
-    private LinearLayout tvSetting;
-    private LinearLayout tvHistory;
-    private LinearLayout tvCollect;
     private HomeHotVodAdapter mAdapter;
     private List<Movie.Video> mRecommendVideos;
     /** 豆瓣被风控后的冷却截止时间：冷却期内不再直连豆瓣，只用缓存/兜底，避免继续砸接口把限流期拉长 */
@@ -287,9 +284,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mSourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         tvLive = findViewById(R.id.tvLive);
         tvSearch = findViewById(R.id.tvSearch);
-        tvSetting = findViewById(R.id.tvSetting);
-        tvCollect = findViewById(R.id.tvFavorite);
-        tvHistory = findViewById(R.id.tvHistory);
         mHotGridView = findViewById(R.id.tvHotList);
         mHeroBackdrop = requireActivity().findViewById(R.id.ivHeroBackdrop);
         mHeroBackdropAlt = requireActivity().findViewById(R.id.ivHeroBackdropAlt);
@@ -304,14 +298,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
         tvLive.setOnClickListener(this);
         tvSearch.setOnClickListener(this);
-        tvSetting.setOnClickListener(this);
-        tvHistory.setOnClickListener(this);
-        tvCollect.setOnClickListener(this);
         tvLive.setOnFocusChangeListener(focusChangeListener);
         tvSearch.setOnFocusChangeListener(focusChangeListener);
-        tvSetting.setOnFocusChangeListener(focusChangeListener);
-        tvHistory.setOnFocusChangeListener(focusChangeListener);
-        tvCollect.setOnFocusChangeListener(focusChangeListener);
 
         rootView.getViewTreeObserver().addOnGlobalFocusChangeListener(mFocusChangeListener);
         initGridView();
@@ -709,10 +697,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private boolean isSidebarFocused() {
         return (tvLive != null && tvLive.hasFocus())
-                || (tvSearch != null && tvSearch.hasFocus())
-                || (tvSetting != null && tvSetting.hasFocus())
-                || (tvHistory != null && tvHistory.hasFocus())
-                || (tvCollect != null && tvCollect.hasFocus());
+                || (tvSearch != null && tvSearch.hasFocus());
     }
 
     /**
@@ -1517,12 +1502,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             jumpActivity(LivePlayActivity.class);
         } else if (v.getId() == R.id.tvSearch) {
             jumpActivity(SearchActivity.class);
-        } else if (v.getId() == R.id.tvSetting) {
-            jumpActivity(SettingActivity.class);
-        } else if (v.getId() == R.id.tvHistory) {
-            jumpActivity(HistoryActivity.class);
-        } else if (v.getId() == R.id.tvFavorite) {
-            jumpActivity(CollectActivity.class);
         }
     }
 }

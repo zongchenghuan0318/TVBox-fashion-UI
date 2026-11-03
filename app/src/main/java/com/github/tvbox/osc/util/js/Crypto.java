@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.util.js;
 
+import com.lcstudio.commonsurport.L;
 import android.util.Base64;
 
 import java.security.Key;
@@ -63,7 +64,7 @@ public class Crypto {
             }
             return new String(cipher.doFinal(bytes2), "UTF-8");
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
             return "";
         }
     }
@@ -136,7 +137,7 @@ public class Crypto {
             }
             return new String(bArr, "UTF-8");
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
             return "";
         }
     }

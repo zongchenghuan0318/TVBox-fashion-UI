@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.util.js;
 
+import com.lcstudio.commonsurport.L;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
@@ -93,7 +94,7 @@ public class RSAEncrypt {
     }
 
     private static void handleException(Exception exc) {
-        exc.printStackTrace();
+        L.e(exc);
         String str = TAG;
         Log.e(str, str + exc);
     }

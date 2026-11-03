@@ -9,8 +9,8 @@
     <TextView android:id="@+id/movie_name_tv" android:layout_width="0dp" android:layout_height="48dp"
         android:layout_weight="1" android:layout_marginLeft="8dp" android:layout_marginRight="20dp"
         android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end"
-        android:textSize="18sp" android:textColor="#FFFFFF" android:fontFamily="sans-serif-medium" />
+        android:textSize="22sp" android:textColor="#FFFFFF" android:fontFamily="sans-serif-medium" />
     <TextView android:id="@+id/system_time_tv" android:layout_width="wrap_content" android:layout_height="48dp"
-        android:gravity="center_vertical" android:fontFamily="sans-serif" android:textSize="14sp"
+        android:gravity="center_vertical" android:fontFamily="sans-serif" android:textSize="18sp"
         android:textColor="#D9FFFFFF" android:singleLine="true" />
 </LinearLayout>

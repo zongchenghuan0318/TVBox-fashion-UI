@@ -130,7 +130,7 @@ public class ApiConfig {
                 if (!candidates.contains(DEFAULT_URL)) candidates.add(DEFAULT_URL);
 
                 for (String candidate : candidates) {
-                    VerifyResult result = verifyConfig(candidate, "", LIVE_SOURCE_READ_TIMEOUT_MS);
+                    VerifyResult result = verifyConfigWithRetry(candidate, "", CONFIG_STARTUP_TIMEOUT_MS);
                     if (!result.ok) {
                         L.w("loadSitesFile 配置源不可用 url=" + candidate + " reason=" + result.message);
                         continue;
@@ -187,14 +187,14 @@ public class ApiConfig {
                         data = decodeEcb(data, configKey);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    L.e(e);
                     data = body;
                 }
             } else if (data.contains("2423")) {
                 data = decode2423(data);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
             data = origin;
         }
         return data == null ? "" : data;
@@ -221,7 +221,7 @@ public class ApiConfig {
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getBytes(), "AES"), new IvParameterSpec(iv.getBytes()));
             return new String(cipher.doFinal(Util.hex2byte(data)));
         } catch (Exception e) {
-            e.printStackTrace();
+            L.e(e);
             return null;
         }
     }
@@ -255,6 +255,8 @@ public class ApiConfig {
     public static final String UA_OKHTTP = "okhttp/3.12.1";
     private static final int LIVE_SOURCE_CONNECT_TIMEOUT_MS = 5000;
     private static final int LIVE_SOURCE_READ_TIMEOUT_MS = 7000;
+    // 启动时逐个校验配置源的单次超时：比直播源更短，全部不通时不让用户等太久
+    private static final int CONFIG_STARTUP_TIMEOUT_MS = 4000;
 
     /**
      * HTTP 请求结果：code 为响应码（-1 表示请求异常），body 为响应体，error 为异常描述
@@ -411,6 +413,7 @@ public class ApiConfig {
         public final String message;  // 展示给用户的成功提示或失败原因
         public final String json;     // 校验通过后的配置体
         public final String url;      // 校验用到的配置地址
+        public boolean connectionFailed; // 是否属于连接层失败（可重试）
 
         VerifyResult(boolean ok, String message, String json, String url) {
             this.ok = ok;
@@ -498,24 +501,64 @@ public class ApiConfig {
         if (http.code == -1) {
             String msg = http.error.toLowerCase();
             if (msg.contains("unable to resolve host")) {
-                return new VerifyResult(false, "域名无法解析，请检查配置地址是否正确", "", "");
+                return connectionFail("域名无法解析，请检查配置地址是否正确");
             }
             if (msg.contains("timeout") || msg.contains("timed out")) {
-                return new VerifyResult(false, "连接超时，请检查网络后重试", "", "");
+                return connectionFail("连接超时，请检查网络后重试");
             }
             if (msg.contains("failed to connect") || msg.contains("connection refused")) {
-                return new VerifyResult(false, "无法连接服务器，请稍后重试", "", "");
+                return connectionFail("无法连接服务器，请稍后重试");
             }
             String err = http.error.length() > 60 ? http.error.substring(0, 60) : http.error;
-            return new VerifyResult(false, "网络请求失败：" + err, "", "");
+            return connectionFail("网络请求失败：" + err);
         }
         if (http.code < 200 || http.code >= 300) {
-            return new VerifyResult(false, "服务器返回 HTTP " + http.code + "，该配置地址不可用", "", "");
+            String text = "服务器返回 HTTP " + http.code + "，该配置地址不可用";
+            // 5xx、408、429 属于临时性故障，按连接失败处理（会重试）；其余 4xx 重试没有意义
+            if (http.code >= 500 || http.code == 408 || http.code == 429) {
+                return connectionFail(text);
+            }
+            return new VerifyResult(false, text, "", "");
         }
         if (NullUtil.isNull(http.body)) {
             return new VerifyResult(false, "服务器返回内容为空", "", "");
         }
         return null;
+    }
+
+    /** 连接层面的失败（网络不通、超时、临时性服务器错误）：标记后会被重试 */
+    private static VerifyResult connectionFail(String message) {
+        VerifyResult result = new VerifyResult(false, message, "", "");
+        result.connectionFailed = true;
+        return result;
+    }
+
+    /** 每个配置源最多尝试的次数；只有连接层面的失败才会重试，内容错误直接判定失败 */
+    private static final int CONFIG_CONNECT_ATTEMPTS = 3;
+    private static final long CONFIG_RETRY_DELAY_MS = 1000L;
+
+    /**
+     * 校验配置源：连接失败时同一地址最多尝试 {@link #CONFIG_CONNECT_ATTEMPTS} 次，
+     * 全部失败才返回失败，由调用方切换到下一个配置源。
+     * 必须在后台线程调用。
+     */
+    public static VerifyResult verifyConfigWithRetry(String rawUrl, String inlineContent, int timeoutMs) {
+        VerifyResult result = null;
+        for (int attempt = 1; attempt <= CONFIG_CONNECT_ATTEMPTS; attempt++) {
+            result = verifyConfig(rawUrl, inlineContent, timeoutMs);
+            if (result.ok || !result.connectionFailed) return result;
+            L.w("配置源连接失败 第" + attempt + "/" + CONFIG_CONNECT_ATTEMPTS + " 次 url=" + rawUrl
+                    + " reason=" + result.message);
+            if (attempt < CONFIG_CONNECT_ATTEMPTS) {
+                try {
+                    Thread.sleep(CONFIG_RETRY_DELAY_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return result;
+                }
+            }
+        }
+        return result;
     }
 
     /**
