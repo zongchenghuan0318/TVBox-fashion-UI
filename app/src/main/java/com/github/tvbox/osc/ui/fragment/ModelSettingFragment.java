@@ -388,17 +388,26 @@ public class ModelSettingFragment extends BaseLazyFragment {
 
         findViewById(R.id.llHomeMode).setOnClickListener(v -> {
             FastClickCheckUtil.check(v);
-            new androidx.appcompat.app.AlertDialog.Builder(mActivity)
-                    .setTitle("首页模式（返回首页后生效）")
-                    .setSingleChoiceItems(new String[]{"当前首页：完整背景特效与自动轮播", "低压力首页：静态背景、手动切换"},
-                            Hawk.get(HawkConfig.HOME_LOW_POWER, false) ? 1 : 0,
-                            (dialog, which) -> {
-                                Hawk.put(HawkConfig.HOME_LOW_POWER, which == 1);
-                                tvHomeMode.setText(which == 1 ? "低压力首页" : "当前首页");
-                                dialog.dismiss();
-                            })
-                    .setNegativeButton("取消", null)
-                    .show();
+            List<Boolean> modes = Arrays.asList(false, true); // false 当前首页，true 低压力首页
+            SelectDialog.pick(mActivity, "首页模式（返回首页后生效）", modes,
+                    modes.indexOf(Hawk.get(HawkConfig.HOME_LOW_POWER, false)),
+                    new SelectDialogAdapter.SelectDialogInterface<Boolean>() {
+                        @Override
+                        public void click(Boolean value, int pos) {
+                            Hawk.put(HawkConfig.HOME_LOW_POWER, value);
+                            tvHomeMode.setText(value ? "低压力首页" : "当前首页");
+                        }
+
+                        @Override
+                        public String getDisplay(Boolean val) {
+                            return val ? "低压力首页" : "当前首页";
+                        }
+
+                        @Override
+                        public String getSubDisplay(Boolean val) {
+                            return val ? "静态背景、手动切换" : "完整背景特效与自动轮播";
+                        }
+                    });
         });
 
         findViewById(R.id.llHomeRec).setOnClickListener(v -> {
