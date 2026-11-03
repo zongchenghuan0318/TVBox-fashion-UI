@@ -1,8 +1,8 @@
 {
-    "versionCode":  189,
-    "versionName":  "1.6.0",
-    "changelog":  "# 1.6.0\n\n## 更新内容\n\n- 首页默认布局改为“极简画报沉浸”。已在设置中手动选择过首页布局的用户，保留原有选择。\n- 搜索结果按“搜索源管理”中设置的源顺序显示，列表不再因结果到达顺序而跳动。\n- 搜索超时后，不再等待未响应的源，已到的结果按源顺序显示。\n\n## 安装包\n\n- 版本：1.6.0（versionCode 189）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.0/Z.apk",
-    "sha256":  "fdcfbb638a93d8681d67a5f9ed1e995f8a2ab1dc4104b8249109a8f7d1f1cb9b",
-    "size":  24918888
+    "versionCode":  190,
+    "versionName":  "1.6.1",
+    "changelog":  "# 1.6.1\n\n## 更新内容\n\n- 搜索结果恢复为搜到即显示：每个源的结果一返回就进入列表，列表仍按“搜索源管理”中设置的源顺序排列。\n- 取消 1.5.9 起的按源顺序等待显示逻辑，首批结果不再需要等排在前面的源。\n\n## 安装包\n\n- 版本：1.6.1（versionCode 190）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.1/Z.apk",
+    "sha256":  "61ed388014a3b05fd0ff0e49ae2bbf19611ed4f669ae0660ddd40d8df22a8624",
+    "size":  24918646
 }
