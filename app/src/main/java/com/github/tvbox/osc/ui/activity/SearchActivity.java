@@ -101,10 +101,6 @@ public class SearchActivity extends BaseActivity {
     private final List<Future<?>> searchTasks = new ArrayList<>();
     private final ExecutorService resultExecutor = Executors.newSingleThreadExecutor();
     private final List<Movie.Video> pendingResults = new ArrayList<>();
-    /** 每个源的结果缓冲，等轮到该源时才进入列表 */
-    private final Map<String, List<Movie.Video>> bufferedBySource = new HashMap<>();
-    /** activeSearchSites 中下一个需要显示的源的下标 */
-    private int nextDisplayIndex = 0;
     private final Map<String, Integer> sourceOrder = new HashMap<>();
     private boolean resultMergeRunning;
     private int resultGeneration;
@@ -129,8 +125,6 @@ public class SearchActivity extends BaseActivity {
             if (!searchFinished && searchResultAdapter != null) {
                 searchFinished = true;
                 OkGo.getInstance().cancelTag("search");
-                // 超时：不再等未响应的源，把已到的结果按源顺序放出
-                flushOrderedResults(true);
                 updateSearchProgress(true);
                 List<SiteBean> pending = getUnresponsiveSites();
                 tvRetrySearch.setVisibility(pending.isEmpty() ? View.GONE : View.VISIBLE);
@@ -667,10 +661,10 @@ public class SearchActivity extends BaseActivity {
             }
             if (event.sourceKey == null || !respondedSourceKeys.add(event.sourceKey)) return;
             try {
-                showSearchData(event.sourceKey, event.obj == null ? null : (AbsXml) event.obj);
+                showSearchData(event.obj == null ? null : (AbsXml) event.obj);
             } catch (Exception e) {
                 L.e("showSearchData " + e.getMessage());
-                showSearchData(event.sourceKey, null);
+                showSearchData(null);
             }
             completedSearchSources++;
             updateSearchProgress(false);
@@ -764,8 +758,6 @@ public class SearchActivity extends BaseActivity {
         }
         searchSourceCount = siteBeans.size();
         activeSearchSites = new ArrayList<>(siteBeans);
-        nextDisplayIndex = 0;
-        bufferedBySource.clear();
         sourceOrder.clear();
         for (int i = 0; i < siteBeans.size(); i++) sourceOrder.put(siteBeans.get(i).getKey(), i);
         respondedSourceKeys.clear();
@@ -821,8 +813,6 @@ public class SearchActivity extends BaseActivity {
         completedSearchSources = 0;
         searchSourceCount = pending.size();
         activeSearchSites = new ArrayList<>(pending);
-        nextDisplayIndex = 0;
-        bufferedBySource.clear();
         tvRetrySearch.setVisibility(View.GONE);
         updateSearchProgress(false);
         submitSearchSources(pending);
@@ -833,8 +823,6 @@ public class SearchActivity extends BaseActivity {
         searchFinished = true;
         resultGeneration++;
         pendingResults.clear();
-        bufferedBySource.clear();
-        nextDisplayIndex = 0;
         resultMergeRunning = false;
         searchHandler.removeCallbacks(mergeResults);
         searchHandler.removeCallbacks(searchTimeout);
@@ -881,38 +869,12 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
-    /**
-     * 按配置源顺序显示结果：每个源的结果先进入自己的缓冲区，
-     * 只有排在前面的源都已响应（成功、失败均算）后，才轮到下一个源进入列表。
-     */
-    private void showSearchData(String sourceKey, AbsXml absXml) {
-        if (sourceKey != null && absXml != null && absXml.movie != null && !NullUtil.isNull(absXml.movie.videoList)) {
-            List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
-            if (videos != null && !videos.isEmpty()) {
-                bufferedBySource.computeIfAbsent(sourceKey, k -> new ArrayList<>()).addAll(videos);
-            }
-        }
-        flushOrderedResults(false);
-    }
-
-    /**
-     * 把可以显示的缓冲结果按源顺序放进待合并列表。
-     * force = true 用于超时：不再等待未响应的源，按顺序放出已有结果。
-     */
-    private void flushOrderedResults(boolean force) {
-        while (nextDisplayIndex < activeSearchSites.size()) {
-            String key = activeSearchSites.get(nextDisplayIndex).getKey();
-            if (!force && !respondedSourceKeys.contains(key)) break;
-            List<Movie.Video> list = bufferedBySource.remove(key);
-            if (list != null) pendingResults.addAll(list);
-            nextDisplayIndex++;
-        }
-        if (force) {
-            // 不在当前列表里的结果（如重试的旧源）按到达顺序补在最后
-            for (List<Movie.Video> rest : bufferedBySource.values()) pendingResults.addAll(rest);
-            bufferedBySource.clear();
-        }
-        if (!pendingResults.isEmpty() && !resultMergeRunning) {
+    private void showSearchData(AbsXml absXml) {
+        if (absXml == null || absXml.movie == null || NullUtil.isNull(absXml.movie.videoList)) return;
+        List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
+        if (videos == null || videos.isEmpty()) return;
+        pendingResults.addAll(videos);
+        if (!resultMergeRunning) {
             searchHandler.removeCallbacks(mergeResults);
             searchHandler.postDelayed(mergeResults, 200L);
         }
