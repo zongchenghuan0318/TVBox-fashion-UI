@@ -107,6 +107,11 @@ public class ApiConfig {
         mBaseLoader = new BaseLoader();
     }
 
+    /** 当前置顶的点播配置地址；用户没有设置过时使用默认置顶，取消置顶后存为空串 */
+    public static String getPinnedConfig() {
+        return Hawk.get(HawkConfig.API_PINNED_CONFIG, HawkConfig.DEFAULT_API_PINNED_CONFIG);
+    }
+
     public void loadSitesFile(Activity activity, LoadConfigCallback callback) {
         L.d("loadSitesFile start");
         Context ctx = activity.getBaseContext();
@@ -128,6 +133,12 @@ public class ApiConfig {
                     if (!candidates.contains(defaultUrl)) candidates.add(defaultUrl);
                 }
                 if (!candidates.contains(DEFAULT_URL)) candidates.add(DEFAULT_URL);
+                // 置顶的点播配置地址永远排第一位，优先尝试
+                String pinnedConfig = ApiConfig.getPinnedConfig();
+                if (!NullUtil.isNull(pinnedConfig)) {
+                    candidates.remove(pinnedConfig);
+                    candidates.add(0, pinnedConfig);
+                }
 
                 for (String candidate : candidates) {
                     VerifyResult result = verifyConfigWithRetry(candidate, "", CONFIG_STARTUP_TIMEOUT_MS);
@@ -1682,6 +1693,26 @@ public class ApiConfig {
             Hawk.delete(HawkConfig.SEARCH_SITE_DISABLED);
             Hawk.delete(HawkConfig.SEARCH_SITE_ORDER);
             Hawk.put(HawkConfig.SEARCH_SITE_VER, 1);
+        }
+        // 置顶搜索源（全体用户）：把“粉猪秒播”放到搜索顺序第一位并确保启用；
+        // 只移动这一项，保留用户已有的其它顺序与勾选
+        if (Hawk.get(HawkConfig.SEARCH_PIN_VER, 0) < 1) {
+            pinSearchSiteFirst(PINNED_SEARCH_SITE_KEY);
+            Hawk.put(HawkConfig.SEARCH_PIN_VER, 1);
+        }
+    }
+
+    /** 默认置顶的搜索源 key（配置里的「💥粉猪┃秒播💥」） */
+    public static final String PINNED_SEARCH_SITE_KEY = "AppV7_粉猪追剧";
+
+    private void pinSearchSiteFirst(String key) {
+        ArrayList<String> order = new ArrayList<>(getSearchSiteOrderOrDefault());
+        order.remove(key);
+        order.add(0, key);
+        setSearchSiteOrder(order);
+        ArrayList<String> disabled = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
+        if (disabled != null && disabled.remove(key)) {
+            Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, disabled);
         }
     }
 

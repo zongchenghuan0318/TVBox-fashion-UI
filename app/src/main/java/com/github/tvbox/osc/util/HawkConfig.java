@@ -9,7 +9,11 @@ public class HawkConfig {
     public static final String API_URL = "api_url";
     public static final String API_HISTORY = "api_history";
     public static final String API_SAVED_CONFIGS = "api_saved_configs";
+    public static final String API_PINNED_CONFIG = "api_pinned_config"; // 置顶的点播配置地址：启动时最先尝试
+    /** 默认置顶的点播配置：所有用户默认第一位尝试；用户取消置顶后会记住“不置顶”，不再被默认值覆盖 */
+    public static final String DEFAULT_API_PINNED_CONFIG = "https://ysc.tengxuntaobao.win/";
     public static final String[] DEFAULT_API_SAVED_CONFIGS = {
+            "https://ysc.tengxuntaobao.win/",
             "https://tv.xn--yhqu5zs87a.top",
             "http://xn--z7x900a.net/tv",
             "https://9280.kstore.vip/newwex.json",
@@ -69,6 +73,7 @@ public class HawkConfig {
     public static final String SEARCH_VIEW = "search_view"; // 0 列表 1 缩略图
     public static final String SEARCH_SITE_DISABLED = "search_site_disabled"; // 不参与搜索的站点 key 列表（缺省=全部参与）
     public static final String SEARCH_SITE_ORDER = "search_site_order"; // 参与搜索的站点 key 顺序：勾选先后即所有搜索界面的展示顺序
+    public static final String SEARCH_PIN_VER = "search_pin_ver"; // 粉猪秒播置顶迁移版本
     public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 文采秒播最高」
     public static final String LIVE_CHANNEL = "last_live_channel_name";
     public static final String LIVE_SOURCE_URL = "live_source_urls";

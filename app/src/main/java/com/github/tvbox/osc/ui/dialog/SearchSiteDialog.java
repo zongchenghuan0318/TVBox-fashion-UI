@@ -6,6 +6,7 @@ import android.view.View;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.ui.adapter.SearchSiteAdapter;
+import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.studio.osc.R;
 
@@ -44,6 +45,7 @@ public class SearchSiteDialog extends BaseDialog {
         rows.clear();
         rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_SELECT_ALL, null, null, true));
         rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_UNSELECT_ALL, null, null, false));
+        rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_PIN_FIRST, null, null, false));
         order.clear();
         order.addAll(ApiConfig.getInstance().getSearchSiteOrder());
         for (SiteBean bean : ApiConfig.getInstance().getSiteBeanList()) {
@@ -66,6 +68,8 @@ public class SearchSiteDialog extends BaseDialog {
                     setAllChecked(true);
                 } else if (row.type == SearchSiteAdapter.TYPE_UNSELECT_ALL) {
                     setAllChecked(false);
+                } else if (row.type == SearchSiteAdapter.TYPE_PIN_FIRST) {
+                    pickFirst();
                 } else {
                     row.checked = !row.checked;
                     if (row.checked) {
@@ -104,6 +108,36 @@ public class SearchSiteDialog extends BaseDialog {
         list.setSelectedPosition(0);
         list.post(() -> list.requestFocus()); // 弹窗打开后列表立即获焦，防止遥控器方向键失效
         // 打开即把顺序表与勾选状态对齐写回，保证首次进入后顺序就是确定的
+        save();
+    }
+
+    /** 让某个源排到搜索顺序的第一位（并自动勾选），例如把“粉猪秒播”放在最前 */
+    private void pickFirst() {
+        final List<SearchSiteAdapter.Row> sites = new ArrayList<>();
+        for (SearchSiteAdapter.Row row : rows) {
+            if (row.type == SearchSiteAdapter.TYPE_SITE) sites.add(row);
+        }
+        if (sites.isEmpty()) return;
+        SelectDialog.pick(getContext(), "选择排在第一位的搜索源", sites, -1,
+                new SelectDialogAdapter.SelectDialogInterface<SearchSiteAdapter.Row>() {
+                    @Override
+                    public void click(SearchSiteAdapter.Row value, int pos) {
+                        pinFirst(value);
+                    }
+
+                    @Override
+                    public String getDisplay(SearchSiteAdapter.Row val) {
+                        return val.checked ? val.name : val.name + "（未勾选，选中后会自动勾选）";
+                    }
+                });
+    }
+
+    private void pinFirst(SearchSiteAdapter.Row row) {
+        row.checked = true;
+        order.remove(row.key);
+        order.add(0, row.key);
+        refreshRank();
+        adapter.notifyDataSetChanged();
         save();
     }
 

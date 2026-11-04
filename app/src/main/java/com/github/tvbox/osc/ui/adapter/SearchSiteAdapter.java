@@ -17,6 +17,7 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
     public static final int TYPE_SELECT_ALL = 0;
     public static final int TYPE_UNSELECT_ALL = 1;
     public static final int TYPE_SITE = 2;
+    public static final int TYPE_PIN_FIRST = 3;
 
     public static class Row {
         public final int type;
@@ -55,6 +56,8 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
             text = "【 全选 】";
         } else if (item.type == TYPE_UNSELECT_ALL) {
             text = "【 全不选 】";
+        } else if (item.type == TYPE_PIN_FIRST) {
+            text = "【 选择排在第一位的源 】";
         } else {
             text = (item.checked ? "☑ " : "☐ ") + (item.rank > 0 ? item.rank + ". " : "") + item.name;
         }

@@ -367,7 +367,7 @@ public class ApiDialog extends BaseDialog {
                 String current = Hawk.get(HawkConfig.API_URL, "");
                 int idx = history.indexOf(current);
                 ApiHistoryDialog dialog = new ApiHistoryDialog(getContext());
-                dialog.setTip("已保存配置 · 点击立即切换");
+                dialog.setTip("已保存配置 · 点击切换 · 置顶的配置启动时最先尝试");
                 dialog.setAdapter(new ApiHistoryDialogAdapter.SelectDialogInterface() {
                     @Override
                     public void click(String value) {
@@ -378,7 +378,24 @@ public class ApiDialog extends BaseDialog {
 
                     @Override
                     public void del(String value, ArrayList<String> data) {
+                        if (value.equals(ApiConfig.getPinnedConfig())) {
+                            Hawk.put(HawkConfig.API_PINNED_CONFIG, "");
+                        }
                         Hawk.put(HawkConfig.API_SAVED_CONFIGS, data);
+                    }
+
+                    @Override
+                    public void pin(String value, ArrayList<String> data) {
+                        if (value.equals(ApiConfig.getPinnedConfig())) {
+                            // 再次点击即取消置顶，顺序保持不变
+                            Hawk.put(HawkConfig.API_PINNED_CONFIG, "");
+                        } else {
+                            // 置顶：放到已保存列表的第一位，并记下置顶地址
+                            data.remove(value);
+                            data.add(0, value);
+                            Hawk.put(HawkConfig.API_PINNED_CONFIG, value);
+                            Hawk.put(HawkConfig.API_SAVED_CONFIGS, data);
+                        }
                     }
                 }, history, idx);
                 dialog.show();
