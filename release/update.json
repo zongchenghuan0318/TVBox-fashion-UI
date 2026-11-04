@@ -1,8 +1,8 @@
 {
-    "versionCode":  191,
-    "versionName":  "1.6.2",
-    "changelog":  "# 1.6.2\n\n## 更新内容\n\n- 移除搜索页的“重试未响应来源”按钮。搜索超时后仍会显示已到的结果并提示部分来源超时。\n\n## 安装包\n\n- 版本：1.6.2（versionCode 191）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.2/Z.apk",
-    "sha256":  "07dc0c93403cb8599b807482e75c1cae441e46ffc5ecc8bca87f09b7354f475b",
-    "size":  24917874
+    "versionCode":  192,
+    "versionName":  "1.6.3",
+    "changelog":  "# 1.6.3\n\n## 更新内容\n\n- 点播配置默认置顶：启动时最先尝试置顶的配置地址（默认 https://ysc.tengxuntaobao.win/），配置库中置顶项排在第一位并显示📌，支持手动置顶/取消置顶。\n- 搜索源默认置顶：「💥粉猪┃秒播💥」排在搜索顺序第一位并自动启用；已保存过搜索顺序的用户只调整这一项，其它顺序保持不变。\n- 搜索源管理新增「选择排在第一位的源」，可把任意源设为第一位。\n- 配置库（点播源管理）优化：正在使用的配置不能删除；删除前需要确认；每行可直接置顶。\n\n## 安装包\n\n- 版本：1.6.3（versionCode 192）\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.3/Z.apk",
+    "sha256":  "abb4706f09761a066caa99ed40d2cd689e0bd6c3ac690921fd642e52911a7ca1",
+    "size":  24919662
 }
