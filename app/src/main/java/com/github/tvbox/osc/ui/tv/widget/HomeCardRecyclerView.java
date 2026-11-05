@@ -128,7 +128,8 @@ public class HomeCardRecyclerView extends TvRecyclerView {
         }
         int left = Math.max(0, Math.min(getWidth() - cardWidth, windowCenterInList() - cardWidth / 2));
         int right = Math.max(0, getWidth() - left - cardWidth);
-        int pad = Math.max(0,(getHeight()-getChildAt(0).getHeight())/2);
+        // Keep the cross axis available for wrap_content measurement; the motion places each card vertically.
+        int pad = 0;
         if (getPaddingLeft() != left || getPaddingRight() != right || getPaddingTop() != pad) {
             setPadding(left, pad, right, pad);
         }

@@ -11,7 +11,7 @@
     <!-- 底部：节目信息 + 大卡片横向流 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_gravity="bottom"
         android:clipChildren="false"
         android:clipToPadding="false"
@@ -19,6 +19,11 @@
         android:paddingLeft="@dimen/vs_50"
         android:paddingRight="@dimen/vs_50"
         android:paddingBottom="@dimen/vs_24">
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/tvHeroTitle"
@@ -115,20 +120,11 @@
                 android:textSize="@dimen/ts_20" />
         </LinearLayout>
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_6"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:orientation="vertical">
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/home_card_row_height"
-                android:clipChildren="false"
-                android:clipToPadding="false"
-                >
+            android:layout_height="0dp"
+            android:layout_weight="1.15"
+            android:layout_marginTop="@dimen/vs_6">
 
                 <com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView
                     android:id="@+id/tvHotList"
@@ -141,8 +137,7 @@
                     app:tv_horizontalSpacingWithMargins="@dimen/home_card_spacing"
                     app:tv_selectedItemIsCentered="true"
                     app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
-            </FrameLayout>
-        </LinearLayout>
+        </FrameLayout>
     </LinearLayout>
 
     <!-- 快捷入口（保留原有 ID，默认隐藏） -->

@@ -14,17 +14,25 @@ import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 
 enum HomeCardMotion {
-    FILM("胶片走带"), STACK("桌面抽牌"), ORBIT("星轨环游"), LIFT("垂直升降"),
-    WHEEL("3D 海报转盘"), PORTAL("穿过海报"), SLIT("光闸切片"), FAN("折扇选片"), FLAT("平直横移");
+    FILM("胶片走带", .87f, .76f), STACK("桌面抽牌", .72f, .70f), ORBIT("星轨环游", .72f, .63f),
+    LIFT("垂直升降", .86f, .56f), WHEEL("3D 海报转盘", .74f, .73f), PORTAL("穿过海报", .77f, .73f),
+    SLIT("光闸切片", .80f, .75f), FAN("折扇选片", .72f, .64f), FLAT("平直横移", 1.15f, .77f);
 
     final String label;
-    HomeCardMotion(String label) { this.label = label; }
+    final float aspect, heightFraction;
+    HomeCardMotion(String label, float aspect, float heightFraction) {
+        this.label = label;
+        this.aspect = aspect;
+        this.heightFraction = heightFraction;
+    }
 
     static HomeCardMotion current() {
         String saved = Hawk.get(HawkConfig.HOME_CARD_STYLE, WHEEL.name());
         for (HomeCardMotion style : values()) if (style.name().equals(saved)) return style;
         return WHEEL;
     }
+
+    private final android.graphics.RectF bounds = new android.graphics.RectF();
 
     void apply(View card, float offset, float n, boolean selected, float steps, float displacement) {
         float distance = Math.min(1f, Math.abs(offset));
@@ -33,7 +41,12 @@ enum HomeCardMotion {
         float scale = 1f - distance * .07f, alpha = 1f - distance * .19f;
         switch (this) {
             case FILM: scale = 1f; alpha = 1f - distance * .32f; break;
-            case STACK: x = -n * width * .32f; roll = n * 12; y = distance * height * .055f; break;
+            case STACK:
+                x = steps * width * .50f - displacement;
+                roll = Math.max(-4f, Math.min(4f, steps)) * 10f;
+                y = Math.min(4f, Math.abs(steps)) * height * .028f;
+                scale = Math.max(.69f, 1f - Math.abs(steps) * .065f);
+                break;
             case ORBIT: {
                 float angle = Math.min(1.45f, Math.abs(steps) * .36f);
                 float radius = Math.min(width * 3.65f, ((View)card.getParent()).getWidth() * .46f);
@@ -59,14 +72,32 @@ enum HomeCardMotion {
                 break;
             case PORTAL: yaw = n * 22; scale = 1.08f - distance * .23f; break;
             case SLIT: yaw = n * 12; break;
-            case FAN: pivot = 1f; roll = n * 16; x = -n * width * .22f; break;
+            case FAN:
+                pivot = 1.25f;
+                roll = Math.max(-3.5f, Math.min(3.5f, steps)) * 11f;
+                x = steps * width * .36f - displacement;
+                scale = Math.max(.74f, 1f - Math.abs(steps) * .045f);
+                break;
             case FLAT: scale = 1.04f - distance * .04f; break;
+        }
+        if (this != LIFT) {
+            View row = (View)card.getParent();
+            y += (row.getHeight() - height) * .5f - card.getTop();
         }
         card.setPivotX(width / 2); card.setPivotY(height * pivot);
         card.setTranslationX(x); card.setTranslationY(y);
         card.setRotation(roll); card.setRotationX(pitch); card.setRotationY(yaw);
         card.setScaleX(scale); card.setScaleY(scale); card.setAlpha(alpha);
-        card.setTranslationZ((1f - distance + (selected ? .15f : 0f)) * 8f);
+        if (this != LIFT && card.getParent() instanceof View) {
+            bounds.set(0, 0, width, height);
+            card.getMatrix().mapRect(bounds);
+            float top = card.getTop() + bounds.top;
+            float bottom = card.getTop() + bounds.bottom;
+            float rowHeight = ((View)card.getParent()).getHeight();
+            if (bottom > rowHeight) card.setTranslationY(y - (bottom - rowHeight));
+            else if (top < 0) card.setTranslationY(y - top);
+        }
+        card.setTranslationZ(12f / (1f + Math.abs(steps)) + (selected ? .1f : 0f));
         card.setSelected(selected);
     }
 

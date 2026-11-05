@@ -320,13 +320,24 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         ((android.view.ViewGroup)mHotGridView.getParent()).setClipChildren(mCardMotion == HomeCardMotion.LIFT);
         mHotGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext,
                 mCardMotion == HomeCardMotion.LIFT ? LinearLayoutManager.VERTICAL : LinearLayoutManager.HORIZONTAL, false) {
+            @Override public void onLayoutCompleted(RecyclerView.State state) {
+                super.onLayoutCompleted(state);
+                updateCardDepth();
+            }
+            @Override protected int getExtraLayoutSpace(RecyclerView.State state) {
+                // 重叠后可见的侧卡，其原始布局位置可能还在视口外。
+                return Math.max(super.getExtraLayoutSpace(state), getOrientation() == LinearLayoutManager.VERTICAL
+                        ? getHeight() / 2 : getWidth());
+            }
             @Override public void measureChildWithMargins(View child, int widthUsed, int heightUsed) {
                 View poster = child.findViewById(R.id.layoutPoster);
                 if (poster != null && getWidth() > 0 && getHeight() > 0) {
                     boolean vertical = getOrientation() == LinearLayoutManager.VERTICAL;
-                    float maxWidth = getWidth() * (vertical ? .42f : .25f);
-                    float maxHeight = getHeight() * (vertical ? .58f : .82f);
-                    float aspect = vertical ? 1.15f : (mCardMotion == HomeCardMotion.ORBIT || mCardMotion == HomeCardMotion.WHEEL) ? .83f : 1.52f;
+                    int insetX = child.getPaddingLeft() + child.getPaddingRight();
+                    int insetY = child.getPaddingTop() + child.getPaddingBottom();
+                    float maxWidth = getWidth() * (vertical ? .44f : .28f) - insetX;
+                    float maxHeight = getHeight() * mCardMotion.heightFraction - insetY;
+                    float aspect = mCardMotion.aspect;
                     int height = Math.max(1, Math.round(Math.min(maxHeight, maxWidth / aspect)));
                     android.view.ViewGroup.LayoutParams params = poster.getLayoutParams();
                     int width = Math.max(1, Math.round(height * aspect));
@@ -453,7 +464,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 if (mCardMotion != HomeCardMotion.ORBIT || parent.getChildCount() == 0) return;
                 View card = parent.getChildAt(0);
                 float cx = mHotGridView.contentCenter();
-                float cy = (card.getTop() + card.getBottom()) * .5f;
+                float cy = parent.getHeight() * .5f;
                 float radius = Math.min(parent.getWidth() * .46f, card.getWidth() * 3.65f);
                 paint.setStyle(android.graphics.Paint.Style.STROKE);
                 paint.setStrokeWidth(Math.max(1f, parent.getResources().getDisplayMetrics().density));
@@ -466,8 +477,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 if (mCardMotion != HomeCardMotion.FILM || parent.getChildCount() == 0) return;
                 View first = parent.getChildAt(0);
                 float unit = Math.max(1f, first.getWidth() / 24f);
-                float top = Math.max(0f, first.getTop() - unit);
-                float bottom = Math.min(parent.getHeight()-unit, first.getBottom());
+                float top = Math.max(0f, (parent.getHeight() - first.getHeight()) * .5f - unit);
+                float bottom = Math.min(parent.getHeight()-unit, (parent.getHeight()+first.getHeight()) * .5f);
                 paint.setColor(0x99D8D4CC);
                 for (float x = first.getLeft() % (unit*3) - unit*3; x < parent.getWidth(); x += unit*3) {
                     canvas.drawRect(x,top,x+unit,top+unit,paint);
