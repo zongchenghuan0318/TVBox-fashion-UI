@@ -4,6 +4,7 @@
     android:layout_height="wrap_content"
     android:clipChildren="false"
     android:clipToPadding="false"
+    android:background="@drawable/home_card_focus"
     android:focusable="true"
     android:padding="@dimen/vs_4">
 

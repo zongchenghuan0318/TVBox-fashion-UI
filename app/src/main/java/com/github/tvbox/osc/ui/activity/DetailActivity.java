@@ -144,7 +144,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
 
     private void initView() {
         thumpImg = findViewById(R.id.ivThumb);
+        String initialPoster = getIntent().getStringExtra("poster");
+        if (!NullUtil.isNull(initialPoster)) PosterImageLoader.bind(thumpImg, initialPoster);
         ivDetailBackdrop = findViewById(R.id.ivDetailBackdrop);
+        if (!NullUtil.isNull(initialPoster)) bindBackdrop(initialPoster);
         tvName = findViewById(R.id.tvName);
         tvName.setOnClickListener(this);
         tvYear = findViewById(R.id.tvYear);
@@ -218,6 +221,20 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         });
     }
 
+    private void bindBackdrop(String pic) {
+        if (ivDetailBackdrop != null && pic != null && !pic.isEmpty()) {
+            Glide.with(DetailActivity.this)
+                    .load(GlideImg.heroModel(pic))
+                    .dontAnimate()
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .override(960, 540)
+                    .transform(new BlurTransformation(DetailActivity.this, 6, 2))
+                    .into(ivDetailBackdrop);
+        } else if (ivDetailBackdrop != null) {
+            Glide.with(DetailActivity.this).clear(ivDetailBackdrop);
+        }
+    }
+
     private void initViewModelObserve() {
         mSourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         mSourceViewModel.detailResult.observe(this, new Observer<AbsXml>() {
@@ -244,15 +261,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     setTextShow(tvDirector, "导演：", mVideo.director);
                     setTextShow(tvDes, "内容简介：", removeHtmlTag(mVideo.des));
                     PosterImageLoader.bind(thumpImg, mVideo.pic);
-                    if (ivDetailBackdrop != null && mVideo.pic != null && !mVideo.pic.isEmpty()) {
-                        Glide.with(DetailActivity.this)
-                                .load(GlideImg.heroModel(mVideo.pic))
-                                .dontAnimate()
-                                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                .override(960, 540)
-                                .transform(new BlurTransformation(DetailActivity.this, 18, 5))
-                                .into(ivDetailBackdrop);
-                    }
+                    bindBackdrop(mVideo.pic);
 
                     if (mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
                         mFlagGridView.setVisibility(View.VISIBLE);

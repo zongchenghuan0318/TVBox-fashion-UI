@@ -386,6 +386,17 @@ public class ModelSettingFragment extends BaseLazyFragment {
                     });
         });
 
+        TextView cardStyle = findViewById(R.id.tvCardStyle);
+        cardStyle.setText(HomeCardMotion.current().label);
+        findViewById(R.id.llCardStyle).setOnClickListener(v ->
+                SelectDialog.pick(mActivity, "海报切换样式", Arrays.asList(HomeCardMotion.values()),
+                        HomeCardMotion.current().ordinal(), new SelectDialogAdapter.SelectDialogInterface<HomeCardMotion>() {
+                            @Override public void click(HomeCardMotion style, int pos) {
+                                Hawk.put(HawkConfig.HOME_CARD_STYLE, style.name());
+                                cardStyle.setText(style.label);
+                            }
+                            @Override public String getDisplay(HomeCardMotion style) { return style.label; }
+                        }));
         findViewById(R.id.llHomeMode).setOnClickListener(v -> {
             FastClickCheckUtil.check(v);
             List<Boolean> modes = Arrays.asList(false, true); // false 当前首页，true 低压力首页

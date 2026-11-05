@@ -220,6 +220,16 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
+                            android:id="@+id/llCardStyle"
+                            style="@style/SettingRow">
+                            <TextView style="@style/SettingRowTitle" android:text="海报切换样式" />
+                            <TextView android:id="@+id/tvCardStyle" style="@style/SettingRowValue" />
+                            <TextView style="@style/SettingRowArrow" />
+                        </LinearLayout>
+
+                        <View style="@style/SettingDivider" />
+
+                        <LinearLayout
                             android:id="@+id/llHomeRec"
                             style="@style/SettingRow">
                             <TextView style="@style/SettingRowTitle" android:text="首页推荐" />

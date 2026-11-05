@@ -26,7 +26,10 @@ public class HomeCardRecyclerView extends TvRecyclerView {
     public static final int SCROLL_DURATION = 360;
     /** 缓和进出曲线：起步不急、收尾不顿 */
     private static final Interpolator SCROLL_INTERPOLATOR = new PathInterpolator(0.12f, 0.72f, 0.18f, 1f);
-    private boolean userTouching;
+    public interface GestureListener { void onTouch(boolean touching); }
+    private GestureListener gestureListener;
+    private boolean userTouching, dragged;
+    public void setGestureListener(GestureListener listener) { gestureListener = listener; }
 
     public HomeCardRecyclerView(Context context) {
         this(context, null);
@@ -53,10 +56,12 @@ public class HomeCardRecyclerView extends TvRecyclerView {
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
+    public boolean dispatchTouchEvent(MotionEvent event) {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 userTouching = true;
+                dragged = false;
+                if (gestureListener != null) gestureListener.onTouch(true);
                 stopScroll();
                 break;
             case MotionEvent.ACTION_UP:
@@ -66,15 +71,30 @@ public class HomeCardRecyclerView extends TvRecyclerView {
             default:
                 break;
         }
-        return super.onTouchEvent(event);
+        if (getScrollState() == SCROLL_STATE_DRAGGING) dragged = true;
+        boolean handled = super.dispatchTouchEvent(event);
+        if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+            if (gestureListener != null) gestureListener.onTouch(false);
+            if (dragged && event.getActionMasked() == MotionEvent.ACTION_UP) snapToCenterCard();
+        }
+        return handled;
     }
 
     public boolean isUserTouching() {
         return userTouching;
     }
 
-    public int contentCenterX() {
-        return windowCenterInList();
+    public boolean verticalCards() {
+        return getLayoutManager() instanceof LinearLayoutManager
+                && ((LinearLayoutManager)getLayoutManager()).getOrientation() == LinearLayoutManager.VERTICAL;
+    }
+
+    public int cardCenter(View card) {
+        return verticalCards() ? (card.getTop()+card.getBottom())/2 : (card.getLeft()+card.getRight())/2;
+    }
+
+    public int contentCenter() {
+        return verticalCards() ? getHeight()/2 : windowCenterInList();
     }
 
     @Override
@@ -97,10 +117,20 @@ public class HomeCardRecyclerView extends TvRecyclerView {
         if (getWidth() == 0 || cardWidth <= 0) {
             return false;
         }
+        if (verticalCards()) {
+            View card = getChildAt(0);
+            if (card == null || card.getHeight() == 0) return false;
+            int top = Math.max(0,(getHeight()-card.getHeight())/2);
+            int left = Math.max(0,Math.min(getWidth()-cardWidth,windowCenterInList()-cardWidth/2));
+            if (getPaddingTop()!=top || getPaddingLeft()!=left || getPaddingRight()!=0)
+                setPadding(left,top,0,top);
+            return true;
+        }
         int left = Math.max(0, Math.min(getWidth() - cardWidth, windowCenterInList() - cardWidth / 2));
         int right = Math.max(0, getWidth() - left - cardWidth);
-        if (getPaddingLeft() != left || getPaddingRight() != right) {
-            setPadding(left, getPaddingTop(), right, getPaddingBottom());
+        int pad = getResources().getDimensionPixelSize(com.studio.osc.R.dimen.vs_8);
+        if (getPaddingLeft() != left || getPaddingRight() != right || getPaddingTop() != pad) {
+            setPadding(left, pad, right, pad);
         }
         return true;
     }
@@ -114,11 +144,10 @@ public class HomeCardRecyclerView extends TvRecyclerView {
             return;
         }
         // RecyclerView 的正位移表示内容向左移，所以位移量是两者之差。
-        int childCenter = (card.getLeft() + card.getRight()) / 2;
-        int distance = childCenter - windowCenterInList();
+        int childCenter = cardCenter(card);
+        int distance = childCenter - contentCenter();
         if (Math.abs(distance) > 1) {
-            stopScroll();
-            scrollBy(distance, 0);
+            smoothScrollBy(verticalCards()?0:distance, verticalCards()?distance:0);
         }
     }
 
@@ -132,7 +161,7 @@ public class HomeCardRecyclerView extends TvRecyclerView {
             scrollToPosition(position);
             return;
         }
-        int targetLeft = windowCenterInList() - cardWidth / 2;
+        int targetLeft = 0; // LinearLayoutManager offsets are relative to the padded start.
         stopScroll();
         if (getLayoutManager() instanceof LinearLayoutManager) {
             ((LinearLayoutManager) getLayoutManager()).scrollToPositionWithOffset(position, targetLeft);
@@ -146,10 +175,10 @@ public class HomeCardRecyclerView extends TvRecyclerView {
      */
     public void snapToCenterCard() {
         post(() -> {
-            if (getChildCount() == 0 || getLayoutManager() == null) {
+            if (userTouching || !isAttachedToWindow() || getChildCount() == 0 || getLayoutManager() == null) {
                 return;
             }
-            final int centerX = windowCenterInList();
+            final int centerX = contentCenter();
             View nearest = null;
             int nearestDistance = Integer.MAX_VALUE;
             for (int i = 0; i < getChildCount(); i++) {
@@ -157,7 +186,7 @@ public class HomeCardRecyclerView extends TvRecyclerView {
                 if (child == null) {
                     continue;
                 }
-                int distance = Math.abs((child.getLeft() + child.getRight()) / 2 - centerX);
+                int distance = Math.abs(cardCenter(child) - centerX);
                 if (distance < nearestDistance) {
                     nearest = child;
                     nearestDistance = distance;
@@ -170,23 +199,13 @@ public class HomeCardRecyclerView extends TvRecyclerView {
             if (position == NO_POSITION) {
                 return;
             }
-            int distance = (nearest.getLeft() + nearest.getRight()) / 2 - centerX;
+            int distance = cardCenter(nearest) - centerX;
             if (Math.abs(distance) > 1) {
                 stopScroll();
-                super.smoothScrollBy(distance, 0, SCROLL_INTERPOLATOR, SCROLL_DURATION);
+                super.smoothScrollBy(verticalCards()?0:distance, verticalCards()?distance:0, SCROLL_INTERPOLATOR, SCROLL_DURATION);
             }
             setSelectedPosition(position);
-            View target = nearest;
-            postDelayed(() -> {
-                if (target.getParent() == this) {
-                    target.requestFocus();
-                } else {
-                    View current = getLayoutManager().findViewByPosition(position);
-                    if (current != null) {
-                        current.requestFocus();
-                    }
-                }
-            }, SCROLL_DURATION);
+            if (!isInTouchMode() && hasFocus()) nearest.requestFocus();
         });
     }
 

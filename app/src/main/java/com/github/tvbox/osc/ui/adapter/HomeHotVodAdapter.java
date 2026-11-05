@@ -41,6 +41,9 @@ public class HomeHotVodAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHol
 
     @Override
     protected void convert(BaseViewHolder helper, Movie.Video item) {
+        ImageView poster = helper.getView(R.id.ivThumb);
+        android.animation.ValueAnimator slice = (android.animation.ValueAnimator) poster.getTag(R.id.ivThumb);
+        if (slice != null) slice.cancel();
         // 海报圆角：按背景形状裁剪
         helper.getView(R.id.layoutPoster).setClipToOutline(true);
         TextView tvNote = helper.getView(R.id.tvNote);

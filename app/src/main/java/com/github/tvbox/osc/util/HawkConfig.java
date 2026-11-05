@@ -60,6 +60,7 @@ public class HawkConfig {
     public static final String SUBTITLE_LANGUAGE = "subtitle_language";
     public static final String SUBTITLE_OFF = "subtitle_off";
     public static final String DOH_URL = "doh_url";
+    public static final String HOME_CARD_STYLE = "home_card_style";
     public static final String HOME_LOW_POWER = "home_low_power"; // false 当前首页，true 低压力首页
     public static final String HOME_LAYOUT_STYLE = "home_layout_style"; // 0 经典侧栏, 1 Apple TV 顶栏, 2 Netflix 抽屉, 3 极简沉浸
     public static final int HOME_LAYOUT_SIDEBAR = 0;      // 经典侧边栏

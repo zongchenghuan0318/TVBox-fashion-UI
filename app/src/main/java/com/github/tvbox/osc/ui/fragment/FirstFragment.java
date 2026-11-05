@@ -114,7 +114,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      * 快速滚卡时逐个加载会互相拖后腿（背景明显跟不上卡片），
      * 所以先排队，焦点停稳后再真正解码。
      */
-    private static final long HERO_IMAGE_SETTLE_DELAY = 130L;
+    private static final long HERO_IMAGE_SETTLE_DELAY = 65L;
     private final Handler mHeroHandler = new Handler(Looper.getMainLooper());
     private final Runnable mHeroImageRun = new Runnable() {
         @Override
@@ -124,11 +124,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
     };
-    /** 聚焦缩放时长与整排滑动时长保持一致（见 HomeCardRecyclerView），滑动与放大是一个动作 */
-    private static final long ITEM_SCALE_DURATION = HomeCardRecyclerView.SCROLL_DURATION;
-    private static final float CARD_FRONT_SCALE = 1.08f;
-    private static final float CARD_MIN_ALPHA = 0.48f;
-    private static final float CARD_ARC_ROTATION = 42f;
     private int mFocusedCardPosition;
     private boolean mUserOperatingCards;
     private boolean mAutoScrollingCards;
@@ -209,7 +204,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             mHeroLayer.animate().cancel();
             if (visible) {
                 mHeroLayer.setVisibility(View.VISIBLE);
-                mHeroLayer.setAlpha(0f);
+                mHeroLayer.setAlpha(1f);
                 mHeroLayer.animate()
                         .alpha(1f)
                         .setDuration(PAGE_HERO_TRANSITION_DURATION)
@@ -223,10 +218,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
         if (!visible) {
+            ++mHeroSeq;
+            if (!mHeroReady) mHeroPic = null;
             mHeroHandler.removeCallbacks(mHeroImageRun);
             cancelHeroAnim();
             stopAutoScroll();
         } else {
+            if (mHeroVod != null && !mHeroReady) bindHero(mHeroVod);
             scheduleAutoScroll();
         }
     }
@@ -246,28 +244,31 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         return false;
     }
 
+    private HomeCardMotion mCardMotion = HomeCardMotion.current();
+
     private void refreshHomeMode() {
+        HomeCardMotion style = HomeCardMotion.current();
+        if (mCardMotion != style) {
+            mCardMotion = style;
+            if (mHotGridView != null && mHotGridView.getLayoutManager() instanceof LinearLayoutManager) {
+                LinearLayoutManager layout = (LinearLayoutManager)mHotGridView.getLayoutManager();
+                int orientation = style == HomeCardMotion.LIFT ? LinearLayoutManager.VERTICAL : LinearLayoutManager.HORIZONTAL;
+                if (layout.getOrientation() != orientation) {
+                    mHotGridView.stopScroll();
+                    layout.setOrientation(orientation);
+                    layout.scrollToPositionWithOffset(mFocusedCardPosition, 0);
+                }
+            }
+            updateCardDepth();
+        }
         boolean lowPower = Hawk.get(HawkConfig.HOME_LOW_POWER, false);
         if (mLowPowerHome == lowPower) return;
         mLowPowerHome = lowPower;
         ++mHeroSeq;
-        mHeroHandler.removeCallbacksAndMessages(null);
+        mHeroHandler.removeCallbacks(mHeroImageRun);
         stopAutoScroll();
         cancelHeroAnim();
-        if (mHeroBackdrop != null) {
-            if (mContext != null) Glide.with(mContext).clear(mHeroBackdrop);
-            mHeroBackdrop.setImageDrawable(null);
-            mHeroBackdrop.setScaleX(1f);
-            mHeroBackdrop.setScaleY(1f);
-        }
-        if (mHeroBackdropAlt != null) {
-            if (mContext != null) Glide.with(mContext).clear(mHeroBackdropAlt);
-            mHeroBackdropAlt.setImageDrawable(null);
-            mHeroBackdropAlt.setAlpha(0f);
-            mHeroBackdropAlt.setScaleX(1f);
-            mHeroBackdropAlt.setScaleY(1f);
-        }
-        mHeroFront = null;
+        if (mHeroFront != null) mHeroFront.setAlpha(1f);
         mHeroPic = null;
         if (mHeroVod != null) bindHero(mHeroVod);
     }
@@ -309,7 +310,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void initGridView() {
         // 首页为单排大卡片横向流：焦点随遥控方向横向推进
-        mHotGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, LinearLayoutManager.HORIZONTAL, false));
+        mHotGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, mCardMotion == HomeCardMotion.LIFT ? LinearLayoutManager.VERTICAL : LinearLayoutManager.HORIZONTAL, false));
         mAdapter = new HomeHotVodAdapter();
         mAdapter.setOnItemClickListener((adapter, view, position) -> {
             if (ApiConfig.getInstance().getSiteBeanList().isEmpty()) {
@@ -317,6 +318,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 return;
             }
             Movie.Video vod = ((Movie.Video) adapter.getItem(position));
+            if (vod == null) return;
             if (vod.isMore) {
                 //点击查看更多电影
                 getMoreVideos(mStart);
@@ -325,12 +327,26 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
             // 触控交互优化：如果点击的不是当前居中/选中的卡片，先将其居中并联动大图与简介预览；
             // 再次点击或点击已居中卡片时，才正式进入搜索/播放
-            if (position != mFocusedCardPosition) {
+            if (position != mFocusedCardPosition && view.isInTouchMode()) {
                 applyCardSelected(view, position);
-                centerCardAt(position, view);
+
                 return;
             }
-            //首页卡片点击统一进聚合搜索：不管有没有 id，都拿片名去搜
+            if (!NullUtil.isNull(vod.id) && !NullUtil.isNull(vod.sourceKey)
+                    && ApiConfig.getInstance().getSiteBean(vod.sourceKey) != null) {
+                Intent detail = new Intent(mContext, com.github.tvbox.osc.ui.activity.DetailActivity.class);
+                detail.putExtra("id", vod.id);
+                detail.putExtra("sourceKey", vod.sourceKey);
+                detail.putExtra("note", vod.note);
+                detail.putExtra("movieName", vod.name);
+                detail.putExtra("poster", vod.pic);
+                View poster = view.findViewById(R.id.ivThumb);
+                android.app.ActivityOptions options = android.app.ActivityOptions.makeScaleUpAnimation(
+                        poster, 0, 0, poster.getWidth(), poster.getHeight());
+                mActivity.startActivity(detail, options.toBundle());
+                return;
+            }
+            // 片单可能只提供片名，这时继续使用聚合搜索。
             if (vod.name == null || vod.name.isEmpty()) {
                 return;
             }
@@ -351,14 +367,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                if (mCarouselInitializing) {
-                    itemView.animate().cancel();
-                    itemView.setScaleX(1f);
-                    itemView.setScaleY(1f);
-                    return;
-                }
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(ITEM_SCALE_DURATION)
-                        .setInterpolator(new DecelerateInterpolator(1.8f)).start();
+                // Scroll position owns all card transforms.
             }
 
             @Override
@@ -384,33 +393,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
             return false;
         });
-        mHotGridView.setOnTouchListener((v, event) -> {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                mUserOperatingCards = true;
-                stopAutoScroll();
-            } else if (event.getActionMasked() == MotionEvent.ACTION_UP
-                    || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-                if (event.getActionMasked() == MotionEvent.ACTION_UP) {
-                    mHotGridView.post(() -> mHotGridView.snapToCenterCard());
-                }
-                scheduleAutoScroll();
-            }
-            return false;
+        mHotGridView.setGestureListener(touching -> {
+            if (touching) stopAutoScroll();
+            else scheduleAutoScroll();
         });
         // Scroll-dependent card effects follow the card currently nearest the screen center.
         mHotGridView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                updateCenteredCardState();
+                if (mHotGridView.isInTouchMode()) updateCenteredCardState();
                 updateCardDepth();
             }
 
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                if (newState != RecyclerView.SCROLL_STATE_IDLE) {
-                    mHeroHandler.removeCallbacks(mHeroImageRun);
-                    cancelPendingHeroImage();
-                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     if (mAdapter != null && mFocusedCardPosition >= 0 && mFocusedCardPosition < mAdapter.getData().size()) {
                         bindHero(mAdapter.getData().get(mFocusedCardPosition));
                     }
@@ -423,6 +420,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.addOnLayoutChangeListener((v, left, top, right, bottom,
                                                 oldLeft, oldTop, oldRight, oldBottom) -> updateCardDepth());
         mHotGridView.setAdapter(mAdapter);
+        mHotGridView.addItemDecoration(new RecyclerView.ItemDecoration() {
+            private final android.graphics.Paint paint = new android.graphics.Paint();
+            @Override public void onDrawOver(android.graphics.Canvas canvas, RecyclerView parent, RecyclerView.State state) {
+                if (mCardMotion != HomeCardMotion.FILM || parent.getChildCount() == 0) return;
+                View first = parent.getChildAt(0);
+                float unit = Math.max(1f, first.getWidth() / 24f);
+                float top = Math.max(0f, first.getTop() - unit);
+                float bottom = Math.min(parent.getHeight()-unit, first.getBottom());
+                paint.setColor(0x99D8D4CC);
+                for (float x = first.getLeft() % (unit*3) - unit*3; x < parent.getWidth(); x += unit*3) {
+                    canvas.drawRect(x,top,x+unit,top+unit,paint);
+                    canvas.drawRect(x,bottom,x+unit,bottom+unit,paint);
+                }
+            }
+        });
         PosterPreloader.setup(mContext, mHotGridView, new PosterPreloader.PosterProvider() {
             @Override
             public int getCount() {
@@ -451,10 +463,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         boolean positionChanged = mFocusedCardPosition != position;
         mHotGridView.setSelectedPosition(position);
+        if (positionChanged) transitionCard(position);
         mFocusedCardPosition = position;
         updateCardDepth();
         // 选中的卡始终停在屏幕正中，切换一次就居中一次
-        if (positionChanged && !mHotGridView.isScrolling()) {
+        if (positionChanged && !mHotGridView.isUserTouching()) {
             centerCardAt(position, card);
         }
         List<Movie.Video> data = mAdapter.getData();
@@ -476,7 +489,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mHotGridView == null || mAdapter == null || mHotGridView.getChildCount() == 0) {
             return;
         }
-        int centerX = mHotGridView.contentCenterX();
+        int centerX = mHotGridView.contentCenter();
         View nearest = null;
         int nearestDistance = Integer.MAX_VALUE;
         for (int i = 0; i < mHotGridView.getChildCount(); i++) {
@@ -484,7 +497,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             if (child == null) {
                 continue;
             }
-            int distance = Math.abs((child.getLeft() + child.getRight()) / 2 - centerX);
+            int distance = Math.abs(mHotGridView.cardCenter(child) - centerX);
             if (distance < nearestDistance) {
                 nearest = child;
                 nearestDistance = distance;
@@ -498,44 +511,36 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (position < 0 || position >= data.size() || position == mFocusedCardPosition) {
             return;
         }
+        transitionCard(position);
         mFocusedCardPosition = position;
         mHotGridView.setSelectedPosition(position);
-        if (mHotGridView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
-            // 手动拖动或惯性滚动中只更新文字，停稳后再加载当前卡片海报
-            applyHeroInfo(data.get(position));
-        } else {
-            bindHero(data.get(position));
-        }
+        bindHero(data.get(position));
+    }
+
+    private void transitionCard(int next) {
+        if (mCardMotion != HomeCardMotion.SLIT || mLowPowerHome) return;
+        if (mHotGridView.getLayoutManager() == null) return;
+        View old = mHotGridView.getLayoutManager().findViewByPosition(mFocusedCardPosition);
+        View target = mHotGridView.getLayoutManager().findViewByPosition(next);
+        if (old != null && target != null) HomeCardMotion.slice(old, target);
     }
 
     private void updateCardDepth() {
         if (mHotGridView == null || mAdapter == null) {
             return;
         }
-        float centerX = mHotGridView.contentCenterX();
+        float centerX = mHotGridView.contentCenter();
         for (int i = 0; i < mHotGridView.getChildCount(); i++) {
             View child = mHotGridView.getChildAt(i);
             int position = child == null ? -1 : mHotGridView.getChildAdapterPosition(child);
             if (position < 0 || position >= mAdapter.getData().size()) {
                 continue;
             }
-            float offset = ((child.getLeft() + child.getRight()) / 2f - centerX)
-                    / Math.max(1f, child.getWidth() * 1.45f);
+            float offset = (mHotGridView.cardCenter(child) - centerX)
+                    / Math.max(1f, (mHotGridView.verticalCards() ? child.getHeight() : child.getWidth()) * 1.45f);
             float normalized = Math.max(-1f, Math.min(1f, offset));
-            float angle = normalized * CARD_ARC_ROTATION;
-            float depth = (float) Math.cos(Math.toRadians(Math.abs(angle)));
-            float scale = position == mFocusedCardPosition ? CARD_FRONT_SCALE : 1f;
-            float drop = child.getHeight() * 0.42f * (1f - depth);
-            float alpha = Math.max(CARD_MIN_ALPHA, 1f - (1f - depth) * 0.6f);
-            child.setPivotX(child.getWidth() / 2f);
-            child.setPivotY(child.getHeight() / 2f);
-            child.setTranslationY(drop);
-            child.setRotationY(angle);
-            child.setRotation(-angle * 0.08f);
-            child.setScaleX(scale);
-            child.setScaleY(scale);
-            child.setAlpha(alpha);
-            child.setTranslationZ(depth * 60f);
+            mCardMotion.apply(child, offset, normalized, position == mFocusedCardPosition);
+
         }
     }
 
@@ -564,6 +569,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     protected void onFragmentResume() {
         mViewActive = true;
         refreshHomeMode();
+        if (mHeroVod != null && mHeroPic == null) bindHero(mHeroVod);
         if (mFeedCancelled && mAdapter != null && (mHistoryLoadPending || mAdapter.getData().isEmpty())) {
             getVideos();
         }
@@ -573,6 +579,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     @Override
     protected void onFragmentPause() {
         mViewActive = false;
+        ++mHeroSeq;
+        if (!mHeroReady) mHeroPic = null;
         mFeedRequestId++;
         mFeedCancelled = true;
         if (mSourceViewModel != null) {
@@ -630,6 +638,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mAutoScrollingCards || mLowPowerHome) {
             return;
         }
+        if (mHotGridView != null && mHotGridView.isUserTouching()) return;
         mUserOperatingCards = false;
         if (mViewActive && mHeroVisible) {
             if (!mHeroReady) {
@@ -664,7 +673,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     View selected = mHotGridView.getLayoutManager() == null
                             ? null
                             : mHotGridView.getLayoutManager().findViewByPosition(mFocusedCardPosition);
-                    if (selected != null) {
+                    if (selected != null && !mHotGridView.isInTouchMode() && mHotGridView.hasFocus()) {
                         selected.requestFocus();
                     }
                     if (!mAutoScrollingCards) {
@@ -728,7 +737,17 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (target != null && mHotGridView.hasFocus() && target.requestFocus()) {
             return;
         }
+        boolean restoreFocus = target == null && mHotGridView.hasFocus() && !mHotGridView.isInTouchMode();
         applyCardSelected(target, next);
+        if (restoreFocus) {
+            HomeCardRecyclerView list = mHotGridView;
+            list.postOnAnimation(() -> {
+                if (!mViewActive || list != mHotGridView || !list.hasFocus()
+                        || mFocusedCardPosition != next || list.getLayoutManager() == null) return;
+                View selected = list.getLayoutManager().findViewByPosition(next);
+                if (selected != null) selected.requestFocus();
+            });
+        }
     }
 
     private int movieCount() {
@@ -755,12 +774,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         List<Movie.Video> data = mAdapter.getData();
         int position = holder.getLayoutPosition();
         if (position < 0 || position >= data.size()) return;
-        if (mHotGridView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
-            mHeroVod = data.get(position);
-            applyHeroInfo(mHeroVod);
-        } else {
-            bindHero(data.get(position));
-        }
+        if (!mHotGridView.isScrolling()) bindHero(data.get(position));
     }
 
     private void getVideos() {
@@ -1183,7 +1197,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     /**
      * 用当前焦点节目的海报与信息刷新背景 hero 区：
-     * 文案立即跟进卡片（开销小），海报则排队等焦点停稳后加载
+     * 海报就绪时同步更新文案，快速滚动只处理最后停留的卡片
      */
     private void bindHero(Movie.Video vod) {
         if (vod == null || mHeroBackdrop == null || mHeroBackdropAlt == null || vod.isMore) {
@@ -1191,39 +1205,30 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         boolean samePic = !NullUtil.isNull(vod.pic) && vod.pic.equals(mHeroPic);
         mHeroVod = vod;
-        applyHeroInfo(vod);
         // 焦点回调和列表回调可能传入不同对象；海报地址没变时只更新文案，不重复解码和淡入。
         if (samePic) {
+            if (mHeroReady) applyHeroInfo(vod);
             return;
         }
+        ++mHeroSeq;
         mHeroPic = vod.pic;
         mHeroHandler.removeCallbacks(mHeroImageRun);
         if (NullUtil.isNull(vod.pic)) {
+            cancelHeroAnim();
+            ImageView fallback = mHeroFront == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
+            Glide.with(mContext).clear(fallback);
+            fallback.setImageResource(R.drawable.shape_home_hero_placeholder);
+            fallback.setAlpha(1f);
+            ImageView previous = mHeroFront;
+            mHeroFront = fallback;
+            clearOutgoingHero(previous);
+            applyHeroInfo(vod);
             mHeroReady = true;
             scheduleAutoScroll();
             return;
         }
         mHeroReady = false;
-        mHeroHandler.postDelayed(mHeroImageRun, mLowPowerHome ? 300L : HERO_IMAGE_SETTLE_DELAY);
-    }
-
-    private void cancelPendingHeroImage() {
-        ++mHeroSeq;
-        mHeroPic = null;
-        mHeroShown = false;
-        mHeroReady = mHeroFront != null && mHeroFront.getDrawable() != null;
-        cancelHeroAnim();
-        if (mHeroFront != null && mHeroFront.getDrawable() != null) {
-            mHeroFront.setAlpha(1f);
-        }
-        ImageView pending = mHeroFront == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
-        if (pending != null) {
-            if (mContext != null) Glide.with(mContext).clear(pending);
-            pending.setImageDrawable(null);
-            pending.setAlpha(0f);
-            pending.setScaleX(1f);
-            pending.setScaleY(1f);
-        }
+        mHeroHandler.postDelayed(mHeroImageRun, mLowPowerHome ? 120L : HERO_IMAGE_SETTLE_DELAY);
     }
 
     /** 更新 hero 区的文字信息（片名、备注、元信息、简介） */
@@ -1259,11 +1264,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         final int seq = ++mHeroSeq;
         final String pic = vod.pic;
         final ImageView outgoing = mHeroFront;
-        final ImageView incoming = mLowPowerHome ? mHeroBackdrop
-                : outgoing == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
+        final ImageView incoming = outgoing == mHeroBackdrop ? mHeroBackdropAlt : mHeroBackdrop;
         // 停止上一轮推镜动画，并保持当前显示层全亮。
         cancelHeroAnim();
-        incoming.setAlpha(mLowPowerHome ? 1f : 0f);
+        incoming.setAlpha(0f);
         if (outgoing != null && outgoing.getDrawable() != null) {
             outgoing.setAlpha(1f);
             // 新图接上旧图当前的推镜比例，淡入时画面不会突然缩放
@@ -1293,16 +1297,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         request.listener(new RequestListener<Drawable>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                        // 还没有任何背景时（首次加载就失败）退一张占位图上去，别留一块空背景
-                        if (seq == mHeroSeq && mHeroFront == null) {
+                        if (seq == mHeroSeq) {
                             incoming.setImageResource(R.drawable.shape_home_hero_placeholder);
-                            showHeroImage(seq, incoming, outgoing);
-                        } else if (seq == mHeroSeq) {
-                            mHeroPic = null;
-                            mHeroReady = true;
-                            scheduleAutoScroll();
+                            incoming.post(() -> showHeroImage(seq, incoming, outgoing));
                         }
-                        // 已经有旧海报在显示：什么都不做，继续用它垫着，不会闪
                         return true;
                     }
 
@@ -1329,6 +1327,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHeroShown = true;
         mHeroReady = true;
         mHeroFront = incoming;
+        applyHeroInfo(mHeroVod);
         if (mLowPowerHome) {
             incoming.setAlpha(1f);
             incoming.setScaleX(1f);
@@ -1337,11 +1336,20 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         } else {
             float from = incoming.getScaleX() > 0f ? incoming.getScaleX() : HERO_ZOOM_MIN;
             float to = from >= (HERO_ZOOM_MIN + HERO_ZOOM_MAX) / 2f ? HERO_ZOOM_MIN : HERO_ZOOM_MAX;
-            startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleX", from, to), HERO_ZOOM_DURATION);
-            startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), HERO_ZOOM_DURATION);
-            startHeroAnim(ObjectAnimator.ofFloat(incoming, "alpha", incoming.getAlpha(), 1f), HERO_FADE_DURATION);
+            if (mCardMotion == HomeCardMotion.PORTAL) {
+                from = 1.14f;
+                to = 1f;
+            }
+            long zoomDuration = mCardMotion == HomeCardMotion.PORTAL ? 480L : HERO_ZOOM_DURATION;
+            startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleX", from, to), zoomDuration);
+            startHeroAnim(ObjectAnimator.ofFloat(incoming, "scaleY", from, to), zoomDuration);
+            // 两层叠放时只淡化上层，让下层保持不透明，避免过渡中间发暗。
+            boolean fadeOutgoing = outgoing != null && outgoing.getDrawable() != null
+                    && incoming == mHeroBackdrop;
+            if (fadeOutgoing || outgoing == null) incoming.setAlpha(1f);
+            else startHeroAnim(ObjectAnimator.ofFloat(incoming, "alpha", incoming.getAlpha(), 1f), HERO_FADE_DURATION);
             if (outgoing != null && outgoing != incoming && outgoing.getDrawable() != null) {
-                ObjectAnimator fadeOut = ObjectAnimator.ofFloat(outgoing, "alpha", outgoing.getAlpha(), 0f);
+                ObjectAnimator fadeOut = ObjectAnimator.ofFloat(outgoing, "alpha", outgoing.getAlpha(), fadeOutgoing ? 0f : 1f);
                 fadeOut.addListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {

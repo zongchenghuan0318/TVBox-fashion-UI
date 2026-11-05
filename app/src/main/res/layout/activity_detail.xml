@@ -9,6 +9,7 @@
     <!-- 全屏电影氛围高斯毛玻璃背景 -->
     <ImageView
         android:id="@+id/ivDetailBackdrop"
+        android:alpha="0.55"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop" />
