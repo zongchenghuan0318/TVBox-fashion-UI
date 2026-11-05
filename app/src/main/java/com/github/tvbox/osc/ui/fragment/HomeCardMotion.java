@@ -41,16 +41,13 @@ enum HomeCardMotion {
         float scale = 1f - distance * .07f, alpha = 1f - distance * .19f;
         boolean layered = this == STACK || this == FAN;
         float rank = Math.abs(steps);
-        // Keep the inner pairs stacked. Leave the outer pair its own full card width.
-        float outer = Math.max(0f, Math.min(1f, rank - 2f));
-        float layer = Math.copySign(Math.min(rank, 2f), steps);
-        float edge = Math.copySign(outer * width * (this == FAN ? 1.95f : 1.55f), steps);
-        card.setVisibility(layered && rank >= 3.5f ? View.INVISIBLE : View.VISIBLE);
+        float layer = Math.copySign(Math.min(rank, 4f), steps);
+        card.setVisibility(View.VISIBLE);
         switch (this) {
             case FILM: scale = 1f; alpha = 1f - distance * .32f; break;
             case STACK:
-                x = layer * width * .56f + edge - displacement;
-                roll = layer * 10f * (1f - outer);
+                x = layer * width * .56f - displacement;
+                roll = layer * 10f;
                 y = Math.min(4f, Math.abs(steps)) * height * .028f;
                 scale = Math.max(.69f, 1f - Math.abs(steps) * .065f);
                 break;
@@ -82,8 +79,8 @@ enum HomeCardMotion {
             case SLIT: yaw = n * 12; break;
             case FAN:
                 pivot = 1.18f;
-                roll = layer * 12f * (1f - outer);
-                x = layer * width * .34f + edge - displacement;
+                roll = layer * 12f;
+                x = layer * width * .34f - displacement;
                 scale = Math.max(.74f, 1f - Math.abs(steps) * .045f);
                 break;
             case FLAT: scale = 1.04f - distance * .04f; break;

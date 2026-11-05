@@ -89,6 +89,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View sidebarEdgeShadow;
     private View drawerScrim;
     private View drawerTabHandle;
+    private View homeLaunchCover;
     private LinearLayout topNavPanel;
     private TextView tvTopBrand;
     private TextView tvTopDate;
@@ -191,6 +192,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void initView() {
         this.tvDate = findViewById(R.id.tvDate);
+        this.homeLaunchCover = findViewById(R.id.homeLaunchCover);
         this.sidebarSpacer = findViewById(R.id.sidebarSpacer);
         this.leftNavPanel = findViewById(R.id.leftNavPanel);
         this.sidebarEdgeShadow = findViewById(R.id.sidebarEdgeShadow);
@@ -272,6 +274,24 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
 
         initCutoutSafeInsets();
+    }
+
+    /**
+     * Keep the launch artwork above the home page until the first hero image is ready.
+     * The loading callback remains underneath it and is not shown during startup.
+     */
+    public void dismissHomeLaunchCover() {
+        if (homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        homeLaunchCover.animate()
+                .alpha(0f)
+                .setDuration(180L)
+                .withEndAction(() -> {
+                    homeLaunchCover.setVisibility(View.GONE);
+                    homeLaunchCover.setAlpha(1f);
+                })
+                .start();
     }
 
     @Override

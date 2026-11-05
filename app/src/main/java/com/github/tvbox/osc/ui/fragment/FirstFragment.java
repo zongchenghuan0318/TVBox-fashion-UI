@@ -34,6 +34,7 @@ import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.ui.activity.CollectActivity;
 import com.github.tvbox.osc.ui.activity.DetailActivity;
 import com.github.tvbox.osc.ui.activity.HistoryActivity;
+import com.github.tvbox.osc.ui.activity.HomeActivity;
 import com.github.tvbox.osc.ui.activity.LivePlayActivity;
 import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
@@ -1241,6 +1242,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private void setHeroEmpty(String title, String tip) {
         mHeroVod = null;
         mHeroPic = null;
+        dismissHomeLaunchCover();
         if (mHeroTitle != null) {
             mHeroTitle.setText(title);
         }
@@ -1285,6 +1287,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             clearOutgoingHero(previous);
             applyHeroInfo(vod);
             mHeroReady = true;
+            dismissHomeLaunchCover();
             scheduleAutoScroll();
             return;
         }
@@ -1387,6 +1390,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         mHeroShown = true;
         mHeroReady = true;
+        dismissHomeLaunchCover();
         mHeroFront = incoming;
         applyHeroInfo(mHeroVod);
         if (mLowPowerHome) {
@@ -1424,6 +1428,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         if (!mAutoScrollingCards) {
             scheduleAutoScroll();
+        }
+    }
+
+    private void dismissHomeLaunchCover() {
+        if (isAdded() && requireActivity() instanceof HomeActivity) {
+            ((HomeActivity) requireActivity()).dismissHomeLaunchCover();
         }
     }
 
