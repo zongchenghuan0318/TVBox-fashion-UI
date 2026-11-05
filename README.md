@@ -5,7 +5,7 @@
 面向电视大屏的多源影视聚合客户端
 
 [![Android](https://img.shields.io/badge/Android-5.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
-[![Version](https://img.shields.io/badge/version-1.7.2-6c5ce7)](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/tag/v1.7.2)
+[![Version](https://img.shields.io/badge/version-1.7.3-6c5ce7)](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/tag/v1.7.3)
 [![Architecture](https://img.shields.io/badge/ABI-armeabi--v7a-111111)](#运行环境)
 
 </div>
@@ -37,13 +37,13 @@ Z影视是一款以电视盒子和智能电视为主要使用场景的 Android �
 | --- | --- |
 | 应用名称 | Z影视 |
 | 包名 | `com.studio.osc` |
-| 当前版本 | `v1.7.2` |
+| 当前版本 | `v1.7.3` |
 | versionCode | `199` |
 | 最低系统 | Android 5.0（API 21） |
 | 主要设备 | Android TV、电视盒子、智能电视 |
 | 其他设备 | 手机、平板横屏使用 |
 | CPU 架构 | `armeabi-v7a` |
-| 最新发布 | [GitHub Release v1.7.2](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/tag/v1.7.2) |
+| 最新发布 | [GitHub Release v1.7.3](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/tag/v1.7.3) |
 
 ## 下载与安装
 
@@ -55,7 +55,7 @@ Z影视是一款以电视盒子和智能电视为主要使用场景的 Android �
 - `update.json`：应用内更新使用的版本清单。
 - `SHA256SUMS.txt`：APK 的 SHA-256 校验值。
 
-当前版本直接下载：[Z.apk v1.7.2](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.2/Z.apk)
+当前版本直接下载：[Z.apk v1.7.3](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.3/Z.apk)
 
 ### 电视盒子或智能电视
 
@@ -375,6 +375,11 @@ $env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-11.0.16.101-hotspot'
 - 修复应用内远程更新在安装包校验失败后重复切换下载线路的问题。
 - 包名、版本号或签名不匹配时立即显示明确错误，不再下载完成后反复回到 0%。
 - 网络、文件大小或 SHA-256 校验异常仍会自动尝试备用下载线路。
+
+### v1.7.3
+
+- 发布远程更新验证版本，功能代码保持不变。
+- 用于验证版本检查、下载、SHA-256 校验和正式签名覆盖安装流程。
 
 ### v1.6.9
 
