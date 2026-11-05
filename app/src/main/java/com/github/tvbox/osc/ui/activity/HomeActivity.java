@@ -861,6 +861,18 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 }
             }
 
+            // 动态抽屉模式：菜单键唤起侧栏，并把焦点放回当前首页分类。
+            if (keyCode == KeyEvent.KEYCODE_MENU
+                    && mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_DRAWER) {
+                if (!isDrawerOpen) {
+                    openDrawer();
+                } else if (mMovieSortRV != null) {
+                    mMovieSortRV.setSelection(mCurrentSelected);
+                    mMovieSortRV.requestFocus();
+                }
+                return true;
+            }
+
             // 极简沉浸模式：若顶栏正处于显示状态且焦点不在顶栏上，每次遥控器按键操作都重新刷新 3.5 秒闲置倒计时
             if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE && topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE) {
                 if (!topNavPanel.hasFocus()) {
