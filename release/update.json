@@ -1,8 +1,8 @@
 {
-    "versionCode":  197,
-    "versionName":  "1.6.8",
-    "changelog":  "# 1.6.8\r\n\r\n## 更新内容\r\n\r\n- 新增玻璃黑启动等待页，显示欢迎与安全提示。\r\n- 首页首张图片加载完成后再进入主页且不显示进度条。\r\n- 修复桌面抽牌与折扇选片的边缘卡片弧度和叠放效果。\r\n\r\n## 安装包\r\n\r\n- 版本：1.6.8（versionCode 197）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.8/Z.apk",
-    "sha256":  "e46b0659d31456cacea439055c79c11fa3f8ac63a13e5fe488ad1ce902a4b5df",
-    "size":  24926975
+    "versionCode":  198,
+    "versionName":  "1.6.9",
+    "changelog":  "# 1.6.9\r\n\r\n## 更新内容\r\n\r\n- 详情页背景改为无模糊高清显示，提升海报和场景细节。\r\n- 修复首页卡片手动拖动到循环边界后无法继续切换的问题。\r\n- Apple TV 和极简画报布局取消左右滑动切换分类。\r\n- 首页卡片样式支持首尾相接循环切换，并将星轨环游设为新用户默认样式。\r\n- 优化启动等待页、垂直升降叠卡和首页卡片展示效果。\r\n- 增加交互式卡片动效选型展示页。\r\n\r\n## 安装包\r\n\r\n- 版本：1.6.9（versionCode 198）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.9/Z.apk",
+    "sha256":  "924c938086f2d941b58c0fc569e1be421a5716ae20f08a622eff875232f21492",
+    "size":  24927891
 }
