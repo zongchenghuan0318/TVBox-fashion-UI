@@ -6,10 +6,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_settings_page">
 
-    <!-- 全屏电影氛围高斯毛玻璃背景 -->
+    <!-- 全屏电影氛围背景 -->
     <ImageView
         android:id="@+id/ivDetailBackdrop"
-        android:alpha="0.55"
+        android:alpha="0.58"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop" />

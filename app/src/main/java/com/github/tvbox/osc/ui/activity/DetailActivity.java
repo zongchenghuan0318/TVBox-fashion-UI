@@ -15,7 +15,6 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.github.tvbox.osc.util.BlurTransformation;
 import com.github.tvbox.osc.util.GlideImg;
 import com.github.tvbox.osc.util.PosterImageLoader;
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -227,8 +226,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                     .load(GlideImg.heroModel(pic))
                     .dontAnimate()
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .override(960, 540)
-                    .transform(new BlurTransformation(DetailActivity.this, 6, 2))
+                    .override(1280, 720)
                     .into(ivDetailBackdrop);
         } else if (ivDetailBackdrop != null) {
             Glide.with(DetailActivity.this).clear(ivDetailBackdrop);

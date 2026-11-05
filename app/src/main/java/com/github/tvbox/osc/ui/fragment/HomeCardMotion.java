@@ -27,9 +27,9 @@ enum HomeCardMotion {
     }
 
     static HomeCardMotion current() {
-        String saved = Hawk.get(HawkConfig.HOME_CARD_STYLE, WHEEL.name());
+        String saved = Hawk.get(HawkConfig.HOME_CARD_STYLE, ORBIT.name());
         for (HomeCardMotion style : values()) if (style.name().equals(saved)) return style;
-        return WHEEL;
+        return ORBIT;
     }
 
     private final android.graphics.RectF bounds = new android.graphics.RectF();
@@ -62,10 +62,12 @@ enum HomeCardMotion {
                 break;
             }
             case LIFT:
-                scale = Math.max(.76f, 1f - rank * .16f);
-                float rowHeight = ((View)card.getParent()).getHeight();
-                y = steps * (rowHeight * .50f + height * .10f) - displacement;
-                alpha = Math.max(.32f, 1f - rank * .43f);
+                scale = selected ? 1.06f : Math.max(.84f, 1f - rank * .10f);
+                // Cancel the RecyclerView row offset, then keep each card a short
+                // distance from its neighbour so the vertical stack remains visible.
+                y = -displacement + steps * height * .42f;
+                yaw = -Math.max(-3f, Math.min(3f, steps)) * 3f;
+                alpha = selected ? 1f : Math.max(.52f, 1f - rank * .20f);
                 break;
             case WHEEL:
                 float side = Math.max(-3f, Math.min(3f, steps));

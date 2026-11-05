@@ -250,7 +250,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private void refreshHomeMode() {
         HomeCardMotion style = HomeCardMotion.current();
         if (mCardMotion != style) {
+            int realPosition = mAdapter == null ? 0 : mAdapter.realPosition(mFocusedCardPosition);
             mCardMotion = style;
+            if (mAdapter != null) {
+                mAdapter.setLooping(true);
+                mFocusedCardPosition = mAdapter.isLooping()
+                        ? mAdapter.loopStartPosition() + Math.max(0, realPosition)
+                        : Math.max(0, realPosition);
+            }
             if (mHotGridView != null && mHotGridView.getLayoutManager() instanceof LinearLayoutManager) {
                 LinearLayoutManager layout = (LinearLayoutManager)mHotGridView.getLayoutManager();
                 int orientation = style == HomeCardMotion.LIFT ? LinearLayoutManager.VERTICAL : LinearLayoutManager.HORIZONTAL;
@@ -430,6 +437,23 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 mUserOperatingCards = true;
                 stopAutoScroll();
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    int count = mAdapter == null ? 0 : mAdapter.getItemCount();
+                    int selected = mHotGridView.getSelectedPosition();
+                    int delta = keyCode == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1;
+                    if (mAdapter != null && mAdapter.isLooping() && count > 1
+                            && ((delta < 0 && selected <= 0) || (delta > 0 && selected >= count - 1))) {
+                        int targetPosition = delta < 0 ? count - 1 : 0;
+                        View target = mHotGridView.getLayoutManager() == null
+                                ? null
+                                : mHotGridView.getLayoutManager().findViewByPosition(targetPosition);
+                        applyCardSelected(target, targetPosition);
+                        if (target != null && !mHotGridView.isInTouchMode()) {
+                            target.requestFocus();
+                        }
+                        return true;
+                    }
+                }
             } else if (event.getAction() == KeyEvent.ACTION_UP) {
                 scheduleAutoScroll();
             }
@@ -450,8 +474,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    if (mAdapter != null && mFocusedCardPosition >= 0 && mFocusedCardPosition < mAdapter.getData().size()) {
-                        bindHero(mAdapter.getData().get(mFocusedCardPosition));
+                    if (mAdapter != null) {
+                        Movie.Video focused = mAdapter.getItem(mFocusedCardPosition);
+                        if (focused != null) {
+                            bindHero(focused);
+                        }
                     }
                     if (!mCarouselInitializing) {
                         scheduleAutoScroll();
@@ -493,13 +520,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         PosterPreloader.setup(mContext, mHotGridView, new PosterPreloader.PosterProvider() {
             @Override
             public int getCount() {
-                return mAdapter != null ? mAdapter.getData().size() : 0;
+                return mAdapter != null ? mAdapter.getItemCount() : 0;
             }
 
             @Override
             public String getPosterUrl(int position) {
-                if (mAdapter != null && position >= 0 && position < mAdapter.getData().size()) {
-                    Movie.Video item = mAdapter.getData().get(position);
+                if (mAdapter != null) {
+                    Movie.Video item = mAdapter.getItem(position);
                     return item != null ? item.pic : null;
                 }
                 return null;
@@ -526,9 +553,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             centerCardAt(position, card);
         }
         List<Movie.Video> data = mAdapter.getData();
-        if (!data.isEmpty() && position >= 0 && position < data.size()) {
+        int realPosition = mAdapter.realPosition(position);
+        if (!data.isEmpty() && realPosition >= 0 && realPosition < data.size()) {
             // 背景海报与节目信息跟随当前选中的卡
-            bindHero(data.get(position));
+            bindHero(data.get(realPosition));
         }
 
         if (!mAutoScrollingCards) {
@@ -563,13 +591,16 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         int position = mHotGridView.getChildAdapterPosition(nearest);
         List<Movie.Video> data = mAdapter.getData();
-        if (position < 0 || position >= data.size() || position == mFocusedCardPosition) {
+        if (position < 0 || position >= mAdapter.getItemCount() || position == mFocusedCardPosition) {
             return;
         }
         transitionCard(position);
         mFocusedCardPosition = position;
         mHotGridView.setSelectedPosition(position);
-        bindHero(data.get(position));
+        int realPosition = mAdapter.realPosition(position);
+        if (realPosition >= 0 && realPosition < data.size()) {
+            bindHero(data.get(realPosition));
+        }
     }
 
     private void transitionCard(int next) {
@@ -588,7 +619,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         for (int i = 0; i < mHotGridView.getChildCount(); i++) {
             View child = mHotGridView.getChildAt(i);
             int position = child == null ? -1 : mHotGridView.getChildAdapterPosition(child);
-            if (position < 0 || position >= mAdapter.getData().size()) {
+            if (position < 0 || position >= mAdapter.getItemCount()) {
                 continue;
             }
             float offset = (mHotGridView.cardCenter(child) - centerX)
@@ -718,7 +749,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private void resetCarouselState() {
         mCarouselInitializing = true;
         stopAutoScroll();
-        mFocusedCardPosition = 0;
+        mFocusedCardPosition = mAdapter == null ? 0 : mAdapter.loopStartPosition();
         if (mHotGridView != null) {
             mHotGridView.scrollToPosition(mFocusedCardPosition);
             mHotGridView.post(() -> {
@@ -749,7 +780,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
     }
 
-    /** 设置真实卡片列表；自动轮播到末尾后回到第一张。 */
+    /** 设置真实卡片列表；卡片展示位置使用循环映射。 */
     private void setHomeCards(List<Movie.Video> videos) {
         if (mAdapter == null || videos == null) {
             return;
@@ -763,7 +794,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
         mAdapter.setEnableLoadMore(false);
+        mAdapter.setLooping(true);
         mAdapter.setNewData(source);
+        mHotGridView.setLoopingBounds(mAdapter.loopStartPosition(), source.size());
     }
 
     private boolean isSidebarFocused() {
@@ -788,10 +821,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         List<Movie.Video> data = mAdapter.getData();
         if (data.size() < 2) return;
         int current = mHotGridView.getSelectedPosition();
-        if (current < 0 || current >= data.size()) {
-            current = 0;
+        if (current < 0 || current >= mAdapter.getItemCount()) {
+            current = mAdapter.isLooping() ? mAdapter.loopStartPosition() : 0;
         }
-        int next = current + 1 < data.size() ? current + 1 : 0;
+        int next = current + 1 < mAdapter.getItemCount() ? current + 1
+                : (mAdapter.isLooping() ? mAdapter.loopStartPosition() : 0);
         View target = mHotGridView.getLayoutManager() != null
                 ? mHotGridView.getLayoutManager().findViewByPosition(next) : null;
         // 能把焦点交给下一张卡就交给它，onItemSelected 会统一处理选中态与居中；
@@ -833,10 +867,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         // getChildAdapterPosition 只接受 RecyclerView 的直接子 View，否则会 ClassCastException
         RecyclerView.ViewHolder holder = mHotGridView.findContainingViewHolder(focused);
         if (holder == null) return;
-        List<Movie.Video> data = mAdapter.getData();
         int position = holder.getLayoutPosition();
-        if (position < 0 || position >= data.size()) return;
-        if (!mHotGridView.isScrolling()) bindHero(data.get(position));
+        Movie.Video item = mAdapter.getItem(position);
+        if (item == null) return;
+        if (!mHotGridView.isScrolling()) bindHero(item);
     }
 
     private void getVideos() {

@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Z影视 · 卡片样式选型</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f1f4f3;
+      --muted: #9da9a7;
+      --ground: #080b0c;
+      --surface: #111718;
+      --surface-2: #182021;
+      --line: #2b3838;
+      --accent: #c8f36b;
+      --accent-ink: #101508;
+      --poster-a: #52654b;
+      --poster-b: #8d5f48;
+      --poster-c: #405d72;
+      --poster-d: #765d75;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--ground);
+      color: var(--ink);
+      font: 16px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 48px 28px 72px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      padding-bottom: 32px;
+    }
+    h1 { margin: 0; max-width: 620px; font-size: clamp(32px, 5vw, 66px); line-height: .98; letter-spacing: -.045em; }
+    .intro { max-width: 430px; margin: 0; color: var(--muted); }
+    .intro strong { color: var(--ink); }
+    .preview-action {
+      display: inline-block;
+      margin-top: 16px;
+      border: 0;
+      padding: 11px 16px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 28px;
+    }
+    .option {
+      appearance: none;
+      border: 0;
+      border-radius: 0;
+      padding: 14px;
+      color: var(--ink);
+      text-align: left;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color .2s ease, background-color .2s ease, transform .2s ease;
+      animation: reveal .6s both;
+    }
+    .option:nth-child(2) { animation-delay: .06s; }
+    .option:nth-child(3) { animation-delay: .12s; }
+    .option:nth-child(4) { animation-delay: .18s; }
+    .option:nth-child(5) { animation-delay: .24s; }
+    .option:nth-child(6) { animation-delay: .30s; }
+    .option:nth-child(7) { animation-delay: .36s; }
+    .option:nth-child(8) { animation-delay: .42s; }
+    .option:nth-child(9) { animation-delay: .48s; }
+    .option:nth-child(10) { animation-delay: .54s; }
+    .option:nth-child(11) { animation-delay: .60s; }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .option:hover, .option:focus-visible { border-color: var(--accent); transform: translateY(-3px); outline: none; }
+    .option.active { background: var(--surface-2); outline: 2px solid var(--accent); outline-offset: -2px; }
+    .option h2 { margin: 14px 0 2px; font-size: 19px; letter-spacing: -.02em; }
+    .option p { margin: 0; color: var(--muted); font-size: 13px; }
+    .stage {
+      position: relative;
+      height: 190px;
+      overflow: hidden;
+      perspective: 700px;
+      background: #0c1112;
+      border: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cards { position: relative; width: 100%; height: 100%; }
+    .card {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 76px;
+      height: 112px;
+      padding: 7px;
+      display: flex;
+      align-items: end;
+      color: white;
+      background: var(--poster-a);
+      border: 2px solid rgba(255,255,255,.7);
+      font-size: 10px;
+      line-height: 1.05;
+      transform-origin: center;
+      transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .6s ease, background-color .6s ease;
+    }
+    .card:nth-child(2) { background: var(--poster-b); }
+    .card:nth-child(3) { background: var(--poster-c); }
+    .card:nth-child(4) { background: var(--poster-d); }
+    .card:nth-child(5) { background: #a2784d; }
+    .card:nth-child(6) { background: #4c7080; }
+    .card:nth-child(7) { background: #866148; }
+    .card span { position: relative; z-index: 1; }
+    .card::after {
+      content: "";
+      position: absolute;
+      left: 7px; right: 7px; top: 7px; height: 42%;
+      background: rgba(255,255,255,.14);
+    }
+    .stage.playing .card { animation: card-reset .72s cubic-bezier(.2,.8,.2,1); }
+    .stage.playing .card:nth-child(2) { animation-delay: .035s; }
+    .stage.playing .card:nth-child(3) { animation-delay: .07s; }
+    .stage.playing .card:nth-child(4) { animation-delay: .105s; }
+    .stage.playing .card:nth-child(5) { animation-delay: .14s; }
+    @keyframes card-reset {
+      0% { filter: brightness(1); }
+      42% { filter: brightness(1.45); }
+      100% { filter: brightness(1); }
+    }
+    .stage.playing .card:nth-child(1) { animation-name: orbit-shift; }
+    .stage.playing .card:nth-child(2) { animation-name: orbit-shift; }
+    .stage.playing .card:nth-child(3) { animation-name: orbit-shift; }
+    .stage.playing .card:nth-child(4) { animation-name: orbit-shift; }
+    .stage.playing .card:nth-child(5) { animation-name: orbit-shift; }
+    @keyframes orbit-shift {
+      0% { translate: 0 0; filter: brightness(1); }
+      48% { translate: 22px -8px; filter: brightness(1.4); }
+      100% { translate: 0 0; filter: brightness(1); }
+    }
+    .demo-note { margin: 10px 0 0; color: var(--accent); font-size: 13px; }
+
+    /* Each preview is a distinct composition, not a generic card row. */
+    .orbit .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.05); z-index: 5; }
+    .orbit .card:nth-child(2) { transform: translate(-2%, -64%) rotate(9deg) scale(.86); z-index: 4; }
+    .orbit .card:nth-child(3) { transform: translate(-4%, -36%) rotate(-9deg) scale(.86); z-index: 3; }
+    .orbit .card:nth-child(4) { transform: translate(-96%, -64%) rotate(-9deg) scale(.86); z-index: 4; }
+    .orbit .card:nth-child(5) { transform: translate(-96%, -36%) rotate(9deg) scale(.86); z-index: 3; }
+
+    .lift .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.06); z-index: 5; }
+    .lift .card:nth-child(2) { transform: translate(-50%, -18%) rotate(3deg) scale(.94); z-index: 4; }
+    .lift .card:nth-child(3) { transform: translate(-50%, 14%) rotate(-3deg) scale(.88); z-index: 3; }
+    .lift .card:nth-child(4) { transform: translate(-50%, -82%) rotate(-3deg) scale(.94); z-index: 4; }
+    .lift .card:nth-child(5) { transform: translate(-50%, -114%) rotate(3deg) scale(.88); z-index: 3; }
+
+    .fan .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
+    .fan .card:nth-child(2) { transform: translate(-8%, -54%) rotate(12deg) scale(.82); z-index: 4; }
+    .fan .card:nth-child(3) { transform: translate(22%, -58%) rotate(20deg) scale(.72); z-index: 3; }
+    .fan .card:nth-child(4) { transform: translate(-92%, -54%) rotate(-12deg) scale(.82); z-index: 4; }
+    .fan .card:nth-child(5) { transform: translate(-122%, -58%) rotate(-20deg) scale(.72); z-index: 3; }
+
+    .stack .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
+    .stack .card:nth-child(2) { transform: translate(-20%, -46%) rotate(10deg) scale(.84); z-index: 4; }
+    .stack .card:nth-child(3) { transform: translate(0%, -42%) rotate(18deg) scale(.72); z-index: 3; }
+    .stack .card:nth-child(4) { transform: translate(-80%, -46%) rotate(-10deg) scale(.84); z-index: 4; }
+    .stack .card:nth-child(5) { transform: translate(-100%, -42%) rotate(-18deg) scale(.72); z-index: 3; }
+
+    .slit .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
+    .slit .card:nth-child(2) { transform: translate(-4%, -50%) rotateY(-17deg) scale(.9); z-index: 4; }
+    .slit .card:nth-child(3) { transform: translate(45%, -50%) rotateY(-28deg) scale(.78); z-index: 3; }
+    .slit .card:nth-child(4) { transform: translate(-96%, -50%) rotateY(17deg) scale(.9); z-index: 4; }
+    .slit .card:nth-child(5) { transform: translate(-145%, -50%) rotateY(28deg) scale(.78); z-index: 3; }
+
+    .film .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.02); z-index: 5; }
+    .film .card:nth-child(2) { transform: translate(10%, -50%) scale(.88); z-index: 4; }
+    .film .card:nth-child(3) { transform: translate(68%, -50%) scale(.77); z-index: 3; }
+    .film .card:nth-child(4) { transform: translate(-110%, -50%) scale(.88); z-index: 4; }
+    .film .card:nth-child(5) { transform: translate(-168%, -50%) scale(.77); z-index: 3; }
+
+    .wheel .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.06); z-index: 5; }
+    .wheel .card:nth-child(2) { transform: translate(-8%, -50%) rotateY(-24deg) scale(.84); z-index: 4; }
+    .wheel .card:nth-child(3) { transform: translate(38%, -50%) rotateY(-42deg) scale(.68); z-index: 3; }
+    .wheel .card:nth-child(4) { transform: translate(-92%, -50%) rotateY(24deg) scale(.84); z-index: 4; }
+    .wheel .card:nth-child(5) { transform: translate(-138%, -50%) rotateY(42deg) scale(.68); z-index: 3; }
+
+    .flat .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
+    .flat .card:nth-child(2) { transform: translate(3%, -50%) scale(.9); z-index: 4; }
+    .flat .card:nth-child(3) { transform: translate(56%, -50%) scale(.8); z-index: 3; }
+    .flat .card:nth-child(4) { transform: translate(-103%, -50%) scale(.9); z-index: 4; }
+    .flat .card:nth-child(5) { transform: translate(-156%, -50%) scale(.8); z-index: 3; }
+    .curtain .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
+    .curtain .card:nth-child(2) { transform: translate(-4%, -50%) rotateY(-12deg) scale(.9); z-index: 4; }
+    .curtain .card:nth-child(3) { transform: translate(45%, -50%) rotateY(-22deg) scale(.78); z-index: 3; }
+    .curtain .card:nth-child(4) { transform: translate(-96%, -50%) rotateY(12deg) scale(.9); z-index: 4; }
+    .curtain .card:nth-child(5) { transform: translate(-145%, -50%) rotateY(22deg) scale(.78); z-index: 3; }
+    .ripple .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.08); z-index: 5; }
+    .ripple .card:nth-child(2) { transform: translate(0, -50%) scale(.82); z-index: 4; }
+    .ripple .card:nth-child(3) { transform: translate(48%, -50%) scale(.68); z-index: 3; }
+    .ripple .card:nth-child(4) { transform: translate(-98%, -50%) scale(.82); z-index: 4; }
+    .ripple .card:nth-child(5) { transform: translate(-146%, -50%) scale(.68); z-index: 3; }
+    .helix .card:nth-child(1) { transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
+    .helix .card:nth-child(2) { transform: translate(-4%, -70%) rotate(9deg) scale(.82); z-index: 4; }
+    .helix .card:nth-child(3) { transform: translate(30%, -28%) rotate(-12deg) scale(.7); z-index: 3; }
+    .helix .card:nth-child(4) { transform: translate(-96%, -30%) rotate(12deg) scale(.82); z-index: 4; }
+    .helix .card:nth-child(5) { transform: translate(-130%, -72%) rotate(-9deg) scale(.7); z-index: 3; }
+
+    .detail {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 24px;
+      margin-top: 28px;
+      padding: 26px;
+      background: var(--surface);
+      border: 0;
+    }
+    .detail h2 { margin: 0 0 8px; font-size: 30px; letter-spacing: -.03em; }
+    .detail p { margin: 0; color: var(--muted); }
+    .detail ul { margin: 14px 0 0; padding-left: 20px; color: var(--muted); }
+    .detail li + li { margin-top: 5px; }
+    .choose {
+      justify-self: end;
+      align-self: start;
+      border: 0;
+      padding: 12px 18px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .choose:hover, .choose:focus-visible { background: #e0ff9b; outline: 2px solid white; outline-offset: 3px; }
+    footer { margin-top: 18px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      header, .detail { grid-template-columns: 1fr; display: grid; align-items: start; }
+      .choose { justify-self: start; }
+    }
+    @media (max-width: 540px) {
+      .shell { padding: 28px 16px 48px; }
+      .grid { grid-template-columns: 1fr; }
+      .stage { height: 210px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <h1>选择下一种卡片运动</h1>
+      <div>
+        <p class="intro"><strong>这是独立展示页，不会修改应用。</strong><br>点击任意方案查看放大说明，再告诉我方案名称。我会按你的选择实现到手机。</p>
+        <button class="preview-action" id="preview">播放当前方案</button>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="卡片样式方案">
+      <button class="option active" data-style="orbit" data-name="星轨环游" data-copy="沿椭圆轨道进出，中心卡突出，左右卡保持弧线和露边。" data-points="空间感最强|切换方向自然|适合默认样式">
+        <div class="stage orbit"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>星轨环游</h2><p>弧线轨道 · 中心突出</p>
+      </button>
+      <button class="option" data-style="curtain" data-name="幕帘开合" data-copy="中心卡像舞台幕布一样打开，两侧卡从黑场中向外展开。" data-points="电影开场感|中心切换明确|适合沉浸式首页">
+        <div class="stage curtain"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>幕帘开合</h2><p>黑场切入 · 两侧展开</p>
+      </button>
+      <button class="option" data-style="ripple" data-name="水波回环" data-copy="中心卡先放大，再把位移像波纹一样传给左右卡。" data-points="节奏柔和|轮播连续|适合触控操作">
+        <div class="stage ripple"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>水波回环</h2><p>中心放大 · 波纹传递</p>
+      </button>
+      <button class="option" data-style="helix" data-name="双螺旋" data-copy="左右卡上下交错，围绕中心卡形成一条有方向的螺旋轨道。" data-points="层次变化大|上下露边清楚|适合片单浏览">
+        <div class="stage helix"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>双螺旋</h2><p>上下交错 · 方向明确</p>
+      </button>
+      <button class="option" data-style="lift" data-name="垂直升降" data-copy="上下错位叠放，保留卡片露边，不让相邻海报完全遮住。" data-points="纵向层叠明显|适合大海报|切换方向直观">
+        <div class="stage lift"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>垂直升降</h2><p>纵向叠牌 · 留出露边</p>
+      </button>
+      <button class="option" data-style="fan" data-name="折扇选片" data-copy="以中心卡为扇轴展开，左右卡用连续角度和尺度形成扇面。" data-points="选片感强|弧度连续|侧卡层次丰富">
+        <div class="stage fan"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>折扇选片</h2><p>扇面展开 · 侧卡旋转</p>
+      </button>
+      <button class="option" data-style="stack" data-name="桌面抽牌" data-copy="中心牌压住牌堆，左右牌沿桌面错开，像从一叠卡片中抽出。" data-points="叠放关系清楚|中心焦点稳定|动作节奏沉稳">
+        <div class="stage stack"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>桌面抽牌</h2><p>平面叠放 · 抽牌感</p>
+      </button>
+      <button class="option" data-style="slit" data-name="光闸切片" data-copy="卡片沿水平光闸排开，中心最清晰，两侧带有切片般的透视。" data-points="切换速度感强|透视关系明确|适合横向片单">
+        <div class="stage slit"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>光闸切片</h2><p>水平切片 · 透视进入</p>
+      </button>
+      <button class="option" data-style="film" data-name="胶片走带" data-copy="卡片像胶片帧一样匀速穿过，强调连续播放和时间线。" data-points="连续性最好|轮播节奏稳定|视觉最简洁">
+        <div class="stage film"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>胶片走带</h2><p>连续横移 · 时间线</p>
+      </button>
+      <button class="option" data-style="wheel" data-name="3D海报转盘" data-copy="以中心卡为轴做轻量 3D 旋转，侧卡逐级转向观众。" data-points="立体感明显|中心卡聚焦|动效辨识度高">
+        <div class="stage wheel"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>3D 海报转盘</h2><p>旋转透视 · 轴心切换</p>
+      </button>
+      <button class="option" data-style="flat" data-name="平直横移" data-copy="卡片保持平直，只做均匀横向移动，信息读取最轻松。" data-points="最稳定|最易读|适合低性能设备">
+        <div class="stage flat"><div class="cards">
+          <i class="card"><span>逆光而行</span></i><i class="card"><span>海边的信</span></i><i class="card"><span>漫长季节</span></i><i class="card"><span>夜航船</span></i><i class="card"><span>无名之城</span></i>
+        </div></div><h2>平直横移</h2><p>平面移动 · 信息优先</p>
+      </button>
+    </section>
+
+    <section class="detail" aria-live="polite">
+      <div>
+        <h2 id="selectedName">星轨环游</h2>
+        <p id="selectedCopy">沿椭圆轨道进出，中心卡突出，左右卡保持弧线和露边。</p>
+        <ul id="selectedPoints"><li>空间感最强</li><li>切换方向自然</li><li>适合默认样式</li></ul>
+      </div>
+      <button class="choose" id="choose">我选择这个方案</button>
+    </section>
+    <footer>展示页只用于选型。点击“我选择这个方案”不会提交或修改任何应用设置。</footer>
+  </main>
+  <script>
+    const options = [...document.querySelectorAll(".option")];
+    const name = document.querySelector("#selectedName");
+    const copy = document.querySelector("#selectedCopy");
+    const points = document.querySelector("#selectedPoints");
+    const choose = document.querySelector("#choose");
+    function select(option) {
+      options.forEach(item => item.classList.toggle("active", item === option));
+      const stage = option.querySelector(".stage");
+      stage.classList.remove("playing");
+      void stage.offsetWidth;
+      stage.classList.add("playing");
+      name.textContent = option.dataset.name;
+      copy.textContent = option.dataset.copy;
+      points.innerHTML = option.dataset.points.split("|").map(point => `<li>${point}</li>`).join("");
+      choose.textContent = `我选择「${option.dataset.name}」`;
+    }
+    options.forEach(option => {
+      option.addEventListener("click", () => select(option));
+      option.querySelector(".stage").addEventListener("click", event => {
+        event.stopPropagation();
+        select(option);
+      });
+    });
+    choose.addEventListener("click", () => {
+      choose.textContent = `已选：${name.textContent}（请告诉我）`;
+    });
+    document.querySelector("#preview").addEventListener("click", () => {
+      const active = document.querySelector(".option.active");
+      if (active) select(active);
+    });
+    setInterval(() => {
+      const active = document.querySelector(".option.active");
+      if (active) select(active);
+    }, 4200);
+  </script>
+</body>
+</html>

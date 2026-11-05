@@ -90,6 +90,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View drawerScrim;
     private View drawerTabHandle;
     private View homeLaunchCover;
+    private boolean homeHeroReady;
+    private boolean homeConfigReady;
     private LinearLayout topNavPanel;
     private TextView tvTopBrand;
     private TextView tvTopDate;
@@ -281,7 +283,13 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
      * The loading callback remains underneath it and is not shown during startup.
      */
     public void dismissHomeLaunchCover() {
-        if (homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {
+        homeHeroReady = true;
+        tryDismissHomeLaunchCover();
+    }
+
+    private void tryDismissHomeLaunchCover() {
+        if (!homeHeroReady || !homeConfigReady
+                || homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {
             return;
         }
         homeLaunchCover.animate()
@@ -676,10 +684,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     }
                 }
 
-                // 4. 触屏横向划屏切换分类：在屏幕上半区海报大背景区域左右划动切换上一个/下一个分类
-                // （避免与底部的卡片横向滑动产生冲突）
+                // 4. 经典布局保留上半区左右切换分类；Apple TV 和极简画报
+                // 的横向手势交给顶部导航和内容卡片，不再切换分类。
                 int screenHeight = getResources().getDisplayMetrics().heightPixels;
-                if (mTouchDownY < screenHeight * 0.65f && duration < 500) {
+                boolean categorySwipeEnabled = mCurrentLayoutStyle != HawkConfig.HOME_LAYOUT_APPLE_TV
+                        && mCurrentLayoutStyle != HawkConfig.HOME_LAYOUT_IMMERSIVE;
+                if (categorySwipeEnabled && mTouchDownY < screenHeight * 0.65f && duration < 500) {
                     if (Math.abs(totalDx) > AutoSizeUtils.dp2px(this, 80) && Math.abs(totalDx) > Math.abs(totalDy) * 1.5f) {
                         if (totalDx < 0) {
                             // 向左划 -> 切换到下一个分类
@@ -1133,6 +1143,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 L.d(" initHomeBean success()");
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
+                    homeConfigReady = true;
+                    tryDismissHomeLaunchCover();
                     requestCategoryMetadata();
                 });
             }

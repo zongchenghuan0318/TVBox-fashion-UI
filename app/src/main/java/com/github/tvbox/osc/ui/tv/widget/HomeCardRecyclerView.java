@@ -29,7 +29,14 @@ public class HomeCardRecyclerView extends TvRecyclerView {
     public interface GestureListener { void onTouch(boolean touching); }
     private GestureListener gestureListener;
     private boolean userTouching, dragged;
+    private int loopStartPosition = -1;
+    private int loopCycleSize;
     public void setGestureListener(GestureListener listener) { gestureListener = listener; }
+
+    public void setLoopingBounds(int loopStartPosition, int loopCycleSize) {
+        this.loopStartPosition = loopStartPosition;
+        this.loopCycleSize = loopCycleSize;
+    }
 
     public HomeCardRecyclerView(Context context) {
         this(context, null);
@@ -199,6 +206,28 @@ public class HomeCardRecyclerView extends TvRecyclerView {
             int position = getChildAdapterPosition(nearest);
             if (position == NO_POSITION) {
                 return;
+            }
+            int itemCount = getAdapter() == null ? 0 : getAdapter().getItemCount();
+            boolean atLoopBoundary = loopCycleSize > 1 && loopStartPosition >= 0
+                    && (position < loopCycleSize || position >= itemCount - loopCycleSize);
+            if (atLoopBoundary) {
+                int realPosition = position % loopCycleSize;
+                int recenteredPosition = loopStartPosition + realPosition;
+                if (recenteredPosition != position) {
+                    stopScroll();
+                    if (getLayoutManager() instanceof LinearLayoutManager) {
+                        ((LinearLayoutManager)getLayoutManager())
+                                .scrollToPositionWithOffset(recenteredPosition, 0);
+                    } else {
+                        scrollToPosition(recenteredPosition);
+                    }
+                    setSelectedPosition(recenteredPosition);
+                    position = recenteredPosition;
+                    nearest = getLayoutManager().findViewByPosition(position);
+                    if (nearest == null) {
+                        return;
+                    }
+                }
             }
             int distance = cardCenter(nearest) - centerX;
             if (Math.abs(distance) > 1) {

@@ -14,22 +14,52 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HomeHotVodAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
+    private static final int LOOP_BLOCKS = 1001;
+    private boolean looping;
+
     public HomeHotVodAdapter() {
         super(R.layout.item_user_hot_vod, new ArrayList<>());
     }
 
+    public void setLooping(boolean looping) {
+        if (this.looping == looping) {
+            return;
+        }
+        this.looping = looping;
+        notifyDataSetChanged();
+    }
+
+    public boolean isLooping() {
+        return looping;
+    }
+
+    public int loopStartPosition() {
+        int size = getData().size();
+        return looping && size > 1 ? (LOOP_BLOCKS / 2) * size : 0;
+    }
+
+    public int realPosition(int position) {
+        int size = getData().size();
+        if (size == 0 || position < 0) {
+            return -1;
+        }
+        return looping ? position % size : position;
+    }
+
     @Override
     public int getItemCount() {
-        return getData().size();
+        int size = getData().size();
+        return looping && size > 1 ? size * LOOP_BLOCKS : size;
     }
 
     @Override
     public Movie.Video getItem(int position) {
         List<Movie.Video> data = getData();
-        if (position < 0 || position >= data.size()) {
+        int realPosition = realPosition(position);
+        if (realPosition < 0 || realPosition >= data.size()) {
             return null;
         }
-        return data.get(position);
+        return data.get(realPosition);
     }
 
     @Override
