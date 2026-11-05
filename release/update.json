@@ -1,8 +1,8 @@
 {
-    "versionCode":  199,
-    "versionName":  "1.7.0",
-    "changelog":  "# 1.7.0\r\n\r\n## 更新内容\r\n\r\n- 动态抽屉布局新增遥控器菜单键唤起侧栏功能。\r\n- 菜单键唤起侧栏后自动聚焦当前首页分类。\r\n- 侧栏已打开时再次按菜单键，会重新聚焦当前分类。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.0（versionCode 199）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.0/Z.apk",
-    "sha256":  "90fea55f32fb93e3af769116adb9b48960b93769958137103ed78e3619015c8e",
-    "size":  24928004
+    "versionCode":  200,
+    "versionName":  "1.7.1",
+    "changelog":  "# 1.7.1\r\n\r\n## 更新内容\r\n\r\n- 全面重写项目 README，补充安装、功能、遥控器、首页布局、卡片样式、开发构建和发布说明。\r\n- 同步当前 v1.7.x 的动态抽屉、菜单键唤起侧栏、卡片循环和详情页背景功能文档。\r\n- 补充 GitHub Release、ADB 安装、JDK 11 构建和正式发布流程。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.1（versionCode 200）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.1/Z.apk",
+    "sha256":  "fa4a8fa007877f5680d5e8557cd0d536d92e440ed761b52bd470efebc206f211",
+    "size":  24928008
 }
