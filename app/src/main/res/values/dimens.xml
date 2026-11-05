@@ -4,7 +4,7 @@
     <dimen name="home_card_width">132mm</dimen>
     <dimen name="home_card_height">86mm</dimen>
     <dimen name="home_card_row_height">185mm</dimen>
-    <dimen name="home_card_spacing">110mm</dimen>
+    <dimen name="home_card_spacing">24mm</dimen>
     <dimen name="home_card_radius">5mm</dimen>
     <dimen name="home_card_scrim_height">50mm</dimen>
     <dimen name="home_card_text_padding">6mm</dimen>

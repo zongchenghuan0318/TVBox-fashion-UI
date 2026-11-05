@@ -3,7 +3,7 @@
     <dimen name="home_card_width">200mm</dimen>
     <dimen name="home_card_height">130mm</dimen>
     <dimen name="home_card_row_height">270mm</dimen>
-    <dimen name="home_card_spacing">100mm</dimen>
+    <dimen name="home_card_spacing">24mm</dimen>
     <dimen name="home_card_radius">8mm</dimen>
     <dimen name="home_card_scrim_height">70mm</dimen>
     <dimen name="home_card_text_padding">10mm</dimen>

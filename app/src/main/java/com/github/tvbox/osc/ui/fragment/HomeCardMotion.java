@@ -26,7 +26,7 @@ enum HomeCardMotion {
         return WHEEL;
     }
 
-    void apply(View card, float offset, float n, boolean selected) {
+    void apply(View card, float offset, float n, boolean selected, float steps, float displacement) {
         float distance = Math.min(1f, Math.abs(offset));
         float width = card.getWidth(), height = card.getHeight();
         float x = 0, y = 0, roll = 0, yaw = 0, pitch = 0, pivot = .5f;
@@ -34,10 +34,29 @@ enum HomeCardMotion {
         switch (this) {
             case FILM: scale = 1f; alpha = 1f - distance * .32f; break;
             case STACK: x = -n * width * .32f; roll = n * 12; y = distance * height * .055f; break;
-            case ORBIT: x = -n * width * .20f; y = -distance * height * .11f;
-                yaw = n * 30; scale -= distance * .12f; break;
-            case LIFT: pitch = -n * 18; scale -= distance * .10f; break;
-            case WHEEL: yaw = n * 42; y = distance * height * .10f; roll = -n * 3; break;
+            case ORBIT: {
+                float angle = Math.min(1.45f, Math.abs(steps) * .36f);
+                float radius = Math.min(width * 3.65f, ((View)card.getParent()).getWidth() * .46f);
+                x = Math.signum(steps) * radius * (float)Math.sin(angle) - displacement;
+                y = -Math.min(Math.abs(steps), 4f) * height * .115f;
+                roll = -Math.max(-4f, Math.min(4f, steps)) * 7f;
+                scale = 1.08f / (1f + Math.abs(steps) * .13f);
+                alpha = Math.max(.4f, 1f - Math.abs(steps) * .16f);
+                break;
+            }
+            case LIFT:
+                scale = Math.max(.68f, 1f - Math.abs(steps) * .13f);
+                y = steps * height * .93f - displacement;
+                alpha = Math.max(.35f, 1f - Math.abs(steps) * .23f);
+                break;
+            case WHEEL:
+                float side = Math.max(-3f, Math.min(3f, steps));
+                yaw = -side * 19f;
+                scale = 1.075f / (1f + Math.abs(steps) * .13f);
+                x = steps * width * .82f - displacement;
+                y = Math.abs(side) * height * .045f;
+                alpha = Math.max(.42f, 1f - Math.abs(steps) * .17f);
+                break;
             case PORTAL: yaw = n * 22; scale = 1.08f - distance * .23f; break;
             case SLIT: yaw = n * 12; break;
             case FAN: pivot = 1f; roll = n * 16; x = -n * width * .22f; break;

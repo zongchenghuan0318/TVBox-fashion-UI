@@ -144,8 +144,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private boolean mHistoryLoadPending;
     private boolean mFeedCancelled;
 
-    // 首页静置自动轮播：电视按键或手机触摸结束后，连续无操作 6 秒才切换
-    private static final long AUTO_SCROLL_DELAY = 6000L;
+    // 首页静置自动轮播：电视按键或手机触摸结束后，连续无操作 7.5 秒才切换
+    private static final long AUTO_SCROLL_DELAY = 7500L;
     private final Handler mAutoScrollHandler = new Handler(Looper.getMainLooper());
     private final Runnable mAutoScrollRun = new Runnable() {
         @Override
@@ -259,6 +259,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     layout.scrollToPositionWithOffset(mFocusedCardPosition, 0);
                 }
             }
+            if (mHotGridView != null) {
+                mHotGridView.setClipChildren(style == HomeCardMotion.LIFT);
+                ((android.view.ViewGroup)mHotGridView.getParent()).setClipChildren(style == HomeCardMotion.LIFT);
+                mHotGridView.requestLayout();
+                mHotGridView.invalidateItemDecorations();
+            }
             updateCardDepth();
         }
         boolean lowPower = Hawk.get(HawkConfig.HOME_LOW_POWER, false);
@@ -310,7 +316,28 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void initGridView() {
         // 首页为单排大卡片横向流：焦点随遥控方向横向推进
-        mHotGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, mCardMotion == HomeCardMotion.LIFT ? LinearLayoutManager.VERTICAL : LinearLayoutManager.HORIZONTAL, false));
+        mHotGridView.setClipChildren(mCardMotion == HomeCardMotion.LIFT);
+        ((android.view.ViewGroup)mHotGridView.getParent()).setClipChildren(mCardMotion == HomeCardMotion.LIFT);
+        mHotGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext,
+                mCardMotion == HomeCardMotion.LIFT ? LinearLayoutManager.VERTICAL : LinearLayoutManager.HORIZONTAL, false) {
+            @Override public void measureChildWithMargins(View child, int widthUsed, int heightUsed) {
+                View poster = child.findViewById(R.id.layoutPoster);
+                if (poster != null && getWidth() > 0 && getHeight() > 0) {
+                    boolean vertical = getOrientation() == LinearLayoutManager.VERTICAL;
+                    float maxWidth = getWidth() * (vertical ? .42f : .25f);
+                    float maxHeight = getHeight() * (vertical ? .58f : .82f);
+                    float aspect = vertical ? 1.15f : (mCardMotion == HomeCardMotion.ORBIT || mCardMotion == HomeCardMotion.WHEEL) ? .83f : 1.52f;
+                    int height = Math.max(1, Math.round(Math.min(maxHeight, maxWidth / aspect)));
+                    android.view.ViewGroup.LayoutParams params = poster.getLayoutParams();
+                    int width = Math.max(1, Math.round(height * aspect));
+                    if (params.width != width || params.height != height) {
+                        params.width = width; params.height = height;
+                        poster.setLayoutParams(params);
+                    }
+                }
+                super.measureChildWithMargins(child, widthUsed, heightUsed);
+            }
+        });
         mAdapter = new HomeHotVodAdapter();
         mAdapter.setOnItemClickListener((adapter, view, position) -> {
             if (ApiConfig.getInstance().getSiteBeanList().isEmpty()) {
@@ -422,6 +449,19 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mHotGridView.setAdapter(mAdapter);
         mHotGridView.addItemDecoration(new RecyclerView.ItemDecoration() {
             private final android.graphics.Paint paint = new android.graphics.Paint();
+            @Override public void onDraw(android.graphics.Canvas canvas, RecyclerView parent, RecyclerView.State state) {
+                if (mCardMotion != HomeCardMotion.ORBIT || parent.getChildCount() == 0) return;
+                View card = parent.getChildAt(0);
+                float cx = mHotGridView.contentCenter();
+                float cy = (card.getTop() + card.getBottom()) * .5f;
+                float radius = Math.min(parent.getWidth() * .46f, card.getWidth() * 3.65f);
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeWidth(Math.max(1f, parent.getResources().getDisplayMetrics().density));
+                paint.setAntiAlias(true); paint.setColor(0x5583CCFF);
+                canvas.save(); canvas.rotate(-5f, cx, cy);
+                canvas.drawOval(cx-radius, cy-card.getHeight()*.22f, cx+radius, cy+card.getHeight()*.22f, paint);
+                canvas.restore(); paint.setStyle(android.graphics.Paint.Style.FILL);
+            }
             @Override public void onDrawOver(android.graphics.Canvas canvas, RecyclerView parent, RecyclerView.State state) {
                 if (mCardMotion != HomeCardMotion.FILM || parent.getChildCount() == 0) return;
                 View first = parent.getChildAt(0);
@@ -539,7 +579,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             float offset = (mHotGridView.cardCenter(child) - centerX)
                     / Math.max(1f, (mHotGridView.verticalCards() ? child.getHeight() : child.getWidth()) * 1.45f);
             float normalized = Math.max(-1f, Math.min(1f, offset));
-            mCardMotion.apply(child, offset, normalized, position == mFocusedCardPosition);
+            RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams)child.getLayoutParams();
+            boolean vertical = mHotGridView.verticalCards();
+            RecyclerView.LayoutManager lm = mHotGridView.getLayoutManager();
+            int stride = vertical ? lm.getDecoratedMeasuredHeight(child) + lp.topMargin + lp.bottomMargin
+                    : lm.getDecoratedMeasuredWidth(child) + lp.leftMargin + lp.rightMargin;
+            float displacement = mHotGridView.cardCenter(child) - centerX;
+            mCardMotion.apply(child, offset, normalized, position == mFocusedCardPosition,
+                    displacement / Math.max(1, stride), displacement);
 
         }
     }

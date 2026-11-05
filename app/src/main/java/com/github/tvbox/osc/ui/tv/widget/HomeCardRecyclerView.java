@@ -23,9 +23,9 @@ import com.owen.tvrecyclerview.widget.TvRecyclerView;
  */
 public class HomeCardRecyclerView extends TvRecyclerView {
     /** 焦点切换时整排滑动的时长（毫秒） */
-    public static final int SCROLL_DURATION = 360;
+    public static final int SCROLL_DURATION = 640;
     /** 缓和进出曲线：起步不急、收尾不顿 */
-    private static final Interpolator SCROLL_INTERPOLATOR = new PathInterpolator(0.12f, 0.72f, 0.18f, 1f);
+    private static final Interpolator SCROLL_INTERPOLATOR = new PathInterpolator(0.32f, 0.06f, 0.28f, 1f);
     public interface GestureListener { void onTouch(boolean touching); }
     private GestureListener gestureListener;
     private boolean userTouching, dragged;
@@ -121,14 +121,14 @@ public class HomeCardRecyclerView extends TvRecyclerView {
             View card = getChildAt(0);
             if (card == null || card.getHeight() == 0) return false;
             int top = Math.max(0,(getHeight()-card.getHeight())/2);
-            int left = Math.max(0,Math.min(getWidth()-cardWidth,windowCenterInList()-cardWidth/2));
+            int left = Math.max(0,Math.min(getWidth()-cardWidth,(getWidth()-cardWidth)/2));
             if (getPaddingTop()!=top || getPaddingLeft()!=left || getPaddingRight()!=0)
                 setPadding(left,top,0,top);
             return true;
         }
         int left = Math.max(0, Math.min(getWidth() - cardWidth, windowCenterInList() - cardWidth / 2));
         int right = Math.max(0, getWidth() - left - cardWidth);
-        int pad = getResources().getDimensionPixelSize(com.studio.osc.R.dimen.vs_8);
+        int pad = Math.max(0,(getHeight()-getChildAt(0).getHeight())/2);
         if (getPaddingLeft() != left || getPaddingRight() != right || getPaddingTop() != pad) {
             setPadding(left, pad, right, pad);
         }

@@ -138,8 +138,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     public View mSortFocusView = null;
     private Handler mHandler;
     private long mExitTime = 0;
-    private View mLoadingView;
-    private long mShowLoadingTime = 0;
     private String mSortSignature = "";
     private int mLastSyncedPage = -1;
     private String categorySourceIdentity = "";
@@ -193,7 +191,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void initView() {
         this.tvDate = findViewById(R.id.tvDate);
-        mLoadingView = findViewById(R.id.loadingView);
         this.sidebarSpacer = findViewById(R.id.sidebarSpacer);
         this.leftNavPanel = findViewById(R.id.leftNavPanel);
         this.sidebarEdgeShadow = findViewById(R.id.sidebarEdgeShadow);
@@ -284,7 +281,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler = new Handler(Looper.getMainLooper());
         EventBus.getDefault().register(this);
         initView();
-        mShowLoadingTime = System.currentTimeMillis();
         initSortView();
         initTopSortView();
         applyLayoutStyle(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT));
@@ -292,9 +288,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         observePages();
         initSiteFile();
         showTime();
-        // 兜底：加载异常时也不能一直停在打开画面
+        mContentViewPager.post(this::focusHomeEntry);
+        // 分类信息尚未返回时再尝试一次。
         mHandler.postDelayed(() -> {
-            hideLoading();
             if (categorySourceIdentity.isEmpty()) requestCategoryMetadata();
         }, 15000);
     }
@@ -941,7 +937,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             }
             if (freshCount < 5) scheduleCategoryRetry();
             else mHandler.removeCallbacks(categoryRetry);
-            hideLoading();
             // 核心保证：只有默认点播源分类或推荐数据完全载入成功后，才允许排队检查更新
             if (freshCount > 0 || (absXml != null && absXml.videoList != null && !absXml.videoList.isEmpty())) {
                 checkUpdateIfSourceReady();
@@ -1055,28 +1050,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     .append('#').append(data.available).append('#').append(gson.toJson(data.filters)).append(';');
         }
         return sb.toString();
-    }
-
-    /**
-     * 关闭打开画面：首页数据就绪后淡出，并把焦点交还给左侧分类栏
-     */
-    private void hideLoading() {
-        if (mLoadingView == null || mLoadingView.getVisibility() != View.VISIBLE) {
-            return;
-        }
-        long elapsed = System.currentTimeMillis() - mShowLoadingTime;
-        if (elapsed < 600) {
-            // 加载过快时也让打开画面停留一下，避免一闪而过
-            mHandler.postDelayed(this::hideLoading, 600 - elapsed);
-            return;
-        }
-        mLoadingView.animate().alpha(0f).setDuration(300).withEndAction(new Runnable() {
-            @Override
-            public void run() {
-                mLoadingView.setVisibility(View.GONE);
-                focusHomeEntry();
-            }
-        }).start();
     }
 
     /**
@@ -1325,9 +1298,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (savedLayout != mCurrentLayoutStyle) {
             applyLayoutStyle(savedLayout);
             // 切换后原焦点所在的视图可能已经隐藏，把焦点交给新布局的入口
-            if (mLoadingView == null || mLoadingView.getVisibility() != View.VISIBLE) {
-                focusHomeEntry();
-            }
+            focusHomeEntry();
         } else if (mCurrentLayoutStyle == HawkConfig.HOME_LAYOUT_IMMERSIVE) {
             if (topNavPanel != null && topNavPanel.getVisibility() == View.VISIBLE) {
                 scheduleImmersiveTopBarFadeOut(3500L);
