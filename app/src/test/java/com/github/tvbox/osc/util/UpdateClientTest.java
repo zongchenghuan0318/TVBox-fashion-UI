@@ -114,9 +114,10 @@ public class UpdateClientTest {
             return response(chain, body.getBytes(StandardCharsets.UTF_8));
         });
         assertEquals(114, client.fetchInfo().versionCode);
-        assertEquals(2, urls.size());
+        assertEquals(3, urls.size());
         assertEquals(UpdateClient.GITEE_LATEST_RELEASE_URL, urls.get(0));
         assertEquals(UpdateClient.GITEE_REPOSITORY + "/releases/download/v1.1.4/update.json", urls.get(1));
+        assertEquals("https://gh-proxy.com/" + UpdateClient.GITHUB_MANIFEST_URL, urls.get(2));
     }
 
     @Test public void invalidOrIncompleteGiteeReleaseFallsBackToGithub() throws Exception {
@@ -223,7 +224,7 @@ public class UpdateClientTest {
             });
             fail();
         } catch (IOException expected) { assertEquals("安装包签名不符", expected.getMessage()); }
-        assertEquals(4, verified.get());
+        assertEquals(1, verified.get());
         assertEquals(0, directory.list().length);
     }
 

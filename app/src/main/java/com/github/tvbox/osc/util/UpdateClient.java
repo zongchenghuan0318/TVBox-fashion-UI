@@ -78,6 +78,11 @@ public final class UpdateClient {
 
     public interface Progress { void update(long received, long total, int route); }
     public interface PackageVerifier { void verify(File apk) throws Exception; }
+    private static final class VerificationFailure extends IOException {
+        VerificationFailure(Exception cause) {
+            super(cause.getMessage() == null ? "安装包验证失败" : cause.getMessage(), cause);
+        }
+    }
 
     public UpdateClient() { this(new OkHttpClient()); }
 
@@ -234,12 +239,19 @@ public final class UpdateClient {
                 checkCancelled();
                 if (received != info.size) throw new IOException("安装包下载不完整");
                 if (!hex(digest.digest()).equalsIgnoreCase(info.sha256)) throw new IOException("安装包校验失败");
-                verifier.verify(file);
+                try {
+                    verifier.verify(file);
+                } catch (Exception e) {
+                    // Package/signature/version failures are deterministic. Retrying
+                    // another mirror would only download the same invalid package again.
+                    throw new VerificationFailure(e);
+                }
                 checkCancelled();
                 progress.update(received, info.size, route);
                 verified = true;
                 return file;
             } catch (Exception e) {
+                if (e instanceof VerificationFailure) throw (VerificationFailure)e;
                 last = e instanceof IOException ? (IOException) e : new IOException("安装包验证失败", e);
             } finally {
                 if (!verified) file.delete();
