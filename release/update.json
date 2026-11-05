@@ -1,8 +1,8 @@
 {
-    "versionCode":  200,
-    "versionName":  "1.7.1",
-    "changelog":  "# 1.7.1\r\n\r\n## 更新内容\r\n\r\n- 全面重写项目 README，补充安装、功能、遥控器、首页布局、卡片样式、开发构建和发布说明。\r\n- 同步当前 v1.7.x 的动态抽屉、菜单键唤起侧栏、卡片循环和详情页背景功能文档。\r\n- 补充 GitHub Release、ADB 安装、JDK 11 构建和正式发布流程。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.1（versionCode 200）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.1/Z.apk",
-    "sha256":  "fa4a8fa007877f5680d5e8557cd0d536d92e440ed761b52bd470efebc206f211",
-    "size":  24928008
+    "versionCode":  201,
+    "versionName":  "1.7.2",
+    "changelog":  "# 1.7.2\r\n\r\n## 更新内容\r\n\r\n- 修复应用内远程更新在安装包校验失败后重复切换下载线路的问题。\r\n- 包名、版本号或签名不匹配时立即显示明确错误，不再下载完成后反复回到 0%。\r\n- 网络、文件大小或 SHA-256 校验异常仍会自动尝试备用下载线路。\r\n- 补充更新器测试，覆盖签名校验失败和线路回退场景。\r\n\r\n## 重要说明\r\n\r\nDebug 包和正式 Release 包使用不同签名。通过源码构建的 Debug 包不能直接覆盖安装正式包；测试更新功能时，请先卸载 Debug 包，再安装正式 Release 包。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.2（versionCode 201）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.2/Z.apk",
+    "sha256":  "1d759dc61ff16cead6e19ae8407165acf46533311da44d13eb7fbab06882fefe",
+    "size":  24927764
 }
