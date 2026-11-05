@@ -17,6 +17,12 @@
 <p align="center">
   <img width="2358" height="1080" alt="Z影视播放界面" src="https://github.com/user-attachments/assets/f810db62-0641-4fca-aa2d-0028b98c831c" />
 </p>
+<img width="2358" height="1080" alt="ae314aad5b1a6eb8d1dc98f1389e5acb" src="https://github.com/user-attachments/assets/32b9a6b1-3517-4362-b111-5f40565bcb2e" />
+<img width="2358" height="1080" alt="9efe4530bc7622a8c3bd8562867118c7" src="https://github.com/user-attachments/assets/eb81db0c-a3ff-4955-8500-ffaa6bff79cd" />
+<img width="2358" height="1080" alt="6150f75c63cdcfa5586b0059e0376609" src="https://github.com/user-attachments/assets/4c2a7c36-f6a8-4281-bbd0-8a65c2272d7f" />
+<img width="2358" height="1080" alt="75c336fe4d24d721044f024138aa058a" src="https://github.com/user-attachments/assets/7112dcb9-7e72-44d3-a3ec-0ee6918f51f6" />
+<img width="2358" height="1080" alt="f80ad8647789d3673996f417acc26897" src="https://github.com/user-attachments/assets/623cfbdc-1b5e-460b-a6c8-2796de96d11e" />
+<img width="2358" height="1080" alt="79149b8b68f3cffda720353cdba14fbe" src="https://github.com/user-attachments/assets/6bf5c11f-e13c-42e2-b9b2-d34aa70cb40e" />
 
 Z影视是一款以电视盒子和智能电视为主要使用场景的 Android 影视聚合客户端，也支持手机横屏使用。它不内置或提供影片内容，而是读取用户配置的影视源，将搜索、详情、播放、收藏和历史整合到一个适合遥控器操作的界面中。
 
