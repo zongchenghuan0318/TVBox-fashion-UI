@@ -1,8 +1,8 @@
 {
-    "versionCode":  196,
-    "versionName":  "1.6.7",
-    "changelog":  "# 1.6.7\r\n\r\n## 更新内容\r\n\r\n- 优化首页卡片动效表现。\r\n- 调整卡片布局与间距。\r\n- 改善焦点卡片的显示效果和交互体验。\r\n\r\n## 安装包\r\n\r\n- 版本：1.6.7（versionCode 196）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.7/Z.apk",
-    "sha256":  "3d4e975ece515c51783e1dd77fcf9a36e73f1525d468ee25105a96ab27fe85c0",
-    "size":  24926382
+    "versionCode":  197,
+    "versionName":  "1.6.8",
+    "changelog":  "# 1.6.8\r\n\r\n## 更新内容\r\n\r\n- 新增玻璃黑启动等待页，显示欢迎与安全提示。\r\n- 首页首张图片加载完成后再进入主页且不显示进度条。\r\n- 修复桌面抽牌与折扇选片的边缘卡片弧度和叠放效果。\r\n\r\n## 安装包\r\n\r\n- 版本：1.6.8（versionCode 197）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.8/Z.apk",
+    "sha256":  "e46b0659d31456cacea439055c79c11fa3f8ac63a13e5fe488ad1ce902a4b5df",
+    "size":  24926975
 }
