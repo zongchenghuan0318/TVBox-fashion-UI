@@ -260,6 +260,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 }
             }
             if (mHotGridView != null) {
+                mHotGridView.setCenterInViewport(style == HomeCardMotion.STACK || style == HomeCardMotion.FAN);
                 mHotGridView.setClipChildren(style == HomeCardMotion.LIFT);
                 ((android.view.ViewGroup)mHotGridView.getParent()).setClipChildren(style == HomeCardMotion.LIFT);
                 mHotGridView.requestLayout();
@@ -316,6 +317,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void initGridView() {
         // 首页为单排大卡片横向流：焦点随遥控方向横向推进
+        mHotGridView.setCenterInViewport(mCardMotion == HomeCardMotion.STACK || mCardMotion == HomeCardMotion.FAN);
         mHotGridView.setClipChildren(mCardMotion == HomeCardMotion.LIFT);
         ((android.view.ViewGroup)mHotGridView.getParent()).setClipChildren(mCardMotion == HomeCardMotion.LIFT);
         mHotGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext,
@@ -335,7 +337,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     boolean vertical = getOrientation() == LinearLayoutManager.VERTICAL;
                     int insetX = child.getPaddingLeft() + child.getPaddingRight();
                     int insetY = child.getPaddingTop() + child.getPaddingBottom();
-                    float maxWidth = getWidth() * (vertical ? .44f : .28f) - insetX;
+                    boolean layered = mCardMotion == HomeCardMotion.STACK || mCardMotion == HomeCardMotion.FAN;
+                    float maxWidth = getWidth() * (vertical ? .44f : layered ? .148f : .28f) - insetX;
                     float maxHeight = getHeight() * mCardMotion.heightFraction - insetY;
                     float aspect = mCardMotion.aspect;
                     int height = Math.max(1, Math.round(Math.min(maxHeight, maxWidth / aspect)));

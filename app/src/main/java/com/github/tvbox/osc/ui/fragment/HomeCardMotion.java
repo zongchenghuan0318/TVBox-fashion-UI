@@ -15,7 +15,7 @@ import com.studio.osc.R;
 
 enum HomeCardMotion {
     FILM("胶片走带", .87f, .76f), STACK("桌面抽牌", .72f, .70f), ORBIT("星轨环游", .72f, .63f),
-    LIFT("垂直升降", .86f, .56f), WHEEL("3D 海报转盘", .74f, .73f), PORTAL("穿过海报", .77f, .73f),
+    LIFT("垂直升降", 1.42f, .66f), WHEEL("3D 海报转盘", .74f, .73f), PORTAL("穿过海报", .77f, .73f),
     SLIT("光闸切片", .80f, .75f), FAN("折扇选片", .72f, .64f), FLAT("平直横移", 1.15f, .77f);
 
     final String label;
@@ -39,11 +39,18 @@ enum HomeCardMotion {
         float width = card.getWidth(), height = card.getHeight();
         float x = 0, y = 0, roll = 0, yaw = 0, pitch = 0, pivot = .5f;
         float scale = 1f - distance * .07f, alpha = 1f - distance * .19f;
+        boolean layered = this == STACK || this == FAN;
+        float rank = Math.abs(steps);
+        // Keep the inner pairs stacked. Leave the outer pair its own full card width.
+        float outer = Math.max(0f, Math.min(1f, rank - 2f));
+        float layer = Math.copySign(Math.min(rank, 2f), steps);
+        float edge = Math.copySign(outer * width * (this == FAN ? 1.95f : 1.55f), steps);
+        card.setVisibility(layered && rank >= 3.5f ? View.INVISIBLE : View.VISIBLE);
         switch (this) {
             case FILM: scale = 1f; alpha = 1f - distance * .32f; break;
             case STACK:
-                x = steps * width * .50f - displacement;
-                roll = Math.max(-4f, Math.min(4f, steps)) * 10f;
+                x = layer * width * .56f + edge - displacement;
+                roll = layer * 10f * (1f - outer);
                 y = Math.min(4f, Math.abs(steps)) * height * .028f;
                 scale = Math.max(.69f, 1f - Math.abs(steps) * .065f);
                 break;
@@ -58,9 +65,10 @@ enum HomeCardMotion {
                 break;
             }
             case LIFT:
-                scale = Math.max(.68f, 1f - Math.abs(steps) * .13f);
-                y = steps * height * .93f - displacement;
-                alpha = Math.max(.35f, 1f - Math.abs(steps) * .23f);
+                scale = Math.max(.76f, 1f - rank * .16f);
+                float rowHeight = ((View)card.getParent()).getHeight();
+                y = steps * (rowHeight * .50f + height * .10f) - displacement;
+                alpha = Math.max(.32f, 1f - rank * .43f);
                 break;
             case WHEEL:
                 float side = Math.max(-3f, Math.min(3f, steps));
@@ -73,12 +81,15 @@ enum HomeCardMotion {
             case PORTAL: yaw = n * 22; scale = 1.08f - distance * .23f; break;
             case SLIT: yaw = n * 12; break;
             case FAN:
-                pivot = 1.25f;
-                roll = Math.max(-3.5f, Math.min(3.5f, steps)) * 11f;
-                x = steps * width * .36f - displacement;
+                pivot = 1.18f;
+                roll = layer * 12f * (1f - outer);
+                x = layer * width * .34f + edge - displacement;
                 scale = Math.max(.74f, 1f - Math.abs(steps) * .045f);
                 break;
             case FLAT: scale = 1.04f - distance * .04f; break;
+        }
+        if (layered && rank > 3f) {
+            alpha *= Math.max(0f, Math.min(1f, (3.5f - rank) * 2f));
         }
         if (this != LIFT) {
             View row = (View)card.getParent();

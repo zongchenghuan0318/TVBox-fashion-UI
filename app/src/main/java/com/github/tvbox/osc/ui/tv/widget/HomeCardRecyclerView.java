@@ -214,7 +214,14 @@ public class HomeCardRecyclerView extends TvRecyclerView {
      * 屏幕（窗口）横向中点换算到列表自身的坐标系。
      * 列表左侧被侧边栏和内容内边距挤开，列表中点并不等于屏幕中点，必须按屏幕算。
      */
+    private boolean centerInViewport;
+
+    public void setCenterInViewport(boolean value) {
+        if (centerInViewport != value) { centerInViewport = value; requestLayout(); }
+    }
+
     private int windowCenterInList() {
+        if (centerInViewport) return getWidth() / 2;
         int[] listLoc = new int[2];
         getLocationOnScreen(listLoc);
         View root = getRootView();
