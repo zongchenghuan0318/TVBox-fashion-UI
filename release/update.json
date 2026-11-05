@@ -1,8 +1,8 @@
 {
-    "versionCode":  198,
-    "versionName":  "1.6.9",
-    "changelog":  "# 1.6.9\r\n\r\n## 更新内容\r\n\r\n- 详情页背景改为无模糊高清显示，提升海报和场景细节。\r\n- 修复首页卡片手动拖动到循环边界后无法继续切换的问题。\r\n- Apple TV 和极简画报布局取消左右滑动切换分类。\r\n- 首页卡片样式支持首尾相接循环切换，并将星轨环游设为新用户默认样式。\r\n- 优化启动等待页、垂直升降叠卡和首页卡片展示效果。\r\n- 增加交互式卡片动效选型展示页。\r\n\r\n## 安装包\r\n\r\n- 版本：1.6.9（versionCode 198）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.6.9/Z.apk",
-    "sha256":  "924c938086f2d941b58c0fc569e1be421a5716ae20f08a622eff875232f21492",
-    "size":  24927891
+    "versionCode":  199,
+    "versionName":  "1.7.0",
+    "changelog":  "# 1.7.0\r\n\r\n## 更新内容\r\n\r\n- 动态抽屉布局新增遥控器菜单键唤起侧栏功能。\r\n- 菜单键唤起侧栏后自动聚焦当前首页分类。\r\n- 侧栏已打开时再次按菜单键，会重新聚焦当前分类。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.0（versionCode 199）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.0/Z.apk",
+    "sha256":  "90fea55f32fb93e3af769116adb9b48960b93769958137103ed78e3619015c8e",
+    "size":  24928004
 }
