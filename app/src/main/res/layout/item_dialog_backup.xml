@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_weight="1"
-        android:background="@drawable/button_dialog_main"
+        android:background="@drawable/selector_settings_action"
         android:clickable="true"
         android:ellipsize="middle"
         android:focusable="true"
@@ -30,7 +30,7 @@
         android:layout_height="match_parent"
         android:layout_marginStart="@dimen/vs_5"
         android:layout_marginLeft="@dimen/vs_5"
-        android:background="@drawable/button_dialog_main"
+        android:background="@drawable/selector_settings_action"
         android:clickable="true"
         android:focusable="true"
         android:padding="@dimen/vs_10"
@@ -38,4 +38,3 @@
         android:visibility="gone" />
 
 </LinearLayout>
-

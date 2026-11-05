@@ -170,6 +170,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         int[] firstRows = {R.id.llPlay, R.id.llHomeApi, R.id.llApi, R.id.llAbout};
         for (int i = 0; i < navItems.length; i++) {
             final int index = i;
+            navItems[i].setContentDescription("设置分组：" + ((TextView) navItems[i]).getText());
             navItems[i].setNextFocusRightId(firstRows[i]);
             navItems[i].setOnClickListener(v -> showGroup(index));
             navItems[i].setOnFocusChangeListener((v, hasFocus) -> {
@@ -183,6 +184,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
         for (int i = 0; i < groups.length; i++) {
             groups[i].setVisibility(i == index ? View.VISIBLE : View.GONE);
             navItems[i].setSelected(i == index);
+        }
+        if (index >= 0 && index < navItems.length) {
+            navItems[index].setContentDescription("设置分组：" + ((TextView) navItems[index]).getText() + "，当前选中");
         }
         ScrollView scroll = findViewById(R.id.settingsScroll);
         if (scroll != null) scroll.scrollTo(0, 0);

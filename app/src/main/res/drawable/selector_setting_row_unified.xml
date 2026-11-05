@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置行统一状态：焦点优先于选中，避免遥控器移动后状态不明确 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#0DFFFFFF" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#4DFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_2"
+                android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#32FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_2"
+                android:color="#D9FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#24FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#59FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#0FFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#1FFFFFFF" />
+        </shape>
+    </item>
+</selector>

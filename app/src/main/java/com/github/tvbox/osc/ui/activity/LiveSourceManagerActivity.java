@@ -46,6 +46,13 @@ public class LiveSourceManagerActivity extends BaseActivity {
         findViewById(R.id.liveSourceBack).setOnClickListener(v -> finish());
         findViewById(R.id.liveSourceAdd).setOnClickListener(v -> edit(null, -1));
         render();
+        findViewById(R.id.liveSourceAdd).post(() -> {
+            if (list.getChildCount() > 1) {
+                list.getChildAt(1).requestFocus();
+            } else {
+                findViewById(R.id.liveSourceAdd).requestFocus();
+            }
+        });
     }
 
     private void render() {
@@ -93,7 +100,7 @@ public class LiveSourceManagerActivity extends BaseActivity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setFocusable(true);
         row.setClickable(true);
-        row.setBackgroundResource(R.drawable.bg_live_source_card);
+        row.setBackgroundResource(R.drawable.selector_setting_row_unified);
         row.setPadding(dp(20), dp(14), dp(20), dp(14));
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
         rowParams.setMargins(0, 0, 0, dp(12));
@@ -137,6 +144,8 @@ public class LiveSourceManagerActivity extends BaseActivity {
 
         row.setContentDescription(LiveSourceManager.displayName(source, index)
                 + (source.enabled ? "，已启用" : "，已停用") + "，按确定打开更多操作");
+        row.setNextFocusUpId(index == 0 ? R.id.liveSourceBack : View.NO_ID);
+        row.setNextFocusDownId(index == sources.size() - 1 ? R.id.liveSourceAdd : View.NO_ID);
         row.setOnClickListener(v -> showActions(source, index));
     }
 
@@ -183,7 +192,8 @@ public class LiveSourceManagerActivity extends BaseActivity {
     }
 
     private void confirmDelete(LiveSourceManager.Source source, int index) {
-        new AlertDialog.Builder(this).setTitle("删除直播源？")
+        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(this, R.style.DarkAlertDialog))
+                .setTitle("删除直播源？")
                 .setMessage("删除后该源的频道将不会在下一次刷新中出现，当前正在播放的频道不会中断。")
                 .setNegativeButton("取消", null).setPositiveButton("删除", (d, w) -> {
                     sources.remove(index);
@@ -208,13 +218,15 @@ public class LiveSourceManagerActivity extends BaseActivity {
         }
         box.addView(name);
         box.addView(content);
-        new AlertDialog.Builder(this).setTitle(old == null ? "添加直播源" : "编辑直播源").setView(box)
+        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(this, R.style.DarkAlertDialog))
+                .setTitle(old == null ? "添加直播源" : "编辑直播源").setView(box)
                 .setNegativeButton("取消", null).setPositiveButton("保存", (d, w) -> {
                     String value = content.getText().toString().trim();
                     if (value.isEmpty()) return;
                     for (int i = 0; i < sources.size(); i++) {
                         if (i != index && LiveSourceManager.key(sources.get(i).content).equals(LiveSourceManager.key(value))) {
-                            new AlertDialog.Builder(this).setMessage("已有相同内容或地址的直播源")
+                            new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(this, R.style.DarkAlertDialog))
+                                    .setMessage("已有相同内容或地址的直播源")
                                     .setPositiveButton("确定", null).show();
                             return;
                         }

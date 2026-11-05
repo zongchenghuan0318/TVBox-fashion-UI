@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置分组导航：当前位置保持低亮，遥控器焦点使用更高对比度 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#4DFFFFFF" />
+            <stroke android:width="@dimen/vs_2" android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#32FFFFFF" />
+            <stroke android:width="@dimen/vs_2" android:color="#D9FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#24FFFFFF" />
+            <stroke android:width="@dimen/vs_1" android:color="#59FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+</selector>

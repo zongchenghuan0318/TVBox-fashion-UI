@@ -34,7 +34,7 @@
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
-        <item name="android:background">@drawable/selector_settings_control</item>
+        <item name="android:background">@drawable/selector_settings_action</item>
     </style>
     <style name="SettingsButton.Primary" parent="SettingsButton">
         <item name="android:textColor">@color/selector_update_action_text</item>

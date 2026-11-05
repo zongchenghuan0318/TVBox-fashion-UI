@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置相关操作按钮：默认低调，焦点清晰，按下反馈更明确 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#0FFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#14FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#59FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_2"
+                android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#3DFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_2"
+                android:color="#E6FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#2BFFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#73FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_12" />
+            <solid android:color="#18FFFFFF" />
+            <stroke
+                android:width="@dimen/vs_1"
+                android:color="#2EFFFFFF" />
+        </shape>
+    </item>
+</selector>

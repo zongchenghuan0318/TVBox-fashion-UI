@@ -89,6 +89,7 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
             }
         }
         holder.itemView.setSelected(isSelected);
+        holder.itemView.setContentDescription(name);
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -98,6 +99,12 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
                     notifyItemChanged(select);
                 }
                 dialogInterface.click(value, position);
+            }
+        });
+        holder.itemView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                v.setSelected(hasFocus || holder.getAdapterPosition() == select);
             }
         });
     }
