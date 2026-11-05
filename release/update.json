@@ -1,8 +1,8 @@
 {
-    "versionCode":  201,
-    "versionName":  "1.7.2",
-    "changelog":  "# 1.7.2\r\n\r\n## 更新内容\r\n\r\n- 修复应用内远程更新在安装包校验失败后重复切换下载线路的问题。\r\n- 包名、版本号或签名不匹配时立即显示明确错误，不再下载完成后反复回到 0%。\r\n- 网络、文件大小或 SHA-256 校验异常仍会自动尝试备用下载线路。\r\n- 补充更新器测试，覆盖签名校验失败和线路回退场景。\r\n\r\n## 重要说明\r\n\r\nDebug 包和正式 Release 包使用不同签名。通过源码构建的 Debug 包不能直接覆盖安装正式包；测试更新功能时，请先卸载 Debug 包，再安装正式 Release 包。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.2（versionCode 201）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.2/Z.apk",
-    "sha256":  "1d759dc61ff16cead6e19ae8407165acf46533311da44d13eb7fbab06882fefe",
-    "size":  24927764
+    "versionCode":  202,
+    "versionName":  "1.7.3",
+    "changelog":  "# 1.7.3\r\n\r\n## 更新内容\r\n\r\n- 发布远程更新验证版本，功能代码保持不变。\r\n- 用于验证应用内版本检查、下载、SHA-256 校验和正式签名覆盖安装流程。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.3（versionCode 202）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.3/Z.apk",
+    "sha256":  "91196e8e9006d114972d9dcae0a1f48e4cf624bac0744701eefa14f568b0dc08",
+    "size":  24927759
 }
