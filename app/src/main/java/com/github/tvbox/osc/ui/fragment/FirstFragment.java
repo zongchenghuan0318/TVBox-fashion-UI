@@ -219,6 +219,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
         if (!visible) {
+            posterStage.stop();
             ++mHeroSeq;
             if (!mHeroReady) mHeroPic = null;
             mHeroHandler.removeCallbacks(mHeroImageRun);
@@ -250,6 +251,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private void refreshHomeMode() {
         HomeCardMotion style = HomeCardMotion.current();
         if (mCardMotion != style) {
+            posterStage.stop();
             int realPosition = mAdapter == null ? 0 : mAdapter.realPosition(mFocusedCardPosition);
             mCardMotion = style;
             if (mAdapter != null) {
@@ -278,6 +280,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
         boolean lowPower = Hawk.get(HawkConfig.HOME_LOW_POWER, false);
         if (mLowPowerHome == lowPower) return;
+        posterStage.stop();
         mLowPowerHome = lowPower;
         ++mHeroSeq;
         mHeroHandler.removeCallbacks(mHeroImageRun);
@@ -603,7 +606,15 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         }
     }
 
+    private final PosterStage posterStage = new PosterStage();
+
     private void transitionCard(int next) {
+        if (mCardMotion.usesPosterStage()) {
+            if (!mLowPowerHome && mHotGridView.getLayoutManager() != null) {
+                posterStage.start(mHotGridView, mCardMotion, mFocusedCardPosition, next, this::updateCardDepth);
+            }
+            return;
+        }
         if (mCardMotion != HomeCardMotion.SLIT || mLowPowerHome) return;
         if (mHotGridView.getLayoutManager() == null) return;
         View old = mHotGridView.getLayoutManager().findViewByPosition(mFocusedCardPosition);
@@ -633,6 +644,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             float displacement = mHotGridView.cardCenter(child) - centerX;
             mCardMotion.apply(child, offset, normalized, position == mFocusedCardPosition,
                     displacement / Math.max(1, stride), displacement);
+            if (mCardMotion.usesPosterStage()) posterStage.apply(child, position);
 
         }
     }
@@ -671,6 +683,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     @Override
     protected void onFragmentPause() {
+        posterStage.stop();
         mViewActive = false;
         ++mHeroSeq;
         if (!mHeroReady) mHeroPic = null;
@@ -686,6 +699,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     @Override
     public void onDestroyView() {
+        posterStage.stop();
         mViewActive = false;
         mHistoryLoadPending = false;
         mFeedRequestId++;
@@ -747,6 +761,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     private void resetCarouselState() {
+        posterStage.stop();
         mCarouselInitializing = true;
         stopAutoScroll();
         mFocusedCardPosition = mAdapter == null ? 0 : mAdapter.loopStartPosition();
@@ -1331,7 +1346,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     /** 更新 hero 区的文字信息（片名、备注、元信息、简介） */
     private void applyHeroInfo(Movie.Video vod) {
-        mHeroTitle.setText(NullUtil.isNull(vod.name) ? "" : vod.name);
+        String title = NullUtil.isNull(vod.name) ? "" : vod.name;
+        if (mCardMotion.usesPosterStage() && !mLowPowerHome && !android.text.TextUtils.equals(title, mHeroTitle.getText())
+                && (android.os.Build.VERSION.SDK_INT < 26 || android.animation.ValueAnimator.areAnimatorsEnabled())) {
+            mHeroTitle.animate().cancel();
+            mHeroTitle.setTranslationY(mHeroTitle.getTextSize() * .12f);
+            mHeroTitle.animate().translationY(0f).setDuration(220L).start();
+        }
+        mHeroTitle.setText(title);
         if (NullUtil.isNull(vod.note)) {
             mHeroNote.setVisibility(View.GONE);
         } else {

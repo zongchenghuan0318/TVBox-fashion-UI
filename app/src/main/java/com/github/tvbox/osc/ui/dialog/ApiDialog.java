@@ -214,11 +214,8 @@ public class ApiDialog extends BaseDialog {
     private void onVerifyDone(String newApi, ApiConfig.VerifyResult result) {
         setVerifying(false);
         if (result.ok) {
-            showStatus("✓ " + result.message, STATUS_OK);
             saveConfig(newApi, result.json);
-            mHandler.postDelayed(() -> {
-                if (isShowing()) dismiss();
-            }, 800);
+            if (isShowing()) dismiss();
         } else {
             showStatus("✗ 校验失败：" + result.message, STATUS_FAIL);
         }

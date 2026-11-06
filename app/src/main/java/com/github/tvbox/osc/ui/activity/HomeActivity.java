@@ -309,6 +309,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler = new Handler(Looper.getMainLooper());
         EventBus.getDefault().register(this);
         initView();
+        hideStartupProxyPanel();
         initSortView();
         initTopSortView();
         applyLayoutStyle(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT));
@@ -321,6 +322,43 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler.postDelayed(() -> {
             if (categorySourceIdentity.isEmpty()) requestCategoryMetadata();
         }, 15000);
+    }
+
+    private final android.view.ViewTreeObserver.OnGlobalLayoutListener proxyPanelListener =
+            () -> hideProxyProgress((ViewGroup) getWindow().getDecorView());
+
+    private void hideStartupProxyPanel() {
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalLayoutListener(proxyPanelListener);
+    }
+
+    private void hideProxyProgress(ViewGroup root) {
+        for (int i = 0; i < root.getChildCount(); i++) {
+            View child = root.getChildAt(i);
+            if (child.getVisibility() != View.VISIBLE) continue;
+            if (child instanceof android.widget.ProgressBar && !((android.widget.ProgressBar) child).isIndeterminate()) {
+                ViewGroup panel = root;
+                while (panel.getHeight() > 0 && panel.getHeight() <= getWindow().getDecorView().getHeight() / 3) {
+                    // The plugin changes its phase text, but always displays a percentage beside the bar.
+                    if (hasProgressPercentage(panel)) {
+                        panel.setVisibility(View.GONE);
+                        break;
+                    }
+                    if (!(panel.getParent() instanceof ViewGroup)) break;
+                    panel = (ViewGroup) panel.getParent();
+                }
+            } else if (child instanceof ViewGroup) {
+                hideProxyProgress((ViewGroup) child);
+            }
+        }
+    }
+
+    private boolean hasProgressPercentage(ViewGroup panel) {
+        for (int i = 0; i < panel.getChildCount(); i++) {
+            View v = panel.getChildAt(i);
+            if (v instanceof TextView && ((TextView) v).getText().toString().trim().matches("[0-9]{1,3}\\s*[%％]")) return true;
+            if (v instanceof ViewGroup && hasProgressPercentage((ViewGroup) v)) return true;
+        }
+        return false;
     }
 
     private void initSortView(){
@@ -1364,6 +1402,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     @Override
     protected void onDestroy() {
+        getWindow().getDecorView().getViewTreeObserver().removeOnGlobalLayoutListener(proxyPanelListener);
         if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
         EventBus.getDefault().unregister(this);
 //        AppManager.getInstance().appExit(0);

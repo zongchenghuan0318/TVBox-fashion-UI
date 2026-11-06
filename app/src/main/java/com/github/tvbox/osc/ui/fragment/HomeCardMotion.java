@@ -16,7 +16,9 @@ import com.studio.osc.R;
 enum HomeCardMotion {
     FILM("胶片走带", .87f, .76f), STACK("桌面抽牌", .72f, .70f), ORBIT("星轨环游", .72f, .63f),
     LIFT("垂直升降", 1.42f, .66f), WHEEL("3D 海报转盘", .74f, .73f), PORTAL("穿过海报", .77f, .73f),
-    SLIT("光闸切片", .80f, .75f), FAN("折扇选片", .72f, .64f), FLAT("平直横移", 1.15f, .77f);
+    SLIT("光闸切片", .80f, .75f), FAN("折扇选片", .72f, .64f), FLAT("平直横移", 1.15f, .77f),
+    PULL("引力抽片", .70f, .66f), FAULT("断层错位", .70f, .66f),
+    DROP("翻板坠落", .70f, .66f), STARS("双星换位", .70f, .66f);
 
     final String label;
     final float aspect, heightFraction;
@@ -24,6 +26,10 @@ enum HomeCardMotion {
         this.label = label;
         this.aspect = aspect;
         this.heightFraction = heightFraction;
+    }
+
+    boolean usesPosterStage() {
+        return this == PULL || this == FAULT || this == DROP || this == STARS;
     }
 
     static HomeCardMotion current() {
@@ -44,6 +50,16 @@ enum HomeCardMotion {
         float layer = Math.copySign(Math.min(rank, 4f), steps);
         card.setVisibility(View.VISIBLE);
         switch (this) {
+            case PULL: case FAULT: case DROP: case STARS:
+                x = steps * width * .66f - displacement;
+                y = Math.min(rank, 3f) * height * .04f;
+                yaw = -Math.signum(steps) * Math.min(rank, 3f) * 13f;
+                roll = Math.max(-3f, Math.min(3f, steps)) * 3f;
+                scale = 1f / (1f + rank * .16f);
+                alpha = Math.max(.36f, 1f - rank * .17f);
+                if (rank > 3f) alpha *= Math.max(0, 1f - (rank - 3f)*2f);
+                if (alpha == 0) card.setVisibility(View.INVISIBLE);
+                break;
             case FILM: scale = 1f; alpha = 1f - distance * .32f; break;
             case STACK:
                 x = layer * width * .56f - displacement;
