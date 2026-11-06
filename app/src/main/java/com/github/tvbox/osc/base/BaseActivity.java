@@ -2,6 +2,8 @@ package com.github.tvbox.osc.base;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -38,6 +40,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         try {
+            applyLandscapeOrientation();
             if (screenRatio < 0) {
                 DisplayMetrics dm = new DisplayMetrics();
                 getWindowManager().getDefaultDisplay().getMetrics(dm);
@@ -54,6 +57,16 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         mContext = this;
         AppManager.getInstance().addActivity(this);
         init();
+    }
+
+    private void applyLandscapeOrientation() {
+        PackageManager packageManager = getPackageManager();
+        boolean television = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+                || (getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK)
+                == Configuration.UI_MODE_TYPE_TELEVISION;
+        if (!television) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        }
     }
 
     @Override
