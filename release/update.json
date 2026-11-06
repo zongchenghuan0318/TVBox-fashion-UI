@@ -1,8 +1,8 @@
 {
-    "versionCode":  202,
-    "versionName":  "1.7.3",
-    "changelog":  "# 1.7.3\r\n\r\n## 更新内容\r\n\r\n- 发布远程更新验证版本，功能代码保持不变。\r\n- 用于验证应用内版本检查、下载、SHA-256 校验和正式签名覆盖安装流程。\r\n\r\n## 安装包\r\n\r\n- 版本：1.7.3（versionCode 202）\r\n- 文件：Z.apk（armeabi-v7a，Android 5.0+）",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.3/Z.apk",
-    "sha256":  "91196e8e9006d114972d9dcae0a1f48e4cf624bac0744701eefa14f568b0dc08",
-    "size":  24927759
+  "versionCode": 206,
+  "versionName": "1.7.7",
+  "changelog": "# 1.7.7\r\n\r\n- 维护版本，更新安装包与在线更新清单。\r\n- 包含启动和首页隐藏代理进度提示，以及手机横屏翻转支持。\r\n\r\n版本：1.7.7（versionCode 206）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.7/Z.apk",
+  "sha256": "a3eca18a8bd5ce146a98e14df5a347fec1f596a6236080de5b9e503410967005",
+  "size": 24932058
 }
