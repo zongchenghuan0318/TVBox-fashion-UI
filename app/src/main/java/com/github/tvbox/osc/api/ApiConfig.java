@@ -280,6 +280,7 @@ public class ApiConfig {
             client = client.newBuilder()
                     .connectTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     .readTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .callTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     .build();
         }
         try {
@@ -727,30 +728,28 @@ public class ApiConfig {
         bInit = false;
         List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
         final ExecutorService homeExecutor = !NullUtil.isNull(beans) ? Executors.newFixedThreadPool(3) : null;
-        //重新探测期间如果一直没探测成功，兜底沿用上次的首页源，避免分类列表一直空白
+        //探测最多等待 6 秒；有旧源则沿用，无旧源也结束启动等待。
         final SiteBean lastBean = cachedHomeBean;
-        if (lastBean != null) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(6000);
+                } catch (Throwable ignored) {
+                }
+                if (bInit) return;
+                L.w("initHomeBean 探测超时，结束启动等待");
+                if (!selectHomeBeanOnce(lastBean)) return;
+                OkGo.getInstance().cancelTag("_initHome");
+                if (homeExecutor != null) {
                     try {
-                        Thread.sleep(6000);
+                        homeExecutor.shutdownNow();
                     } catch (Throwable ignored) {
                     }
-                    if (bInit) return;
-                    L.w("initHomeBean 探测未成功，沿用上次首页源 " + lastBean.getKey());
-                    if (!selectHomeBeanOnce(lastBean)) return;
-                    OkGo.getInstance().cancelTag("_initHome");
-                    if (homeExecutor != null) {
-                        try {
-                            homeExecutor.shutdownNow();
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                    callback.success();
                 }
-            }).start();
-        }
+                callback.success();
+            }
+        }).start();
         if (!NullUtil.isNull(beans)) {
             for (int i = 0; i < beans.size(); i++) {
                 L.d("initHomeBean i=" + i);
@@ -827,7 +826,7 @@ public class ApiConfig {
     private synchronized boolean selectHomeBeanOnce(SiteBean bean) {
         if (bInit) return false;
         bInit = true;
-        setHomeBean(bean);
+        if (bean != null) setHomeBean(bean);
         return true;
     }
 

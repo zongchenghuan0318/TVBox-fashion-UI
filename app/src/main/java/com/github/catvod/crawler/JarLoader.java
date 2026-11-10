@@ -37,7 +37,14 @@ public class JarLoader {
                     Class classInit = classLoader.loadClass("com.github.catvod.spider.Init");
                     if (classInit != null) {
                         Method method = classInit.getMethod("init", Context.class);
-                        method.invoke(null, App.getInstance());
+                        long startedAt = android.os.SystemClock.elapsedRealtime();
+                        android.util.Log.i("Startup", "plugin Init.init started");
+                        try {
+                            method.invoke(null, App.getInstance());
+                        } finally {
+                            android.util.Log.i("Startup", "plugin Init.init ms="
+                                    + (android.os.SystemClock.elapsedRealtime() - startedAt));
+                        }
                         L.d("自定义爬虫代码加载成功!");
                         success = true;
                         try {

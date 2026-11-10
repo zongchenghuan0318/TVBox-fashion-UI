@@ -1,8 +1,8 @@
 {
-    "versionCode":  211,
-    "versionName":  "1.7.12",
-    "changelog":  "# 1.7.12\n\n- 启动时优先使用与配置地址匹配的本地缓存，后台检查配置更新，下次启动应用。\n- 新增配置加载、Spider 初始化和首页源探测耗时日志。\n\n版本 1.7.12（versionCode 211）。",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.12/Z.apk",
-    "sha256":  "4365c0b55bc225ad770c8fdc0b7d348e38a25068825bf00b6de41f9f3c9ec744",
-    "size":  25009299
+    "versionCode":  212,
+    "versionName":  "1.7.13",
+    "changelog":  "# 1.7.13\r\n\r\n- 首页启动遮罩增加 1.5 秒等待上限，内容继续异步加载。\r\n- 豆瓣推荐优先显示缓存，无缓存时先展示第一页，补充推荐后台缓存。\r\n- 修复推荐失败后的循环重试，为首页源探测补全 6 秒超时兜底。\r\n- 电视背景图采用缩放显示，限制处理尺寸在 1920×1080 以内，减少 CPU 锐化开销。\r\n- 增加网络请求总超时和正式包启动耗时日志，单独记录插件初始化时间。\r\n\r\n版本 1.7.13（versionCode 212）。\r\n\r\n已通过 Release 构建和签名验证，电视端实际启动耗时仍待实测。遮罩等待从首页初始化开始计时，主线程繁忙时可能延后。",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.13/Z.apk",
+    "sha256":  "b7f00ca55c860783775a3089308de21453adafa9cfcf6c5c3a13c844105db762",
+    "size":  25010175
 }

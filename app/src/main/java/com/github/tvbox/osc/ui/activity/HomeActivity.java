@@ -91,6 +91,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View drawerTabHandle;
     private View homeLaunchCover;
     private boolean homeHeroReady;
+    private boolean homeLaunchTimedOut;
+    private final Runnable homeLaunchTimeout = () -> {
+        homeLaunchTimedOut = true;
+        tryDismissHomeLaunchCover();
+    };
     private boolean homeConfigReady;
     private LinearLayout topNavPanel;
     private TextView tvTopBrand;
@@ -279,7 +284,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     /**
-     * Keep the launch artwork above the home page until the first hero image is ready.
+     * Keep the launch artwork until ready, with a bounded wait for slow devices and networks.
      * The loading callback remains underneath it and is not shown during startup.
      */
     public void dismissHomeLaunchCover() {
@@ -288,10 +293,14 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void tryDismissHomeLaunchCover() {
-        if (!homeHeroReady || !homeConfigReady
+        if ((!homeLaunchTimedOut && (!homeHeroReady || !homeConfigReady))
                 || homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {
             return;
         }
+        mHandler.removeCallbacks(homeLaunchTimeout);
+        android.util.Log.i("Startup", "cover dismissed; configReady=" + homeConfigReady
+                + " heroReady=" + homeHeroReady + " deadline=" + homeLaunchTimedOut);
+        homeLaunchCover.animate().cancel();
         homeLaunchCover.animate()
                 .alpha(0f)
                 .setDuration(180L)
@@ -309,6 +318,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler = new Handler(Looper.getMainLooper());
         EventBus.getDefault().register(this);
         initView();
+        mHandler.postDelayed(homeLaunchTimeout, 1500L);
         hideStartupProxyPanel();
         initSortView();
         initTopSortView();
@@ -1089,6 +1099,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void requestCategoryMetadata() {
+        if (!homeConfigReady) return;
         if (isFinishing() || isDestroyed() || sourceViewModel == null) return;
         SiteBean source = ApiConfig.getInstance().getHomeBean();
         if (source == null || source.getKey() == null
@@ -1160,7 +1171,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         ApiConfig.getInstance().loadSitesFile(HomeActivity.this, new ApiConfig.LoadConfigCallback() {
             @Override
             public void success() {
-                L.d("Startup config ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
+                android.util.Log.i("Startup", "config ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -1177,7 +1188,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             ApiConfig.getInstance().loadJar(getBaseContext(), false, ApiConfig.getInstance().getmSpider(), new ApiConfig.LoadConfigCallback() {
                 @Override
                 public void success() {
-                    L.d("Startup spider ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
+                    android.util.Log.i("Startup", "spider ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                     //jar 就绪后才能探测首页站点：jar 下载/加载是异步的，
                     //用固定延时会在 jar 未就绪时把 45 个 csp_* 站点全部探测失败
                     initHomeBean();
@@ -1193,7 +1204,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         ApiConfig.getInstance().initHomeBean(new ApiConfig.InitHomeCallback() {
             @Override
             public void success() {
-                L.d("Startup home source ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
+                android.util.Log.i("Startup", "home source ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     homeConfigReady = true;

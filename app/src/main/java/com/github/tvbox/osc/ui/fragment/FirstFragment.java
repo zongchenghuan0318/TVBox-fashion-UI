@@ -967,6 +967,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     return;
                 }
                 int year = DateUtil.getLastNYear(0);
+                List<Movie.Video> cached = loadDoubanCache();
+                boolean displayed = cached != null && !cached.isEmpty();
+                if (displayed) showDoubanVideos(requestId, year, cached);
                 List<Movie.Video> list0 = null;
                 if (isDoubanBlocked()) {
                     //冷却期内不再碰豆瓣接口，直接用缓存，省得把限流期越砸越长
@@ -980,6 +983,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                         sDoubanBlockedUntil = System.currentTimeMillis() + DOU_BAN_BLOCK_COOLDOWN_MS;
                     }
                     list0 = parseJson(result);
+                    if (list0 != null && !list0.isEmpty() && !displayed) {
+                        showDoubanVideos(requestId, year, new ArrayList<>(list0));
+                        displayed = true;
+                    }
                     if (list0 != null && !list0.isEmpty()
                             && !isDoubanBlocked() && INITIAL_EXTRA_RECOMMENDATIONS > 0) {
                         String extraUrl = UiConstans.DOU_BAN_URL + (year - 1) + "," + year + "&start=20";
@@ -1006,34 +1013,26 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                             + " risk=" + risk
                             + " parsed=" + (list0 == null ? -1 : list0.size()));
                 }
-                final boolean fresh = !NullUtil.isNull(list0) && !list0.isEmpty();
-                List<Movie.Video> videos = new ArrayList<>();
-                if (fresh) {
-                    //成功一次就缓存，豆瓣按 IP 限流（时通时断）时用它兜底
+                if (list0 != null && !list0.isEmpty()) {
                     saveDoubanCache(list0);
-                    videos.addAll(list0);
-                } else {
-                    List<Movie.Video> cache = loadDoubanCache();
-                    L.w("homeFeed douban cache=" + (cache == null ? 0 : cache.size()));
-                    if (cache != null && !cache.isEmpty()) {
-                        videos.addAll(cache);
-                    }
                 }
-                final List<Movie.Video> resultVideos = videos;
-                mActivity.runOnUiThread(() -> {
-                    if (!isPageActive() || requestId != mFeedRequestId) return;
-                    if (resultVideos.isEmpty()) {
-                        //豆瓣直连与缓存都拿不到：回落到热榜 / 站点推荐 / 聚合源，依然不留白页
-                        loadHotRankFeed(requestId);
-                        return;
-                    }
-                    showSuccess();
-                    setHeader("豆瓣推荐", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序");
-                    setHomeCards(resultVideos);
-                    resetCarouselState();
-                    bindHero(resultVideos.get(0));
-                });
+                if (!displayed) {
+                    mActivity.runOnUiThread(() -> {
+                        if (isPageActive() && requestId == mFeedRequestId) loadHotRankFeed(requestId);
+                    });
+                }
             }
+        });
+    }
+
+    private void showDoubanVideos(int requestId, int year, List<Movie.Video> videos) {
+        mActivity.runOnUiThread(() -> {
+            if (!isPageActive() || requestId != mFeedRequestId) return;
+            showSuccess();
+            setHeader("豆瓣推荐", "豆瓣 · " + (year - 1) + "-" + year + " 评分排序");
+            setHomeCards(videos);
+            resetCarouselState();
+            bindHero(videos.get(0));
         });
     }
 
@@ -1072,7 +1071,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     /**
      * 主流热榜层（B站 PGC 影视/剧集榜）：片名干净、海报由图床直出，作为首页推荐的首选层。
-     * 拿不到才回落到「数据源推荐 → 聚合源 → 豆瓣」这条链
+     * 拿不到才回落到「数据源推荐 → 聚合源 → 空态」这条链
      */
     private void loadHotRankFeed(final int requestId) {
         if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
@@ -1087,8 +1086,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                     }
                     List<Movie.Video> list = null;
                     try {
-                        String json = HttpDoRequest.getInstance(getContext())
-                                .doGetRequestInOkGo(HOT_RANK_URL + type, null, true, 10 * 1000);
+                        String json = ApiConfig.getWithHeaders(HOT_RANK_URL + type, null, 10 * 1000);
                         list = parseHotRank(json);
                     } catch (Throwable th) {
                         L.e(th);
@@ -1159,7 +1157,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     /**
-     * 首页推荐兜底链：当前数据源推荐 → 配置里其它聚合源 → 豆瓣（直连/缓存） → 空态
+     * 首页推荐兜底链：当前数据源推荐 → 配置里其它聚合源 → 空态
      */
     private void showRecommendFallback() {
         L.w("homeFeed fallback recCount=" + (mRecommendVideos == null ? 0 : mRecommendVideos.size()));
@@ -1219,11 +1217,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             return;
         }
         if (index >= candidates.size()) {
-            L.w("homeFeed all sources empty, fallback to douban");
+            L.w("homeFeed all sources empty");
             mActivity.runOnUiThread(() -> {
-                if (!isPageActive()) return;
-                //聚合源全军覆没，最后一层回落豆瓣（直连→本地缓存），仍无内容才显示空态
-                loadDoubanRecommend(requestId);
+                if (!isPageActive() || requestId != mFeedRequestId) return;
+                showSuccess();
+                setHeroEmpty("暂无推荐", "暂时无法获取内容，请稍后重试或切换首页推荐");
+
             });
             return;
         }
@@ -1405,12 +1404,20 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 .load(GlideImg.heroModel(pic))
                 .error(R.drawable.shape_home_hero_placeholder)
                 .dontAnimate();
+        boolean television = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_TYPE_MASK)
+                == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION;
         if (mLowPowerHome) {
             request = request.override(960, 540).centerCrop();
+        } else if (television) {
+            // Avoid full-screen CPU sharpening and oversized bitmaps on TV hardware.
+            float scale = Math.min(1f, Math.min(1920f / Math.max(1, width), 1080f / Math.max(1, height)));
+            request = request.override(width > 0 ? Math.max(1, Math.round(width * scale)) : 1920,
+                    height > 0 ? Math.max(1, Math.round(height * scale)) : 1080).centerCrop();
         } else {
             request = request.transform(new SharpenTransformation(mContext));
         }
-        if (!mLowPowerHome && width > 0 && height > 0) {
+        if (!mLowPowerHome && !television && width > 0 && height > 0) {
             // 固定目标尺寸，避免按海报原始尺寸解出过大的位图
             request = request.override(width, height);
         }
