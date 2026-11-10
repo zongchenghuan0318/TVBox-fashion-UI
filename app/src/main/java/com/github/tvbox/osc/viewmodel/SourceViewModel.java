@@ -38,6 +38,7 @@ import org.json.JSONObject;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -381,27 +382,13 @@ public class SourceViewModel extends ViewModel {
                 try {
                     Spider spider = ApiConfig.getInstance().getCSP(sourceBean);
                     boolean panSearchFolder = "S_zpsGuard".equals(spider.getClass().getSimpleName());
-                    List<String> ids = new ArrayList<>();
-                    ids.add(id);
-                    android.util.Log.i("SearchRoute", "folder call request=" + requestId
-                            + " spider=" + spider.getClass().getName()
-                            + " method=" + (panSearchFolder ? "categoryContent" : "detailContent")
-                            + " idLength=" + id.length() + " urlId=" + id.startsWith("http")
-                            + " siteJar=" + !TextUtils.isEmpty(sourceBean.getJar()));
-                    String json;
-                    folderSpiderCall.set(true);
-                    try {
-                        json = panSearchFolder
-                                ? spider.categoryContent(id, "1", false, new HashMap<>())
-                                : spider.detailContent(ids);
-                    } finally {
-                        folderSpiderCall.remove();
+                    AbsXml parsed = loadSpiderFolder(spider, sourceKey, id, requestId, panSearchFolder);
+                    if (!panSearchFolder && requestId == categoryRequestId
+                            && !Thread.currentThread().isInterrupted()
+                            && (parsed == null || parsed.movie == null || parsed.movie.videoList == null
+                            || parsed.movie.videoList.isEmpty())) {
+                        parsed = loadSpiderFolder(spider, sourceKey, id, requestId, true);
                     }
-                    AbsXml parsed = parseJson(null, json, sourceKey, 0);
-                    android.util.Log.i("SearchRoute", "folder return request=" + requestId
-                            + " responseLength=" + (json == null ? -1 : json.length())
-                            + " entries=" + (parsed == null || parsed.movie == null || parsed.movie.videoList == null
-                            ? 0 : parsed.movie.videoList.size()));
                     postCategoryResult(parsed, requestId);
                 } catch (Throwable th) {
                     android.util.Log.w("SearchRoute", "folder error request=" + requestId
@@ -439,6 +426,29 @@ public class SourceViewModel extends ViewModel {
             postCategoryResult(null, requestId);
         }
         return requestId;
+    }
+
+    private AbsXml loadSpiderFolder(Spider spider, String sourceKey, String id, int requestId,
+                                    boolean useCategory) throws Throwable {
+        String method = useCategory ? "categoryContent" : "detailContent";
+        String json;
+        folderSpiderCall.set(true);
+        try {
+            json = useCategory
+                    ? spider.categoryContent(id, "1", false, new HashMap<>())
+                    : spider.detailContent(new ArrayList<>(Collections.singletonList(id)));
+        } catch (UnsupportedOperationException e) {
+            android.util.Log.i("SearchRoute", "folder unsupported request=" + requestId + " method=" + method);
+            return null;
+        } finally {
+            folderSpiderCall.remove();
+        }
+        AbsXml parsed = TextUtils.isEmpty(json) ? null : parseJson(null, json, sourceKey, 0);
+        android.util.Log.i("SearchRoute", "folder return request=" + requestId + " method=" + method
+                + " spider=" + spider.getClass().getName()
+                + " entries=" + (parsed == null || parsed.movie == null || parsed.movie.videoList == null
+                ? 0 : parsed.movie.videoList.size()));
+        return parsed;
     }
 
     private void postCategoryResult(AbsXml data, int requestId) {
