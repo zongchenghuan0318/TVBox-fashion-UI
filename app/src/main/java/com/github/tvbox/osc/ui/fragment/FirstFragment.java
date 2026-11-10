@@ -168,16 +168,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
     };
-    // 焦点进入或离开卡片区域时更新自动轮播，并同步背景。
+    // 焦点变化同步背景，轮播仍使用原有计时规则。
     private final ViewTreeObserver.OnGlobalFocusChangeListener mFocusChangeListener = (oldFocus, newFocus) -> {
         bindHeroFromFocus(newFocus);
-        if (mHotGridView != null && !mHotGridView.isInTouchMode()) {
-            if (mHotGridView.hasFocus()) {
-                scheduleAutoScroll();
-            } else {
-                mAutoScrollHandler.removeCallbacks(mAutoScrollRun);
-            }
-        }
     };
 
     public static FirstFragment newInstance(List<Movie.Video> recVod) {
@@ -756,8 +749,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mAutoScrollingCards || mLowPowerHome) {
             return;
         }
-        if (mHotGridView != null && (mHotGridView.isUserTouching()
-                || (!mHotGridView.isInTouchMode() && !mHotGridView.hasFocus()))) return;
+        if (mHotGridView != null && mHotGridView.isUserTouching()) return;
         mUserOperatingCards = false;
         if (mViewActive && mHeroVisible) {
             if (!mHeroReady) {
@@ -778,13 +770,16 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         stopAutoScroll();
         mFocusedCardPosition = mAdapter == null ? 0 : mAdapter.loopStartPosition();
         if (mHotGridView != null) {
-            mHotGridView.scrollToPosition(mFocusedCardPosition);
+            mHotGridView.setSelectedPosition(mFocusedCardPosition);
+            mHotGridView.centerPosition(mFocusedCardPosition);
             mHotGridView.post(() -> {
                 if (mHotGridView == null) {
                     return;
                 }
-                mHotGridView.setSelection(mFocusedCardPosition);
-                mHotGridView.scrollToPosition(mFocusedCardPosition);
+                // setSelection posts a focus-seeking SmoothScroller; it races the initial layout.
+                // Record selection only, then center once using our own layout positioning.
+                mHotGridView.setSelectedPosition(mFocusedCardPosition);
+                mHotGridView.centerPosition(mFocusedCardPosition);
                 mHotGridView.post(() -> {
                     if (mHotGridView == null) {
                         return;
@@ -837,8 +832,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      */
     private void autoScrollNext() {
         if (!mViewActive || !mHeroVisible || mUserOperatingCards
-                || mHotGridView == null || mAdapter == null || isSidebarFocused()
-                || (!mHotGridView.isInTouchMode() && !mHotGridView.hasFocus())) return;
+                || mHotGridView == null || mAdapter == null || isSidebarFocused()) return;
         if (getActivity() != null && !getActivity().hasWindowFocus()) {
             scheduleAutoScroll();
             return;

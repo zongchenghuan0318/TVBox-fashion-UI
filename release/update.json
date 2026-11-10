@@ -1,8 +1,8 @@
 {
-    "versionCode":  213,
-    "versionName":  "1.7.14",
-    "changelog":  "# 1.7.14\r\n\r\n- 遥控器焦点离开首页卡片后暂停自动轮播，回到卡片后重新计时。\r\n- 首页配置和影视源初始化期间点击卡片时显示提示，完成后可进入。\r\n\r\n版本 1.7.14（versionCode 213）。\r\n\r\n已通过编译验证，电视端闪退原因和焦点效果仍待实机验证。",
-    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.14/Z.apk",
-    "sha256":  "88639a887ecf51329d5290b0be391b297dfb3fd81858f035ae8797bd516dc4c8",
-    "size":  25010186
+    "versionCode":  214,
+    "versionName":  "1.7.15",
+    "changelog":  "# 1.7.15\r\n\r\n- 调整首页卡片初始化定位，避免控件延后请求焦点和平滑滚动与初始定位发生冲突。\r\n- 恢复原有轮播规则，撤回 1.7.14 新增的失焦暂停限制。\r\n\r\n版本 1.7.15（versionCode 214）。\r\n\r\n已通过编译验证，电视启动时异常旋转是否完全消除仍待实机验证。",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.15/Z.apk",
+    "sha256":  "3143a0ef4c2bcf1d5b130423491f86d56290e2bc65dcbae1ad216f65a317cad0",
+    "size":  25010085
 }
