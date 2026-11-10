@@ -1,8 +1,8 @@
 {
-  "versionCode": 209,
-  "versionName": "1.7.10",
-  "changelog": "# 1.7.10\n\n- 将配置校验、直播源、爬虫加载和搜索源偏好设置拆分为独立模块。\n- 切换配置后重新计算搜索源排序索引，并保留用户保存的排序和禁用设置。\n\n版本 1.7.10（versionCode 209）。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.10/Z.apk",
-  "sha256": "d598f53e952858eee44d2644c538eda7f149c55c4ab3384e34791e570ef1ea90",
-  "size": 24951526
+  "versionCode": 210,
+  "versionName": "1.7.11",
+  "changelog": "# 1.7.11\n\n- 更新网络请求库 OkHttp 至 3.14.9，数据流依赖 Okio 至 2.8.0。\n- 同步首页动效设计稿。\n\n版本 1.7.11（versionCode 210）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.11/Z.apk",
+  "sha256": "6f4f1c882e160fd0f3371406fa48d553a4951a43775ce90335a8f1e53b3e1632",
+  "size": 25008805
 }
