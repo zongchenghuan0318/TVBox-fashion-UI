@@ -1156,10 +1156,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     //获取site.file配置
     private void initSiteFile(){
         L.d("initSiteFile() ");
+        long startedAt = android.os.SystemClock.elapsedRealtime();
         ApiConfig.getInstance().loadSitesFile(HomeActivity.this, new ApiConfig.LoadConfigCallback() {
             @Override
             public void success() {
-                L.d(" loadSitesFile success()");
+                L.d("Startup config ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -1171,11 +1172,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void initJar() {
+        long startedAt = android.os.SystemClock.elapsedRealtime();
         if (!NullUtil.isNull(ApiConfig.getInstance().getmSpider())) {
             ApiConfig.getInstance().loadJar(getBaseContext(), false, ApiConfig.getInstance().getmSpider(), new ApiConfig.LoadConfigCallback() {
                 @Override
                 public void success() {
-                    L.d(" initJar success()");
+                    L.d("Startup spider ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                     //jar 就绪后才能探测首页站点：jar 下载/加载是异步的，
                     //用固定延时会在 jar 未就绪时把 45 个 csp_* 站点全部探测失败
                     initHomeBean();
@@ -1187,10 +1189,11 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void initHomeBean() {
+        long startedAt = android.os.SystemClock.elapsedRealtime();
         ApiConfig.getInstance().initHomeBean(new ApiConfig.InitHomeCallback() {
             @Override
             public void success() {
-                L.d(" initHomeBean success()");
+                L.d("Startup home source ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     homeConfigReady = true;

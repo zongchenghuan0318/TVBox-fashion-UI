@@ -48,6 +48,21 @@ public class ApiConfig {
     public static final String DEFAULT_URL = "https://tv.xn--yhqu5zs87a.top";
 
     public static final String PRE_KEY_CONFIG = "pre_key_config";
+    private static final String STARTUP_CONFIG_CACHE = "startup_config_cache";
+
+    public synchronized void invalidateStartupConfigCache(SPDataUtil data) {
+        data.saveStringValue(STARTUP_CONFIG_CACHE, "");
+    }
+
+    private synchronized void saveStartupConfig(SPDataUtil data, String address,
+                                                VerifyResult result, String previousCache) {
+        if (!previousCache.equals(data.getStringValue(STARTUP_CONFIG_CACHE, ""))) return;
+        JsonObject cache = new JsonObject();
+        cache.addProperty("address", address);
+        cache.addProperty("url", result.url);
+        cache.addProperty("json", result.json);
+        data.saveStringValue(STARTUP_CONFIG_CACHE, cache.toString());
+    }
     public static String current_siteUrl= "";
     private static ApiConfig instance = null;
     private final LinkedHashMap<String, SiteBean> mSiteBeanMap;
@@ -113,6 +128,30 @@ public class ApiConfig {
                     candidates.add(0, pinnedConfig);
                 }
 
+                String startupCache = spDataUtil.getStringValue(STARTUP_CONFIG_CACHE, "");
+                String preferred = candidates.get(0);
+                if (!startupCache.isEmpty()) {
+                    JsonObject cache;
+                    try {
+                        cache = new Gson().fromJson(startupCache, JsonObject.class);
+                    } catch (RuntimeException e) {
+                        cache = null;
+                    }
+                    if (cache != null && preferred.equals(DefaultConfig.safeJsonString(cache, "address", ""))) {
+                        current_siteUrl = DefaultConfig.safeJsonString(cache, "url", preferred);
+                        parseSiteFile(current_siteUrl, DefaultConfig.safeJsonString(cache, "json", ""));
+                        if (m_bParsed) {
+                            apiUrl = preferred;
+                            L.d("loadSitesFile 使用启动缓存");
+                            callback.success();
+                            // Refresh the next launch's cache without replacing active sources.
+                            VerifyResult result = verifyConfigWithRetry(preferred, "", CONFIG_STARTUP_TIMEOUT_MS);
+                            if (result.ok) saveStartupConfig(spDataUtil, preferred, result, startupCache);
+                            return;
+                        }
+                    }
+                }
+
                 for (String candidate : candidates) {
                     VerifyResult result = verifyConfigWithRetry(candidate, "", CONFIG_STARTUP_TIMEOUT_MS);
                     if (!result.ok) {
@@ -122,6 +161,7 @@ public class ApiConfig {
                     apiUrl = candidate;
                     current_siteUrl = result.url;
                     parseSiteFile(result.url, result.json);
+                    if (m_bParsed) saveStartupConfig(spDataUtil, candidate, result, startupCache);
                     if (!candidate.equals(Hawk.get(HawkConfig.API_URL, ""))) {
                         Hawk.put(HawkConfig.API_URL, candidate);
                         spDataUtil.saveStringValue(PRE_KEY_CONFIG, result.json);

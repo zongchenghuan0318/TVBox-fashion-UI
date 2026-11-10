@@ -1,8 +1,8 @@
 {
-  "versionCode": 210,
-  "versionName": "1.7.11",
-  "changelog": "# 1.7.11\n\n- 更新网络请求库 OkHttp 至 3.14.9，数据流依赖 Okio 至 2.8.0。\n- 同步首页动效设计稿。\n\n版本 1.7.11（versionCode 210）。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.11/Z.apk",
-  "sha256": "6f4f1c882e160fd0f3371406fa48d553a4951a43775ce90335a8f1e53b3e1632",
-  "size": 25008805
+    "versionCode":  211,
+    "versionName":  "1.7.12",
+    "changelog":  "# 1.7.12\n\n- 启动时优先使用与配置地址匹配的本地缓存，后台检查配置更新，下次启动应用。\n- 新增配置加载、Spider 初始化和首页源探测耗时日志。\n\n版本 1.7.12（versionCode 211）。",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.12/Z.apk",
+    "sha256":  "4365c0b55bc225ad770c8fdc0b7d348e38a25068825bf00b6de41f9f3c9ec744",
+    "size":  25009299
 }
