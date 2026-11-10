@@ -239,6 +239,8 @@ public class ApiDialog extends BaseDialog {
         ApiConfig.getInstance().invalidateStartupConfigCache(mSpDataUtil);
         Hawk.put(HawkConfig.API_URL, api); //空也保存
         mSpDataUtil.saveStringValue(ApiConfig.PRE_KEY_CONFIG, content);
+        EventBus.getDefault().post(new RefreshEvent(
+                RefreshEvent.TYPE_API_CONFIG_CHANGED, api));
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {

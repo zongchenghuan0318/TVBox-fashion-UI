@@ -91,12 +91,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View drawerTabHandle;
     private View homeLaunchCover;
     private boolean homeHeroReady;
-    private boolean homeLaunchTimedOut;
-    private final Runnable homeLaunchTimeout = () -> {
-        homeLaunchTimedOut = true;
-        tryDismissHomeLaunchCover();
-    };
     private boolean homeConfigReady;
+    /** 首页入口焦点只校正一次，避免后续分类刷新把用户已经移到卡片区的焦点拉回去 */
+    private boolean homeEntryFocusRestored;
     private LinearLayout topNavPanel;
     private TextView tvTopBrand;
     private TextView tvTopDate;
@@ -297,13 +294,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void tryDismissHomeLaunchCover() {
-        if ((!homeLaunchTimedOut && (!homeHeroReady || !homeConfigReady))
+        if ((!homeHeroReady || !homeConfigReady)
                 || homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {
             return;
         }
-        mHandler.removeCallbacks(homeLaunchTimeout);
         android.util.Log.i("Startup", "cover dismissed; configReady=" + homeConfigReady
-                + " heroReady=" + homeHeroReady + " deadline=" + homeLaunchTimedOut);
+                + " heroReady=" + homeHeroReady);
         homeLaunchCover.animate().cancel();
         homeLaunchCover.animate()
                 .alpha(0f)
@@ -322,7 +318,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler = new Handler(Looper.getMainLooper());
         EventBus.getDefault().register(this);
         initView();
-        mHandler.postDelayed(homeLaunchTimeout, 1500L);
         hideStartupProxyPanel();
         initSortView();
         initTopSortView();
@@ -1094,6 +1089,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             sortTopAdapter.setSelectedPosition(mCurrentSelected);
         }
         mContentViewPager.setCurrentItem(mCurrentSelected, false);
+        // 配置就绪、内容页第一次建出来时，系统会把默认焦点分给内容区的第一张卡片；
+        // 这里在焦点还没被用户主动移走时，把它拉回本布局的首页入口（左栏「首页」/ 顶栏分类）。
+        mContentViewPager.post(this::restoreHomeEntryFocusIfNeeded);
     }
 
     public void retryCategoryMetadata() {
@@ -1166,6 +1164,18 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             mMovieSortRV.setSelection(0);
             mMovieSortRV.requestFocus();
         }
+    }
+
+    /**
+     * 页面重建后校正首页焦点：焦点为空、或已经被默认分配到内容区时，交还给首页入口；
+     * 用户自己停在侧栏/顶栏上时不打扰。
+     */
+    private void restoreHomeEntryFocusIfNeeded() {
+        if (homeEntryFocusRestored || isFinishing() || isDestroyed()) return;
+        View current = getCurrentFocus();
+        if (current != null && !isViewOrDescendant(current, mContentViewPager)) return;
+        homeEntryFocusRestored = true;
+        focusHomeEntry();
     }
 
     //获取site.file配置
@@ -1326,6 +1336,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
+        if (event.type == RefreshEvent.TYPE_API_CONFIG_CHANGED) {
+            reloadConfigAtRuntime();
+            return;
+        }
         if (event.type == RefreshEvent.TYPE_PUSH_URL) {
             if (ApiConfig.getInstance().getSiteBean("push_agent") != null) {
                 Intent newIntent = new Intent(mContext, DetailActivity.class);
@@ -1335,6 +1349,28 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 startActivity(newIntent);
             }
         }
+    }
+
+    private void reloadConfigAtRuntime() {
+        if (isFinishing() || isDestroyed()) return;
+        homeConfigReady = false;
+        categoryMetadataPending = false;
+        categorySourceIdentity = "";
+        mSortSignature = "";
+        mHandler.removeCallbacks(categoryRetry);
+        mHandler.removeCallbacks(categoryMetadataTimeout);
+        if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
+        Hawk.put(HawkConfig.HOME_API, "");
+        Hawk.put(HawkConfig.USER_HOME_API, "");
+
+        String apiUrl = Hawk.get(HawkConfig.API_URL, "");
+        String content = new SPDataUtil(getBaseContext())
+                .getStringValue(ApiConfig.PRE_KEY_CONFIG);
+        ApiConfig.getInstance().applySitesFile(apiUrl, content, () ->
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    initJar();
+                }));
     }
 
     /** 首页海报层独立于 ViewPager，只在首页显示。 */

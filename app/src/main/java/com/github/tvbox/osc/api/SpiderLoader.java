@@ -68,7 +68,7 @@ final class SpiderLoader {
                             if ((jarFile.exists() && jarFile.length() > 0) || downloadJar(jarUrl, jarFile)) {
                                 ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
                                 L.w("loadJar file=" + jarFile.getName() + " size=" + jarFile.length()
-                                        + " md5=" + MD5.getFileMd5(jarFile) + " success=" + ok);
+                                        + " success=" + ok);
                                 if (!ok) {
                                     jarFile.delete();
                                 }

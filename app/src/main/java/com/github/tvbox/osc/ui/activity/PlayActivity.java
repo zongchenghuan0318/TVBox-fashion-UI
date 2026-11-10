@@ -51,7 +51,6 @@ import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.MD5;
 import com.github.tvbox.osc.util.PlayerHelper;
-import com.github.tvbox.osc.util.thunder.Thunder;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
 import com.lcstudio.commonsurport.L;
@@ -418,33 +417,8 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mController.setTitle("");
         playVideo(null, null); //stopPlay
 
-        boolean bSuccess = Thunder.playStartWithTvbox(vs.url, new Thunder.ThunderCallback() {
-            @Override
-            public void status(int code, String info) {
-                L.d("Thunder.play status()  info = " + info);
-                if (code < 0) {
-                    showTipsView(info, false, true);
-                } else {
-                    showTipsView(info, true, false);
-                }
-            }
-
-            @Override
-            public void list(String playList) {
-                L.d("Thunder.play list() ");
-            }
-
-            @Override
-            public void play(String url) {
-                L.d("Thunder.play play() ");
-                playVideo(url, null);
-            }
-        });
-
-        if (!bSuccess) {
-            String progressKey = mVodInfo.sourceKey + mVodInfo.id + mVodInfo.playFlag + mVodInfo.playIndex;
-            sourceViewModel.getPlayUrl(mSourceKeyStr, mVodInfo.playFlag, progressKey, vs.url);
-        }
+        String progressKey = mVodInfo.sourceKey + mVodInfo.id + mVodInfo.playFlag + mVodInfo.playIndex;
+        sourceViewModel.getPlayUrl(mSourceKeyStr, mVodInfo.playFlag, progressKey, vs.url);
     }
 
     private void addControl() {

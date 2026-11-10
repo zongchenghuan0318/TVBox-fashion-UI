@@ -2,6 +2,7 @@ package com.github.tvbox.osc.bean;
 
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.StringUtil;
+import com.lcstudio.commonsurport.L;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,8 +31,12 @@ public class AbsJson implements Serializable {
         movie.pagesize = StringUtil.string2Integer0(limit);
         movie.recordcount = total;
         List<Movie.Video> videoList = new ArrayList<>();
-        for (AbsJsonVod vod : list) {
-            videoList.add(vod.toXmlVideo());
+        if (list != null) {
+            for (AbsJsonVod vod : list) {
+                if (vod != null) {
+                    videoList.add(vod.toXmlVideo());
+                }
+            }
         }
         movie.videoList = videoList;
         absXml.movie = movie;
@@ -159,7 +164,18 @@ public class AbsJson implements Serializable {
             }
             video.urlsBean = urlBean;
             video.des = vod_content;// <![CDATA[权来]
+            video.tag = normalizeTag(vod_tag);
+            if (!NullUtil.isNull(vod_tag)) {
+                L.w("vod_tag name=" + vod_name + " id=" + vod_id + " raw=" + vod_tag
+                        + " normalized=" + video.tag);
+            }
             return video;
+        }
+
+        private String normalizeTag(String tag) {
+            if (NullUtil.isNull(tag)) return "";
+            String normalized = tag.trim().toLowerCase(java.util.Locale.ROOT);
+            return "floder".equals(normalized) ? "folder" : normalized;
         }
     }
 

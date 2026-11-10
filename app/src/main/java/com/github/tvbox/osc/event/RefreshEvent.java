@@ -17,6 +17,7 @@ public class RefreshEvent {
     public static final int TYPE_API_URL_CHANGE = 8;
     public static final int TYPE_PUSH_URL = 9;
     public static final int TYPE_COLLECT_REFRESH = 10;
+    public static final int TYPE_API_CONFIG_CHANGED = 11;
     public int type;
     public Object obj;
     public int requestId = -1;

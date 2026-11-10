@@ -61,6 +61,8 @@ public class Movie implements Serializable {
         public UrlsBean urlsBean;
         @XStreamAlias("des")
         public String des;// <![CDATA[权来]
+        /** JSON 源目录项标记，兼容 folder/floder */
+        public String tag;
 
         public String sourceKey;
         public boolean isMore = false;

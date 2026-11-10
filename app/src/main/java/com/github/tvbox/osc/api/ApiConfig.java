@@ -36,9 +36,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ApiConfig {
 
@@ -121,9 +126,9 @@ public class ApiConfig {
                     if (!candidates.contains(defaultUrl)) candidates.add(defaultUrl);
                 }
                 if (!candidates.contains(DEFAULT_URL)) candidates.add(DEFAULT_URL);
-                // 置顶的点播配置地址永远排第一位，优先尝试
+                // 用户明确保存的配置地址优先于置顶地址；置顶只作为未配置时的默认选择
                 String pinnedConfig = ApiConfig.getPinnedConfig();
-                if (!NullUtil.isNull(pinnedConfig)) {
+                if (NullUtil.isNull(apiUrl) && !NullUtil.isNull(pinnedConfig)) {
                     candidates.remove(pinnedConfig);
                     candidates.add(0, pinnedConfig);
                 }
@@ -152,20 +157,17 @@ public class ApiConfig {
                     }
                 }
 
-                for (String candidate : candidates) {
-                    VerifyResult result = verifyConfigWithRetry(candidate, "", CONFIG_STARTUP_TIMEOUT_MS);
-                    if (!result.ok) {
-                        L.w("loadSitesFile 配置源不可用 url=" + candidate + " reason=" + result.message);
-                        continue;
-                    }
-                    apiUrl = candidate;
+                CandidateVerify verified = raceStartupCandidates(candidates, CONFIG_STARTUP_TIMEOUT_MS);
+                if (verified != null) {
+                    VerifyResult result = verified.result;
+                    apiUrl = verified.address;
                     current_siteUrl = result.url;
                     parseSiteFile(result.url, result.json);
-                    if (m_bParsed) saveStartupConfig(spDataUtil, candidate, result, startupCache);
-                    if (!candidate.equals(Hawk.get(HawkConfig.API_URL, ""))) {
-                        Hawk.put(HawkConfig.API_URL, candidate);
+                    if (m_bParsed) saveStartupConfig(spDataUtil, verified.address, result, startupCache);
+                    if (!verified.address.equals(Hawk.get(HawkConfig.API_URL, ""))) {
+                        Hawk.put(HawkConfig.API_URL, verified.address);
                         spDataUtil.saveStringValue(PRE_KEY_CONFIG, result.json);
-                        L.w("loadSitesFile 已自动切换可用配置 url=" + candidate);
+                        L.w("loadSitesFile 已自动切换可用配置 url=" + verified.address);
                     }
                     callback.success();
                     return;
@@ -185,6 +187,102 @@ public class ApiConfig {
                 callback.success();
             }
         }.start();
+    }
+
+    /**
+     * Applies an already verified configuration immediately instead of running the
+     * startup candidate selection again. This is used when the user changes the
+     * configuration while the home activity is still alive.
+     */
+    public void applySitesFile(String apiUrl, String jsonStr, LoadConfigCallback callback) {
+        new Thread(() -> {
+            this.apiUrl = apiUrl;
+            current_siteUrl = apiUrl;
+            m_bParsed = false;
+            mSiteBeanMap.clear();
+            mParseBeanList.clear();
+            mDefaultParseBean = null;
+            AdBlocker.clear();
+            spiderLoader.clear();
+            parseSiteFile(apiUrl, jsonStr);
+            callback.success();
+        }, "config-runtime-reload").start();
+    }
+
+    /** 候选配置的校验结果，index 是它在候选列表里的优先级（0 为置顶的点播配置） */
+    private static final class CandidateVerify {
+        final int index;
+        final String address;
+        final VerifyResult result;
+
+        CandidateVerify(int index, String address, VerifyResult result) {
+            this.index = index;
+            this.address = address;
+            this.result = result;
+        }
+    }
+
+    /**
+     * 启动阶段并行校验候选配置。
+     * <p>
+     * 串行逐个校验时最坏耗时是「候选数 × 3 次尝试 × 单次超时」，一个置顶源不通就要等十几秒，
+     * 后面几个都不通时启动会长时间停在加载页。这里改成所有候选同时发出、每个地址只试一次：
+     * 置顶源优先，它成功就用它；它失败则用其余源里最先成功的那个，最坏耗时约等于一次超时。
+     * 单地址重试只保留在手动校验配置的路径上。
+     */
+    private CandidateVerify raceStartupCandidates(List<String> candidates, int timeoutMs) {
+        if (candidates.isEmpty()) return null;
+        if (candidates.size() == 1) {
+            String only = candidates.get(0);
+            VerifyResult result = verifyConfigOnce(only, timeoutMs);
+            if (result.ok) return new CandidateVerify(0, only, result);
+            L.w("loadSitesFile 配置源不可用 url=" + only + " reason=" + result.message);
+            return null;
+        }
+        ThreadFactory factory = runnable -> {
+            Thread thread = new Thread(runnable, "config-startup-verify");
+            thread.setDaemon(true);
+            return thread;
+        };
+        ExecutorService pool = Executors.newFixedThreadPool(Math.min(4, candidates.size()), factory);
+        ExecutorCompletionService<CandidateVerify> completion = new ExecutorCompletionService<>(pool);
+        List<Future<CandidateVerify>> futures = new ArrayList<>();
+        for (int i = 0; i < candidates.size(); i++) {
+            final int index = i;
+            final String address = candidates.get(i);
+            futures.add(completion.submit(() ->
+                    new CandidateVerify(index, address, verifyConfigOnce(address, timeoutMs))));
+        }
+        CandidateVerify preferred = null;
+        CandidateVerify fallback = null;
+        try {
+            for (int i = 0; i < candidates.size(); i++) {
+                CandidateVerify got = completion.take().get();
+                if (got.index == 0) {
+                    preferred = got;
+                    if (got.result.ok) return got;
+                } else if (got.result.ok) {
+                    if (fallback == null) fallback = got;
+                } else {
+                    L.w("loadSitesFile 配置源不可用 url=" + got.address + " reason=" + got.result.message);
+                }
+                // 置顶源已经失败，有备选就收工，不必再等剩下的候选
+                if (preferred != null && fallback != null) return fallback;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            L.w("loadSitesFile 并行校验异常 " + e.getMessage());
+        } finally {
+            for (Future<CandidateVerify> future : futures) {
+                future.cancel(true);
+            }
+            pool.shutdownNow();
+        }
+        if (preferred != null && !preferred.result.ok) {
+            L.w("loadSitesFile 置顶配置不可用 url=" + preferred.address + " reason=" + preferred.result.message);
+        }
+        return fallback;
     }
 
     /**
@@ -372,6 +470,11 @@ public class ApiConfig {
         return ConfigVerifier.verifyConfigWithRetry(rawUrl, inlineContent, timeoutMs);
     }
 
+    /** 启动竞速用：只尝试一次，不在这个地址上重试 */
+    private static VerifyResult verifyConfigOnce(String rawUrl, int timeoutMs) {
+        return ConfigVerifier.verifyConfigOnce(rawUrl, "", timeoutMs);
+    }
+
     /**
      * 加载配置里的 spider jar（csp 爬虫包）
      * <p>
@@ -394,6 +497,8 @@ public class ApiConfig {
         L.d("parseSiteFile() start");
         try {
             mSiteBeanMap.clear();
+            mParseBeanList.clear();
+            mDefaultParseBean = null;
             AdBlocker.clear();
             spiderLoader.clear();
             JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
@@ -728,18 +833,13 @@ public class ApiConfig {
         bInit = false;
         List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
         final ExecutorService homeExecutor = !NullUtil.isNull(beans) ? Executors.newFixedThreadPool(3) : null;
-        //探测最多等待 6 秒；有旧源则沿用，无旧源也结束启动等待。
         final SiteBean lastBean = cachedHomeBean;
-        new Thread(new Runnable() {
+        final AtomicBoolean homeInitCompleted = new AtomicBoolean(false);
+        final Runnable completeHomeInit = new Runnable() {
             @Override
             public void run() {
-                try {
-                    Thread.sleep(6000);
-                } catch (Throwable ignored) {
-                }
-                if (bInit) return;
-                L.w("initHomeBean 探测超时，结束启动等待");
-                if (!selectHomeBeanOnce(lastBean)) return;
+                if (!homeInitCompleted.compareAndSet(false, true)) return;
+                selectHomeBeanOnce(lastBean);
                 OkGo.getInstance().cancelTag("_initHome");
                 if (homeExecutor != null) {
                     try {
@@ -748,6 +848,18 @@ public class ApiConfig {
                     }
                 }
                 callback.success();
+            }
+        };
+        //探测最多等待 6 秒；有旧源则沿用，无旧源也结束启动等待。
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(6000);
+                } catch (Throwable ignored) {
+                }
+                L.w("initHomeBean 探测超时，结束启动等待");
+                completeHomeInit.run();
             }
         }).start();
         if (!NullUtil.isNull(beans)) {
@@ -770,12 +882,7 @@ public class ApiConfig {
                             // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
                             if (classCount(sortJson) >= 2) {
                                 if (!selectHomeBeanOnce(bean)) return;
-                                OkGo.getInstance().cancelTag("_initHome");
-                                try {
-                                    homeExecutor.shutdownNow();
-                                } catch (Throwable ignored) {
-                                }
-                                callback.success();
+                                completeHomeInit.run();
                             }
                         } else {
                             OkGo.<String>get(bean.getApi())
@@ -797,14 +904,7 @@ public class ApiConfig {
                                             L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
                                             if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
                                                 if (!selectHomeBeanOnce(bean)) return;
-                                                OkGo.getInstance().cancelTag("_initHome");
-                                                if (homeExecutor != null) {
-                                                    try {
-                                                        homeExecutor.shutdownNow();
-                                                    } catch (Throwable ignored) {
-                                                    }
-                                                }
-                                                callback.success();
+                                                completeHomeInit.run();
                                             }
                                         }
 

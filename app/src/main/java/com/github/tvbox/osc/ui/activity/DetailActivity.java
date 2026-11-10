@@ -241,56 +241,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                 if (mSourceViewModel.getLastPostedDetailRequestId() != detailRequestId) return;
                 detailHandler.removeCallbacks(detailTimeout);
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
-                    showSuccess();
-                    mVideo = absXml.movie.videoList.get(0);
-                    mVodInfo = new VodInfo();
-                    mVodInfo.setVideo(mVideo);
-                    mVodInfo.sourceKey = mVideo.sourceKey;
-                    refreshCollectButton();
-
-                    tvName.setText(mVideo.name);
-                    SiteBean videoSite = ApiConfig.getInstance().getSiteBean(mVideo.sourceKey);
-                    setTextShow(tvSite, "来源：", videoSite == null ? mVideo.sourceKey : videoSite.getName());
-                    setTextShow(tvYear, "年份：", mVideo.year == 0 ? "" : String.valueOf(mVideo.year));
-                    setTextShow(tvArea, "地区：", mVideo.area);
-                    setTextShow(tvLang, "语言：", mVideo.lang);
-                    setTextShow(tvType, "类型：", mVideo.type);
-                    setTextShow(tvActor, "演员：", mVideo.actor);
-                    setTextShow(tvDirector, "导演：", mVideo.director);
-                    setTextShow(tvDes, "内容简介：", removeHtmlTag(mVideo.des));
-                    PosterImageLoader.bind(thumpImg, mVideo.pic);
-                    bindBackdrop(mVideo.pic);
-
-                    if (mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
-                        mFlagGridView.setVisibility(View.VISIBLE);
-                        mSeriesGridView.setVisibility(View.VISIBLE);
-                        tvPlay.setVisibility(View.VISIBLE);
-                        mEmptyLayout.setVisibility(View.GONE);
-
-                        final String curSourceKey = sourceKey;
-                        final String curVodId = vodId;
-                        final VodInfo curVodInfo = mVodInfo;
-                        final int curReqId = detailRequestId;
-
-                        // 异步读取 Room 数据库与 JSON 反序列化，彻底消除电视端打开详情弹窗时 50-150ms 的主线程掉帧与卡顿
-                        com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
-                            VodInfo vodInfoRecord = RoomDataManger.getVodInfo(curSourceKey, curVodId);
-                            runOnUiThread(() -> {
-                                if (isFinishing() || isDestroyed() || curReqId != detailRequestId || curVodInfo != mVodInfo) {
-                                    return;
-                                }
-                                applyVodHistoryAndRender(vodInfoRecord);
-                            });
-                        });
-                    } else {
-                        mFlagGridView.setVisibility(View.GONE);
-                        mSeriesGridView.setVisibility(View.GONE);
-                        tvPlay.setVisibility(View.GONE);
-                        mEmptyLayout.setVisibility(View.VISIBLE);
-                        SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
-                        String site = siteBean == null ? sourceKey : siteBean.getName();
-                        PrintUtil.saveError(site + movieName, "暂无播放数据");
-                    }
+                    displayVideo(absXml.movie.videoList.get(0), detailRequestId);
                 } else {
                     showEmpty();
                     SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
@@ -426,8 +377,78 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             noteStr = bundle.getString("note");
             movieName = bundle.getString("movieName");
             autoPlayFromHistory = bundle.getBoolean("autoPlayFromHistory", false);
-            loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
+            Movie.Video directVideo = (Movie.Video) bundle.getSerializable("video");
+            if (directVideo != null) {
+                displayVideo(directVideo, -1);
+            } else {
+                loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
+            }
         }
+    }
+
+    private void displayVideo(Movie.Video video, int requestId) {
+        if (video == null) return;
+        detailHandler.removeCallbacks(detailTimeout);
+        showSuccess();
+        mVideo = video;
+        vodId = video.id;
+        sourceKey = video.sourceKey;
+        movieName = video.name;
+        mVodInfo = new VodInfo();
+        mVodInfo.setVideo(mVideo);
+        mVodInfo.sourceKey = mVideo.sourceKey;
+        refreshCollectButton();
+
+        tvName.setText(mVideo.name);
+        SiteBean videoSite = ApiConfig.getInstance().getSiteBean(mVideo.sourceKey);
+        setTextShow(tvSite, "来源：", videoSite == null ? mVideo.sourceKey : videoSite.getName());
+        setTextShow(tvYear, "年份：", mVideo.year == 0 ? "" : String.valueOf(mVideo.year));
+        setTextShow(tvArea, "地区：", mVideo.area);
+        setTextShow(tvLang, "语言：", mVideo.lang);
+        setTextShow(tvType, "类型：", mVideo.type);
+        setTextShow(tvActor, "演员：", mVideo.actor);
+        setTextShow(tvDirector, "导演：", mVideo.director);
+        setTextShow(tvDes, "内容简介：", removeHtmlTag(mVideo.des));
+        PosterImageLoader.bind(thumpImg, mVideo.pic);
+        bindBackdrop(mVideo.pic);
+
+        if (mVodInfo.seriesMap != null && mVodInfo.seriesMap.size() > 0) {
+            mFlagGridView.setVisibility(View.VISIBLE);
+            mSeriesGridView.setVisibility(View.VISIBLE);
+            tvPlay.setVisibility(View.VISIBLE);
+            mEmptyLayout.setVisibility(View.GONE);
+
+            final String curSourceKey = sourceKey;
+            final String curVodId = vodId;
+            final VodInfo curVodInfo = mVodInfo;
+            com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
+                VodInfo vodInfoRecord = RoomDataManger.getVodInfo(curSourceKey, curVodId);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()
+                            || (requestId >= 0 && requestId != detailRequestId)
+                            || curVodInfo != mVodInfo) {
+                        return;
+                    }
+                    applyVodHistoryAndRender(vodInfoRecord);
+                });
+            });
+        } else {
+            mFlagGridView.setVisibility(View.GONE);
+            mSeriesGridView.setVisibility(View.GONE);
+            tvPlay.setVisibility(View.GONE);
+            mEmptyLayout.setVisibility(View.VISIBLE);
+            SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+            String site = siteBean == null ? sourceKey : siteBean.getName();
+            PrintUtil.saveError(site + movieName, "暂无播放数据");
+        }
+    }
+
+    private boolean hasPlayableUrls(Movie.Video video) {
+        if (video == null || video.urlsBean == null || video.urlsBean.flagInfoList == null) return false;
+        for (Movie.Video.UrlsBean.FlagUrlsInfo flag : video.urlsBean.flagInfoList) {
+            if (flag != null && flag.nameUrlBeans != null && !flag.nameUrlBeans.isEmpty()) return true;
+        }
+        return false;
     }
 
     @Override
@@ -616,22 +637,25 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     private void jumpToPlay() {
+        if (mVideo == null || mVodInfo == null || mVodInfo.seriesMap == null
+                || mVodInfo.playFlag == null) {
+            L.d(mVideo == null ? "null" : mVideo.type);
+            return;
+        }
         if (UiHelper.canPlay(mVideo) && UiHelper.canPlayName(mVideo)) {
-            if (mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null) {
-                List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
-                if (list != null && !list.isEmpty()) {
-                    Bundle bundle = new Bundle();
-                    bundle.putString("sourceKey", sourceKey);
-                    bundle.putSerializable("VodInfo", mVodInfo);
-                    hasPlaybackHistory = true;
-                    updatePlayButtonText();
-                    jumpActivity(PlayActivity.class, bundle);
-                } else {
-                    Toast.makeText(this, "当前线路暂无可用剧集", Toast.LENGTH_SHORT).show();
-                }
+            List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+            if (list != null && !list.isEmpty()) {
+                Bundle bundle = new Bundle();
+                bundle.putString("sourceKey", sourceKey);
+                bundle.putSerializable("VodInfo", mVodInfo);
+                hasPlaybackHistory = true;
+                updatePlayButtonText();
+                jumpActivity(PlayActivity.class, bundle);
+            } else {
+                Toast.makeText(this, "当前线路暂无可用剧集", Toast.LENGTH_SHORT).show();
             }
         } else {
-            L.d(mVideo != null ? mVideo.type : "null");
+            L.d(mVideo.type);
         }
     }
 
@@ -743,7 +767,11 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         } else if (event.type == RefreshEvent.TYPE_QUICK_SEARCH_SELECT) {
             if (event.obj != null) {
                 Movie.Video video = (Movie.Video) event.obj;
-                loadDetail(video.id, video.sourceKey);
+                if (hasPlayableUrls(video)) {
+                    displayVideo(video, -1);
+                } else {
+                    loadDetail(video.id, video.sourceKey);
+                }
             } else {
                 L.d("RefreshEvent.TYPE_QUICK_SEARCH_SELECT  event.obj==null");
             }

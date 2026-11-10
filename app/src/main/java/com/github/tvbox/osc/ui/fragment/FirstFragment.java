@@ -75,6 +75,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 public class FirstFragment extends BaseLazyFragment implements View.OnClickListener {
 
+    private boolean isFolder(Movie.Video video) {
+        if (video == null) return false;
+        return "folder".equalsIgnoreCase(video.tag) || "floder".equalsIgnoreCase(video.tag);
+    }
+
     private LinearLayout tvLive;
     private LinearLayout tvSearch;
     private HomeHotVodAdapter mAdapter;
@@ -390,6 +395,14 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
             if (!NullUtil.isNull(vod.id) && !NullUtil.isNull(vod.sourceKey)
                     && ApiConfig.getInstance().getSiteBean(vod.sourceKey) != null) {
+                if (isFolder(vod)) {
+                    Intent folder = new Intent(mContext, SearchActivity.class);
+                    folder.putExtra("folderId", vod.id);
+                    folder.putExtra("folderSourceKey", vod.sourceKey);
+                    folder.putExtra("title", vod.name);
+                    mActivity.startActivity(folder);
+                    return;
+                }
                 Intent detail = new Intent(mContext, com.github.tvbox.osc.ui.activity.DetailActivity.class);
                 detail.putExtra("id", vod.id);
                 detail.putExtra("sourceKey", vod.sourceKey);

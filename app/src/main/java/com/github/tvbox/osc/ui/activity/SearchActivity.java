@@ -23,6 +23,7 @@ import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.BaseActivity;
 import com.github.tvbox.osc.bean.AbsXml;
 import com.github.tvbox.osc.bean.Movie;
+import com.github.tvbox.osc.bean.MovieSort;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.event.ServerEvent;
@@ -70,12 +71,16 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.DiffUtil;
 
 public class SearchActivity extends BaseActivity {
+    private static final String TRACE_TAG = "SearchRoute";
+    private boolean folderMode;
+    private int folderRequestId = -1;
     private View llLayout;
     private LinearLayout llWord;
     private LinearLayout llClearHistory;
@@ -102,6 +107,7 @@ public class SearchActivity extends BaseActivity {
     private final List<Movie.Video> pendingResults = new ArrayList<>();
     private final Map<String, Integer> sourceOrder = new HashMap<>();
     private boolean resultMergeRunning;
+    private boolean mergeScheduled;
     private int resultGeneration;
     private final Runnable mergeResults = this::mergePendingResults;
     private volatile int searchRequestId;
@@ -109,6 +115,10 @@ public class SearchActivity extends BaseActivity {
     private int completedSearchSources;
     private List<SiteBean> activeSearchSites = new ArrayList<>();
     private final Set<String> respondedSourceKeys = new HashSet<>();
+    private final Map<String, Integer> sourceAttempts = new HashMap<>();
+    private final List<Runnable> sourceRetryTasks = new ArrayList<>();
+    private final Set<String> failedSourceKeys = new HashSet<>();
+    private boolean retryPhase;
     private volatile boolean searchFinished;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private final Object suggestionTag = new Object();
@@ -118,17 +128,24 @@ public class SearchActivity extends BaseActivity {
     private boolean suppressSuggestionWatcher;
     private static final long SUGGESTION_DEBOUNCE_MS = 250L;
     private static final int MAX_SEARCH_HISTORY = 20;
+    private static final long SEARCH_TIMEOUT_MS = 45000L;
+    private static final int MAX_SOURCE_ATTEMPTS = 3;
+    private static final long SOURCE_RETRY_DELAY_MS = 2500L;
+    private static final long RESULT_MERGE_DELAY_MS = 500L;
+    private static final int MAX_SOURCE_RESULTS = 30;
+    private static final int MAX_TOTAL_RESULTS = 200;
+    private static final Pattern AGGREGATE_NOTE = Pattern.compile("(搜索|结果|资源)\\s*有?\\s*\\d+\\s*条");
     private final Runnable searchTimeout = new Runnable() {
         @Override
         public void run() {
             if (!searchFinished && searchResultAdapter != null) {
-                searchFinished = true;
-                OkGo.getInstance().cancelTag("search");
+                beginRetryPhase();
                 updateSearchProgress(true);
                 if (!searchResultAdapter.getData().isEmpty() && completedSearchSources < searchSourceCount) {
-                    Toast.makeText(SearchActivity.this, "已显示部分搜索结果，部分来源响应超时", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SearchActivity.this, "首轮搜索完成，失败来源将在后台重试", Toast.LENGTH_SHORT).show();
                 }
             }
+
         }
     };
 
@@ -337,6 +354,23 @@ public class SearchActivity extends BaseActivity {
         if (searchResultAdapter == null || position < 0 || position >= searchResultAdapter.getData().size()) return;
         Movie.Video video = searchResultAdapter.getData().get(position);
         if (video != null) {
+            boolean opensFolder = isFolder(video) || isAggregateSearchCard(video);
+            android.util.Log.i(TRACE_TAG, "click activity=" + System.identityHashCode(this)
+                    + " position=" + position + " route=" + (opensFolder ? "folder" : "detail")
+                    + " explicitFolder=" + isFolder(video)
+                    + " hasTag=" + !TextUtils.isEmpty(video.tag)
+                    + " hasPlayableUrls=" + hasPlayableUrls(video)
+                    + " noteMatches=" + (!TextUtils.isEmpty(video.note) && AGGREGATE_NOTE.matcher(video.note).find()));
+            if (opensFolder) {
+                stopSearchRequests();
+                cancelSuggestions();
+                Bundle folder = new Bundle();
+                folder.putString("folderId", video.id);
+                folder.putString("folderSourceKey", video.sourceKey);
+                folder.putString("title", video.name);
+                jumpActivity(SearchActivity.class, folder);
+                return;
+            }
             stopSearchRequests();
             Bundle bundle = new Bundle();
             bundle.putString("id", video.id);
@@ -345,6 +379,35 @@ public class SearchActivity extends BaseActivity {
             bundle.putString("movieName", video.name);
             jumpActivity(DetailActivity.class, bundle);
         }
+    }
+
+    private boolean isFolder(Movie.Video video) {
+        if (video == null) return false;
+        return "folder".equalsIgnoreCase(video.tag) || "floder".equalsIgnoreCase(video.tag);
+    }
+
+    private boolean isAggregateSearchCard(Movie.Video video) {
+        if (video == null || TextUtils.isEmpty(video.id)) return false;
+        if ("aggregate".equalsIgnoreCase(video.tag)
+                || "search".equalsIgnoreCase(video.tag)
+                || "search_result".equalsIgnoreCase(video.tag)) {
+            return true;
+        }
+        return !hasPlayableUrls(video)
+                && !TextUtils.isEmpty(video.note)
+                && AGGREGATE_NOTE.matcher(video.note).find();
+    }
+
+    private boolean hasPlayableUrls(Movie.Video video) {
+        if (video == null || video.urlsBean == null || video.urlsBean.flagInfoList == null) {
+            return false;
+        }
+        for (Movie.Video.UrlsBean.FlagUrlsInfo flag : video.urlsBean.flagInfoList) {
+            if (flag != null && !TextUtils.isEmpty(flag.urls)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void initHotRecycleView() {
@@ -503,6 +566,22 @@ public class SearchActivity extends BaseActivity {
 
     private void initViewModel() {
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
+        sourceViewModel.listResult.observe(this, absXml -> {
+            if (folderRequestId < 0 || sourceViewModel.getLastPostedCategoryRequestId() != folderRequestId) return;
+            android.util.Log.i(TRACE_TAG, "folder response activity=" + System.identityHashCode(this)
+                    + " request=" + folderRequestId);
+            showSuccess();
+            if (absXml == null || absXml.movie == null || absXml.movie.videoList == null
+                    || absXml.movie.videoList.isEmpty()) {
+                tvSearchProgress.setText("目录为空或暂时无法加载");
+            } else {
+                searchResultAdapter.setNewData(new ArrayList<>(absXml.movie.videoList));
+                tvSearchProgress.setText("已加载 " + searchResultAdapter.getData().size() + " 条资源");
+                mSearchResultRV.setVisibility(View.VISIBLE);
+                mSearchResultRV.setSelection(0);
+                mSearchResultRV.requestFocus();
+            }
+        });
     }
 
     /**
@@ -566,8 +645,15 @@ public class SearchActivity extends BaseActivity {
 
 
     private void initData() {
-        String key = "";
         Intent intent = getIntent();
+        if (intent != null && intent.hasExtra("folderId")) {
+            folderMode = true;
+            loadFolder(intent.getStringExtra("folderId"),
+                    intent.getStringExtra("folderSourceKey"),
+                    intent.getStringExtra("title"));
+            return;
+        }
+        String key = "";
         if (intent != null && intent.hasExtra("title")) {
             key = intent.getStringExtra("title");
             if (!NullUtil.isNull(key)) {
@@ -579,6 +665,26 @@ public class SearchActivity extends BaseActivity {
         refreshQRCode();
         requestHotWords();
         tvSearch.requestFocus();
+    }
+
+    private void loadFolder(String id, String sourceKey, String title) {
+        if (TextUtils.isEmpty(id) || TextUtils.isEmpty(sourceKey)) {
+            tvSearchProgress.setText("目录信息不完整");
+            return;
+        }
+        if (folderMode) {
+            if (etSearch != null) etSearch.setText(TextUtils.isEmpty(title) ? "目录" : title);
+            if (llWord != null) llWord.setVisibility(View.GONE);
+            if (mSearchHistoryRV != null) mSearchHistoryRV.setVisibility(View.GONE);
+            if (tvSearch != null) tvSearch.setVisibility(View.GONE);
+        }
+        if (tvSearchProgress != null) {
+            tvSearchProgress.setVisibility(View.VISIBLE);
+            tvSearchProgress.setText("正在加载目录…");
+        }
+        folderRequestId = sourceViewModel.getFolderList(sourceKey, id);
+        android.util.Log.i(TRACE_TAG, "folder requested activity=" + System.identityHashCode(this)
+                + " request=" + folderRequestId);
     }
 
     private void requestHotWords() {
@@ -643,7 +749,7 @@ public class SearchActivity extends BaseActivity {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void searchEvent(ServerEvent event) {
-        if (event.type == ServerEvent.SERVER_SEARCH) {
+        if (!folderMode && event.type == ServerEvent.SERVER_SEARCH) {
             String title = (String) event.obj;
             search(title);
         }
@@ -652,22 +758,34 @@ public class SearchActivity extends BaseActivity {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
         if (event.type == RefreshEvent.TYPE_SEARCH_RESULT) {
-            if (event.requestId != searchRequestId || searchFinished) {
+            if (folderMode || event.requestId != searchRequestId || searchFinished) {
                 return;
             }
-            if (event.sourceKey == null || !respondedSourceKeys.add(event.sourceKey)) return;
-            try {
-                showSearchData(event.obj == null ? null : (AbsXml) event.obj);
-            } catch (Exception e) {
-                L.e("showSearchData " + e.getMessage());
-                showSearchData(null);
+            if (event.sourceKey == null) return;
+            if (!retryPhase && respondedSourceKeys.contains(event.sourceKey)) return;
+            boolean success = event.obj != null;
+            if (success) {
+                try {
+                    showSearchData((AbsXml) event.obj);
+                } catch (Exception e) {
+                    L.e("showSearchData " + e.getMessage());
+                    success = false;
+                }
             }
-            completedSearchSources++;
+            if (!retryPhase) {
+                respondedSourceKeys.add(event.sourceKey);
+                completedSearchSources++;
+                if (!success) failedSourceKeys.add(event.sourceKey);
+                if (completedSearchSources >= searchSourceCount) {
+                    beginRetryPhase();
+                }
+            } else if (success) {
+                failedSourceKeys.remove(event.sourceKey);
+                respondedSourceKeys.add(event.sourceKey);
+            } else if (failedSourceKeys.contains(event.sourceKey)) {
+                retrySearchSource(event.sourceKey, event.requestId);
+            }
             updateSearchProgress(false);
-            if (completedSearchSources >= searchSourceCount) {
-                searchFinished = true;
-                searchHandler.removeCallbacks(searchTimeout);
-            }
         }
     }
 
@@ -715,6 +833,10 @@ public class SearchActivity extends BaseActivity {
         searchFinished = false;
         completedSearchSources = 0;
         searchSourceCount = 0;
+        sourceAttempts.clear();
+        failedSourceKeys.clear();
+        retryPhase = false;
+        clearSourceRetryTasks();
         showSuccess();
         this.searchWord = wd;
         if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
@@ -725,7 +847,7 @@ public class SearchActivity extends BaseActivity {
         mSearchResultRV.scrollToPosition(0);
         doSearch();
         if (searchSourceCount > 0) {
-            searchHandler.postDelayed(searchTimeout, 15000L);
+            searchHandler.postDelayed(searchTimeout, SEARCH_TIMEOUT_MS);
         }
         if (etSearch != null) {
             suppressSuggestionWatcher = true;
@@ -755,8 +877,48 @@ public class SearchActivity extends BaseActivity {
         sourceOrder.clear();
         for (int i = 0; i < siteBeans.size(); i++) sourceOrder.put(siteBeans.get(i).getKey(), i);
         respondedSourceKeys.clear();
+        sourceAttempts.clear();
+        failedSourceKeys.clear();
+        retryPhase = false;
         updateSearchProgress(false);
         submitSearchSources(siteBeans);
+    }
+
+    private boolean retrySearchSource(String sourceKey, int requestId) {
+        int attempt = sourceAttempts.containsKey(sourceKey) ? sourceAttempts.get(sourceKey) : 0;
+        attempt++;
+        sourceAttempts.put(sourceKey, attempt);
+        if (attempt >= MAX_SOURCE_ATTEMPTS) {
+            L.w("search source exhausted key=" + sourceKey + " attempts=" + attempt);
+            return false;
+        }
+
+        final Runnable[] retryHolder = new Runnable[1];
+        retryHolder[0] = () -> {
+            sourceRetryTasks.remove(retryHolder[0]);
+            if (searchFinished || requestId != searchRequestId || respondedSourceKeys.contains(sourceKey)) return;
+            sourceViewModel.getSearch(sourceKey, searchWord, requestId);
+        };
+        sourceRetryTasks.add(retryHolder[0]);
+        searchHandler.postDelayed(retryHolder[0], SOURCE_RETRY_DELAY_MS);
+        L.w("retry search source key=" + sourceKey + " attempt=" + (attempt + 1));
+        return true;
+    }
+
+    private void beginRetryPhase() {
+        if (retryPhase) return;
+        retryPhase = true;
+        searchHandler.removeCallbacks(searchTimeout);
+        for (String sourceKey : new ArrayList<>(failedSourceKeys)) {
+            retrySearchSource(sourceKey, searchRequestId);
+        }
+    }
+
+    private void clearSourceRetryTasks() {
+        for (Runnable retryTask : sourceRetryTasks) {
+            searchHandler.removeCallbacks(retryTask);
+        }
+        sourceRetryTasks.clear();
     }
 
     private void submitSearchSources(List<SiteBean> siteBeans) {
@@ -778,9 +940,12 @@ public class SearchActivity extends BaseActivity {
 
     private void stopSearchRequests() {
         searchFinished = true;
+        retryPhase = false;
         resultGeneration++;
         pendingResults.clear();
         resultMergeRunning = false;
+        clearSourceRetryTasks();
+        failedSourceKeys.clear();
         searchHandler.removeCallbacks(mergeResults);
         searchHandler.removeCallbacks(searchTimeout);
         OkGo.getInstance().cancelTag("search");
@@ -828,13 +993,36 @@ public class SearchActivity extends BaseActivity {
 
     private void showSearchData(AbsXml absXml) {
         if (absXml == null || absXml.movie == null || NullUtil.isNull(absXml.movie.videoList)) return;
-        List<Movie.Video> videos = UiHelper.filterVideoList(absXml, searchWord);
-        if (videos == null || videos.isEmpty()) return;
-        pendingResults.addAll(videos);
-        if (!resultMergeRunning) {
-            searchHandler.removeCallbacks(mergeResults);
-            searchHandler.postDelayed(mergeResults, 200L);
-        }
+        final int generation = resultGeneration;
+        final List<Movie.Video> sourceVideos = new ArrayList<>(absXml.movie.videoList);
+        final String query = searchWord;
+        resultExecutor.execute(() -> {
+            List<Movie.Video> videos = new ArrayList<>();
+            for (Movie.Video video : sourceVideos) {
+                if (video != null && !NullUtil.isNull(video.name)
+                        && video.name.contains(query)
+                        && UiHelper.canPlay(video) && UiHelper.canPlayName(video)) {
+                    videos.add(video);
+                    if (videos.size() >= MAX_SOURCE_RESULTS) break;
+                }
+            }
+            if (videos == null || videos.isEmpty()) return;
+            searchHandler.post(() -> {
+                if (generation != resultGeneration || isFinishing() || isDestroyed()) return;
+                pendingResults.addAll(videos);
+                scheduleMergeResults();
+            });
+        });
+    }
+
+    private void scheduleMergeResults() {
+        if (mergeScheduled || resultMergeRunning || pendingResults.isEmpty()) return;
+        mergeScheduled = true;
+        searchHandler.removeCallbacks(mergeResults);
+        searchHandler.postDelayed(() -> {
+            mergeScheduled = false;
+            mergePendingResults();
+        }, RESULT_MERGE_DELAY_MS);
     }
 
     private void mergePendingResults() {
@@ -845,6 +1033,9 @@ public class SearchActivity extends BaseActivity {
         final List<Movie.Video> merged = new ArrayList<>(old);
         merged.addAll(pendingResults);
         pendingResults.clear();
+        if (merged.size() > MAX_TOTAL_RESULTS) {
+            merged.subList(MAX_TOTAL_RESULTS, merged.size()).clear();
+        }
         final Map<String, Integer> order = new HashMap<>(sourceOrder);
         resultExecutor.execute(() -> {
             Collections.sort(merged, (a, b) -> Integer.compare(
@@ -881,7 +1072,7 @@ public class SearchActivity extends BaseActivity {
                     }
                 }
                 updateSearchProgress(searchFinished && completedSearchSources < searchSourceCount);
-                if (!pendingResults.isEmpty()) searchHandler.postDelayed(mergeResults, 200L);
+                if (!pendingResults.isEmpty()) scheduleMergeResults();
             });
         });
     }
@@ -938,7 +1129,23 @@ public class SearchActivity extends BaseActivity {
     }
 
     @Override
+    public void finish() {
+        if (sourceViewModel != null && sourceViewModel.isInFolderSpiderCall()) {
+            android.util.Log.w(TRACE_TAG, "ignored finish from folder spider activity="
+                    + System.identityHashCode(this));
+            return;
+        }
+        android.util.Log.w(TRACE_TAG, "finish activity=" + System.identityHashCode(this)
+                + " request=" + folderRequestId, new Throwable("SearchActivity.finish caller"));
+        super.finish();
+    }
+
+    @Override
     public void onBackPressed() {
+        if (folderMode) {
+            finish();
+            return;
+        }
         View currentFocus = getCurrentFocus();
         // 电视端层级返回：若焦点在搜索结果或热搜词上，按返回键先将焦点送回键盘区，继续在键盘区按返回才退出
         if (currentFocus != null && (isChildOf(currentFocus, mSearchResultRV) || isChildOf(currentFocus, mHotWordRV))) {

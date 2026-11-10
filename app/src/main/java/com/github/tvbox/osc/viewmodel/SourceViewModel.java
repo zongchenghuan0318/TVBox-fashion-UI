@@ -18,7 +18,6 @@ import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.activity.UiHelper;
 import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
-import com.github.tvbox.osc.util.thunder.Thunder;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -58,6 +57,11 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 public class SourceViewModel extends ViewModel {
+    private final ThreadLocal<Boolean> folderSpiderCall = new ThreadLocal<>();
+
+    public boolean isInFolderSpiderCall() {
+        return Boolean.TRUE.equals(folderSpiderCall.get());
+    }
     private static final Gson GSON = new Gson();
     private static final Type ABS_JSON_TYPE = new TypeToken<AbsJson>() {}.getType();
     private static final Type ABS_SORT_JSON_TYPE = new TypeToken<AbsSortJson>() {}.getType();
@@ -88,8 +92,8 @@ public class SourceViewModel extends ViewModel {
     public MutableLiveData<AbsXml> detailResult;
     public MutableLiveData<JSONObject> playResult;
     public ExecutorService mExecutorService;
-    private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(2);
-    private final ExecutorService mSpiderWorkerExecutor = Executors.newFixedThreadPool(6, new ThreadFactory() {
+    private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(4);
+    private final ExecutorService mSpiderWorkerExecutor = Executors.newFixedThreadPool(12, new ThreadFactory() {
         private final AtomicInteger threadIndex = new AtomicInteger(1);
         @Override
         public Thread newThread(Runnable r) {
@@ -293,6 +297,7 @@ public class SourceViewModel extends ViewModel {
             postCategoryResult(null, requestId);
             return requestId;
         }
+
         final String categoryId = sortData.id;
         final HashMap<String, String> selectedFilters = new HashMap<>(sortData.filterSelect);
         int type = homeSourceBean.getType();
@@ -354,6 +359,79 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
+                            postCategoryResult(null, requestId);
+                        }
+                    });
+        } else {
+            postCategoryResult(null, requestId);
+        }
+        return requestId;
+    }
+
+    public int getFolderList(String sourceKey, String id) {
+        final int requestId = ++categoryRequestId;
+        OkGo.getInstance().cancelTag(categoryRequestTag);
+        SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+        if (sourceBean == null || TextUtils.isEmpty(id)) {
+            postCategoryResult(null, requestId);
+            return requestId;
+        }
+        if (sourceBean.getType() == 3) {
+            mExecutorService.execute(() -> {
+                try {
+                    Spider spider = ApiConfig.getInstance().getCSP(sourceBean);
+                    boolean panSearchFolder = "S_zpsGuard".equals(spider.getClass().getSimpleName());
+                    List<String> ids = new ArrayList<>();
+                    ids.add(id);
+                    android.util.Log.i("SearchRoute", "folder call request=" + requestId
+                            + " spider=" + spider.getClass().getName()
+                            + " method=" + (panSearchFolder ? "categoryContent" : "detailContent")
+                            + " idLength=" + id.length() + " urlId=" + id.startsWith("http")
+                            + " siteJar=" + !TextUtils.isEmpty(sourceBean.getJar()));
+                    String json;
+                    folderSpiderCall.set(true);
+                    try {
+                        json = panSearchFolder
+                                ? spider.categoryContent(id, "1", false, new HashMap<>())
+                                : spider.detailContent(ids);
+                    } finally {
+                        folderSpiderCall.remove();
+                    }
+                    AbsXml parsed = parseJson(null, json, sourceKey, 0);
+                    android.util.Log.i("SearchRoute", "folder return request=" + requestId
+                            + " responseLength=" + (json == null ? -1 : json.length())
+                            + " entries=" + (parsed == null || parsed.movie == null || parsed.movie.videoList == null
+                            ? 0 : parsed.movie.videoList.size()));
+                    postCategoryResult(parsed, requestId);
+                } catch (Throwable th) {
+                    android.util.Log.w("SearchRoute", "folder error request=" + requestId
+                            + " errorType=" + th.getClass().getName());
+                    L.e("getFolderList " + th.getMessage());
+                    postCategoryResult(null, requestId);
+                }
+            });
+        } else if (sourceBean.getType() == 0 || sourceBean.getType() == 1) {
+            OkGo.<String>get(sourceBean.getApi())
+                    .tag(categoryRequestTag)
+                    .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
+                    .params("ids", id)
+                    .execute(new AbsCallback<String>() {
+                        @Override
+                        public String convertResponse(okhttp3.Response response) throws Throwable {
+                            if (response.body() == null) throw new IllegalStateException("网络请求错误");
+                            return response.body().string();
+                        }
+
+                        @Override
+                        public void onSuccess(Response<String> response) {
+                            AbsXml data = sourceBean.getType() == 0
+                                    ? parseXml(null, response.body(), sourceKey, 0)
+                                    : parseJson(null, response.body(), sourceKey, 0);
+                            postCategoryResult(data, requestId);
+                        }
+
+                        @Override
+                        public void onError(Response<String> response) {
                             postCategoryResult(null, requestId);
                         }
                     });
@@ -889,44 +967,6 @@ public class SourceViewModel extends ViewModel {
         }
     }
 
-    private void checkThunder(AbsXml data, int requestId) {
-        boolean bThunderParse = false;
-        if (data.movie != null && data.movie.videoList != null && data.movie.videoList.size() == 1) {
-            Movie.Video video = data.movie.videoList.get(0);
-            if (video != null && video.urlsBean != null && video.urlsBean.flagInfoList != null && video.urlsBean.flagInfoList.size() == 1) {
-                Movie.Video.UrlsBean.FlagUrlsInfo urlInfo = video.urlsBean.flagInfoList.get(0);
-                if (urlInfo != null && urlInfo.nameUrlBeans.size() == 1 && Thunder.isSupportUrl(urlInfo.nameUrlBeans.get(0).url)) {
-                    bThunderParse = true;
-                    Thunder.parse(App.getInstance(), urlInfo.nameUrlBeans.get(0).url, new Thunder.ThunderCallback() {
-                        @Override
-                        public void status(int code, String info) {
-                            if (code >= 0) {
-                                L.d(info);
-                            } else {
-                                urlInfo.nameUrlBeans.get(0).name = info;
-                                postDetailResult(data, requestId);
-                            }
-                        }
-
-                        @Override
-                        public void list(String urls) {
-                            urlInfo.urls = urls;
-                            urlInfo.nameUrlBeans = UiHelper.getUrlsList(urls);
-                            postDetailResult(data, requestId);
-                        }
-
-                        @Override
-                        public void play(String url) {
-                        }
-                    });
-                }
-            }
-        }
-        if (!bThunderParse) {
-            postDetailResult(data, requestId);
-        }
-    }
-
     private AbsXml parseXml(MutableLiveData<AbsXml> result, String xml, String sourceKey, long duration) {
         return parseXml(result, xml, sourceKey, duration, -1);
     }
@@ -949,7 +989,7 @@ public class SourceViewModel extends ViewModel {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml, requestId, sourceKey));
             } else if (result != null) {
                 if (result == detailResult) {
-                    if (requestId == detailRequestId) checkThunder(absXml, requestId);
+                    if (requestId == detailRequestId) postDetailResult(absXml, requestId);
                 } else {
                     result.postValue(absXml);
                 }
@@ -1004,7 +1044,7 @@ public class SourceViewModel extends ViewModel {
                     EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, absXml, requestId, sourceKey));
                 } else if (result != null) {
                     if (result == detailResult) {
-                        if (requestId == detailRequestId) checkThunder(absXml, requestId);
+                        if (requestId == detailRequestId) postDetailResult(absXml, requestId);
                     } else {
                         result.postValue(absXml);
                     }

@@ -215,6 +215,14 @@ public class GridFragment extends BaseLazyFragment {
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
                 Movie.Video video = mGridAdapter.getData().get(position);
+                if (isFolder(video)) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("folderId", video.id);
+                    bundle.putString("folderSourceKey", video.sourceKey);
+                    bundle.putString("title", video.name);
+                    jumpActivity(SearchActivity.class, bundle);
+                    return;
+                }
                 //和首页卡片一致：直接拿片名去聚合搜索，不再进详情页
                 if (video != null && video.name != null && !video.name.isEmpty()) {
                     Bundle bundle = new Bundle();
@@ -225,6 +233,11 @@ public class GridFragment extends BaseLazyFragment {
         });
         mGridAdapter.setLoadMoreView(new LoadMoreView());
         setLoadSir(mGridView);
+    }
+
+    private boolean isFolder(Movie.Video video) {
+        if (video == null) return false;
+        return "folder".equalsIgnoreCase(video.tag) || "floder".equalsIgnoreCase(video.tag);
     }
 
     private void initViewModel() {

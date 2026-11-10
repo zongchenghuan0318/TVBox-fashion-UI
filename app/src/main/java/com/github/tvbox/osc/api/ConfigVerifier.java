@@ -258,6 +258,15 @@ final class ConfigVerifier {
     }
 
     /**
+     * 启动竞速用：只尝试一次。启动阶段由 ApiConfig 并行发出所有候选，
+     * 在单个地址上重试没有意义，只会让最坏耗时按「候选数 × 尝试次数」成倍放大。
+     * 手动校验配置仍然走 {@link #verifyConfigWithRetry}。
+     */
+    static VerifyResult verifyConfigOnce(String rawUrl, String inlineContent, int timeoutMs) {
+        return verifyConfig(rawUrl, inlineContent, timeoutMs);
+    }
+
+    /**
      * 统计配置里的站点数量：result[0] = 可用站点总数（key 与 api 都非空，会进站点列表）；
      * result[1] = 其中 searchable != 0（会出现在「搜索源管理」里）的数量
      */
