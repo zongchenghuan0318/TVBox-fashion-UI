@@ -2,17 +2,12 @@ package com.github.tvbox.osc.api;
 
 import android.app.Activity;
 import android.content.Context;
-import android.net.Uri;
 import android.text.TextUtils;
-import android.util.Base64;
 import android.widget.Toast;
 
 import com.github.catvod.crawler.Spider;
-import com.github.catvod.utils.Util;
-import com.github.tvbox.osc.base.App;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.LiveChannelGroup;
-import com.github.tvbox.osc.bean.LiveChannelItem;
 import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.ui.activity.UiHelper;
@@ -24,9 +19,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.github.tvbox.osc.util.MD5;
 import com.lcstudio.commonsurport.L;
-import com.lcstudio.commonsurport.util.FileUtil;
 import com.lcstudio.commonsurport.util.MyFilesManager;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.SPDataUtil;
@@ -37,30 +30,15 @@ import com.orhanobut.hawk.Hawk;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.StringReader;
 import java.net.IDN;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 
 public class ApiConfig {
 
@@ -73,18 +51,14 @@ public class ApiConfig {
     public static String current_siteUrl= "";
     private static ApiConfig instance = null;
     private final LinkedHashMap<String, SiteBean> mSiteBeanMap;
+    private final SearchSitePreferences searchSites;
     private ParseBean mDefaultParseBean;
-    private final List<LiveChannelGroup> mLiveChannelGroupList;
-    private final List<LiveChannelGroup> mConfiguredLiveChannelGroupList = new ArrayList<>();
+    private final LiveSourceConfig liveSources = new LiveSourceConfig();
     private final List<ParseBean> mParseBeanList;
     private List<String> mVipFlagList;
     private List<IJKCode> mIjkCodes;
     private String mSpider = null;
-    /** 站点级 jar：jar url → 本地加载后的 jar 路径（加载失败存空串） */
-    private final ConcurrentHashMap<String, String> mSiteJarPaths = new ConcurrentHashMap<>();
-    /** 站点级 jar 的按 url 下载锁：避免并发线程重复下载同一个包 */
-    private final ConcurrentHashMap<String, Object> mSiteJarLocks = new ConcurrentHashMap<>();
-    private final BaseLoader mBaseLoader;
+    private final SpiderLoader spiderLoader = new SpiderLoader();
     private volatile boolean bInit = false;
     private String apiUrl;
     private boolean m_bParsed = false;
@@ -102,9 +76,8 @@ public class ApiConfig {
 
     private ApiConfig() {
         mSiteBeanMap = new LinkedHashMap<>();
-        mLiveChannelGroupList = new ArrayList<>();
+        searchSites = new SearchSitePreferences(mSiteBeanMap);
         mParseBeanList = new ArrayList<>();
-        mBaseLoader = new BaseLoader();
     }
 
     /** 当前置顶的点播配置地址；用户没有设置过时使用默认置顶，取消置顶后存为空串 */
@@ -175,97 +148,13 @@ public class ApiConfig {
     }
 
     /**
-     * 对齐 v6.1.7 的配置体解码（等价 com.androidx.o0O 的 convert(String,String)）：
-     * 1) 已是 JSON 直接返回；
-     * 2) 形如 "xxxxxxxx**" 前缀的 base64 体 → 去前 10 个字符后 base64 解码；
-     * 3) 含 "2423"/"2324" 标记 → hex 解出 "$#...#$" 为 key、末 13 位为 iv，AES/CBC 解密；
-     * 4) 否则若带 configKey → AES/ECB/PKCS7 解密（key 由 configKey 补齐 16 位）。
-     */
-    private static String convert(String data, String configKey) {
-        if (NullUtil.isNull(data)) return "";
-        String origin = data;
-        try {
-            if (isJson(data)) return data;
-            Matcher matcher = Pattern.compile("[A-Za-z0]{8}\\*\\*").matcher(data);
-            if (matcher.find()) {
-                String tag = matcher.group();
-                String body = data.substring(data.indexOf(tag) + 10);
-                try {
-                    data = new String(Base64.decode(body, Base64.DEFAULT), "UTF-8");
-                    if (data.contains("2423")) {
-                        data = decode2423(data);
-                    } else if (configKey != null) {
-                        data = decodeEcb(data, configKey);
-                    }
-                } catch (Exception e) {
-                    L.e(e);
-                    data = body;
-                }
-            } else if (data.contains("2423")) {
-                data = decode2423(data);
-            }
-        } catch (Exception e) {
-            L.e(e);
-            data = origin;
-        }
-        return data == null ? "" : data;
-    }
-
-    private static String decode2423(String data) throws Exception {
-        String body = data.substring(data.indexOf("2324") + 4, data.length() - 26);
-        String keyStr = new String(Util.hex2byte(data), "UTF-8").toLowerCase();
-        String key = padKey(keyStr.substring(keyStr.indexOf("$#") + 2, keyStr.indexOf("#$")));
-        String iv = padKey(keyStr.substring(keyStr.length() - 13));
-        return aesCbc(body, key, iv);
-    }
-
-    private static String decodeEcb(String data, String configKey) throws Exception {
-        if (isJson(data)) return data;
-        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS7Padding");
-        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(padKey(configKey).getBytes(), "AES"));
-        return new String(cipher.doFinal(Util.hex2byte(data)));
-    }
-
-    private static String aesCbc(String data, String key, String iv) {
-        try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS7Padding");
-            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getBytes(), "AES"), new IvParameterSpec(iv.getBytes()));
-            return new String(cipher.doFinal(Util.hex2byte(data)));
-        } catch (Exception e) {
-            L.e(e);
-            return null;
-        }
-    }
-
-    /**
-     * 等价 com.androidx.o00OOOOo.o0000o0：trim 后取前 16 位，不足右侧补 '0'
-     */
-    private static String padKey(String s) {
-        String key = s.trim();
-        if (key.length() > 16) return key.substring(0, 16);
-        StringBuilder sb = new StringBuilder(key);
-        while (sb.length() < 16) sb.append("0");
-        return sb.toString();
-    }
-
-    private static boolean isJson(String str) {
-        try {
-            new JSONObject(str);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
      * 统一 UA。该点播配置接口与爬虫 jar 都按 UA 分流：请求头里含 okhttp 才返回 JSON 配置体 /
      * 爬虫 jar，浏览器 UA 只会拿到 FongMi 下载页 HTML。而 OkGoHelper 给 OkGo 加了浏览器
      * 公共头（accept + Chrome UA），aar 的 HttpDoRequest.doGetRequestInOkGo 不带 UA 覆盖，
      * 所以必须自己带上 okhttp UA 请求。
      */
     public static final String UA_OKHTTP = "okhttp/3.12.1";
-    private static final int LIVE_SOURCE_CONNECT_TIMEOUT_MS = 5000;
-    private static final int LIVE_SOURCE_READ_TIMEOUT_MS = 7000;
+    static final int HTTP_CONNECT_TIMEOUT_MS = 5000;
     // 启动时逐个校验配置源的单次超时：比直播源更短，全部不通时不让用户等太久
     private static final int CONFIG_STARTUP_TIMEOUT_MS = 4000;
 
@@ -295,7 +184,7 @@ public class ApiConfig {
         return httpGetWithOkhttpUA(url, 0);
     }
 
-    private static HttpResult httpGetWithOkhttpUA(String url, int timeoutMs) {
+    static HttpResult httpGetWithOkhttpUA(String url, int timeoutMs) {
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .url(url)
                 .header("User-Agent", UA_OKHTTP)
@@ -304,7 +193,7 @@ public class ApiConfig {
             okhttp3.OkHttpClient client = OkGo.getInstance().getOkHttpClient();
             if (timeoutMs > 0) {
                 client = client.newBuilder()
-                        .connectTimeout(Math.min(timeoutMs, LIVE_SOURCE_CONNECT_TIMEOUT_MS), TimeUnit.MILLISECONDS)
+                        .connectTimeout(Math.min(timeoutMs, HTTP_CONNECT_TIMEOUT_MS), TimeUnit.MILLISECONDS)
                         .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
                         .callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
                         .build();
@@ -434,201 +323,12 @@ public class ApiConfig {
         }
     }
 
-    /**
-     * 校验配置是否真的可用：下载（或读本地文件 / 用已填内容）→ 解码 → JSON 合法性 → 站点数量。
-     * 全过程不修改 ApiConfig 单例状态，避免污染当前正在使用的配置。
-     */
     public static VerifyResult verifyConfig(String rawUrl, String inlineContent) {
-        return verifyConfig(rawUrl, inlineContent, 0);
+        return ConfigVerifier.verifyConfig(rawUrl, inlineContent);
     }
 
-    private static VerifyResult verifyConfig(String rawUrl, String inlineContent, int timeoutMs) {
-        String url = rawUrl == null ? "" : rawUrl.trim();
-        String content = inlineContent == null ? "" : inlineContent.trim();
-        String usedUrl = url;
-
-        if (!NullUtil.isNull(url)) {
-            //单 URL 支持 "url;pk;configKey"
-            String configKey = "";
-            String downloadUrl = url;
-            if (url.contains(";pk;")) {
-                String[] parts = url.split(";pk;");
-                if (parts.length >= 2) {
-                    downloadUrl = parts[0];
-                    configKey = parts[1];
-                }
-            }
-            boolean localFile = false;
-            if (downloadUrl.contains("clan")) {
-                usedUrl = normalizeUrl(UiHelper.clanToAddress(downloadUrl));
-            } else if (!downloadUrl.startsWith("http")) {
-                //与加载逻辑保持一致：非 http 地址先当作本地文件，文件不存在再按域名补 http://
-                if (new File(downloadUrl).exists()) {
-                    usedUrl = downloadUrl;
-                    localFile = true;
-                } else {
-                    usedUrl = normalizeUrl("http://" + downloadUrl);
-                }
-            } else {
-                usedUrl = normalizeUrl(downloadUrl);
-            }
-            if (localFile) {
-                //本地文件：直接读文件内容
-                content = FileUtil.readFile(usedUrl);
-                if (NullUtil.isNull(content)) {
-                    return new VerifyResult(false, "读取配置文件失败：" + usedUrl, "", usedUrl);
-                }
-            } else {
-                HttpResult http = timeoutMs > 0
-                        ? httpGetWithOkhttpUA(usedUrl, timeoutMs)
-                        : httpGetWithOkhttpUA(usedUrl);
-                VerifyResult fail = httpFail(http);
-                if (fail != null) return fail;
-                content = convert(http.body, configKey);
-            }
-        }
-
-        if (NullUtil.isNull(content)) {
-            return new VerifyResult(false, "配置地址和配置内容都为空", "", usedUrl);
-        }
-        if (!isJson(content)) {
-            return new VerifyResult(false, "配置内容不是合法 JSON（地址可能已失效或需要特定请求头）", "", usedUrl);
-        }
-        int[] counts = countSites(content);
-        if (counts[0] <= 0) {
-            return new VerifyResult(false, "配置里没有任何可用站点（缺少 key / api 字段）", "", usedUrl);
-        }
-        //与「搜索源管理」口径对齐：列表只列 searchable!=0 的站点，另外还会补上内置采集源
-        int extra = countExtraSites(content);
-        return new VerifyResult(true, "配置校验通过：共 " + counts[0] + " 个站点，可搜索 " + counts[1]
-                + " 个，另有 " + extra + " 个内置采集源（搜索源列表共 " + (counts[1] + extra) + " 个）",
-                content, usedUrl);
-    }
-
-    /**
-     * HTTP 层面失败时给出具体原因；正常则返回 null
-     */
-    private static VerifyResult httpFail(HttpResult http) {
-        if (http.code == -1) {
-            String msg = http.error.toLowerCase();
-            if (msg.contains("unable to resolve host")) {
-                return connectionFail("域名无法解析，请检查配置地址是否正确");
-            }
-            if (msg.contains("timeout") || msg.contains("timed out")) {
-                return connectionFail("连接超时，请检查网络后重试");
-            }
-            if (msg.contains("failed to connect") || msg.contains("connection refused")) {
-                return connectionFail("无法连接服务器，请稍后重试");
-            }
-            String err = http.error.length() > 60 ? http.error.substring(0, 60) : http.error;
-            return connectionFail("网络请求失败：" + err);
-        }
-        if (http.code < 200 || http.code >= 300) {
-            String text = "服务器返回 HTTP " + http.code + "，该配置地址不可用";
-            // 5xx、408、429 属于临时性故障，按连接失败处理（会重试）；其余 4xx 重试没有意义
-            if (http.code >= 500 || http.code == 408 || http.code == 429) {
-                return connectionFail(text);
-            }
-            return new VerifyResult(false, text, "", "");
-        }
-        if (NullUtil.isNull(http.body)) {
-            return new VerifyResult(false, "服务器返回内容为空", "", "");
-        }
-        return null;
-    }
-
-    /** 连接层面的失败（网络不通、超时、临时性服务器错误）：标记后会被重试 */
-    private static VerifyResult connectionFail(String message) {
-        VerifyResult result = new VerifyResult(false, message, "", "");
-        result.connectionFailed = true;
-        return result;
-    }
-
-    /** 每个配置源最多尝试的次数；只有连接层面的失败才会重试，内容错误直接判定失败 */
-    private static final int CONFIG_CONNECT_ATTEMPTS = 3;
-    private static final long CONFIG_RETRY_DELAY_MS = 1000L;
-
-    /**
-     * 校验配置源：连接失败时同一地址最多尝试 {@link #CONFIG_CONNECT_ATTEMPTS} 次，
-     * 全部失败才返回失败，由调用方切换到下一个配置源。
-     * 必须在后台线程调用。
-     */
     public static VerifyResult verifyConfigWithRetry(String rawUrl, String inlineContent, int timeoutMs) {
-        VerifyResult result = null;
-        for (int attempt = 1; attempt <= CONFIG_CONNECT_ATTEMPTS; attempt++) {
-            result = verifyConfig(rawUrl, inlineContent, timeoutMs);
-            if (result.ok || !result.connectionFailed) return result;
-            L.w("配置源连接失败 第" + attempt + "/" + CONFIG_CONNECT_ATTEMPTS + " 次 url=" + rawUrl
-                    + " reason=" + result.message);
-            if (attempt < CONFIG_CONNECT_ATTEMPTS) {
-                try {
-                    Thread.sleep(CONFIG_RETRY_DELAY_MS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return result;
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 统计配置里的站点数量：result[0] = 可用站点总数（key 与 api 都非空，会进站点列表）；
-     * result[1] = 其中 searchable != 0（会出现在「搜索源管理」里）的数量
-     */
-    private static int[] countSites(String json) {
-        int[] result = new int[2];
-        try {
-            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
-            if (obj == null || !obj.has("sites") || !obj.get("sites").isJsonArray()) return result;
-            for (JsonElement el : obj.getAsJsonArray("sites")) {
-                if (!el.isJsonObject()) continue;
-                JsonObject site = el.getAsJsonObject();
-                if (!site.has("key") || !site.has("api")) continue;
-                if (!site.get("key").isJsonPrimitive() || !site.get("api").isJsonPrimitive()) continue;
-                if (NullUtil.isNull(site.get("key").getAsString())) continue;
-                if (NullUtil.isNull(site.get("api").getAsString())) continue;
-                result[0]++;
-                if (DefaultConfig.safeJsonInt(site, "searchable", 1) != 0) result[1]++;
-            }
-        } catch (Throwable th) {
-            L.w("countSites 异常 " + th.getMessage());
-        }
-        return result;
-    }
-
-    /**
-     * 内置采集源里「配置中还没有同 api 站点」的个数：这些会追加到站点列表最前，
-     * 所以搜索源列表数量 = 配置里可搜索站点数 + 本方法的返回值
-     */
-    private static int countExtraSites(String json) {
-        int count = 0;
-        try {
-            List<String> apis = new ArrayList<>();
-            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
-            if (obj != null && obj.has("sites") && obj.get("sites").isJsonArray()) {
-                for (JsonElement el : obj.getAsJsonArray("sites")) {
-                    if (!el.isJsonObject()) continue;
-                    JsonObject site = el.getAsJsonObject();
-                    if (site.has("api") && site.get("api").isJsonPrimitive()) {
-                        apis.add(site.get("api").getAsString());
-                    }
-                }
-            }
-            for (String[] def : DefaultConfig.EXTRA_SITES) {
-                boolean exist = false;
-                for (String api : apis) {
-                    if (sameApi(api, def[2])) {
-                        exist = true;
-                        break;
-                    }
-                }
-                if (!exist) count++;
-            }
-        } catch (Throwable th) {
-            L.w("countExtraSites 异常 " + th.getMessage());
-        }
-        return count;
+        return ConfigVerifier.verifyConfigWithRetry(rawUrl, inlineContent, timeoutMs);
     }
 
     /**
@@ -644,103 +344,7 @@ public class ApiConfig {
      * 且所有分支都保证 callback.success() 触发一次，避免调用方链路卡住。
      */
     public void loadJar(Context cxt, boolean useCache, String spider, LoadConfigCallback callback) {
-        String[] urls = spider == null ? new String[0] : spider.split(";md5;");
-        final String jarUrl = urls.length > 0 ? urls[0].trim() : "";
-        final String md5 = urls.length > 1 ? urls[1].trim() : "";
-        final Context ctx = cxt.getApplicationContext();
-        L.w("loadJar url=" + jarUrl + " md5=" + md5 + " useCache=" + useCache);
-        new Thread() {
-            @Override
-            public void run() {
-                boolean ok = false;
-                try {
-                    if (!NullUtil.isNull(jarUrl)) {
-                        File jarDir = new File(ctx.getFilesDir().getAbsolutePath() + "/spider");
-                        if (jarDir.exists() || jarDir.mkdirs()) {
-                            File jarFile = new File(jarDir, "csp_" + MD5.encode(jarUrl) + ".jar");
-                            // 与原实现的 setForceReDownload(false) 一致：已下过就直接复用，不必每次启动重下
-                            if ((jarFile.exists() && jarFile.length() > 0) || downloadJar(jarUrl, jarFile)) {
-                                ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
-                                L.w("loadJar file=" + jarFile.getName() + " size=" + jarFile.length()
-                                        + " md5=" + MD5.getFileMd5(jarFile) + " success=" + ok);
-                                if (!ok) {
-                                    jarFile.delete();
-                                }
-                            }
-                        } else {
-                            L.w("loadJar 创建目录失败 " + jarDir.getAbsolutePath());
-                        }
-                    }
-                } catch (Throwable th) {
-                    L.w("loadJar 异常 " + th.getMessage());
-                }
-                if (!ok) {
-                    // 兜底：内置 assets/tvbox.jar（只有 2 个条目，不含 csp_* 站点类）
-                    MyFilesManager.copyFileFromAssets(App.getInstance(), "tvbox.jar",
-                            App.getInstance().getFilesDir().getAbsolutePath(), "csp.jar");
-                    File cspFile = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp.jar");
-                    L.w("loadJar 内置兜底 csp.jar size=" + cspFile.length()
-                            + " success=" + mBaseLoader.loadJar(cspFile.getAbsolutePath()));
-                }
-                callback.success();
-            }
-        }.start();
-    }
-
-    /**
-     * 显式带 okhttp UA 下载 jar 到目标文件；先写 .tmp 再改名，避免中断留下半截文件
-     */
-    private static boolean downloadJar(String url, File dest) {
-        File tmp = new File(dest.getAbsolutePath() + ".tmp");
-        okhttp3.Response response = null;
-        InputStream in = null;
-        FileOutputStream out = null;
-        try {
-            okhttp3.Request request = new okhttp3.Request.Builder()
-                    .url(url)
-                    .header("User-Agent", UA_OKHTTP)
-                    .build();
-            response = OkGo.getInstance().getOkHttpClient().newCall(request).execute();
-            if (!response.isSuccessful() || response.body() == null) {
-                L.w("loadJar 下载失败 code=" + response.code() + " url=" + url);
-                return false;
-            }
-            in = response.body().byteStream();
-            out = new FileOutputStream(tmp);
-            byte[] buffer = new byte[8192];
-            int len;
-            while ((len = in.read(buffer)) != -1) {
-                out.write(buffer, 0, len);
-            }
-            out.flush();
-            out.close();
-            out = null;
-            in.close();
-            in = null;
-            if (tmp.length() == 0) {
-                return false;
-            }
-            if (dest.exists() && !dest.delete()) {
-                L.w("loadJar 旧文件删除失败 " + dest.getAbsolutePath());
-            }
-            boolean moved = tmp.renameTo(dest);
-            L.w("loadJar 下载完成 size=" + dest.length() + " rename=" + moved);
-            return moved;
-        } catch (Throwable th) {
-            L.w("loadJar 下载异常 " + th.getMessage());
-            return false;
-        } finally {
-            try {
-                if (out != null) out.close();
-            } catch (Exception ignored) {
-            }
-            try {
-                if (in != null) in.close();
-            } catch (Exception ignored) {
-            }
-            if (response != null) response.close();
-            if (tmp.exists()) tmp.delete();
-        }
+        spiderLoader.loadJar(cxt, useCache, spider, callback);
     }
 
     private void parseSiteFile(String apiUrl, String jsonStr) {
@@ -750,8 +354,7 @@ public class ApiConfig {
         try {
             mSiteBeanMap.clear();
             AdBlocker.clear();
-            mBaseLoader.clear();
-            mSiteJarPaths.clear();
+            spiderLoader.clear();
             JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
             mSpider = DefaultConfig.safeJsonString(jsonObject, "spider", "");
             L.d("mSpider=" + mSpider);
@@ -825,35 +428,7 @@ public class ApiConfig {
                 }
             }
             // 直播源
-            mLiveChannelGroupList.clear();  //修复从后台切换重复加载频道列表
-            try {
-                String lives = jsonObject.get("lives").getAsJsonArray().toString();
-                int index = lives.indexOf("proxy://");
-                if (index != -1) {
-                    int endIndex = lives.lastIndexOf("\"");
-                    String url = lives.substring(index, endIndex);
-                    url = DefaultConfig.checkReplaceProxy(url);
-
-                    //clan
-                    String extUrl = Uri.parse(url).getQueryParameter("ext");
-                    if (extUrl != null && !extUrl.isEmpty()) {
-                        String extUrlFix = new String(Base64.decode(extUrl, Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP), "UTF-8");
-                        if (extUrlFix.startsWith("clan://")) {
-                            extUrlFix = UiHelper.clanContentFix(UiHelper.clanToAddress(apiUrl), extUrlFix);
-                            extUrlFix = Base64.encodeToString(extUrlFix.getBytes("UTF-8"), Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP);
-                            url = url.replace(extUrl, extUrlFix);
-                        }
-                    }
-                    LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
-                    liveChannelGroup.setGroupName(url);
-                    mLiveChannelGroupList.add(liveChannelGroup);
-                    L.d("live channel:" + liveChannelGroup.getGroupName());
-                } else {
-                    loadLives(jsonObject.get("lives").getAsJsonArray());
-                }
-            } catch (Throwable th) {
-               L.w(th.getMessage());
-            }
+            liveSources.loadConfiguredLives(apiUrl, jsonObject);
             // 广告地址
             JsonArray ads =  jsonObject.getAsJsonArray("ads");
             if(null != ads) {
@@ -905,343 +480,26 @@ public class ApiConfig {
         } catch (Exception e) {
             L.e(e);
         }
-        mConfiguredLiveChannelGroupList.clear();
-        mConfiguredLiveChannelGroupList.addAll(mLiveChannelGroupList);
+        searchSites.invalidateSearchSiteOrderCache();
+        liveSources.saveConfiguredLives();
         m_bParsed = true;
     }
 
     public void restoreConfiguredLives() {
-        mLiveChannelGroupList.clear();
-        mLiveChannelGroupList.addAll(mConfiguredLiveChannelGroupList);
+        liveSources.restoreConfiguredLives();
     }
 
     public void loadLiveSources(String sourceUrls, LiveSourceCallback callback) {
-        List<String> values = new ArrayList<>();
-        String raw = sourceUrls == null ? "" : sourceUrls.trim();
-        if (raw.startsWith("{") || raw.startsWith("[") || raw.startsWith("#EXTM3U")) {
-            values.add(raw);
-        } else {
-            for (String line : raw.split("\\r?\\n")) if (!line.trim().isEmpty()) values.add(line.trim());
-        }
-        loadLiveSourceContents(values, callback);
+        liveSources.loadLiveSources(sourceUrls, callback);
     }
 
     /** Loads URL, inline TVBox JSON, and inline M3U content in priority order. */
     public void loadLiveSourceContents(List<String> sourceContents, LiveSourceCallback callback) {
-        new Thread(() -> {
-            ExecutorService executor = null;
-            try {
-                if (sourceContents == null || sourceContents.isEmpty()) {
-                    throw new IllegalArgumentException("直播源地址为空");
-                }
-                List<String> uniqueSources = new ArrayList<>();
-                Set<String> seen = new LinkedHashSet<>();
-                for (String value : sourceContents) {
-                    if (value == null || value.trim().isEmpty()) continue;
-                    String content = value.trim();
-                    String key = content.startsWith("{") || content.startsWith("[") || content.startsWith("#")
-                            ? content : getLiveSourceDedupKey(normalizeUrl(content.startsWith("http") ? content : "http://" + content));
-                    if (seen.add(key)) uniqueSources.add(content);
-                }
-
-                executor = Executors.newFixedThreadPool(Math.min(uniqueSources.size(), 5));
-                List<Future<LiveSourceResult>> futures = new ArrayList<>();
-                for (String sourceUrl : uniqueSources) {
-                    futures.add(executor.submit(() -> fetchLiveSource(sourceUrl)));
-                }
-
-                JsonArray mergedLives = new JsonArray();
-                List<String> errors = new ArrayList<>();
-                int loadedSources = 0;
-                for (int i = 0; i < futures.size(); i++) {
-                    LiveSourceResult result;
-                    try {
-                        result = futures.get(i).get(
-                                LIVE_SOURCE_READ_TIMEOUT_MS + LIVE_SOURCE_CONNECT_TIMEOUT_MS,
-                                TimeUnit.MILLISECONDS);
-                    } catch (Exception e) {
-                        futures.get(i).cancel(true);
-                        errors.add(uniqueSources.get(i) + "：" + e.getMessage());
-                        continue;
-                    }
-                    if (result.error != null) {
-                        errors.add(uniqueSources.get(i) + "：" + result.error);
-                        continue;
-                    }
-                    mergeLiveGroups(mergedLives, result.lives);
-                    loadedSources++;
-                }
-                if (mergedLives.size() == 0) {
-                    throw new IllegalStateException(errors.isEmpty()
-                            ? "所有直播源都没有可用频道"
-                            : "没有直播源加载成功：" + errors.get(0));
-                }
-                loadLives(mergedLives);
-                callback.success(loadedSources, errors.size());
-            } catch (Exception e) {
-                L.w("loadLiveSources 失败：" + e.getMessage());
-                callback.error(e.getMessage() == null ? "未知错误" : e.getMessage());
-            } finally {
-                if (executor != null) {
-                    executor.shutdownNow();
-                }
-            }
-        }, "load-live-sources").start();
-    }
-
-    private LiveSourceResult fetchLiveSource(String sourceUrl) {
-        String value = sourceUrl.trim();
-        if (value.startsWith("{") || value.startsWith("[") || value.startsWith("#EXTM3U")) {
-            try {
-                JsonArray lives = parseLiveJson(value);
-                if (lives == null) lives = parseM3uLives(value);
-                if (lives == null || lives.size() == 0) throw new IllegalArgumentException("内联内容中没有频道");
-                return new LiveSourceResult(lives, null);
-            } catch (Exception e) {
-                return new LiveSourceResult(null, e.getMessage() == null ? "内联内容解析失败" : e.getMessage());
-            }
-        }
-        if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value;
-        sourceUrl = normalizeUrl(value);
-        HttpResult response = httpGetWithOkhttpUA(sourceUrl, LIVE_SOURCE_READ_TIMEOUT_MS);
-        if (!response.ok()) {
-            String reason = response.error.isEmpty() ? "HTTP " + response.code : response.error;
-            return new LiveSourceResult(null, reason);
-        }
-
-        try {
-            JsonArray sourceLives;
-            JsonArray lives = parseLiveJson(response.body);
-            if (lives != null) {
-                if (lives.size() == 0) {
-                    throw new IllegalArgumentException("直播配置中没有频道分组");
-                }
-                sourceLives = new JsonArray();
-                for (JsonElement group : lives) {
-                    if (!group.isJsonObject()
-                            || !group.getAsJsonObject().has("group")
-                            || !group.getAsJsonObject().has("channels")
-                            || !group.getAsJsonObject().get("channels").isJsonArray()) {
-                        throw new IllegalArgumentException("直播 JSON 分组缺少 group 或 channels");
-                    }
-                    JsonObject copy = group.getAsJsonObject().deepCopy();
-                    for (JsonElement channelElement : copy.getAsJsonArray("channels")) {
-                        JsonObject channel = channelElement.getAsJsonObject();
-                        JsonArray urls = channel.getAsJsonArray("urls");
-                        if (urls == null) channel.add("urls", new JsonArray());
-                    }
-                    sourceLives.add(copy);
-                }
-            } else {
-                sourceLives = parseM3uLives(response.body);
-                if (sourceLives.size() == 0) {
-                    throw new IllegalArgumentException("M3U 中未找到频道");
-                }
-            }
-            return new LiveSourceResult(sourceLives, null);
-        } catch (Exception e) {
-            return new LiveSourceResult(null, e.getMessage() == null ? "直播配置解析失败" : e.getMessage());
-        }
-    }
-
-    private static class LiveSourceResult {
-        final JsonArray lives;
-        final String error;
-
-        LiveSourceResult(JsonArray lives, String error) {
-            this.lives = lives;
-            this.error = error;
-        }
-    }
-
-    private JsonArray parseLiveJson(String content) {
-        try {
-            JsonElement root = new JsonParser().parse(content);
-            if (root.isJsonArray()) return root.getAsJsonArray();
-            if (root.isJsonObject() && root.getAsJsonObject().has("lives")
-                    && root.getAsJsonObject().get("lives").isJsonArray()) {
-                return root.getAsJsonObject().getAsJsonArray("lives");
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private JsonArray parseM3uLives(String content) {
-        Map<String, JsonArray> groups = new LinkedHashMap<>();
-        String channelName = null;
-        String groupName = null;
-        try (BufferedReader reader = new BufferedReader(new StringReader(content))) {
-            String rawLine;
-            while ((rawLine = reader.readLine()) != null) {
-                String line = rawLine.trim();
-                if (line.isEmpty()) continue;
-                if (line.startsWith("#EXTINF")) {
-                    int comma = line.lastIndexOf(',');
-                    channelName = comma >= 0 ? line.substring(comma + 1).trim() : "";
-                    groupName = getM3uAttribute(line, "group-title");
-                    if (groupName.isEmpty()) groupName = "其他";
-                } else if (!line.startsWith("#") && channelName != null && !channelName.isEmpty()) {
-                    JsonArray channels = groups.get(groupName);
-                    if (channels == null) {
-                        channels = new JsonArray();
-                        groups.put(groupName, channels);
-                    }
-                    JsonObject channel = new JsonObject();
-                    channel.addProperty("name", channelName);
-                    JsonArray urls = new JsonArray();
-                    urls.add(line);
-                    channel.add("urls", urls);
-                    channels.add(channel);
-                    channelName = null;
-                    groupName = null;
-                }
-            }
-        } catch (Exception e) {
-            L.w("parseM3uLives error: " + e.getMessage());
-        }
-        JsonArray lives = new JsonArray();
-        for (Map.Entry<String, JsonArray> entry : groups.entrySet()) {
-            JsonObject group = new JsonObject();
-            group.addProperty("group", entry.getKey());
-            group.add("channels", entry.getValue());
-            lives.add(group);
-        }
-        return lives;
-    }
-
-    private void mergeLiveGroups(JsonArray target, JsonArray source) {
-        Map<String, JsonObject> groupsByName = new LinkedHashMap<>();
-        for (JsonElement element : target) {
-            JsonObject group = element.getAsJsonObject();
-            groupsByName.put(group.get("group").getAsString(), group);
-        }
-        for (JsonElement element : source) {
-            JsonObject sourceGroup = element.getAsJsonObject();
-            String name = sourceGroup.get("group").getAsString().trim();
-            JsonObject targetGroup = groupsByName.get(name);
-            if (targetGroup == null) {
-                targetGroup = new JsonObject();
-                targetGroup.addProperty("group", name);
-                targetGroup.add("channels", new JsonArray());
-                target.add(targetGroup);
-                groupsByName.put(name, targetGroup);
-            }
-            mergeLiveChannels(targetGroup.getAsJsonArray("channels"),
-                    sourceGroup.getAsJsonArray("channels"));
-        }
-    }
-
-    private void mergeLiveChannels(JsonArray target, JsonArray source) {
-        Map<String, JsonObject> channelsByName = new LinkedHashMap<>();
-        for (JsonElement element : target) {
-            JsonObject channel = element.getAsJsonObject();
-            channelsByName.put(channel.get("name").getAsString().trim().toLowerCase(), channel);
-        }
-        for (JsonElement element : source) {
-            JsonObject sourceChannel = element.getAsJsonObject();
-            String name = sourceChannel.get("name").getAsString().trim();
-            String key = name.toLowerCase();
-            JsonObject targetChannel = channelsByName.get(key);
-            if (targetChannel == null) {
-                targetChannel = sourceChannel.deepCopy();
-                targetChannel.addProperty("name", name);
-                target.add(targetChannel);
-                channelsByName.put(key, targetChannel);
-                continue;
-            }
-
-            JsonArray targetUrls = targetChannel.getAsJsonArray("urls");
-            if (targetUrls == null) {
-                targetUrls = new JsonArray();
-                targetChannel.add("urls", targetUrls);
-            }
-            JsonArray sourceUrls = sourceChannel.getAsJsonArray("urls");
-            if (sourceUrls == null) continue;
-            Set<String> existingUrls = new LinkedHashSet<>();
-            for (JsonElement url : targetUrls) {
-                existingUrls.add(getLiveUrlKey(url.getAsString()));
-            }
-            for (JsonElement url : sourceUrls) {
-                String value = url.getAsString();
-                if (existingUrls.add(getLiveUrlKey(value))) targetUrls.add(value);
-            }
-        }
-    }
-
-    private String getLiveUrlKey(String value) {
-        String[] parts = value.split("\\$", 2);
-        return parts[0].trim();
-    }
-
-    private String getM3uAttribute(String line, String attribute) {
-        Matcher matcher = Pattern.compile("(?:^|\\s)" + Pattern.quote(attribute)
-                + "=\"([^\"]*)\"").matcher(line);
-        return matcher.find() ? matcher.group(1).trim() : "";
-    }
-
-    private String getLiveSourceDedupKey(String url) {
-        Uri uri = Uri.parse(url);
-        return String.valueOf(uri.getHost()) + ":" + uri.getPort()
-                + uri.getPath() + "?" + uri.getQuery();
+        liveSources.loadLiveSourceContents(sourceContents, callback);
     }
 
     public void loadLives(JsonArray livesArray) {
-        L.d("loadLives()");
-        mLiveChannelGroupList.clear();
-        int groupIndex = 0;
-        int channelIndex = 0;
-        int channelNum = 0;
-        for (JsonElement groupElement : livesArray) {
-            LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
-            liveChannelGroup.setLiveChannels(new ArrayList<LiveChannelItem>());
-            liveChannelGroup.setGroupIndex(groupIndex);
-            String groupName = ((JsonObject) groupElement).get("group").getAsString().trim();
-            String[] splitGroupName = groupName.split("_", 2);
-            liveChannelGroup.setGroupName(splitGroupName[0]);
-            if (splitGroupName.length > 1) {
-                liveChannelGroup.setGroupPassword(splitGroupName[1]);
-            } else {
-                liveChannelGroup.setGroupPassword("");
-            }
-            channelIndex = 0;
-            for (JsonElement channelElement : ((JsonObject) groupElement).get("channels").getAsJsonArray()) {
-                JsonObject obj = (JsonObject) channelElement;
-                ArrayList<String> urls = DefaultConfig.safeJsonStringList(obj, "urls");
-                L.d("urls="+urls);
-                ArrayList<String> sourceNames = new ArrayList<>();
-                ArrayList<String> sourceUrls = new ArrayList<>();
-                int sourceIndex = 1;
-                for (String url : urls) {
-                    L.d("url="+url);
-                    String[] splitText = url.split("\\$", 2);
-                    String sourceUrl = splitText[0].trim();
-                    if (sourceUrl.isEmpty()) continue;
-                    sourceUrls.add(sourceUrl);
-                    if (splitText.length > 1) {
-                        sourceNames.add(splitText[1]);
-                    } else {
-                        sourceNames.add("源" + Integer.toString(sourceIndex));
-                    }
-
-                    sourceIndex++;
-                }
-                if (sourceUrls.isEmpty()) continue;
-                LiveChannelItem liveChannelItem = new LiveChannelItem();
-                liveChannelItem.setChannelName(obj.get("name").getAsString().trim());
-                liveChannelItem.setChannelIndex(channelIndex++);
-                liveChannelItem.setChannelNum(++channelNum);
-                liveChannelItem.setChannelSourceNames(sourceNames);
-                liveChannelItem.setChannelUrls(sourceUrls);
-                liveChannelGroup.getLiveChannels().add(liveChannelItem);
-            }
-            if (!liveChannelGroup.getLiveChannels().isEmpty()) {
-                mLiveChannelGroupList.add(liveChannelGroup);
-                groupIndex++;
-                L.d("live group name:"+liveChannelGroup.getGroupName());
-            }
-        }
+        liveSources.loadLives(livesArray);
     }
 
     public String getmSpider() {
@@ -1250,9 +508,7 @@ public class ApiConfig {
     }
 
     public Spider getCSP(SiteBean sourceBean) {
-        //该源自带爬虫包时先把它准备好，否则类找不到会静默降级成 SpiderNull（表现为搜索结果为空）
-        String jarPath = preloadSiteJar(sourceBean.getJar());
-        return mBaseLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt(), jarPath);
+        return spiderLoader.getCSP(sourceBean);
     }
 
     /**
@@ -1261,53 +517,19 @@ public class ApiConfig {
      * 全部落到"类找不到"的空结果上。结果按 url 缓存，失败缓存空串避免反复重试。
      */
     public String preloadSiteJar(String jarWithMd5) {
-        if (NullUtil.isNull(jarWithMd5)) return "";
-        String url = jarWithMd5.split(";md5;")[0].trim();
-        if (NullUtil.isNull(url)) return "";
-        String cached = mSiteJarPaths.get(url);
-        if (cached != null) return cached;
-        Object lock = mSiteJarLocks.get(url);
-        if (lock == null) {
-            mSiteJarLocks.putIfAbsent(url, new Object());
-            lock = mSiteJarLocks.get(url);
-        }
-        synchronized (lock) {
-            cached = mSiteJarPaths.get(url);
-            if (cached != null) return cached;
-            String path = "";
-            try {
-                File jarDir = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/spider");
-                if (jarDir.exists() || jarDir.mkdirs()) {
-                    File jarFile = new File(jarDir, "csp_" + MD5.encode(url) + ".jar");
-                    if ((jarFile.exists() && jarFile.length() > 0) || downloadJar(url, jarFile)) {
-                        if (mBaseLoader.loadExtraJar(jarFile.getAbsolutePath())) {
-                            path = jarFile.getAbsolutePath();
-                            L.w("preloadSiteJar ok " + url + " size=" + jarFile.length());
-                        } else {
-                            L.w("preloadSiteJar 加载失败 " + url);
-                        }
-                    } else {
-                        L.w("preloadSiteJar 下载失败 " + url);
-                    }
-                }
-            } catch (Throwable th) {
-                L.e(th);
-            }
-            mSiteJarPaths.put(url, path);
-            return path;
-        }
+        return spiderLoader.preloadSiteJar(jarWithMd5);
     }
 
     public Object[] proxyLocal(Map param) {
-        return mBaseLoader.proxy(param);
+        return spiderLoader.proxyLocal(param);
     }
 
     public JSONObject jarExt(String key, LinkedHashMap<String, String> jxs, String url) {
-        return mBaseLoader.jsonExt(key, jxs, url);
+        return spiderLoader.jarExt(key, jxs, url);
     }
 
     public JSONObject jarExtMix(String flag, String key, String name, LinkedHashMap<String, HashMap<String, String>> jxs, String url) {
-        return mBaseLoader.jsonExtMix(flag, key, name, jxs, url);
+        return spiderLoader.jarExtMix(flag, key, name, jxs, url);
     }
 
     public interface LoadConfigCallback {
@@ -1346,18 +568,16 @@ public class ApiConfig {
      * 这样配置源更新后新增的站点会自动参与，不会漏掉。
      */
     public ArrayList<String> getSearchSiteDisabled() {
-        ArrayList<String> disabled = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
-        return disabled == null ? new ArrayList<String>() : disabled;
+        return searchSites.getSearchSiteDisabled();
     }
 
     public void setSearchSiteDisabled(List<String> keys) {
-        Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
+        searchSites.setSearchSiteDisabled(keys);
     }
 
     /** 该站点是否被允许参与搜索（未设置或未被取消勾选 → 允许） */
     public boolean isSearchSiteEnabled(String key) {
-        if (NullUtil.isNull(key)) return true;
-        return !getSearchSiteDisabled().contains(key);
+        return searchSites.isSearchSiteEnabled(key);
     }
 
     /**
@@ -1365,13 +585,11 @@ public class ApiConfig {
      * 未登记过顺序的源（配置新增或默认启用）排在最后。
      */
     public ArrayList<String> getSearchSiteOrder() {
-        ArrayList<String> order = Hawk.get(HawkConfig.SEARCH_SITE_ORDER, new ArrayList<String>());
-        return order == null ? new ArrayList<String>() : order;
+        return searchSites.getSearchSiteOrder();
     }
 
     public void setSearchSiteOrder(List<String> keys) {
-        Hawk.put(HawkConfig.SEARCH_SITE_ORDER, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
-        invalidateSearchSiteOrderCache();
+        searchSites.setSearchSiteOrder(keys);
     }
 
     /**
@@ -1379,82 +597,26 @@ public class ApiConfig {
      * 关键词的源排在最前（文采┃秒播 > 非凡┃影视），其余保持站点表顺序。
      */
     public ArrayList<String> getDefaultSearchSiteOrder() {
-        ArrayList<String> rest = new ArrayList<>();
-        for (SiteBean bean : mSiteBeanMap.values()) {
-            if (bean.isSearchable() && !NullUtil.isNull(bean.getKey())) {
-                rest.add(bean.getKey());
-            }
-        }
-        ArrayList<String> ordered = new ArrayList<>();
-        for (String keyword : DefaultConfig.SEARCH_SITE_PRIORITY) {
-            for (int i = 0; i < rest.size(); i++) {
-                SiteBean bean = mSiteBeanMap.get(rest.get(i));
-                if (bean != null && !NullUtil.isNull(bean.getName()) && bean.getName().contains(keyword)) {
-                    ordered.add(rest.remove(i));
-                    i--;
-                }
-            }
-        }
-        ordered.addAll(rest);
-        return ordered;
+        return searchSites.getDefaultSearchSiteOrder();
     }
 
     /** 用户自定义过顺序就尊重用户，否则返回默认顺序（文采秒播 > 非凡影视 > 其余） */
     public ArrayList<String> getSearchSiteOrderOrDefault() {
-        ArrayList<String> order = getSearchSiteOrder();
-        return order.isEmpty() ? getDefaultSearchSiteOrder() : order;
+        return searchSites.getSearchSiteOrderOrDefault();
     }
 
     /** 参与搜索的站点，按用户勾选顺序排列；没排过序的源接在最后并保持站点表原顺序 */
     public List<SiteBean> getOrderedSearchSiteList() {
-        List<SiteBean> pending = new ArrayList<>();
-        for (SiteBean bean : mSiteBeanMap.values()) {
-            if (bean.isSearchable() && isSearchSiteEnabled(bean.getKey())) {
-                pending.add(bean);
-            }
-        }
-        List<SiteBean> ordered = new ArrayList<>();
-        for (String key : getSearchSiteOrderOrDefault()) {
-            for (int i = 0; i < pending.size(); i++) {
-                if (key.equals(pending.get(i).getKey())) {
-                    ordered.add(pending.remove(i));
-                    break;
-                }
-            }
-        }
-        ordered.addAll(pending);
-        return ordered;
+        return searchSites.getOrderedSearchSiteList();
     }
 
-    private final ConcurrentHashMap<String, Integer> mSearchSiteOrderIndexCache = new ConcurrentHashMap<>();
-
     public void invalidateSearchSiteOrderCache() {
-        mSearchSiteOrderIndexCache.clear();
+        searchSites.invalidateSearchSiteOrderCache();
     }
 
     /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按站点表顺序接在最后（O(1) 缓存查询，消除排序时的遍历开销） */
     public int getSearchSiteOrderIndex(String key) {
-        if (NullUtil.isNull(key)) return Integer.MAX_VALUE;
-        Integer cached = mSearchSiteOrderIndexCache.get(key);
-        if (cached != null) return cached;
-
-        List<String> order = getSearchSiteOrderOrDefault();
-        int index = order.indexOf(key);
-        if (index >= 0) {
-            mSearchSiteOrderIndexCache.put(key, index);
-            return index;
-        }
-        int pos = 0;
-        for (SiteBean bean : mSiteBeanMap.values()) {
-            if (key.equals(bean.getKey())) {
-                int res = order.size() + pos;
-                mSearchSiteOrderIndexCache.put(key, res);
-                return res;
-            }
-            pos++;
-        }
-        mSearchSiteOrderIndexCache.put(key, Integer.MAX_VALUE);
-        return Integer.MAX_VALUE;
+        return searchSites.getSearchSiteOrderIndex(key);
     }
 
     public List<ParseBean> getmParseBeanList() {
@@ -1687,36 +849,13 @@ public class ApiConfig {
             Hawk.put(HawkConfig.HOME_API, "");
             Hawk.put(HawkConfig.EXTRA_SITE_VER, 1);
         }
-        // 搜索源默认值改版：清掉一次旧的勾选/排序记录，让搜索源回到「默认全选」，
-        // 并按新默认优先级排序（文采┃秒播 > 非凡┃影视 > 其余）
-        if (Hawk.get(HawkConfig.SEARCH_SITE_VER, 0) < 1) {
-            Hawk.delete(HawkConfig.SEARCH_SITE_DISABLED);
-            Hawk.delete(HawkConfig.SEARCH_SITE_ORDER);
-            Hawk.put(HawkConfig.SEARCH_SITE_VER, 1);
-        }
-        // 置顶搜索源（全体用户）：把“粉猪秒播”放到搜索顺序第一位并确保启用；
-        // 只移动这一项，保留用户已有的其它顺序与勾选
-        if (Hawk.get(HawkConfig.SEARCH_PIN_VER, 0) < 1) {
-            pinSearchSiteFirst(PINNED_SEARCH_SITE_KEY);
-            Hawk.put(HawkConfig.SEARCH_PIN_VER, 1);
-        }
+        searchSites.migrate(PINNED_SEARCH_SITE_KEY);
     }
 
     /** 默认置顶的搜索源 key（配置里的「💥粉猪┃秒播💥」） */
     public static final String PINNED_SEARCH_SITE_KEY = "AppV7_粉猪追剧";
 
-    private void pinSearchSiteFirst(String key) {
-        ArrayList<String> order = new ArrayList<>(getSearchSiteOrderOrDefault());
-        order.remove(key);
-        order.add(0, key);
-        setSearchSiteOrder(order);
-        ArrayList<String> disabled = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
-        if (disabled != null && disabled.remove(key)) {
-            Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, disabled);
-        }
-    }
-
-    private static boolean sameApi(String api1, String api2) {
+    static boolean sameApi(String api1, String api2) {
         if (NullUtil.isNull(api1) || NullUtil.isNull(api2)) return false;
         return api1.trim().replaceAll("/+$", "").equalsIgnoreCase(api2.trim().replaceAll("/+$", ""));
     }
@@ -1741,7 +880,7 @@ public class ApiConfig {
     }
 
     public List<LiveChannelGroup> getChannelGroupList() {
-        return mLiveChannelGroupList;
+        return liveSources.getChannelGroupList();
     }
 
     private IJKCode createHardwareCodec() {
