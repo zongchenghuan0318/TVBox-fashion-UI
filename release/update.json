@@ -1,8 +1,8 @@
 {
-  "versionCode": 207,
-  "versionName": "1.7.8",
-  "changelog": "# 1.7.8\n\n- 新增遥控器方向键和确认键的提示音，长按只响一次。\n- 「设置 → 更新与辅助 → 遥控器按键音」默认开启，可随时关闭，应用会记住选择。\n- 手机触屏点击和滑动不会触发遥控器按键音。\n\n版本 1.7.8（versionCode 207）。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.8/Z.apk",
-  "sha256": "542cffad0631f8da7d999af5ffa1780d365280f7663a4180200b2f10b32c8b02",
-  "size": 24944894
+  "versionCode": 208,
+  "versionName": "1.7.9",
+  "changelog": "# 1.7.9\n\n- 遥控器返回键新增短促的「笃」声，沿用现有按键音开关。\n- 进入搜索页时，初始焦点落在「搜索」按钮上。\n\n版本 1.7.9（versionCode 208）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.9/Z.apk",
+  "sha256": "efaa3320cd2f283c64b67130108f0096dea0b7a9b0242473a4adb752267cbea0",
+  "size": 24950936
 }
