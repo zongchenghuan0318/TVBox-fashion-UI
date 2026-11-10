@@ -435,6 +435,19 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
+                            android:id="@+id/llRemoteKeySound"
+                            style="@style/SettingRow">
+                            <TextView style="@style/SettingRowTitle" android:text="遥控器按键音" />
+                            <Space style="@style/SettingRowSpacer" />
+                            <com.github.tvbox.osc.ui.view.CapsuleSwitch
+                                android:id="@+id/switchRemoteKeySound"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+
+                        <View style="@style/SettingDivider" />
+
+                        <LinearLayout
                             android:id="@+id/llSeniorMode"
                             style="@style/SettingRow">
                             <TextView style="@style/SettingRowTitle" android:text="长辈模式" />

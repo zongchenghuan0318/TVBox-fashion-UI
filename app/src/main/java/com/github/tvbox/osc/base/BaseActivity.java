@@ -15,6 +15,7 @@ import android.view.View;
 
 import com.github.tvbox.osc.callback.EmptyCallback;
 import com.github.tvbox.osc.callback.LoadingCallback;
+import com.github.tvbox.osc.util.RemoteKeySound;
 import com.github.tvbox.osc.util.AppManager;
 import com.kingja.loadsir.callback.Callback;
 import com.kingja.loadsir.core.LoadService;
@@ -53,6 +54,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
         super.onCreate(savedInstanceState);
         setContentView(getLayoutResID());
+        RemoteKeySound.attach(getWindow(), this);
         com.github.tvbox.osc.util.SeniorMode.apply(findViewById(android.R.id.content));
         mContext = this;
         AppManager.getInstance().addActivity(this);

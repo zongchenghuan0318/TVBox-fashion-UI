@@ -33,6 +33,7 @@ import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.view.CapsuleSwitch;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.FileUtils;
+import com.github.tvbox.osc.util.RemoteKeySound;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.github.tvbox.osc.util.SeniorMode;
@@ -226,6 +227,20 @@ public class ModelSettingFragment extends BaseLazyFragment {
             switchAutoUpdate.setChecked(enabled);
             v.setContentDescription("启动时自动检查更新，" + (enabled ? "已开启" : "已关闭"));
             v.announceForAccessibility(enabled ? "启动时自动检查更新已开启" : "启动时自动检查更新已关闭，仍可手动检查更新");
+        });
+
+        View remoteSoundRow = findViewById(R.id.llRemoteKeySound);
+        CapsuleSwitch remoteSoundSwitch = findViewById(R.id.switchRemoteKeySound);
+        remoteSoundSwitch.setChecked(Hawk.get(HawkConfig.REMOTE_KEY_SOUND, true));
+        remoteSoundRow.setContentDescription("遥控器按键音，" + (remoteSoundSwitch.isChecked() ? "已开启" : "已关闭"));
+        remoteSoundRow.setOnClickListener(v -> {
+            boolean enabled = !remoteSoundSwitch.isChecked();
+            Hawk.put(HawkConfig.REMOTE_KEY_SOUND, enabled);
+            remoteSoundSwitch.setChecked(enabled);
+            v.setContentDescription("遥控器按键音，" + (enabled ? "已开启" : "已关闭"));
+            if (enabled) {
+                RemoteKeySound.preload(v.getContext());
+            }
         });
 
         View seniorRow = findViewById(R.id.llSeniorMode);
