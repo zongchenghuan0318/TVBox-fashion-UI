@@ -578,6 +578,7 @@ public class SearchActivity extends BaseActivity {
         }
         refreshQRCode();
         requestHotWords();
+        tvSearch.requestFocus();
     }
 
     private void requestHotWords() {

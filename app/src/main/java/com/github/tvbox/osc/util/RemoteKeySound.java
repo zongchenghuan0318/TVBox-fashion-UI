@@ -15,6 +15,7 @@ public final class RemoteKeySound {
     private static SoundPool soundPool;
     private static int moveSound;
     private static int confirmSound;
+    private static int backSound;
 
     private RemoteKeySound() {
     }
@@ -33,6 +34,7 @@ public final class RemoteKeySound {
         Context appContext = context.getApplicationContext();
         moveSound = soundPool.load(appContext, R.raw.tv_menu_move, 1);
         confirmSound = soundPool.load(appContext, R.raw.tv_menu_confirm, 1);
+        backSound = soundPool.load(appContext, R.raw.tv_menu_back, 1);
     }
 
     public static void attach(Window window, Context context) {
@@ -51,6 +53,9 @@ public final class RemoteKeySound {
                         case KeyEvent.KEYCODE_DPAD_LEFT:
                         case KeyEvent.KEYCODE_DPAD_RIGHT:
                             soundPool.play(moveSound, 1f, 1f, 1, 0, 1f);
+                            break;
+                        case KeyEvent.KEYCODE_BACK:
+                            soundPool.play(backSound, 1f, 1f, 1, 0, 1f);
                             break;
                         case KeyEvent.KEYCODE_DPAD_CENTER:
                         case KeyEvent.KEYCODE_ENTER:
