@@ -292,6 +292,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         tryDismissHomeLaunchCover();
     }
 
+    public boolean isHomeConfigReady() {
+        return homeConfigReady;
+    }
+
     private void tryDismissHomeLaunchCover() {
         if ((!homeLaunchTimedOut && (!homeHeroReady || !homeConfigReady))
                 || homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {

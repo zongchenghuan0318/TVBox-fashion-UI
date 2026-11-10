@@ -168,10 +168,16 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
         }
     };
-    // 焦点变化只负责同步背景，不负责重置轮播；否则初始化和自动切换时
-    // 焦点的连续变化会反复创建计时器并叠加居中动画。
+    // 焦点进入或离开卡片区域时更新自动轮播，并同步背景。
     private final ViewTreeObserver.OnGlobalFocusChangeListener mFocusChangeListener = (oldFocus, newFocus) -> {
         bindHeroFromFocus(newFocus);
+        if (mHotGridView != null && !mHotGridView.isInTouchMode()) {
+            if (mHotGridView.hasFocus()) {
+                scheduleAutoScroll();
+            } else {
+                mAutoScrollHandler.removeCallbacks(mAutoScrollRun);
+            }
+        }
     };
 
     public static FirstFragment newInstance(List<Movie.Video> recVod) {
@@ -365,6 +371,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         });
         mAdapter = new HomeHotVodAdapter();
         mAdapter.setOnItemClickListener((adapter, view, position) -> {
+            if (!(mActivity instanceof HomeActivity)
+                    || !((HomeActivity) mActivity).isHomeConfigReady()) {
+                Toast.makeText(mContext, "正在加载配置和影视源，请稍后再试", Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (ApiConfig.getInstance().getSiteBeanList().isEmpty()) {
                 Toast.makeText(mContext, "配置文件获取中，请稍后", Toast.LENGTH_SHORT).show();
                 return;
@@ -745,7 +756,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (mAutoScrollingCards || mLowPowerHome) {
             return;
         }
-        if (mHotGridView != null && mHotGridView.isUserTouching()) return;
+        if (mHotGridView != null && (mHotGridView.isUserTouching()
+                || (!mHotGridView.isInTouchMode() && !mHotGridView.hasFocus()))) return;
         mUserOperatingCards = false;
         if (mViewActive && mHeroVisible) {
             if (!mHeroReady) {
@@ -825,7 +837,8 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
      */
     private void autoScrollNext() {
         if (!mViewActive || !mHeroVisible || mUserOperatingCards
-                || mHotGridView == null || mAdapter == null || isSidebarFocused()) return;
+                || mHotGridView == null || mAdapter == null || isSidebarFocused()
+                || (!mHotGridView.isInTouchMode() && !mHotGridView.hasFocus())) return;
         if (getActivity() != null && !getActivity().hasWindowFocus()) {
             scheduleAutoScroll();
             return;
