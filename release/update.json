@@ -1,8 +1,8 @@
 {
-  "versionCode": 208,
-  "versionName": "1.7.9",
-  "changelog": "# 1.7.9\n\n- 遥控器返回键新增短促的「笃」声，沿用现有按键音开关。\n- 进入搜索页时，初始焦点落在「搜索」按钮上。\n\n版本 1.7.9（versionCode 208）。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.9/Z.apk",
-  "sha256": "efaa3320cd2f283c64b67130108f0096dea0b7a9b0242473a4adb752267cbea0",
-  "size": 24950936
+  "versionCode": 209,
+  "versionName": "1.7.10",
+  "changelog": "# 1.7.10\n\n- 将配置校验、直播源、爬虫加载和搜索源偏好设置拆分为独立模块。\n- 切换配置后重新计算搜索源排序索引，并保留用户保存的排序和禁用设置。\n\n版本 1.7.10（versionCode 209）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.10/Z.apk",
+  "sha256": "d598f53e952858eee44d2644c538eda7f149c55c4ab3384e34791e570ef1ea90",
+  "size": 24951526
 }
