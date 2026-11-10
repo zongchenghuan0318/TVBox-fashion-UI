@@ -1,8 +1,8 @@
 {
-  "versionCode": 215,
-  "versionName": "1.7.16",
-  "changelog": "# 1.7.16\n\n- 修复聚盘搜目录打开方式。聚合结果沿用原卡片布局，返回时保留搜索结果和滚动位置。\n- 更新搜索重试、来源配置加载以及首页、详情和播放相关逻辑。\n- 移除内置迅雷组件。\n\n版本 1.7.16（versionCode 215）。手机已验证聚盘搜目录展开及返回后的列表位置，返回后恢复原卡片焦点仍待修复。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.16/Z.apk",
-  "sha256": "59f447c0f0f51a550516e37110114c4e57bb6c96ccdad721b2eb3db5a635bf96",
-  "size": 22891661
+  "versionCode": 216,
+  "versionName": "1.7.17",
+  "changelog": "# 1.7.17\n\n- 扩展聚合目录兼容。其他插件的目录卡片优先使用原有详情接口，拿不到目录列表或接口明确不受支持时，再尝试分类接口。\n- 聚盘搜继续使用已在手机上验证的分类接口。目录日志现在会记录实际使用的接口和返回条数，便于定位其他源的兼容问题。\n\n版本 1.7.17（versionCode 216）。观影、七味和盘库尚未实测。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.17/Z.apk",
+  "sha256": "178f61973193c74958bd24ea106bff12e5144314019f0519b85bdcaf74576c15",
+  "size": 22891712
 }
