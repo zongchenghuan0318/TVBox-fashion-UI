@@ -1,8 +1,8 @@
 {
-  "versionCode": 218,
-  "versionName": "1.7.19",
-  "changelog": "# 1.7.19\n\n- 默认置顶点播配置源调整为 https://tv.xn--yhqu5zs87a.top 。未保存自定义配置或置顶设置时，启动优先尝试该配置源。\n- 已保存的配置地址和用户置顶设置继续按原有优先级生效。\n\n版本 1.7.19（versionCode 218）。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.19/Z.apk",
-  "sha256": "044bae0f644901bbaec52ecdd62f2a65460a07c9deaf415f47a19c785dbf092a",
-  "size": 22894250
+  "versionCode": 219,
+  "versionName": "1.7.20",
+  "changelog": "# 1.7.20\n\n- 调整电视端设置页返回流程。切换配置地址、首页源或推荐模式后，回到现有首页刷新，减少重复启动和配置重载。\n- 切源后使旧配置下载、首页选源及页面回调失效，避免旧结果覆盖新选择；读取源列表时同步配置替换操作。\n- 启动遮罩增加 12 秒超时退场，配置或海报加载较慢时仍可进入设置。\n- 全局爬虫 JAR 改为首次使用爬虫源或 JAR 解析时加载，并发请求共用同一次加载。HTTP、JS、Python 源可先加载首页。\n- 自动首页选源优先探测 HTTP 接口，6 秒无有效结果后尝试爬虫源，自动探测总等待上限为 12 秒。\n\n版本 1.7.20（versionCode 219）。20 项回归测试通过。电视上的切源退出问题和实际启动效果仍待真机验证。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.20/Z.apk",
+  "sha256": "79638d50be3eb5cffc415587044372839b0be6bb3e380565c2c9a70a824688aa",
+  "size": 22896592
 }

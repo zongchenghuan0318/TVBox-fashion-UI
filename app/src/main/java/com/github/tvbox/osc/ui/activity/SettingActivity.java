@@ -15,7 +15,7 @@ import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.ui.adapter.SettingMenuAdapter;
 import com.github.tvbox.osc.ui.adapter.SettingPageAdapter;
 import com.github.tvbox.osc.ui.fragment.ModelSettingFragment;
-import com.github.tvbox.osc.util.AppManager;
+import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.OkGoHelper;
 import com.lcstudio.commonsurport.util.SPDataUtil;
@@ -23,6 +23,7 @@ import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 import com.studio.osc.R;
+import org.greenrobot.eventbus.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
     private String oldApiConfig;
     private int homeRec;
     private int dnsOpt;
+    private boolean settingsReported;
 
     @Override
     protected int getLayoutResID() {
@@ -126,8 +128,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
     private void initData() {
         oldApi = Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL);
         oldApiConfig = new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, "");
-        oldHomeKey = ApiConfig.getInstance().getHomeBean().getKey();
-        if(oldHomeKey == null) oldHomeKey = "";
+        oldHomeKey = Hawk.get(HawkConfig.USER_HOME_API, "");
         homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
         dnsOpt = Hawk.get(HawkConfig.DOH_URL, 0);
         List<String> sortList = new ArrayList<>();
@@ -221,24 +222,30 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
             }
         }
 
-        String newHomeKey = ApiConfig.getInstance().getHomeBean().getKey();
-        //切换回自动选择，没重新加载
-        if (!oldHomeKey.equals(newHomeKey)
-                || !oldApi.equals(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL))
-                || !oldApiConfig.equals(new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, ""))
-                || homeRec != Hawk.get(HawkConfig.HOME_REC, 0)
-                || dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
+        super.onBackPressed();
+    }
+
+    @Override
+    public void finish() {
+        if (!settingsReported && oldHomeKey != null) {
+            settingsReported = true;
+            boolean configChanged = !oldApi.equals(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL))
+                    || !oldApiConfig.equals(new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, ""));
+            boolean homeChanged = !oldHomeKey.equals(Hawk.get(HawkConfig.USER_HOME_API, ""))
+                    || homeRec != Hawk.get(HawkConfig.HOME_REC, 0)
+                    || dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0);
             if (dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
                 try {
                     OkGoHelper.init();
                 } catch (Throwable ignored) {
                 }
             }
-            AppManager.getInstance().finishAllActivity();
-            jumpActivity(HomeActivity.class);
-        } else {
-            super.onBackPressed();
+            if (configChanged || homeChanged) {
+                EventBus.getDefault().post(new RefreshEvent(configChanged
+                        ? RefreshEvent.TYPE_API_CONFIG_CHANGED : RefreshEvent.TYPE_HOME_SETTINGS_CHANGED));
+            }
         }
+        super.finish();
     }
 
     @Override

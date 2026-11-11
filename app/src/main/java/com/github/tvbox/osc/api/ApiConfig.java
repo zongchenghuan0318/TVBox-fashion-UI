@@ -21,7 +21,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.lcstudio.commonsurport.L;
-import com.lcstudio.commonsurport.util.MyFilesManager;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.SPDataUtil;
 import com.lzy.okgo.OkGo;
@@ -37,6 +36,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ExecutionException;
@@ -45,6 +45,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ApiConfig {
 
@@ -56,8 +57,12 @@ public class ApiConfig {
     public static final String PRE_KEY_CONFIG = "pre_key_config";
     private static final String STARTUP_CONFIG_CACHE = "startup_config_cache";
     private Runnable pendingStartupRefresh;
+    private final AtomicInteger configLoadGeneration = new AtomicInteger();
+    private final AtomicInteger homeSelectionGeneration = new AtomicInteger();
 
     public synchronized void invalidateStartupConfigCache(SPDataUtil data) {
+        configLoadGeneration.incrementAndGet();
+        homeSelectionGeneration.incrementAndGet();
         pendingStartupRefresh = null;
         data.saveStringValue(STARTUP_CONFIG_CACHE, "");
     }
@@ -92,7 +97,7 @@ public class ApiConfig {
     private List<String> mVipFlagList;
     private List<IJKCode> mIjkCodes;
     private String mSpider = null;
-    private final SpiderLoader spiderLoader = new SpiderLoader();
+    private volatile SpiderLoader spiderLoader = new SpiderLoader("");
     private volatile boolean bInit = false;
     private String apiUrl;
     private boolean m_bParsed = false;
@@ -122,16 +127,16 @@ public class ApiConfig {
     public void loadSitesFile(Activity activity, LoadConfigCallback callback) {
         L.d("loadSitesFile start");
         Context ctx = activity.getBaseContext();
-        apiUrl = Hawk.get(HawkConfig.API_URL, "");
+        final int generation = configLoadGeneration.incrementAndGet();
+        final String requestedApi = Hawk.get(HawkConfig.API_URL, "");
         SPDataUtil spDataUtil = new SPDataUtil(ctx);
         String configContent = spDataUtil.getStringValue(PRE_KEY_CONFIG);
         new Thread() {
             @Override
             public void run() {
                 super.run();
-                m_bParsed = false;
                 List<String> candidates = new ArrayList<>();
-                if (!NullUtil.isNull(apiUrl)) candidates.add(apiUrl);
+                if (!NullUtil.isNull(requestedApi)) candidates.add(requestedApi);
                 ArrayList<String> savedConfigs = Hawk.get(HawkConfig.API_SAVED_CONFIGS, new ArrayList<String>());
                 for (String savedUrl : savedConfigs) {
                     if (!NullUtil.isNull(savedUrl) && !candidates.contains(savedUrl)) candidates.add(savedUrl);
@@ -142,7 +147,7 @@ public class ApiConfig {
                 if (!candidates.contains(DEFAULT_URL)) candidates.add(DEFAULT_URL);
                 // 用户明确保存的配置地址优先于置顶地址；置顶只作为未配置时的默认选择
                 String pinnedConfig = ApiConfig.getPinnedConfig();
-                if (NullUtil.isNull(apiUrl) && !NullUtil.isNull(pinnedConfig)) {
+                if (NullUtil.isNull(requestedApi) && !NullUtil.isNull(pinnedConfig)) {
                     candidates.remove(pinnedConfig);
                     candidates.add(0, pinnedConfig);
                 }
@@ -157,52 +162,64 @@ public class ApiConfig {
                         cache = null;
                     }
                     if (cache != null && preferred.equals(DefaultConfig.safeJsonString(cache, "address", ""))) {
-                        current_siteUrl = DefaultConfig.safeJsonString(cache, "url", preferred);
-                        parseSiteFile(current_siteUrl, DefaultConfig.safeJsonString(cache, "json", ""));
-                        if (m_bParsed) {
+                        synchronized (ApiConfig.this) {
+                            if (generation != configLoadGeneration.get()) return;
                             apiUrl = preferred;
-                            L.d("loadSitesFile 使用启动缓存");
-                            // Refresh the next launch's cache without replacing active sources.
-                            synchronized (ApiConfig.this) {
+                            m_bParsed = false;
+                            current_siteUrl = DefaultConfig.safeJsonString(cache, "url", preferred);
+                            parseSiteFile(current_siteUrl, DefaultConfig.safeJsonString(cache, "json", ""));
+                            if (m_bParsed) {
+                                apiUrl = preferred;
+                                L.d("loadSitesFile 使用启动缓存");
+                                // Refresh the next launch's cache without replacing active sources.
                                 pendingStartupRefresh = () -> {
                                     VerifyResult result = verifyConfigWithRetry(preferred, "", CONFIG_STARTUP_TIMEOUT_MS);
                                     if (result.ok) saveStartupConfig(spDataUtil, preferred, result, startupCache);
                                 };
+                                callback.success();
+                                return;
                             }
-                            callback.success();
-                            return;
                         }
                     }
                 }
 
                 CandidateVerify verified = raceStartupCandidates(candidates, CONFIG_STARTUP_TIMEOUT_MS);
                 if (verified != null) {
-                    VerifyResult result = verified.result;
-                    apiUrl = verified.address;
-                    current_siteUrl = result.url;
-                    parseSiteFile(result.url, result.json);
-                    if (m_bParsed) saveStartupConfig(spDataUtil, verified.address, result, startupCache);
-                    if (!verified.address.equals(Hawk.get(HawkConfig.API_URL, ""))) {
-                        Hawk.put(HawkConfig.API_URL, verified.address);
-                        spDataUtil.saveStringValue(PRE_KEY_CONFIG, result.json);
-                        L.w("loadSitesFile 已自动切换可用配置 url=" + verified.address);
+                    synchronized (ApiConfig.this) {
+                        if (generation != configLoadGeneration.get()) return;
+                        m_bParsed = false;
+                        VerifyResult result = verified.result;
+                        apiUrl = verified.address;
+                        current_siteUrl = result.url;
+                        parseSiteFile(result.url, result.json);
+                        if (m_bParsed) saveStartupConfig(spDataUtil, verified.address, result, startupCache);
+                        if (!verified.address.equals(Hawk.get(HawkConfig.API_URL, ""))) {
+                            Hawk.put(HawkConfig.API_URL, verified.address);
+                            spDataUtil.saveStringValue(PRE_KEY_CONFIG, result.json);
+                            L.w("loadSitesFile 已自动切换可用配置 url=" + verified.address);
+                        }
+                        callback.success();
+                        return;
                     }
-                    callback.success();
-                    return;
                 }
 
-                if (!NullUtil.isNull(configContent) && UiHelper.isJson(configContent)) {
-                    L.w("loadSitesFile 所有配置源均不可用，使用本地缓存");
-                    current_siteUrl = "user config";
-                    parseSiteFile(apiUrl, configContent);
-                    activity.runOnUiThread(() ->
-                            Toast.makeText(activity, "配置源暂时无法连接，已使用本地缓存", Toast.LENGTH_LONG).show());
-                } else {
-                    L.w("loadSitesFile 所有已保存配置源均不可用，且没有可用缓存");
-                    activity.runOnUiThread(() ->
-                            Toast.makeText(activity, "默认及已保存的配置源均无法连接", Toast.LENGTH_LONG).show());
+                synchronized (ApiConfig.this) {
+                    if (generation != configLoadGeneration.get()) return;
+                    apiUrl = requestedApi;
+                    m_bParsed = false;
+                    if (!NullUtil.isNull(configContent) && UiHelper.isJson(configContent)) {
+                        L.w("loadSitesFile 所有配置源均不可用，使用本地缓存");
+                        current_siteUrl = "user config";
+                        parseSiteFile(apiUrl, configContent);
+                        activity.runOnUiThread(() ->
+                                Toast.makeText(activity, "配置源暂时无法连接，已使用本地缓存", Toast.LENGTH_LONG).show());
+                    } else {
+                        L.w("loadSitesFile 所有已保存配置源均不可用，且没有可用缓存");
+                        activity.runOnUiThread(() ->
+                                Toast.makeText(activity, "默认及已保存的配置源均无法连接", Toast.LENGTH_LONG).show());
+                    }
+                    callback.success();
                 }
-                callback.success();
             }
         }.start();
     }
@@ -213,8 +230,10 @@ public class ApiConfig {
      * configuration while the home activity is still alive.
      */
     public void applySitesFile(String apiUrl, String jsonStr, LoadConfigCallback callback) {
+        final int generation = configLoadGeneration.incrementAndGet();
         new Thread(() -> {
             synchronized (ApiConfig.this) {
+                if (generation != configLoadGeneration.get()) return;
                 pendingStartupRefresh = null;
                 this.apiUrl = apiUrl;
                 current_siteUrl = apiUrl;
@@ -496,27 +515,12 @@ public class ApiConfig {
         return ConfigVerifier.verifyConfigOnce(rawUrl, "", timeoutMs);
     }
 
-    /**
-     * 加载配置里的 spider jar（csp 爬虫包）
-     * <p>
-     * 原实现走 aar 的 Downloader(FileDownloader)，落盘路径取自 MyFilesManager.getLogPath()，
-     * 即公共外部存储 /storage/emulated/0/<pkg>/log/，必须先拿到 WRITE_EXTERNAL_STORAGE；
-     * 未授权时下载必然失败（IOException: Create parent directory failed），随后回退到内置
-     * assets/tvbox.jar —— 而该内置包只有 2 个条目、不含任何 csp_* 站点类，于是配置里 45 个
-     * csp_* 站点全都拿不到实现类，首页站点探测（ApiConfig.initHomeBean）无一成功，左栏只剩「首页」。
-     * <p>
-     * 现改为下载到应用私有目录 files/spider（不需要任何权限，电视端同样可用），
-     * 且所有分支都保证 callback.success() 触发一次，避免调用方链路卡住。
-     */
-    public void loadJar(Context cxt, boolean useCache, String spider, LoadConfigCallback callback) {
-        spiderLoader.loadJar(cxt, useCache, spider, callback);
-    }
-
     private synchronized void parseSiteFile(String apiUrl, String jsonStr) {
         if (NullUtil.isNull(jsonStr)) return;
         if (m_bParsed) return;
         L.d("parseSiteFile() start");
         try {
+            homeSelectionGeneration.incrementAndGet();
             mSiteBeanMap.clear();
             mParseBeanList.clear();
             mDefaultParseBean = null;
@@ -525,6 +529,7 @@ public class ApiConfig {
             spiderLoader.clear();
             JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
             mSpider = DefaultConfig.safeJsonString(jsonObject, "spider", "");
+            spiderLoader = new SpiderLoader(mSpider);
             L.d("mSpider=" + mSpider);
             // 远端站点源
             if (jsonObject.has("sites") && jsonObject.get("sites").isJsonArray()) {
@@ -734,7 +739,7 @@ public class ApiConfig {
         return mDefaultParseBean;
     }
 
-    public List<SiteBean> getSiteBeanList() {
+    public synchronized List<SiteBean> getSiteBeanList() {
         return new ArrayList<>(mSiteBeanMap.values());
     }
 
@@ -772,17 +777,17 @@ public class ApiConfig {
      * 默认搜索源顺序（用户没自定义时使用）：名字命中 DefaultConfig.SEARCH_SITE_PRIORITY
      * 关键词的源排在最前（文采┃秒播 > 非凡┃影视），其余保持站点表顺序。
      */
-    public ArrayList<String> getDefaultSearchSiteOrder() {
+    public synchronized ArrayList<String> getDefaultSearchSiteOrder() {
         return searchSites.getDefaultSearchSiteOrder();
     }
 
     /** 用户自定义过顺序就尊重用户，否则返回默认顺序（文采秒播 > 非凡影视 > 其余） */
-    public ArrayList<String> getSearchSiteOrderOrDefault() {
+    public synchronized ArrayList<String> getSearchSiteOrderOrDefault() {
         return searchSites.getSearchSiteOrderOrDefault();
     }
 
     /** 参与搜索的站点，按用户勾选顺序排列；没排过序的源接在最后并保持站点表原顺序 */
-    public List<SiteBean> getOrderedSearchSiteList() {
+    public synchronized List<SiteBean> getOrderedSearchSiteList() {
         return searchSites.getOrderedSearchSiteList();
     }
 
@@ -791,7 +796,7 @@ public class ApiConfig {
     }
 
     /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按站点表顺序接在最后（O(1) 缓存查询，消除排序时的遍历开销） */
-    public int getSearchSiteOrderIndex(String key) {
+    public synchronized int getSearchSiteOrderIndex(String key) {
         return searchSites.getSearchSiteOrderIndex(key);
     }
 
@@ -804,7 +809,7 @@ public class ApiConfig {
         return mVipFlagList;
     }
 
-    public SiteBean getHomeBean() {
+    public synchronized SiteBean getHomeBean() {
         String userKey = Hawk.get(HawkConfig.USER_HOME_API, "");
         SiteBean userHomeBean = getSiteBean(userKey);//Map有空key，会有冲突
         if (userHomeBean != null) {
@@ -840,7 +845,10 @@ public class ApiConfig {
         Hawk.put(HawkConfig.USER_HOME_API, bean.getKey());
     }
 
-    public void initHomeBean(InitHomeCallback callback) {
+    public synchronized void initHomeBean(InitHomeCallback callback) {
+        final int generation = homeSelectionGeneration.incrementAndGet();
+        final SpiderLoader homeSpiderLoader = spiderLoader;
+        final Object homeRequestTag = new Object();
         String userHomeKey = Hawk.get(HawkConfig.USER_HOME_API, "");
         SiteBean userHomeBean = getSiteBean(userHomeKey);
         if (!NullUtil.isNull(userHomeKey) && null != userHomeBean) {
@@ -863,15 +871,31 @@ public class ApiConfig {
         //自动设置home
         bInit = false;
         List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
+        beans.sort((left, right) -> Boolean.compare(left.getType() == 3, right.getType() == 3));
+        int httpProbeCount = 0;
+        for (SiteBean bean : beans) {
+            if (bean.isSearchable() && bean.getType() != 3) httpProbeCount++;
+        }
+        final CountDownLatch httpProbes = new CountDownLatch(httpProbeCount);
         final ExecutorService homeExecutor = !NullUtil.isNull(beans) ? Executors.newFixedThreadPool(3) : null;
-        final SiteBean lastBean = cachedHomeBean;
+        SiteBean fallback = cachedHomeBean;
+        boolean hasSpiderCandidates = false;
+        for (SiteBean bean : beans) {
+            if (bean.isSearchable() && bean.getType() == 3) {
+                hasSpiderCandidates = true;
+                if (fallback == null) fallback = bean;
+            }
+        }
+        final SiteBean lastBean = fallback;
+        final long probeTimeoutMs = hasSpiderCandidates ? 12000L : 6000L;
         final AtomicBoolean homeInitCompleted = new AtomicBoolean(false);
         final Runnable completeHomeInit = new Runnable() {
             @Override
             public void run() {
+                if (generation != homeSelectionGeneration.get()) return;
                 if (!homeInitCompleted.compareAndSet(false, true)) return;
-                selectHomeBeanOnce(lastBean);
-                OkGo.getInstance().cancelTag("_initHome");
+                selectHomeBeanOnce(lastBean, generation);
+                OkGo.getInstance().cancelTag(homeRequestTag);
                 if (homeExecutor != null) {
                     try {
                         homeExecutor.shutdownNow();
@@ -881,12 +905,12 @@ public class ApiConfig {
                 callback.success();
             }
         };
-        //探测最多等待 6 秒；有旧源则沿用，无旧源也结束启动等待。
+        // HTTP 优先探测 6 秒，必要时再给爬虫源 6 秒；超时沿用旧源或尝试首个爬虫源。
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(6000);
+                    Thread.sleep(probeTimeoutMs);
                 } catch (Throwable ignored) {
                 }
                 L.w("initHomeBean 探测超时，结束启动等待");
@@ -905,19 +929,26 @@ public class ApiConfig {
                 homeExecutor.submit(new Runnable() {
                     @Override
                     public void run() {
-                        if (bInit) return;//初始过，不再继续
+                        if (bInit || generation != homeSelectionGeneration.get()) return;//初始过，不再继续
                         int type = bean.getType();
                         if (type == 3) {
-                            Spider sp = ApiConfig.getInstance().getCSP(bean);
+                            try {
+                                httpProbes.await(6, TimeUnit.SECONDS);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                            if (bInit || generation != homeSelectionGeneration.get()) return;
+                            Spider sp = homeSpiderLoader.getCSP(bean);
                             String sortJson = sp == null ? null : sp.homeContent(true);
                             // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
                             if (classCount(sortJson) >= 2) {
-                                if (!selectHomeBeanOnce(bean)) return;
+                                if (!selectHomeBeanOnce(bean, generation)) return;
                                 completeHomeInit.run();
                             }
                         } else {
                             OkGo.<String>get(bean.getApi())
-                                    .tag("_initHome")
+                                    .tag(homeRequestTag)
                                     .execute(new AbsCallback<String>() {
                                         @Override
                                         public String convertResponse(okhttp3.Response response) throws Throwable {
@@ -931,16 +962,21 @@ public class ApiConfig {
 
                                         @Override
                                         public void onSuccess(Response<String> response) {
-                                            String res = response.body();
-                                            L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
-                                            if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
-                                                if (!selectHomeBeanOnce(bean)) return;
-                                                completeHomeInit.run();
+                                            try {
+                                                String res = response.body();
+                                                L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
+                                                if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
+                                                    if (!selectHomeBeanOnce(bean, generation)) return;
+                                                    completeHomeInit.run();
+                                                }
+                                            } finally {
+                                                httpProbes.countDown();
                                             }
                                         }
 
                                         @Override
                                         public void onError(Response<String> response) {
+                                            httpProbes.countDown();
                                             super.onError(response);
                                         }
                                     });
@@ -954,8 +990,8 @@ public class ApiConfig {
     /**
      * 统计站点返回的分类数量：JSON 取 "class"/"classes" 数组长度，解析失败返回 0
      */
-    private synchronized boolean selectHomeBeanOnce(SiteBean bean) {
-        if (bInit) return false;
+    private synchronized boolean selectHomeBeanOnce(SiteBean bean, int generation) {
+        if (bInit || generation != homeSelectionGeneration.get()) return false;
         bInit = true;
         if (bean != null) setHomeBean(bean);
         return true;
@@ -1042,7 +1078,7 @@ public class ApiConfig {
         return false;
     }
 
-    public SiteBean getSiteBean(String key) {
+    public synchronized SiteBean getSiteBean(String key) {
         if (!mSiteBeanMap.containsKey(key)) {
             return null;
         }

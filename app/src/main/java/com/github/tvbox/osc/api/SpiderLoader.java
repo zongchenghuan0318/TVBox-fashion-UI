@@ -21,8 +21,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipFile;
-import com.github.tvbox.osc.api.ApiConfig.LoadConfigCallback;
 
 import static com.github.tvbox.osc.api.ApiConfig.UA_OKHTTP;
 
@@ -33,8 +35,33 @@ final class SpiderLoader {
     private final ConcurrentHashMap<String, Object> mSiteJarLocks = new ConcurrentHashMap<>();
     private final BaseLoader mBaseLoader = new BaseLoader();
     private Runnable pendingRefresh;
+    private boolean refreshRequested;
+    private final FutureTask<Void> globalJarTask;
+    private final AtomicBoolean globalJarStarted = new AtomicBoolean();
+
+    SpiderLoader(String spider) {
+        globalJarTask = new FutureTask<>(() -> {
+            if (!NullUtil.isNull(spider)) loadGlobalJar(spider);
+            return null;
+        });
+    }
+
+    private void ensureGlobalJar() {
+        if (globalJarStarted.compareAndSet(false, true)) {
+            new Thread(globalJarTask, "load-global-spider").start();
+        }
+        try {
+            globalJarTask.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("等待爬虫 JAR 加载被中断", e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("爬虫 JAR 加载失败", e.getCause());
+        }
+    }
 
     synchronized void refreshCachedJar() {
+        refreshRequested = true;
         if (pendingRefresh == null) return;
         new Thread(pendingRefresh, "refresh-spider-cache").start();
         pendingRefresh = null;
@@ -42,6 +69,7 @@ final class SpiderLoader {
 
     synchronized void clear() {
         pendingRefresh = null;
+        refreshRequested = false;
         mBaseLoader.clear();
         mSiteJarPaths.clear();
     }
@@ -56,67 +84,64 @@ final class SpiderLoader {
      * csp_* 站点全都拿不到实现类，首页站点探测（ApiConfig.initHomeBean）无一成功，左栏只剩「首页」。
      * <p>
      * 现改为下载到应用私有目录 files/spider（不需要任何权限，电视端同样可用），
-     * 且所有分支都保证 callback.success() 触发一次，避免调用方链路卡住。
+     * 在首次使用时由共享任务加载，并发调用等待同一次加载完成。
      */
-    void loadJar(Context cxt, boolean useCache, String spider, LoadConfigCallback callback) {
-        String[] urls = spider == null ? new String[0] : spider.split(";md5;");
+    private void loadGlobalJar(String spider) {
+        String[] urls = spider.split(";md5;");
         final String jarUrl = urls.length > 0 ? urls[0].trim() : "";
         final String md5 = urls.length > 1 ? urls[1].trim() : "";
-        final Context ctx = cxt.getApplicationContext();
-        L.w("loadJar url=" + jarUrl + " md5=" + md5 + " useCache=" + useCache);
-        new Thread() {
-            @Override
-            public void run() {
-                boolean ok = false;
-                File refreshTarget = null;
-                try {
-                    if (!NullUtil.isNull(jarUrl)) {
-                        File jarDir = new File(ctx.getFilesDir().getAbsolutePath() + "/spider");
-                        if (jarDir.exists() || jarDir.mkdirs()) {
-                            File jarFile = new File(jarDir, "csp_" + MD5.encode(jarUrl) + ".jar");
-                            File pending = new File(jarFile.getAbsolutePath() + ".pending");
-                            if (pending.exists()) {
-                                if (isValidJar(pending, md5)) pending.renameTo(jarFile);
-                                else pending.delete();
-                            }
-                            // 与原实现的 setForceReDownload(false) 一致：已下过就直接复用，不必每次启动重下
-                            boolean cached = isValidJar(jarFile, md5);
-                            if (cached || downloadJar(jarUrl, jarFile, md5)) {
+        final Context ctx = App.getInstance();
+        long startedAt = android.os.SystemClock.elapsedRealtime();
+        boolean ok = false;
+        File refreshTarget = null;
+        try {
+            if (!NullUtil.isNull(jarUrl)) {
+                File jarDir = new File(ctx.getFilesDir().getAbsolutePath() + "/spider");
+                if (jarDir.exists() || jarDir.mkdirs()) {
+                    File jarFile = new File(jarDir, "csp_" + MD5.encode(jarUrl) + ".jar");
+                    File pending = new File(jarFile.getAbsolutePath() + ".pending");
+                    if (pending.exists()) {
+                        if (isValidJar(pending, md5)) pending.renameTo(jarFile);
+                        else pending.delete();
+                    }
+                    // 与原实现的 setForceReDownload(false) 一致：已下过就直接复用，不必每次启动重下
+                    boolean cached = isValidJar(jarFile, md5);
+                    if (cached || downloadJar(jarUrl, jarFile, md5)) {
+                        ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
+                        L.w("loadJar file=" + jarFile.getName() + " size=" + jarFile.length()
+                                + " success=" + ok);
+                        if (!ok) {
+                            if (downloadJar(jarUrl, jarFile, md5)) {
                                 ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
-                                L.w("loadJar file=" + jarFile.getName() + " size=" + jarFile.length()
-                                        + " success=" + ok);
-                                if (!ok) {
-                                    if (downloadJar(jarUrl, jarFile, md5)) {
-                                        ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
-                                    }
-                                }
-                                if (ok && cached && md5.isEmpty()) refreshTarget = pending;
                             }
-                        } else {
-                            L.w("loadJar 创建目录失败 " + jarDir.getAbsolutePath());
                         }
+                        if (ok && cached && md5.isEmpty()) refreshTarget = pending;
                     }
-                } catch (Throwable th) {
-                    L.w("loadJar 异常 " + th.getMessage());
+                } else {
+                    L.w("loadJar 创建目录失败 " + jarDir.getAbsolutePath());
                 }
-                if (!ok) {
-                    // 兜底：内置 assets/tvbox.jar（只有 2 个条目，不含 csp_* 站点类）
-                    MyFilesManager.copyFileFromAssets(App.getInstance(), "tvbox.jar",
-                            App.getInstance().getFilesDir().getAbsolutePath(), "csp.jar");
-                    File cspFile = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp.jar");
-                    L.w("loadJar 内置兜底 csp.jar size=" + cspFile.length()
-                            + " success=" + mBaseLoader.loadJar(cspFile.getAbsolutePath()));
-                }
-                // Stage updates for the next load, keeping the active JAR intact.
-                if (refreshTarget != null) {
-                    File target = refreshTarget;
-                    synchronized (SpiderLoader.this) {
-                        pendingRefresh = () -> downloadJar(jarUrl, target);
-                    }
-                }
-                callback.success();
             }
-        }.start();
+        } catch (Throwable th) {
+            L.w("loadJar 异常 " + th.getMessage());
+        }
+        if (!ok) {
+            // 兜底：内置 assets/tvbox.jar（只有 2 个条目，不含 csp_* 站点类）
+            MyFilesManager.copyFileFromAssets(App.getInstance(), "tvbox.jar",
+                    App.getInstance().getFilesDir().getAbsolutePath(), "csp.jar");
+            File cspFile = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp.jar");
+            L.w("loadJar 内置兜底 csp.jar size=" + cspFile.length()
+                    + " success=" + mBaseLoader.loadJar(cspFile.getAbsolutePath()));
+        }
+        // Stage updates for the next load, keeping the active JAR intact.
+        if (refreshTarget != null) {
+            File target = refreshTarget;
+            synchronized (SpiderLoader.this) {
+                pendingRefresh = () -> downloadJar(jarUrl, target);
+                if (refreshRequested) refreshCachedJar();
+            }
+        }
+        android.util.Log.i("Startup", "lazy spider ms="
+                + (android.os.SystemClock.elapsedRealtime() - startedAt));
     }
 
     /**
@@ -188,6 +213,7 @@ final class SpiderLoader {
     }
 
     Spider getCSP(SiteBean sourceBean) {
+        if (sourceBean.getApi() != null && sourceBean.getApi().startsWith("csp_")) ensureGlobalJar();
         //该源自带爬虫包时先把它准备好，否则类找不到会静默降级成 SpiderNull（表现为搜索结果为空）
         String jarPath = preloadSiteJar(sourceBean.getJar());
         return mBaseLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt(), jarPath);
@@ -241,10 +267,12 @@ final class SpiderLoader {
     }
 
     JSONObject jarExt(String key, LinkedHashMap<String, String> jxs, String url) {
+        ensureGlobalJar();
         return mBaseLoader.jsonExt(key, jxs, url);
     }
 
     JSONObject jarExtMix(String flag, String key, String name, LinkedHashMap<String, HashMap<String, String>> jxs, String url) {
+        ensureGlobalJar();
         return mBaseLoader.jsonExtMix(flag, key, name, jxs, url);
     }
 

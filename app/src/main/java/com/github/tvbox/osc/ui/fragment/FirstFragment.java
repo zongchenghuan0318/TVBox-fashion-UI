@@ -149,6 +149,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     private volatile int mFeedRequestId;
     private boolean mHistoryLoadPending;
     private boolean mFeedCancelled;
+    private boolean mFeedRefreshPending;
 
     // 首页静置自动轮播：电视按键或手机触摸结束后，连续无操作 7.5 秒才切换
     private static final long AUTO_SCROLL_DELAY = 7500L;
@@ -189,6 +190,18 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             getVideos();
         }
         return this;
+    }
+
+    public void prepareHomeSourceChange() {
+        mFeedRefreshPending = true;
+        mFeedRequestId++;
+        if (mSourceViewModel != null) mSourceViewModel.cancelHomeRequests();
+    }
+
+    public void refreshHomeFeed() {
+        if (!mFeedRefreshPending || !isPageActive()) return;
+        if (mActivity instanceof HomeActivity && !((HomeActivity) mActivity).isHomeConfigReady()) return;
+        getVideos();
     }
 
     /**
@@ -696,7 +709,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mViewActive = true;
         refreshHomeMode();
         if (mHeroVod != null && mHeroPic == null) bindHero(mHeroVod);
-        if (mFeedCancelled && mAdapter != null && (mHistoryLoadPending || mAdapter.getData().isEmpty())) {
+        if (mFeedRefreshPending) {
+            refreshHomeFeed();
+        } else if (mFeedCancelled && mAdapter != null && (mHistoryLoadPending || mAdapter.getData().isEmpty())) {
             getVideos();
         }
         scheduleAutoScroll();
@@ -913,6 +928,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     private void getVideos() {
+        mFeedRefreshPending = false;
         mFeedCancelled = false;
         mHistoryLoadPending = false;
         final int requestId = ++mFeedRequestId;

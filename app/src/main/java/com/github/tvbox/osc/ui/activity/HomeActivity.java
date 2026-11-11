@@ -93,6 +93,13 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View homeLaunchCover;
     private boolean homeHeroReady;
     private boolean homeConfigReady;
+    private boolean homeResumed;
+    private boolean pendingConfigReload;
+    private boolean pendingHomeSettingsReload;
+    private int homeLoadGeneration;
+    private final Runnable homeLaunchTimeout = () -> {
+        if (!isFinishing() && !isDestroyed()) hideHomeLaunchCover();
+    };
     /** 首页入口焦点只校正一次，避免后续分类刷新把用户已经移到卡片区的焦点拉回去 */
     private boolean homeEntryFocusRestored;
     private LinearLayout topNavPanel;
@@ -301,6 +308,12 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
         android.util.Log.i("Startup", "cover dismissed; configReady=" + homeConfigReady
                 + " heroReady=" + homeHeroReady);
+        hideHomeLaunchCover();
+    }
+
+    private void hideHomeLaunchCover() {
+        if (homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) return;
+        mHandler.removeCallbacks(homeLaunchTimeout);
         homeLaunchCover.animate().cancel();
         homeLaunchCover.animate()
                 .alpha(0f)
@@ -319,6 +332,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler = new Handler(Looper.getMainLooper());
         EventBus.getDefault().register(this);
         initView();
+        mHandler.postDelayed(homeLaunchTimeout, 12000L);
         hideStartupProxyPanel();
         initSortView();
         initTopSortView();
@@ -1199,6 +1213,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     //获取site.file配置
     private void initSiteFile(){
         L.d("initSiteFile() ");
+        final int generation = homeLoadGeneration;
         long startedAt = android.os.SystemClock.elapsedRealtime();
         ApiConfig.getInstance().loadSitesFile(HomeActivity.this, new ApiConfig.LoadConfigCallback() {
             @Override
@@ -1207,41 +1222,27 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        initJar();
+                        if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                        initHomeBean();
                     }
                 });
             }
         });
     }
 
-    private void initJar() {
-        long startedAt = android.os.SystemClock.elapsedRealtime();
-        if (!NullUtil.isNull(ApiConfig.getInstance().getmSpider())) {
-            ApiConfig.getInstance().loadJar(getBaseContext(), false, ApiConfig.getInstance().getmSpider(), new ApiConfig.LoadConfigCallback() {
-                @Override
-                public void success() {
-                    android.util.Log.i("Startup", "spider ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
-                    //jar 就绪后才能探测首页站点：jar 下载/加载是异步的，
-                    //用固定延时会在 jar 未就绪时把 45 个 csp_* 站点全部探测失败
-                    initHomeBean();
-                }
-            });
-        } else {
-            initHomeBean();
-        }
-    }
-
     private void initHomeBean() {
+        final int generation = homeLoadGeneration;
         long startedAt = android.os.SystemClock.elapsedRealtime();
         ApiConfig.getInstance().initHomeBean(new ApiConfig.InitHomeCallback() {
             @Override
             public void success() {
                 android.util.Log.i("Startup", "home source ms=" + (android.os.SystemClock.elapsedRealtime() - startedAt));
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
+                    if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
                     homeConfigReady = true;
                     tryDismissHomeLaunchCover();
                     requestCategoryMetadata();
+                    if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
                 });
             }
         });
@@ -1355,7 +1356,13 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
         if (event.type == RefreshEvent.TYPE_API_CONFIG_CHANGED) {
-            reloadConfigAtRuntime();
+            pendingConfigReload = true;
+            applyPendingHomeChanges();
+            return;
+        }
+        if (event.type == RefreshEvent.TYPE_HOME_SETTINGS_CHANGED) {
+            pendingHomeSettingsReload = true;
+            applyPendingHomeChanges();
             return;
         }
         if (event.type == RefreshEvent.TYPE_PUSH_URL) {
@@ -1369,15 +1376,40 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         }
     }
 
-    private void reloadConfigAtRuntime() {
-        if (isFinishing() || isDestroyed()) return;
+    private void applyPendingHomeChanges() {
+        if (!homeResumed || isFinishing() || isDestroyed()) return;
+        if (pendingConfigReload) {
+            pendingConfigReload = false;
+            pendingHomeSettingsReload = false;
+            reloadConfigAtRuntime();
+        } else if (pendingHomeSettingsReload) {
+            pendingHomeSettingsReload = false;
+            prepareHomeReload();
+            initHomeBean();
+        }
+    }
+
+    private void prepareHomeReload() {
+        homeLoadGeneration++;
         homeConfigReady = false;
         categoryMetadataPending = false;
         categorySourceIdentity = "";
         mSortSignature = "";
+        mCurrentSelected = 0;
+        mSortFocused = 0;
+        updateSourceReady = false;
+        hasScheduledUpdateCheck = false;
+        mHandler.removeCallbacks(automaticUpdateCheck);
         mHandler.removeCallbacks(categoryRetry);
         mHandler.removeCallbacks(categoryMetadataTimeout);
         if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
+        if (mFirstFragment != null) mFirstFragment.prepareHomeSourceChange();
+    }
+
+    private void reloadConfigAtRuntime() {
+        if (isFinishing() || isDestroyed()) return;
+        prepareHomeReload();
+        final int generation = homeLoadGeneration;
         Hawk.put(HawkConfig.HOME_API, "");
         Hawk.put(HawkConfig.USER_HOME_API, "");
 
@@ -1386,8 +1418,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 .getStringValue(ApiConfig.PRE_KEY_CONFIG);
         ApiConfig.getInstance().applySitesFile(apiUrl, content, () ->
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
-                    initJar();
+                    if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                    initHomeBean();
                 }));
     }
 
@@ -1445,6 +1477,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     @Override
     protected void onResume() {
         super.onResume();
+        homeResumed = true;
+        applyPendingHomeChanges();
         if (updateSourceReady) checkUpdateIfSourceReady();
         showTime();
         // 检查用户是否在设置页修改了首页布局风格，实现即时平滑热切换
@@ -1464,6 +1498,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     @Override
     protected void onPause() {
+        homeResumed = false;
         if (mHandler != null) {
             mHandler.removeCallbacks(mClockRunnable);
             mHandler.removeCallbacks(switchCategoryRunnable);
