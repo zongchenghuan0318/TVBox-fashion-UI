@@ -46,10 +46,14 @@ final class SpiderLoader {
         });
     }
 
-    private void ensureGlobalJar() {
+    void preloadGlobalJar() {
         if (globalJarStarted.compareAndSet(false, true)) {
             new Thread(globalJarTask, "load-global-spider").start();
         }
+    }
+
+    private void ensureGlobalJar() {
+        preloadGlobalJar();
         try {
             globalJarTask.get();
         } catch (InterruptedException e) {

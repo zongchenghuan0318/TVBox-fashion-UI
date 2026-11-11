@@ -80,6 +80,27 @@ public class LazySpiderLoaderTest {
         assertEquals(0, fixture.loads.get());
     }
 
+    @Test(timeout = 5000) public void backgroundPreloadReturnsImmediatelyAndSharesTheForegroundLoad() throws Exception {
+        Fixture fixture = new Fixture();
+        ExecutorService worker = Executors.newSingleThreadExecutor();
+        try {
+            fixture.loader.preloadGlobalJar();
+            assertTrue(fixture.started.await(2, TimeUnit.SECONDS));
+            assertFalse(fixture.ready.get());
+            fixture.loader.preloadGlobalJar();
+            Future<?> request = worker.submit(() -> fixture.use("csp_Search"));
+            assertFalse(request.isDone());
+            fixture.release.countDown();
+            request.get(2, TimeUnit.SECONDS);
+            fixture.loader.preloadGlobalJar();
+            fixture.use("csp_Detail");
+            assertEquals(1, fixture.loads.get());
+        } finally {
+            fixture.release.countDown();
+            worker.shutdownNow();
+        }
+    }
+
     @Test public void concurrentSpiderRequestsWaitForOneSharedLoad() throws Exception {
         Fixture fixture = new Fixture();
         ExecutorService workers = Executors.newFixedThreadPool(8);

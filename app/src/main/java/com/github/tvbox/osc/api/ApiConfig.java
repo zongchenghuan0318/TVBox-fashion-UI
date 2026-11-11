@@ -67,6 +67,10 @@ public class ApiConfig {
         data.saveStringValue(STARTUP_CONFIG_CACHE, "");
     }
 
+    public void preloadGlobalJar() {
+        spiderLoader.preloadGlobalJar();
+    }
+
     public void refreshStartupCaches() {
         Runnable refresh;
         synchronized (this) {

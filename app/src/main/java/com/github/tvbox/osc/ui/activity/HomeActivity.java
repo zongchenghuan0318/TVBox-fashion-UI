@@ -97,6 +97,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private boolean pendingConfigReload;
     private boolean pendingHomeSettingsReload;
     private int homeLoadGeneration;
+    private final Runnable preloadGlobalJar = () -> {
+        if (canPreloadGlobalJar()) ApiConfig.getInstance().preloadGlobalJar();
+    };
     private final Runnable homeLaunchTimeout = () -> {
         if (!isFinishing() && !isDestroyed()) hideHomeLaunchCover();
     };
@@ -321,8 +324,19 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 .withEndAction(() -> {
                     homeLaunchCover.setVisibility(View.GONE);
                     homeLaunchCover.setAlpha(1f);
+                    scheduleGlobalJarPreload();
                 })
                 .start();
+    }
+
+    private boolean canPreloadGlobalJar() {
+        return homeResumed && homeConfigReady && !isFinishing() && !isDestroyed()
+                && (homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE);
+    }
+
+    private void scheduleGlobalJarPreload() {
+        mHandler.removeCallbacks(preloadGlobalJar);
+        if (canPreloadGlobalJar()) mHandler.postDelayed(preloadGlobalJar, 3000L);
     }
 
     @Override
@@ -1241,6 +1255,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
                     homeConfigReady = true;
                     tryDismissHomeLaunchCover();
+                    scheduleGlobalJarPreload();
                     requestCategoryMetadata();
                     if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
                 });
@@ -1390,6 +1405,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void prepareHomeReload() {
+        mHandler.removeCallbacks(preloadGlobalJar);
         homeLoadGeneration++;
         homeConfigReady = false;
         categoryMetadataPending = false;
@@ -1479,6 +1495,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         super.onResume();
         homeResumed = true;
         applyPendingHomeChanges();
+        scheduleGlobalJarPreload();
         if (updateSourceReady) checkUpdateIfSourceReady();
         showTime();
         // 检查用户是否在设置页修改了首页布局风格，实现即时平滑热切换
@@ -1500,6 +1517,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     protected void onPause() {
         homeResumed = false;
         if (mHandler != null) {
+            mHandler.removeCallbacks(preloadGlobalJar);
             mHandler.removeCallbacks(mClockRunnable);
             mHandler.removeCallbacks(switchCategoryRunnable);
             mHandler.removeCallbacks(immersiveTopBarFadeRunnable);
