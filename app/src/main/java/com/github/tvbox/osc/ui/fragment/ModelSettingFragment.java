@@ -173,12 +173,34 @@ public class ModelSettingFragment extends BaseLazyFragment {
             final int index = i;
             navItems[i].setContentDescription("设置分组：" + ((TextView) navItems[i]).getText());
             navItems[i].setNextFocusRightId(firstRows[i]);
+            bindLeftNavigation(groups[i], navItems[i].getId());
             navItems[i].setOnClickListener(v -> showGroup(index));
             navItems[i].setOnFocusChangeListener((v, hasFocus) -> {
                 if (hasFocus) showGroup(index);
             });
         }
         showGroup(GROUP_PLAY);
+    }
+
+    private void bindLeftNavigation(View view, int navigationId) {
+        view.setNextFocusLeftId(navigationId);
+        if (view instanceof ViewGroup) {
+            ViewGroup container = (ViewGroup) view;
+            for (int i = 0; i < container.getChildCount(); i++) {
+                bindLeftNavigation(container.getChildAt(i), navigationId);
+            }
+        }
+    }
+
+    /** 右侧内容先返回其所属导航，左侧再返回则由 Activity 退出设置。 */
+    public boolean focusNavigationFromContent() {
+        if (groups == null || navItems == null) return false;
+        for (int i = 0; i < groups.length; i++) {
+            if (groups[i].hasFocus()) {
+                return navItems[i].requestFocus();
+            }
+        }
+        return false;
     }
 
     private void showGroup(int index) {

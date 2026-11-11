@@ -197,55 +197,47 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
         return super.dispatchKeyEvent(event);
     }
 
-    private boolean isChildOf(View child, View parent) {
-        if (child == null || parent == null) return false;
-        View current = child;
-        while (current != null) {
-            if (current == parent) return true;
-            if (current.getParent() instanceof View) {
-                current = (View) current.getParent();
-            } else {
-                break;
-            }
-        }
-        return false;
-    }
-
     @Override
     public void onBackPressed() {
-        View current = getCurrentFocus();
-        // 电视端层级返回体验优化：若焦点在右侧设置项内容区（ViewPager），按返回键先将焦点退回到左侧设置菜单列表
-        if (current != null && mViewPager != null && isChildOf(current, mViewPager)) {
-            if (mGridView != null && mGridView.isShown()) {
-                mGridView.requestFocus();
-                return;
-            }
+        if (settingFragment != null && settingFragment.focusNavigationFromContent()) {
+            return;
         }
-
         super.onBackPressed();
     }
 
     @Override
     public void finish() {
+        // 只报告一次，且整个读取/比较/事件派发过程全部兜底：即使某个 Hawk 键读取或
+        // EventBus 派发抛异常，也绝不能让它冒泡成未捕获异常触发进程崩溃。
         if (!settingsReported && oldHomeKey != null) {
             settingsReported = true;
-            boolean configChanged = !oldApi.equals(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL))
-                    || !oldApiConfig.equals(new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, ""));
-            boolean homeChanged = !oldHomeKey.equals(Hawk.get(HawkConfig.USER_HOME_API, ""))
-                    || homeRec != Hawk.get(HawkConfig.HOME_REC, 0)
-                    || dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0);
-            if (dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
-                try {
-                    OkGoHelper.init();
-                } catch (Throwable ignored) {
+            try {
+                boolean configChanged = !safeEquals(oldApi, Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL))
+                        || !safeEquals(oldApiConfig, new SPDataUtil(this).getStringValue(ApiConfig.PRE_KEY_CONFIG, ""));
+                boolean homeChanged = !safeEquals(oldHomeKey, Hawk.get(HawkConfig.USER_HOME_API, ""))
+                        || homeRec != Hawk.get(HawkConfig.HOME_REC, 0)
+                        || dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0);
+                if (dnsOpt != Hawk.get(HawkConfig.DOH_URL, 0)) {
+                    try {
+                        OkGoHelper.init();
+                    } catch (Throwable ignored) {
+                    }
                 }
-            }
-            if (configChanged || homeChanged) {
-                EventBus.getDefault().post(new RefreshEvent(configChanged
-                        ? RefreshEvent.TYPE_API_CONFIG_CHANGED : RefreshEvent.TYPE_HOME_SETTINGS_CHANGED));
+                if (configChanged || homeChanged) {
+                    EventBus.getDefault().post(new RefreshEvent(configChanged
+                            ? RefreshEvent.TYPE_API_CONFIG_CHANGED : RefreshEvent.TYPE_HOME_SETTINGS_CHANGED));
+                }
+            } catch (Throwable ignored) {
+                // 返回首页是最常见的操作之一：此处宁可漏报一次刷新，也绝不能崩溃。
             }
         }
         super.finish();
+    }
+
+    /** null 安全的字符串比较：避免某一侧读成 null 时 equals 抛 NPE。 */
+    private static boolean safeEquals(String left, String right) {
+        if (left == null) return right == null;
+        return left.equals(right);
     }
 
     @Override

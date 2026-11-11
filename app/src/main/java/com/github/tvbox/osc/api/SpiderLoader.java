@@ -41,7 +41,12 @@ final class SpiderLoader {
 
     SpiderLoader(String spider) {
         globalJarTask = new FutureTask<>(() -> {
-            if (!NullUtil.isNull(spider)) loadGlobalJar(spider);
+            try {
+                if (!NullUtil.isNull(spider)) loadGlobalJar(spider);
+            } catch (Throwable th) {
+                // 全局爬虫 jar 加载是后台增强路径：失败只降级为内置 csp.jar 兜底，绝不冒泡成崩溃。
+                L.w("loadGlobalJar 异常 " + th.getMessage());
+            }
             return null;
         });
     }

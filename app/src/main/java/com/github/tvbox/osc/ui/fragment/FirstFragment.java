@@ -952,7 +952,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             //历史
             mHistoryLoadPending = true;
             showLoading();
-            mExecutorService.submit(() -> {
+            submitFeed(() -> {
                 List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
                 List<Movie.Video> vodList = new ArrayList<>();
                 for (VodInfo vodInfo : allVodRecord) {
@@ -1000,7 +1000,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
             return;
         }
-        mExecutorService.submit(new Runnable() {
+        submitFeed(new Runnable() {
             @Override
             public void run() {
                 if (!mViewActive || requestId != mFeedRequestId) {
@@ -1117,7 +1117,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
             return;
         }
-        mExecutorService.submit(new Runnable() {
+        submitFeed(new Runnable() {
             @Override
             public void run() {
                 for (String type : HOT_RANK_TYPES) {
@@ -1289,6 +1289,29 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private boolean isPageActive() {
         return mViewActive && isAdded() && mAdapter != null && mHotGridView != null;
+    }
+
+    /**
+     * 把 feed 任务提交到首页单线程池，同时兜底两类崩溃：
+     * <ul>
+     *   <li>线程池在 onDestroyView/onDestroy 时被 shutdownNow 后，从设置页返回触发的
+     *       refreshHomeFeed 再提交会抛 {@link java.util.concurrent.RejectedExecutionException}；</li>
+     *   <li>任务体内任何未捕获异常（解析、网络、视图操作）都只记录日志，不冒泡成崩溃。</li>
+     * </ul>
+     */
+    private void submitFeed(final Runnable task) {
+        if (mExecutorService == null || mExecutorService.isShutdown()) return;
+        try {
+            mExecutorService.submit(() -> {
+                try {
+                    task.run();
+                } catch (Throwable th) {
+                    L.e(th);
+                }
+            });
+        } catch (Throwable th) {
+            L.e(th);
+        }
     }
 
     private void saveDoubanCache(List<Movie.Video> videos) {
@@ -1593,7 +1616,7 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         if (!mViewActive || mExecutorService == null || mExecutorService.isShutdown()) {
             return;
         }
-        mExecutorService.submit(new Runnable() {
+        submitFeed(new Runnable() {
             @Override
             public void run() {
                 if (!mViewActive) {

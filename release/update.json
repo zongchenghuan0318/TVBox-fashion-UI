@@ -1,8 +1,8 @@
 {
-  "versionCode": 221,
-  "versionName": "1.7.22",
-  "changelog": "# 1.7.22\n\n- 默认置顶点播配置源恢复为 https://ysc.tengxuntaobao.win/ 。未保存自定义配置或置顶设置时，启动优先尝试该配置源。\n- 已保存的配置地址与用户置顶设置继续按原有优先级生效。\n\n版本 1.7.22（versionCode 221）。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.22/Z.apk",
-  "sha256": "4c5e0c8d61a8fc6cb0216f0ffce2033a137722f3b25141d8e17d101924d91add",
-  "size": 22897038
+  "versionCode": 222,
+  "versionName": "1.7.23",
+  "changelog": "# 1.7.23\r\n\r\n- 直播源管理页采用左右约 6:4 布局，右侧四个操作改为整行纵排，放大按钮和文字，并支持滚动。\r\n- 直播源操作支持上下选择，左键或返回键回到源列表；调整顺序可预览、确认保存或取消。\r\n- 设置页右侧内容按返回键或方向左键，焦点回到当前分组对应的左侧菜单；左侧再按返回键退出。\r\n- 调整首页顶部快捷入口排列与遥控器焦点衔接。\r\n- 增加配置重载、爬虫加载和首页刷新过程的异常保护，并记录未捕获异常日志。\r\n\r\n版本 1.7.23（versionCode 222）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.23/Z.apk",
+  "sha256": "17670f0e1d6c6dcb237af9168fa5ceeba7afa20a4ae87959de0d76c66b07496a",
+  "size": 22904354
 }

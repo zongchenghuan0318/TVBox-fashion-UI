@@ -256,8 +256,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (topHistory != null) topHistory.setOnClickListener(this);
         View topLive = findViewById(R.id.top_layout_live);
         if (topLive != null) topLive.setOnClickListener(this);
-        View topCollect = findViewById(R.id.top_layout_collect);
-        if (topCollect != null) topCollect.setOnClickListener(this);
         View topSetting = findViewById(R.id.top_layout_setting);
         if (topSetting != null) topSetting.setOnClickListener(this);
         bindTopActionLabels();
@@ -900,10 +898,49 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         return false;
     }
 
+    static int nextTopBarPosition(int position, int categoryCount, boolean right) {
+        int count = 4 + categoryCount;
+        int step = right ? 1 : -1;
+        return (position + step + count) % count;
+    }
+
+    private boolean moveTopBarFocus(boolean right) {
+        if (mCurrentLayoutStyle != HawkConfig.HOME_LAYOUT_APPLE_TV
+                && mCurrentLayoutStyle != HawkConfig.HOME_LAYOUT_IMMERSIVE) return false;
+        if (topNavPanel == null || !topNavPanel.hasFocus()) return false;
+        View focused = getCurrentFocus();
+        if (focused == null) return false;
+        int[] actions = {R.id.top_layout_setting, R.id.top_layout_live,
+                R.id.top_layout_history, R.id.top_layout_search};
+        int position = -1;
+        for (int i = 0; i < actions.length; i++) {
+            if (isViewOrDescendant(focused, findViewById(actions[i]))) {
+                position = i;
+                break;
+            }
+        }
+        int categoryCount = sortTopAdapter == null ? 0 : sortTopAdapter.getData().size();
+        if (position < 0 && sortTopRV != null && sortTopRV.hasFocus()) {
+            View item = sortTopRV.findContainingItemView(focused);
+            int category = item == null ? sortTopRV.getSelectedPosition() : sortTopRV.getChildAdapterPosition(item);
+            if (category >= 0 && category < categoryCount) position = actions.length + category;
+        }
+        if (position < 0) return false;
+        int target = nextTopBarPosition(position, categoryCount, right);
+        if (target < actions.length) {
+            findViewById(actions[target]).requestFocus();
+        } else {
+            sortTopRV.setSelection(target - actions.length);
+        }
+        return true;
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+            if ((keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                    && moveTopBarFocus(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) return true;
 
             // 1. 经典侧栏模式 / 动态抽屉模式：焦点在左侧栏分类时向右进入内容区
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
@@ -977,12 +1014,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                         View currentFocus = getCurrentFocus();
                         if (currentFocus != null) {
                             View upView = FocusFinder.getInstance().findNextFocus((ViewGroup) mContentViewPager, currentFocus, View.FOCUS_UP);
-                            if (upView == null) {
+                            if (mCurrentSelected == 0 || upView == null) {
                                 revealImmersiveTopBar();
-                                if (sortTopRV != null) {
-                                    sortTopRV.setSelection(mCurrentSelected);
-                                    sortTopRV.requestFocus();
-                                }
+                                findViewById(R.id.top_layout_search).requestFocus();
                                 return true;
                             }
                         }
@@ -1393,14 +1427,28 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void applyPendingHomeChanges() {
         if (!homeResumed || isFinishing() || isDestroyed()) return;
-        if (pendingConfigReload) {
-            pendingConfigReload = false;
-            pendingHomeSettingsReload = false;
-            reloadConfigAtRuntime();
-        } else if (pendingHomeSettingsReload) {
-            pendingHomeSettingsReload = false;
-            prepareHomeReload();
-            initHomeBean();
+        try {
+            if (pendingConfigReload) {
+                pendingConfigReload = false;
+                pendingHomeSettingsReload = false;
+                reloadConfigAtRuntime();
+            } else if (pendingHomeSettingsReload) {
+                pendingHomeSettingsReload = false;
+                prepareHomeReload();
+                initHomeBean();
+            }
+        } catch (Throwable th) {
+            // 从设置页返回触发的整站重载是纯增强行为：任何一步失败都只降级为“不刷新”，
+            // 保留已显示的首屏，绝不把异常冒泡成未捕获崩溃。
+            android.util.Log.w("HomeActivity", "applyPendingHomeChanges failed", th);
+            try {
+                // 失败后至少要能继续渲染首屏，避免停在“配置未就绪”的遮罩上。
+                if (!isFinishing() && !isDestroyed()) {
+                    homeConfigReady = true;
+                    tryDismissHomeLaunchCover();
+                }
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -1418,25 +1466,44 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler.removeCallbacks(automaticUpdateCheck);
         mHandler.removeCallbacks(categoryRetry);
         mHandler.removeCallbacks(categoryMetadataTimeout);
-        if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
-        if (mFirstFragment != null) mFirstFragment.prepareHomeSourceChange();
+        try {
+            if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (mFirstFragment != null) mFirstFragment.prepareHomeSourceChange();
+        } catch (Throwable ignored) {
+        }
     }
 
     private void reloadConfigAtRuntime() {
         if (isFinishing() || isDestroyed()) return;
         prepareHomeReload();
         final int generation = homeLoadGeneration;
-        Hawk.put(HawkConfig.HOME_API, "");
-        Hawk.put(HawkConfig.USER_HOME_API, "");
+        try {
+            Hawk.put(HawkConfig.HOME_API, "");
+            Hawk.put(HawkConfig.USER_HOME_API, "");
+        } catch (Throwable ignored) {
+        }
 
-        String apiUrl = Hawk.get(HawkConfig.API_URL, "");
-        String content = new SPDataUtil(getBaseContext())
+        final String apiUrl = Hawk.get(HawkConfig.API_URL, "");
+        final String content = new SPDataUtil(getBaseContext())
                 .getStringValue(ApiConfig.PRE_KEY_CONFIG);
-        ApiConfig.getInstance().applySitesFile(apiUrl, content, () ->
-                runOnUiThread(() -> {
-                    if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
-                    initHomeBean();
-                }));
+        try {
+            ApiConfig.getInstance().applySitesFile(apiUrl, content, () ->
+                    runOnUiThread(() -> {
+                        if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                        initHomeBean();
+                    }));
+        } catch (Throwable th) {
+            // applySitesFile 内部已经异步化；这里兜底它同步抛出的边界异常（如入参非法）。
+            android.util.Log.w("HomeActivity", "reloadConfigAtRuntime failed", th);
+            runOnUiThread(() -> {
+                if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                homeConfigReady = true;
+                tryDismissHomeLaunchCover();
+            });
+        }
     }
 
     /** 首页海报层独立于 ViewPager，只在首页显示。 */
@@ -1544,9 +1611,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     /** 顶栏图标只有图标没有文字：补充无障碍描述，并在焦点落到图标时在旁边显示名称 */
     private void bindTopActionLabels() {
         TextView label = findViewById(R.id.tvTopActionLabel);
-        int[] ids = {R.id.top_layout_search, R.id.top_layout_history, R.id.top_layout_live,
-                R.id.top_layout_collect, R.id.top_layout_setting};
-        String[] names = {"搜索", "观看历史", "直播", "收藏", "设置"};
+        int[] ids = {R.id.top_layout_setting, R.id.top_layout_live,
+                R.id.top_layout_history, R.id.top_layout_search};
+        String[] names = {"设置", "直播", "观看历史", "搜索"};
         for (int i = 0; i < ids.length; i++) {
             View v = findViewById(ids[i]);
             if (v == null) continue;
@@ -1580,7 +1647,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 startActivity(intent);
                 break;
             case R.id.layout_collect:
-            case R.id.top_layout_collect:
                 intent = new Intent(mContext, CollectActivity.class);
                 startActivity(intent);
                 break;

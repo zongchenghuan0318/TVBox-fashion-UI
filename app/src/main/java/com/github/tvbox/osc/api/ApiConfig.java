@@ -236,20 +236,25 @@ public class ApiConfig {
     public void applySitesFile(String apiUrl, String jsonStr, LoadConfigCallback callback) {
         final int generation = configLoadGeneration.incrementAndGet();
         new Thread(() -> {
-            synchronized (ApiConfig.this) {
-                if (generation != configLoadGeneration.get()) return;
-                pendingStartupRefresh = null;
-                this.apiUrl = apiUrl;
-                current_siteUrl = apiUrl;
-                m_bParsed = false;
-                parseSiteFile(apiUrl, jsonStr);
-                if (m_bParsed && apiUrl.equals(Hawk.get(HawkConfig.API_URL, ""))) {
-                    SPDataUtil data = new SPDataUtil(App.getInstance());
-                    saveStartupConfig(data, apiUrl, new VerifyResult(true, "", jsonStr, apiUrl),
-                            data.getStringValue(STARTUP_CONFIG_CACHE, ""));
+            try {
+                synchronized (ApiConfig.this) {
+                    if (generation != configLoadGeneration.get()) return;
+                    pendingStartupRefresh = null;
+                    this.apiUrl = apiUrl;
+                    current_siteUrl = apiUrl;
+                    m_bParsed = false;
+                    parseSiteFile(apiUrl, jsonStr);
+                    if (m_bParsed && apiUrl.equals(Hawk.get(HawkConfig.API_URL, ""))) {
+                        SPDataUtil data = new SPDataUtil(App.getInstance());
+                        saveStartupConfig(data, apiUrl, new VerifyResult(true, "", jsonStr, apiUrl),
+                                data.getStringValue(STARTUP_CONFIG_CACHE, ""));
+                    }
                 }
+                callback.success();
+            } catch (Throwable th) {
+                // 设置页运行时切源是纯增强路径：任何异常都只记录，不让它穿透到崩溃处理器。
+                L.w("applySitesFile 异常 " + th.getMessage());
             }
-            callback.success();
         }, "config-runtime-reload").start();
     }
 
@@ -896,17 +901,22 @@ public class ApiConfig {
         final Runnable completeHomeInit = new Runnable() {
             @Override
             public void run() {
-                if (generation != homeSelectionGeneration.get()) return;
-                if (!homeInitCompleted.compareAndSet(false, true)) return;
-                selectHomeBeanOnce(lastBean, generation);
-                OkGo.getInstance().cancelTag(homeRequestTag);
-                if (homeExecutor != null) {
-                    try {
-                        homeExecutor.shutdownNow();
-                    } catch (Throwable ignored) {
+                try {
+                    if (generation != homeSelectionGeneration.get()) return;
+                    if (!homeInitCompleted.compareAndSet(false, true)) return;
+                    selectHomeBeanOnce(lastBean, generation);
+                    OkGo.getInstance().cancelTag(homeRequestTag);
+                    if (homeExecutor != null) {
+                        try {
+                            homeExecutor.shutdownNow();
+                        } catch (Throwable ignored) {
+                        }
                     }
+                    callback.success();
+                } catch (Throwable th) {
+                    // 首页源探测超时兜底：任何异常都不能冒泡成未捕获崩溃。
+                    L.w("initHomeBean completeHomeInit 异常 " + th.getMessage());
                 }
-                callback.success();
             }
         };
         // HTTP 优先探测 6 秒，必要时再给爬虫源 6 秒；超时沿用旧源或尝试首个爬虫源。
@@ -933,57 +943,62 @@ public class ApiConfig {
                 homeExecutor.submit(new Runnable() {
                     @Override
                     public void run() {
-                        if (bInit || generation != homeSelectionGeneration.get()) return;//初始过，不再继续
-                        int type = bean.getType();
-                        if (type == 3) {
-                            try {
-                                httpProbes.await(6, TimeUnit.SECONDS);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                return;
-                            }
-                            if (bInit || generation != homeSelectionGeneration.get()) return;
-                            Spider sp = homeSpiderLoader.getCSP(bean);
-                            String sortJson = sp == null ? null : sp.homeContent(true);
-                            // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
-                            if (classCount(sortJson) >= 2) {
-                                if (!selectHomeBeanOnce(bean, generation)) return;
-                                completeHomeInit.run();
-                            }
-                        } else {
-                            OkGo.<String>get(bean.getApi())
-                                    .tag(homeRequestTag)
-                                    .execute(new AbsCallback<String>() {
-                                        @Override
-                                        public String convertResponse(okhttp3.Response response) throws Throwable {
-                                            if (response.body() != null) {
-                                                return response.body().string();
-                                            } else {
-                                                L.d(" initHomeBean() 网络请求失败");
-                                                throw new IllegalStateException("网络请求失败");
-                                            }
-                                        }
-
-                                        @Override
-                                        public void onSuccess(Response<String> response) {
-                                            try {
-                                                String res = response.body();
-                                                L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
-                                                if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
-                                                    if (!selectHomeBeanOnce(bean, generation)) return;
-                                                    completeHomeInit.run();
+                        try {
+                            if (bInit || generation != homeSelectionGeneration.get()) return;//初始过，不再继续
+                            int type = bean.getType();
+                            if (type == 3) {
+                                try {
+                                    httpProbes.await(6, TimeUnit.SECONDS);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    return;
+                                }
+                                if (bInit || generation != homeSelectionGeneration.get()) return;
+                                Spider sp = homeSpiderLoader.getCSP(bean);
+                                String sortJson = sp == null ? null : sp.homeContent(true);
+                                // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
+                                if (classCount(sortJson) >= 2) {
+                                    if (!selectHomeBeanOnce(bean, generation)) return;
+                                    completeHomeInit.run();
+                                }
+                            } else {
+                                OkGo.<String>get(bean.getApi())
+                                        .tag(homeRequestTag)
+                                        .execute(new AbsCallback<String>() {
+                                            @Override
+                                            public String convertResponse(okhttp3.Response response) throws Throwable {
+                                                if (response.body() != null) {
+                                                    return response.body().string();
+                                                } else {
+                                                    L.d(" initHomeBean() 网络请求失败");
+                                                    throw new IllegalStateException("网络请求失败");
                                                 }
-                                            } finally {
-                                                httpProbes.countDown();
                                             }
-                                        }
 
-                                        @Override
-                                        public void onError(Response<String> response) {
-                                            httpProbes.countDown();
-                                            super.onError(response);
-                                        }
-                                    });
+                                            @Override
+                                            public void onSuccess(Response<String> response) {
+                                                try {
+                                                    String res = response.body();
+                                                    L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
+                                                    if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
+                                                        if (!selectHomeBeanOnce(bean, generation)) return;
+                                                        completeHomeInit.run();
+                                                    }
+                                                } finally {
+                                                    httpProbes.countDown();
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onError(Response<String> response) {
+                                                httpProbes.countDown();
+                                                super.onError(response);
+                                            }
+                                        });
+                            }
+                        } catch (Throwable th) {
+                            // 单个站点探测失败不应终止整轮首页源选择，更不应冒泡成崩溃。
+                            L.w("initHomeBean 探测站点异常 " + th.getMessage());
                         }
                     }
                 });
