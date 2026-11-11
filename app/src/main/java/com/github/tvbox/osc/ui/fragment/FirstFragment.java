@@ -932,6 +932,21 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         mFeedCancelled = false;
         mHistoryLoadPending = false;
         final int requestId = ++mFeedRequestId;
+        List<Movie.Video> prepared = ApiConfig.getInstance().takePreparedVideos();
+        if (prepared != null && !prepared.isEmpty()) {
+            mRecommendVideos = prepared;
+            // 豆瓣和历史不依赖点播配置，已有内容无需随切源清空重取。
+            if (Hawk.get(HawkConfig.HOME_REC, 0) != 1 && !mAdapter.getData().isEmpty()) {
+                showSuccess();
+                return;
+            }
+            setHeader("网站推荐", "共 " + prepared.size() + " 部");
+            showSuccess();
+            setHomeCards(prepared);
+            resetCarouselState();
+            bindHero(prepared.get(0));
+            return;
+        }
         int homeSource = Hawk.get(HawkConfig.HOME_REC, 0);
         L.w("homeFeed start homeSource=" + homeSource
                 + " recCount=" + (mRecommendVideos == null ? 0 : mRecommendVideos.size()));
@@ -1261,7 +1276,12 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             mActivity.runOnUiThread(() -> {
                 if (!isPageActive() || requestId != mFeedRequestId) return;
                 showSuccess();
-                setHeroEmpty("暂无推荐", "暂时无法获取内容，请稍后重试或切换首页推荐");
+                if (mAdapter.getData().isEmpty()) {
+                    setHeroEmpty("暂无推荐", "暂时无法获取内容，请稍后重试或切换首页推荐");
+                } else {
+                    android.widget.Toast.makeText(mActivity, "新推荐暂时无法加载，保留上次内容",
+                            android.widget.Toast.LENGTH_LONG).show();
+                }
 
             });
             return;

@@ -1480,21 +1480,35 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         if (isFinishing() || isDestroyed()) return;
         prepareHomeReload();
         final int generation = homeLoadGeneration;
-        try {
-            Hawk.put(HawkConfig.HOME_API, "");
-            Hawk.put(HawkConfig.USER_HOME_API, "");
-        } catch (Throwable ignored) {
-        }
-
         final String apiUrl = Hawk.get(HawkConfig.API_URL, "");
         final String content = new SPDataUtil(getBaseContext())
                 .getStringValue(ApiConfig.PRE_KEY_CONFIG);
+        if (ApiConfig.getInstance().isPreparedConfiguration(apiUrl, content)) {
+            homeConfigReady = true;
+            tryDismissHomeLaunchCover();
+            requestCategoryMetadata();
+            if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
+            return;
+        }
         try {
-            ApiConfig.getInstance().applySitesFile(apiUrl, content, () ->
+            ApiConfig.getInstance().applySitesFile(apiUrl, content, new ApiConfig.LoadConfigCallback() {
+                @Override public void success() {
                     runOnUiThread(() -> {
                         if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
                         initHomeBean();
-                    }));
+                    });
+                }
+                @Override public void error(String message) {
+                    runOnUiThread(() -> {
+                        if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                        homeConfigReady = true;
+                        tryDismissHomeLaunchCover();
+                        if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
+                        android.widget.Toast.makeText(HomeActivity.this, message,
+                                android.widget.Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
         } catch (Throwable th) {
             // applySitesFile 内部已经异步化；这里兜底它同步抛出的边界异常（如入参非法）。
             android.util.Log.w("HomeActivity", "reloadConfigAtRuntime failed", th);

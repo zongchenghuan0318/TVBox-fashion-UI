@@ -212,13 +212,51 @@ public class ApiDialog extends BaseDialog {
     }
 
     private void onVerifyDone(String newApi, ApiConfig.VerifyResult result) {
-        setVerifying(false);
-        if (result.ok) {
-            saveConfig(newApi, result.json);
-            if (isShowing()) dismiss();
-        } else {
-            showStatus("✗ 校验失败：" + result.message, STATUS_FAIL);
+        if (!result.ok) {
+            setVerifying(false);
+            showStatus("校验失败：" + result.message, STATUS_FAIL);
+            return;
         }
+        showStatus("正在准备首页内容，请稍候…", STATUS_INFO);
+        final java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable timeout = () -> {
+            if (!finished.compareAndSet(false, true)) return;
+            setVerifying(false);
+            showStatus("首页准备超时，保留原配置，请稍后重试", STATUS_FAIL);
+        };
+        mHandler.postDelayed(timeout, 35000);
+        new Thread(() -> {
+            try {
+                ApiConfig candidate = ApiConfig.prepareConfiguration(newApi, result.json);
+                candidate.initHomeBean(() -> mHandler.post(() -> {
+                    if (finished.get() || mAct.isFinishing() || mAct.isDestroyed()) return;
+                    com.github.tvbox.osc.viewmodel.SourceViewModel model =
+                            new androidx.lifecycle.ViewModelProvider((androidx.lifecycle.ViewModelStoreOwner) mAct)
+                                    .get(com.github.tvbox.osc.viewmodel.SourceViewModel.class);
+                    model.getHomeRecList(candidate, candidate.getHomeBean(), null, videos -> mHandler.post(() -> {
+                        if (!finished.compareAndSet(false, true)) return;
+                        mHandler.removeCallbacks(timeout);
+                        setVerifying(false);
+                        if (mAct.isFinishing() || mAct.isDestroyed()) return;
+                        if (videos == null || videos.isEmpty()) {
+                            showStatus("新源暂时无法提供首页内容，保留原配置，请重试或选择其他源", STATUS_FAIL);
+                            return;
+                        }
+                        ApiConfig.getInstance().commitPrepared(candidate, videos);
+                        saveConfig(newApi, result.json);
+                        Toast.makeText(mAct, "切换成功，首页内容已准备好", Toast.LENGTH_SHORT).show();
+                        if (isShowing()) dismiss();
+                    }));
+                }));
+            } catch (Exception error) {
+                mHandler.post(() -> {
+                    if (!finished.compareAndSet(false, true)) return;
+                    mHandler.removeCallbacks(timeout);
+                    setVerifying(false);
+                    showStatus("准备失败，保留原配置：" + error.getMessage(), STATUS_FAIL);
+                });
+            }
+        }, "prepare-config-switch").start();
     }
 
     private void saveConfig(String api, String content) {

@@ -33,6 +33,27 @@ public class ConfigSwitchTest {
         return field.get(config);
     }
 
+    @Test public void malformedConfigurationPreservesSitesAndLoader() throws Exception {
+        ApiConfig config = config();
+        @SuppressWarnings("unchecked")
+        Map<String, SiteBean> sites = (Map<String, SiteBean>) field(config, "mSiteBeanMap");
+        SiteBean old = new SiteBean();
+        old.setKey("working");
+        sites.put(old.getKey(), old);
+        Object loader = field(config, "spiderLoader");
+        Method parse = ApiConfig.class.getDeclaredMethod("parseSiteFile", String.class, String.class);
+        parse.setAccessible(true);
+        try {
+            parse.invoke(config, "https://example.com/broken", "{broken");
+        } catch (java.lang.reflect.InvocationTargetException error) {
+            // Android logging has no implementation in the local JVM test runtime.
+            assertTrue(error.getCause().getMessage().contains("Method e in android.util.Log not mocked"));
+        }
+        assertSame(old, config.getSiteBeanList().get(0));
+        assertSame(loader, field(config, "spiderLoader"));
+        assertEquals(false, field(config, "m_bParsed"));
+    }
+
     @Test public void previousHomeProbeCannotCompleteANewSelection() throws Exception {
         ApiConfig config = config();
         AtomicInteger generation = (AtomicInteger) field(config, "homeSelectionGeneration");

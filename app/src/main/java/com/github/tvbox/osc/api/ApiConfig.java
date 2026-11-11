@@ -240,18 +240,26 @@ public class ApiConfig {
                 synchronized (ApiConfig.this) {
                     if (generation != configLoadGeneration.get()) return;
                     pendingStartupRefresh = null;
-                    this.apiUrl = apiUrl;
-                    current_siteUrl = apiUrl;
                     m_bParsed = false;
                     parseSiteFile(apiUrl, jsonStr);
+                    if (!m_bParsed) {
+                        callback.error("新配置加载失败，已保留原有站点，请检查配置后重试");
+                        return;
+                    }
+                    preparedHomeKey = null;
+                    preparedAddress = null;
+                    preparedVideos = null;
+                    this.apiUrl = apiUrl;
+                    current_siteUrl = apiUrl;
                     if (m_bParsed && apiUrl.equals(Hawk.get(HawkConfig.API_URL, ""))) {
                         SPDataUtil data = new SPDataUtil(App.getInstance());
                         saveStartupConfig(data, apiUrl, new VerifyResult(true, "", jsonStr, apiUrl),
                                 data.getStringValue(STARTUP_CONFIG_CACHE, ""));
                     }
                 }
-                callback.success();
+                if (generation == configLoadGeneration.get()) callback.success();
             } catch (Throwable th) {
+                if (generation == configLoadGeneration.get()) callback.error("切换配置失败，请重试");
                 // 设置页运行时切源是纯增强路径：任何异常都只记录，不让它穿透到崩溃处理器。
                 L.w("applySitesFile 异常 " + th.getMessage());
             }
@@ -528,14 +536,19 @@ public class ApiConfig {
         if (NullUtil.isNull(jsonStr)) return;
         if (m_bParsed) return;
         L.d("parseSiteFile() start");
+        LinkedHashMap<String, SiteBean> previousSites = new LinkedHashMap<>(mSiteBeanMap);
+        List<ParseBean> previousParsers = new ArrayList<>(mParseBeanList);
+        ParseBean previousDefault = mDefaultParseBean;
+        JsonObject previousPending = pendingParsers;
+        SpiderLoader previousLoader = spiderLoader;
+        String previousSpider = mSpider;
+        List<String> previousFlags = mVipFlagList;
+        List<IJKCode> previousCodecs = mIjkCodes;
         try {
-            homeSelectionGeneration.incrementAndGet();
             mSiteBeanMap.clear();
             mParseBeanList.clear();
             mDefaultParseBean = null;
             pendingParsers = null;
-            AdBlocker.clear();
-            spiderLoader.clear();
             JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
             mSpider = DefaultConfig.safeJsonString(jsonObject, "spider", "");
             spiderLoader = new SpiderLoader(mSpider);
@@ -575,15 +588,6 @@ public class ApiConfig {
             mVipFlagList = DefaultConfig.safeJsonStringList(jsonObject, "flags");
             pendingParsers = new JsonObject();
             if (jsonObject.has("parses")) pendingParsers.add("parses", jsonObject.get("parses"));
-            // 直播源
-            liveSources.deferConfiguredLives(apiUrl, jsonObject);
-            // 广告地址
-            JsonArray ads =  jsonObject.getAsJsonArray("ads");
-            if(null != ads) {
-                for (JsonElement host : ads) {
-                    AdBlocker.addAdHost(host.getAsString());
-                }
-            }
             // IJK解码配置
             boolean foundOldSelect = false;
             String ijkCodec = Hawk.get(HawkConfig.IJK_CODEC, HawkConfig.IJK_CODEC_DEFAULT);
@@ -625,8 +629,33 @@ public class ApiConfig {
                     mIjkCodes.get(0).selected(true);
                 }
             }
+            homeSelectionGeneration.incrementAndGet();
+            liveSources.deferConfiguredLives(apiUrl, jsonObject);
         } catch (Exception e) {
+            mSiteBeanMap.clear();
+            mSiteBeanMap.putAll(previousSites);
+            mParseBeanList.clear();
+            mParseBeanList.addAll(previousParsers);
+            mDefaultParseBean = previousDefault;
+            pendingParsers = previousPending;
+            spiderLoader = previousLoader;
+            mSpider = previousSpider;
+            mVipFlagList = previousFlags;
+            mIjkCodes = previousCodecs;
+            m_bParsed = false;
+            searchSites.invalidateSearchSiteOrderCache();
             L.e(e);
+            return;
+        }
+        try {
+            JsonObject config = new Gson().fromJson(jsonStr, JsonObject.class);
+            List<String> hosts = DefaultConfig.safeJsonStringList(config, "ads");
+            if (this == instance) {
+                AdBlocker.clear();
+                for (String host : hosts) AdBlocker.addAdHost(host);
+            }
+        } catch (Exception ignored) {
+            // Optional ad rules must not invalidate usable VOD sites.
         }
         searchSites.invalidateSearchSiteOrderCache();
         m_bParsed = true;
@@ -720,8 +749,59 @@ public class ApiConfig {
         return spiderLoader.jarExtMix(flag, key, name, jxs, url);
     }
 
+    private String preparedHomeKey;
+    private String preparedAddress;
+    private String preparedJson;
+    private List<com.github.tvbox.osc.bean.Movie.Video> preparedVideos;
+
+    public static ApiConfig prepareConfiguration(String address, String json) {
+        ApiConfig candidate = new ApiConfig();
+        candidate.parseSiteFile(address, json);
+        if (!candidate.m_bParsed || candidate.mSiteBeanMap.isEmpty()) {
+            throw new IllegalArgumentException("配置无法解析为可用站点");
+        }
+        candidate.preparedAddress = address;
+        candidate.preparedJson = json;
+        return candidate;
+    }
+
+    public synchronized void commitPrepared(ApiConfig candidate,
+            List<com.github.tvbox.osc.bean.Movie.Video> videos) {
+        configLoadGeneration.incrementAndGet();
+        homeSelectionGeneration.incrementAndGet();
+        mSiteBeanMap.clear();
+        mSiteBeanMap.putAll(candidate.mSiteBeanMap);
+        mParseBeanList.clear();
+        mDefaultParseBean = null;
+        pendingParsers = candidate.pendingParsers;
+        mVipFlagList = candidate.mVipFlagList;
+        mIjkCodes = candidate.mIjkCodes;
+        mSpider = candidate.mSpider;
+        spiderLoader = candidate.spiderLoader;
+        apiUrl = candidate.preparedAddress;
+        current_siteUrl = apiUrl;
+        preparedAddress = apiUrl;
+        preparedJson = candidate.preparedJson;
+        preparedHomeKey = candidate.getHomeBean().getKey();
+        preparedVideos = new ArrayList<>(videos);
+        liveSources.deferConfiguredLives(apiUrl, new Gson().fromJson(preparedJson, JsonObject.class));
+        searchSites.invalidateSearchSiteOrderCache();
+        m_bParsed = true;
+    }
+
+    public synchronized boolean isPreparedConfiguration(String address, String json) {
+        return preparedAddress != null && preparedAddress.equals(address) && preparedJson.equals(json);
+    }
+
+    public synchronized List<com.github.tvbox.osc.bean.Movie.Video> takePreparedVideos() {
+        List<com.github.tvbox.osc.bean.Movie.Video> result = preparedVideos;
+        preparedVideos = null;
+        return result;
+    }
+
     public interface LoadConfigCallback {
         void success();
+        default void error(String message) {}
     }
 
     public interface LiveSourceCallback {
@@ -819,6 +899,7 @@ public class ApiConfig {
     }
 
     public synchronized SiteBean getHomeBean() {
+        if (preparedHomeKey != null && mSiteBeanMap.containsKey(preparedHomeKey)) return mSiteBeanMap.get(preparedHomeKey);
         String userKey = Hawk.get(HawkConfig.USER_HOME_API, "");
         SiteBean userHomeBean = getSiteBean(userKey);//Map有空key，会有冲突
         if (userHomeBean != null) {
@@ -847,10 +928,12 @@ public class ApiConfig {
     public void setHomeBean(SiteBean bean) {
         L.d("setHomeBean= "+bean.getKey() + "\t"+bean.getName());
         L.w("setHomeBean key=" + bean.getKey() + " name=" + bean.getName() + " type=" + bean.getType() + " api=" + bean.getApi());
-        Hawk.put(HawkConfig.HOME_API, bean.getKey());
+        preparedHomeKey = bean.getKey();
+        if (this == instance) Hawk.put(HawkConfig.HOME_API, bean.getKey());
     }
 
     public void setUserHomeBean(SiteBean bean) {
+        preparedHomeKey = null;
         Hawk.put(HawkConfig.USER_HOME_API, bean.getKey());
     }
 

@@ -464,12 +464,16 @@ public class SourceViewModel extends ViewModel {
     }
 
     public void getHomeRecList(SiteBean sourceBean, ArrayList<String> ids, HomeRecCallback callback) {
+        getHomeRecList(ApiConfig.getInstance(), sourceBean, ids, callback);
+    }
+
+    public void getHomeRecList(ApiConfig config, SiteBean sourceBean, ArrayList<String> ids, HomeRecCallback callback) {
         if (sourceBean.getType() == 3) {
             Runnable waitResponse = () -> {
                 Future<String> future = mSpiderWorkerExecutor.submit(new Callable<String>() {
                     @Override
                     public String call() throws Exception {
-                        Spider sp = ApiConfig.getInstance().getCSP(sourceBean);
+                        Spider sp = config.getCSP(sourceBean);
                         return sp != null ? sp.homeVideoContent() : null;
                     }
                 });
@@ -532,12 +536,12 @@ public class SourceViewModel extends ViewModel {
             //推荐场景可能没有 ids（按最新列表取），此时不带 ids 参数
             if (ids == null || ids.isEmpty()) {
                 OkGo.<String>get(sourceBean.getApi())
-                        .tag("home_rec")
+                        .tag(config == ApiConfig.getInstance() ? "home_rec" : config)
                         .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
                         .execute(absCallback);
             } else {
                 OkGo.<String>get(sourceBean.getApi())
-                        .tag("home_rec")
+                        .tag(config == ApiConfig.getInstance() ? "home_rec" : config)
                         .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
                         .params("ids", TextUtils.join(",", ids))
                         .execute(absCallback);
