@@ -17,7 +17,7 @@ For first-time setup, see the **[Z影视 User Guide](./使用指南.md)** (Chine
 
 | Item | Details |
 | --- | --- |
-| Current version | v1.5.3 |
+| Current version | v1.7.22 (versionCode 221) |
 | Requirements | Android 5.0 or later |
 | Devices | TV boxes and smart TVs (primary); phones and tablets in landscape |
 | CPU architecture | armeabi-v7a only |
@@ -25,13 +25,33 @@ For first-time setup, see the **[Z影视 User Guide](./使用指南.md)** (Chine
 
 ---
 
+## Download
+
+Download the signed `Z.apk` from the latest GitHub release. Each release includes `update.json` and `SHA256SUMS.txt` for update metadata and integrity checks.
+
+[Release v1.7.22](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/tag/v1.7.22) · [Download Z.apk](https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.22/Z.apk)
+
 ## Features
 
+### Startup and caching
+
+- Startup prefers the local config cache matching the selected address. Valid home-source data triggers background config refresh for the next launch.
+- Cached home categories and source recommendations appear before fresh data, with separate caches for each config and site.
+- HTTP home sources can load directly. Sources requiring a crawler JAR wait for that JAR when needed.
+- Once the startup cover is hidden and the config is ready, the app waits 3 seconds before preloading the global crawler JAR in the background. Search, details and playback share the same load task.
+- Local JARs are reused after file-structure and configured MD5 checks. Background JAR updates take effect on the next load.
+- Leaving Home or switching configs cancels scheduled preloading that has yet to start.
+- Live channel lists and parser lists are processed when first used. The startup cover has an approximately 12-second timeout so Settings remains accessible.
+
 ### Home
-- The default data source is Douban recommendations, listed first.
+- Choose Douban recommendations, source recommendations or viewing history. Douban is the default.
+- Select a home site manually or use automatic selection.
+- Low-power Home uses a static background and manual card navigation.
+- Four layouts are available, with immersive posters as the default, plus classic sidebar, Apple TV top navigation and a dynamic drawer.
+- The thirteen card styles are 星轨环游, 垂直升降, 折扇选片, 桌面抽牌, 光闸切片, 胶片走带, 3D 海报转盘, 穿过海报, 平直横移, 引力抽片, 断层错位, 翻板坠落 and 双星换位. 星轨环游 is the default style. Cards support wraparound navigation.
 - Recommendation cards are arranged in an arc. The selected card sits at the top and is largest; cards on either side step down and dim.
 - The full-screen background poster follows the selected card.
-- After 6 seconds with no input, the home screen advances to the next card. Any key press or focus change stops the timer and restarts it.
+- After about 7.5 seconds with no input, the home screen advances to the next card. Any key press or focus change stops the timer and restarts it.
 - Home has several fallbacks: if the Douban request fails, the app uses a local cache, then the current source's recommendations, then another available source.
 - Selecting a card searches its title directly.
 
@@ -44,19 +64,25 @@ For first-time setup, see the **[Z影视 User Guide](./使用指南.md)** (Chine
 - One search queries every checked source at once.
 - Results follow the order of the checked sources, so higher-priority sources appear first.
 - Everything is checked by default. The default priority is `文采┃秒播`, then `非凡┃影视`, then the others. Once you reorder the list, your order is used instead.
-- Search waits up to 15 seconds. If some sources have not responded, a short notice appears and a Retry button is shown. Results found so far stay on screen.
+- After all first-round responses arrive, or after about 45 seconds, failed and unresponsive sources enter limited background retries. Existing results stay visible.
+- Search supports text and thumbnail views, query history, hot words and input suggestions.
+- Aggregated folder cards open a directory view. Returning preserves the parent results and scroll position.
+- 聚盘搜 uses the category API for folders. Other plugins try details first and may fall back to categories, depending on plugin compatibility.
 
 ### Favorites and history
 - Both are shown as grids and support a delete mode.
 - Clearing either list asks for confirmation first.
 
 ### Playback
+- The default player is Exo, with system and IJK alternatives and selectable rendering modes.
+- Exo on-demand playback uses disk caching with a storage-aware LRU limit. HLS playback can prefetch upcoming segments.
+- Exo playback errors can fall back to IJK while retaining the playback position where possible.
 - **Aspect ratio** cycles through Default → 16:9 → 4:3 → Fill → Original → Crop. The default is Default.
 - **Speed** cycles through 0.5 → 1.0 → 1.5 → 2.0 → 3.0 → 0.5.
 - **Remote**: OK plays or pauses. Left and right seek about 10 seconds, and holding them speeds up. Up opens the episode list when there is more than one episode. Down shows the control bar.
 - **Long-press speed-up**: holding OK during playback runs at 2×. On touch screens, holding the picture gives 2×, dragging right gives 3×, and swiping down locks the speed.
 - **Lock**: press any direction key to show the lock icon, then press OK to unlock.
-- **Auto-hide**: the control bar hides after about 4 seconds and the bottom bar after about 6 seconds (about 10 seconds with Senior Mode).
+- **Auto-hide**: playback controls hide after inactivity. Senior Mode extends their display time.
 - **Auto next episode**: an 8-second countdown appears after an episode ends. You can cancel it or play the next episode immediately.
 - **Subtitles and audio**: embedded subtitles, source subtitles and local subtitle files (SRT, VTT, ASS, SSA). The audio track is matched by your language preference.
 - **Resume**: the position is saved every 5 seconds and when you leave. The same episode resumes from the saved point. A finished episode clears its position.
@@ -65,16 +91,38 @@ For first-time setup, see the **[Z影视 User Guide](./使用指南.md)** (Chine
 ### Settings
 - **Config address**: the address is verified before it is saved. Failures show the reason, plus the total site count and the searchable site count.
 - **Config library and saved addresses**: choose from saved addresses.
-- **Automatic fallback**: if the current address cannot be reached, the app tries the config library, built-in backup addresses and the default address in turn. If all fail, it uses the cached config.
-- **Live sources**: enter one M3U or TVBox JSON source per line. Sources are merged.
-- **Playback options**: player, IJK decoder, render mode, aspect ratio, subtitles and audio, skip intro/outro, step length, secure DNS.
+- **Default pinned config** is `https://ysc.tengxuntaobao.win/`. Saved addresses and user pin preferences take priority.
+- **Automatic fallback**: if the matching startup cache is unavailable, candidate configs are checked in parallel, preserving a valid preferred choice. If all fail, the app tries saved config content.
+- **Switching sources**: returning from Settings refreshes the existing Home screen. Old config and source-selection callbacks are invalidated.
+- **Live sources**: add URLs, inline M3U or TVBox JSON. The source manager supports names, enable/disable, reordering, editing and deletion. Enabled sources are merged and deduplicated.
+- **Playback options**: player, IJK decoder, render mode, aspect ratio, subtitle and audio language preferences, skip intro/outro and adjustment step length.
 - **Senior Mode**: larger text and longer control-bar display.
-- **LAN web page**: scan a QR code to open the current config on a phone, or push content to the TV (default port 9978).
-- **Check for updates**: manual, or automatic at launch.
+- **LAN web page**: scan a QR code to send search text, fill a config address or manage shared-storage files on the same network (default port 9978). Playback pushes require a `push_agent` site in the config.
+- **Check for updates**: manual or automatic after home-source data is ready. Version metadata is checked through Gitee and GitHub.
+- **Remote key sounds**: direction, OK and Back sounds can be toggled in Settings. Touch gestures use separate handling.
+
+### Live TV
+- Supports channel groups, numeric channel selection, up/down channel switching and left/right playback-line switching.
+- Live settings include aspect ratio, player decoder, 5–30-second source-switch timeouts, clock and network-speed display, reversed channel navigation and navigation across groups.
+- Password-protected groups are supported. Automatic channel switching pauses after repeated channel timeouts.
+
+### Backup and cache management
+- Back up the app database and Hawk settings, including favorites and viewing history, to the `tvbox_backup/` folder in shared storage.
+- Restore or delete timestamped backups from Settings. Storage permissions are required, and restoration prompts an app restart.
+- Settings provides image and app-cache cleanup. Exo disk cache also evicts old data according to its capacity policy.
 
 ---
 
 ## Recent updates
+
+- **1.7.22**: Restored `https://ysc.tengxuntaobao.win/` as the default pinned config.
+- **1.7.21**: Added background crawler JAR preloading 3 seconds after Home is visible and config-ready.
+- **1.7.20**: Reused the existing Home screen when returning from Settings, invalidated stale source callbacks and added a 12-second startup-cover timeout.
+- **1.7.18**: Added cache-first config and JAR handling, deferred live/parser processing and cached home categories and recommendations.
+- **1.7.16–1.7.17**: Added aggregated folder handling and removed the bundled Thunder component.
+- **1.7.8–1.7.15**: Added remote key sounds and startup cache improvements, with changes to card initialization and networking dependencies.
+
+Startup and source-switching changes passed 21 regression tests. Release builds and signing were verified. TV crash resolution and device-specific startup performance still require device logs and on-device verification.
 
 - **1.5.6**: Improved seeking and playback progress persistence, with HLS prefetch support.
 - **1.5.5**: Enlarged home-screen media cards for better readability on large displays.
@@ -100,16 +148,16 @@ See the [User Guide](./使用指南.md) for more questions (Chinese).
 ## Technical details
 
 ### Home
-- Cards are drawn by `HomeCardRecyclerView`. Arc placement, scale and opacity depend on position. Switching takes 350 ms.
+- Cards are drawn by `HomeCardRecyclerView`. Placement, scale and opacity depend on the selected motion style and card position.
 - Card sizes come from the `home_card_*` dimension tokens. `values-sw600dp` provides large-screen overrides.
-- The background poster is an Activity-level layer, so it does not linger after switching pages. Posters are sharpened with `SharpenTransformation`.
-- The auto-scroll interval is 6000 ms (`AUTO_SCROLL_DELAY`).
+- The background poster is an Activity-level layer with visibility managed when switching pages.
+- The auto-scroll interval is 7500 ms (`AUTO_SCROLL_DELAY`).
 - After a Douban rate-limit, the app enters a 5-minute cooldown (`FirstFragment`). The cooldown is kept in memory only, so restarting the app clears it.
 
 ### Search
 - Search tasks are managed with `Future` and are cancelled when the page is destroyed or a new search starts.
 - Results are sorted by the checked-source order after each batch.
-- The search timeout is 15 seconds (`SearchActivity`).
+- `SearchActivity.SEARCH_TIMEOUT_MS` is 45 seconds for the first-round deadline. Failed and unresponsive sources then enter limited background retries.
 - The default priority is defined in `DefaultConfig.SEARCH_SITE_PRIORITY`.
 
 ### Playback
@@ -121,13 +169,13 @@ See the [User Guide](./使用指南.md) for more questions (Chinese).
 - Remote long-press OK starts a 2× boost after 400 ms (`BaseController.startKeySpeedBoost`), and only while playing.
 - Touch speed boost is managed by `SpeedGestureState` (states: 2×, 3×, locked).
 - Subtitles are parsed by `ExternalSubtitle`, with separate handling for ASS/SSA and SRT/VTT.
-- Control-bar timeouts are set with `setDismissTimeout`: 4 seconds normally, 10 seconds in Senior Mode. The bottom bar hides after 6 seconds (10 seconds in Senior Mode).
+- Control visibility is managed by `VodController` with longer timeouts in Senior Mode.
 - The auto-next countdown is 8 seconds (`AUTO_NEXT_COUNTDOWN_SECONDS`).
 
 ### Config sources
 - Verification is done by `ApiConfig.verifyConfig`: download, parse JSON, then count sites.
-- Fallback order: current address, config library, `DEFAULT_API_SAVED_CONFIGS`, default address. The read timeout during fallback is 7 seconds.
-- Built-in sources (`DefaultConfig.EXTRA_SITES`) are Feiyan (非凡), Liangzi (量子), Baofeng (暴风) and Jisu (极速). They are placed at the top of the site list.
+- Startup cache matching and parallel config checks are handled in `ApiConfig`. The default pinned address is defined by `HawkConfig.DEFAULT_API_PINNED_CONFIG`.
+- Built-in sources (`DefaultConfig.EXTRA_SITES`) are Feifan (非凡), Liangzi (量子), Baofeng (暴风) and Jisu (极速). They are placed at the top of the site list.
 - Live source input may start with `{`, `[` or `#EXTM3U`. Entries are de-duplicated with a `LinkedHashSet`.
 
 ### Updates
@@ -137,9 +185,9 @@ See the [User Guide](./使用指南.md) for more questions (Chinese).
 - Installation goes through the system installer. There is no silent install.
 
 ### Other
-- Image loading uses Glide 4.14.2. Networking uses OkGo 3.0.4 and OkHttp 3.12.1.
+- Image loading uses Glide 4.14.2. Networking uses OkGo 3.0.4 and OkHttp 3.14.9 and Okio 2.8.0.
 - Storage uses Room 2.3.0 and Hawk 2.0.1.
-- Script runtimes: QuickJS (`wang.harlon.quickjs` 2.4.5) and Chaquopy Python. The bundled `tvbox.jar` is loaded with `DexClassLoader`.
+- Script runtimes: QuickJS (`wang.harlon.quickjs` 2.4.5) and Chaquopy Python. Crawler JARs are loaded with `DexClassLoader`.
 - The LAN service uses NanoHTTPD 2.3.1 (`RemoteServer`, default port 9978).
 
 Source layout, packages and build instructions are in [docs/开发说明.md](./docs/开发说明.md) (Chinese).
