@@ -1,8 +1,8 @@
 {
-  "versionCode": 217,
-  "versionName": "1.7.18",
-  "changelog": "# 1.7.18\n\n- 优化大配置源启动。优先使用本地配置和爬虫 JAR 缓存，首页源返回有效数据后再后台更新缓存。切换配置时同步保存启动缓存。\n- 增加 JAR 文件结构与配置 MD5 校验。下载文件校验通过后再替换，后台下载的更新在下次加载时启用。\n- 直播频道与解析列表改为首次使用时处理，减少首页启动期间的工作量。\n- 缓存首页分类与网站推荐，先展示缓存再刷新。缓存按配置源和站点隔离，刷新成功后更新网站推荐。\n\n版本 1.7.18（versionCode 217）。12 项缓存与分类回归测试通过。首次成功加载会建立新的首页缓存，实际启动提速幅度尚未真机验证。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.18/Z.apk",
-  "sha256": "d749245e643b9028fc44e9f2855c432c636c2097e0d5dd03e04960d567728ed4",
-  "size": 22894261
+  "versionCode": 218,
+  "versionName": "1.7.19",
+  "changelog": "# 1.7.19\n\n- 默认置顶点播配置源调整为 https://tv.xn--yhqu5zs87a.top 。未保存自定义配置或置顶设置时，启动优先尝试该配置源。\n- 已保存的配置地址和用户置顶设置继续按原有优先级生效。\n\n版本 1.7.19（versionCode 218）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.19/Z.apk",
+  "sha256": "044bae0f644901bbaec52ecdd62f2a65460a07c9deaf415f47a19c785dbf092a",
+  "size": 22894250
 }

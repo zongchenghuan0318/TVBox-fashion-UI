@@ -11,7 +11,7 @@ public class HawkConfig {
     public static final String API_SAVED_CONFIGS = "api_saved_configs";
     public static final String API_PINNED_CONFIG = "api_pinned_config"; // 置顶的点播配置地址：启动时最先尝试
     /** 默认置顶的点播配置：所有用户默认第一位尝试；用户取消置顶后会记住“不置顶”，不再被默认值覆盖 */
-    public static final String DEFAULT_API_PINNED_CONFIG = "https://ysc.tengxuntaobao.win/";
+    public static final String DEFAULT_API_PINNED_CONFIG = "https://tv.xn--yhqu5zs87a.top";
     public static final String[] DEFAULT_API_SAVED_CONFIGS = {
             "https://ysc.tengxuntaobao.win/",
             "https://tv.xn--yhqu5zs87a.top",
