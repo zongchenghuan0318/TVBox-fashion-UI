@@ -24,6 +24,7 @@ import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.BaseActivity;
 import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.AbsSortXml;
+import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.MovieSort;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.event.RefreshEvent;
@@ -1021,8 +1022,9 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             }
             if (freshCount > 0) Hawk.put(categoryCacheKey(source), new Gson().toJson(mapped));
             applyCategoryList(mapped, absXml);
-            if (absXml != null && absXml.videoList != null && mFirstFragment != null) {
-                mFirstFragment.setmRecommendVideos(absXml.videoList);
+            if (absXml != null && absXml.videoList != null && !absXml.videoList.isEmpty()) {
+                Hawk.put(categoryCacheKey(source) + "_recommendations", new Gson().toJson(absXml.videoList));
+                if (mFirstFragment != null) mFirstFragment.setmRecommendVideos(absXml.videoList);
             }
             if (freshCount < 5) scheduleCategoryRetry();
             else mHandler.removeCallbacks(categoryRetry);
@@ -1037,6 +1039,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
      * 点播源数据加载后延时检查更新，减少与主页初始加载同时进行的工作。
      */
     private void checkUpdateIfSourceReady() {
+        ApiConfig.getInstance().refreshStartupCaches();
         updateSourceReady = true;
         if (!Hawk.get(HawkConfig.AUTO_UPDATE_CHECK, true)) {
             mHandler.removeCallbacks(automaticUpdateCheck);
@@ -1049,7 +1052,20 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private String categoryCacheKey(SiteBean source) {
-        return "fixed_categories_v2_" + MD5.string2MD5(source.getKey() + "|" + source.getApi());
+        return "fixed_categories_v3_" + MD5.string2MD5(
+                Hawk.get(HawkConfig.API_URL, "") + "|" + new Gson().toJson(source));
+    }
+
+    private AbsSortXml readCachedHome(SiteBean source) {
+        AbsSortXml cached = new AbsSortXml();
+        try {
+            String json = Hawk.get(categoryCacheKey(source) + "_recommendations", "");
+            if (!json.isEmpty()) cached.videoList = new Gson().fromJson(json,
+                    new TypeToken<List<Movie.Video>>() { }.getType());
+        } catch (Exception e) {
+            L.w("推荐缓存不可用：" + e.getMessage());
+        }
+        return cached;
     }
 
     private List<MovieSort.SortData> readCachedCategories(SiteBean source) {
@@ -1106,14 +1122,16 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         SiteBean source = ApiConfig.getInstance().getHomeBean();
         if (source == null || source.getKey() == null
                 || ApiConfig.getInstance().getSiteBean(source.getKey()) == null) return;
-        String identity = source.getKey() + "|" + source.getApi();
+        String identity = categoryCacheKey(source);
         if (categoryMetadataPending && identity.equals(categorySourceIdentity)) return;
         if (!identity.equals(categorySourceIdentity)) {
             categoryMetadataPending = false;
             sourceViewModel.cancelSortRequests();
             categorySourceIdentity = identity;
             categoryMetadataAttempts = 0;
-            applyCategoryList(DefaultConfig.adjustSort(source.getKey(), readCachedCategories(source), true), null);
+            AbsSortXml cachedHome = readCachedHome(source);
+            if (mFirstFragment != null) mFirstFragment.setmRecommendVideos(cachedHome.videoList);
+            applyCategoryList(DefaultConfig.adjustSort(source.getKey(), readCachedCategories(source), true), cachedHome);
         }
         categoryMetadataPending = true;
         categoryMetadataAttempts++;

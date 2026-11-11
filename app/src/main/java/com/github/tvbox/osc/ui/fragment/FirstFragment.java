@@ -183,7 +183,11 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
     }
 
     public FirstFragment setmRecommendVideos(List<Movie.Video> recVod) {
+        boolean changed = !new Gson().toJson(mRecommendVideos).equals(new Gson().toJson(recVod));
         this.mRecommendVideos = recVod;
+        if (changed && mAdapter != null && isPageActive() && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
+            getVideos();
+        }
         return this;
     }
 

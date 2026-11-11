@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.github.catvod.crawler.Spider;
+import com.github.tvbox.osc.base.App;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.LiveChannelGroup;
 import com.github.tvbox.osc.bean.ParseBean;
@@ -54,9 +55,21 @@ public class ApiConfig {
 
     public static final String PRE_KEY_CONFIG = "pre_key_config";
     private static final String STARTUP_CONFIG_CACHE = "startup_config_cache";
+    private Runnable pendingStartupRefresh;
 
     public synchronized void invalidateStartupConfigCache(SPDataUtil data) {
+        pendingStartupRefresh = null;
         data.saveStringValue(STARTUP_CONFIG_CACHE, "");
+    }
+
+    public void refreshStartupCaches() {
+        Runnable refresh;
+        synchronized (this) {
+            refresh = pendingStartupRefresh;
+            pendingStartupRefresh = null;
+        }
+        if (refresh != null) new Thread(refresh, "refresh-config-cache").start();
+        spiderLoader.refreshCachedJar();
     }
 
     private synchronized void saveStartupConfig(SPDataUtil data, String address,
@@ -73,6 +86,7 @@ public class ApiConfig {
     private final LinkedHashMap<String, SiteBean> mSiteBeanMap;
     private final SearchSitePreferences searchSites;
     private ParseBean mDefaultParseBean;
+    private JsonObject pendingParsers;
     private final LiveSourceConfig liveSources = new LiveSourceConfig();
     private final List<ParseBean> mParseBeanList;
     private List<String> mVipFlagList;
@@ -148,10 +162,14 @@ public class ApiConfig {
                         if (m_bParsed) {
                             apiUrl = preferred;
                             L.d("loadSitesFile 使用启动缓存");
-                            callback.success();
                             // Refresh the next launch's cache without replacing active sources.
-                            VerifyResult result = verifyConfigWithRetry(preferred, "", CONFIG_STARTUP_TIMEOUT_MS);
-                            if (result.ok) saveStartupConfig(spDataUtil, preferred, result, startupCache);
+                            synchronized (ApiConfig.this) {
+                                pendingStartupRefresh = () -> {
+                                    VerifyResult result = verifyConfigWithRetry(preferred, "", CONFIG_STARTUP_TIMEOUT_MS);
+                                    if (result.ok) saveStartupConfig(spDataUtil, preferred, result, startupCache);
+                                };
+                            }
+                            callback.success();
                             return;
                         }
                     }
@@ -196,15 +214,18 @@ public class ApiConfig {
      */
     public void applySitesFile(String apiUrl, String jsonStr, LoadConfigCallback callback) {
         new Thread(() -> {
-            this.apiUrl = apiUrl;
-            current_siteUrl = apiUrl;
-            m_bParsed = false;
-            mSiteBeanMap.clear();
-            mParseBeanList.clear();
-            mDefaultParseBean = null;
-            AdBlocker.clear();
-            spiderLoader.clear();
-            parseSiteFile(apiUrl, jsonStr);
+            synchronized (ApiConfig.this) {
+                pendingStartupRefresh = null;
+                this.apiUrl = apiUrl;
+                current_siteUrl = apiUrl;
+                m_bParsed = false;
+                parseSiteFile(apiUrl, jsonStr);
+                if (m_bParsed && apiUrl.equals(Hawk.get(HawkConfig.API_URL, ""))) {
+                    SPDataUtil data = new SPDataUtil(App.getInstance());
+                    saveStartupConfig(data, apiUrl, new VerifyResult(true, "", jsonStr, apiUrl),
+                            data.getStringValue(STARTUP_CONFIG_CACHE, ""));
+                }
+            }
             callback.success();
         }, "config-runtime-reload").start();
     }
@@ -491,7 +512,7 @@ public class ApiConfig {
         spiderLoader.loadJar(cxt, useCache, spider, callback);
     }
 
-    private void parseSiteFile(String apiUrl, String jsonStr) {
+    private synchronized void parseSiteFile(String apiUrl, String jsonStr) {
         if (NullUtil.isNull(jsonStr)) return;
         if (m_bParsed) return;
         L.d("parseSiteFile() start");
@@ -499,6 +520,7 @@ public class ApiConfig {
             mSiteBeanMap.clear();
             mParseBeanList.clear();
             mDefaultParseBean = null;
+            pendingParsers = null;
             AdBlocker.clear();
             spiderLoader.clear();
             JsonObject jsonObject = new Gson().fromJson(jsonStr, JsonObject.class);
@@ -525,7 +547,6 @@ public class ApiConfig {
                         //部分源的类不在全局 spider 里，配置用站点级 jar 单独提供（如 csp_AppRJ 在 feimao1004.jar）
                         bean.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
                         bean.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
-                        L.d(UiHelper.getBeanStr(bean));
                         mSiteBeanMap.put(siteKey, bean);
                     } catch (Throwable th) {
                         L.w("parseSiteFile skip invalid site: " + th.getMessage());
@@ -538,43 +559,10 @@ public class ApiConfig {
 
             // 需要使用vip解析的flag
             mVipFlagList = DefaultConfig.safeJsonStringList(jsonObject, "flags");
-            // 解析地址
-            if (jsonObject.has("parses") && jsonObject.get("parses").isJsonArray()) {
-                for (JsonElement opt : jsonObject.get("parses").getAsJsonArray()) {
-                    try {
-                        if (!opt.isJsonObject()) continue;
-                        JsonObject obj = opt.getAsJsonObject();
-                        ParseBean pb = new ParseBean();
-                        pb.setName(DefaultConfig.safeJsonString(obj, "name", ""));
-                        pb.setUrl(DefaultConfig.safeJsonString(obj, "url", ""));
-                        String ext = obj.has("ext") && obj.get("ext").isJsonObject() ? obj.get("ext").getAsJsonObject().toString() : "";
-                        pb.setExt(ext);
-                        pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
-                        if (!TextUtils.isEmpty(pb.getUrl())) {
-                            mParseBeanList.add(pb);
-                            L.d(pb.getName() + "\t" + pb.getUrl());
-                        }
-                    } catch (Throwable th) {
-                        L.w("parseSiteFile skip invalid parse: " + th.getMessage());
-                    }
-                }
-            }
-            // 获取默认解析
-            if (!NullUtil.isNull(mParseBeanList)) {
-                String defaultParse = Hawk.get(HawkConfig.DEFAULT_PARSE, "");
-                if (!TextUtils.isEmpty(defaultParse)) {
-                    for (ParseBean pb : mParseBeanList) {
-                        if (pb.getName().equals(defaultParse)) {
-                            setDefaultParse(pb);
-                        }
-                    }
-                }
-                if (mDefaultParseBean == null) {
-                    setDefaultParse(mParseBeanList.get(0));
-                }
-            }
+            pendingParsers = new JsonObject();
+            if (jsonObject.has("parses")) pendingParsers.add("parses", jsonObject.get("parses"));
             // 直播源
-            liveSources.loadConfiguredLives(apiUrl, jsonObject);
+            liveSources.deferConfiguredLives(apiUrl, jsonObject);
             // 广告地址
             JsonArray ads =  jsonObject.getAsJsonArray("ads");
             if(null != ads) {
@@ -627,8 +615,48 @@ public class ApiConfig {
             L.e(e);
         }
         searchSites.invalidateSearchSiteOrderCache();
-        liveSources.saveConfiguredLives();
         m_bParsed = true;
+    }
+
+    private synchronized void ensureParsers() {
+        if (pendingParsers == null) return;
+        JsonObject jsonObject = pendingParsers;
+        pendingParsers = null;
+        // 解析地址
+        if (jsonObject.has("parses") && jsonObject.get("parses").isJsonArray()) {
+            for (JsonElement opt : jsonObject.get("parses").getAsJsonArray()) {
+                try {
+                    if (!opt.isJsonObject()) continue;
+                    JsonObject obj = opt.getAsJsonObject();
+                    ParseBean pb = new ParseBean();
+                    pb.setName(DefaultConfig.safeJsonString(obj, "name", ""));
+                    pb.setUrl(DefaultConfig.safeJsonString(obj, "url", ""));
+                    String ext = obj.has("ext") && obj.get("ext").isJsonObject() ? obj.get("ext").getAsJsonObject().toString() : "";
+                    pb.setExt(ext);
+                    pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
+                    if (!TextUtils.isEmpty(pb.getUrl())) {
+                        mParseBeanList.add(pb);
+                        L.d(pb.getName() + "\t" + pb.getUrl());
+                    }
+                } catch (Throwable th) {
+                    L.w("parseSiteFile skip invalid parse: " + th.getMessage());
+                }
+            }
+        }
+        // 获取默认解析
+        if (!NullUtil.isNull(mParseBeanList)) {
+            String defaultParse = Hawk.get(HawkConfig.DEFAULT_PARSE, "");
+            if (!TextUtils.isEmpty(defaultParse)) {
+                for (ParseBean pb : mParseBeanList) {
+                    if (pb.getName().equals(defaultParse)) {
+                        setDefaultParse(pb);
+                    }
+                }
+            }
+            if (mDefaultParseBean == null) {
+                setDefaultParse(mParseBeanList.get(0));
+            }
+        }
     }
 
     public void restoreConfiguredLives() {
@@ -691,7 +719,8 @@ public class ApiConfig {
         void success();
     }
 
-    public void setDefaultParse(ParseBean parseBean) {
+    public synchronized void setDefaultParse(ParseBean parseBean) {
+        ensureParsers();
         if (this.mDefaultParseBean != null) {
             this.mDefaultParseBean.setDefault(false);
         }
@@ -700,7 +729,8 @@ public class ApiConfig {
         parseBean.setDefault(true);
     }
 
-    public ParseBean getDefaultParse() {
+    public synchronized ParseBean getDefaultParse() {
+        ensureParsers();
         return mDefaultParseBean;
     }
 
@@ -765,7 +795,8 @@ public class ApiConfig {
         return searchSites.getSearchSiteOrderIndex(key);
     }
 
-    public List<ParseBean> getmParseBeanList() {
+    public synchronized List<ParseBean> getmParseBeanList() {
+        ensureParsers();
         return mParseBeanList;
     }
 

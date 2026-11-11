@@ -40,6 +40,24 @@ final class LiveSourceConfig {
 
     private final List<LiveChannelGroup> mLiveChannelGroupList = new ArrayList<>();
     private final List<LiveChannelGroup> mConfiguredLiveChannelGroupList = new ArrayList<>();
+    private JsonObject pendingConfig;
+    private String pendingConfigUrl;
+
+    synchronized void deferConfiguredLives(String apiUrl, JsonObject config) {
+        pendingConfig = new JsonObject();
+        if (config.has("lives")) pendingConfig.add("lives", config.get("lives"));
+        pendingConfigUrl = apiUrl;
+        mLiveChannelGroupList.clear();
+        mConfiguredLiveChannelGroupList.clear();
+    }
+
+    private synchronized void ensureConfiguredLives() {
+        if (pendingConfig == null) return;
+        JsonObject config = pendingConfig;
+        pendingConfig = null;
+        loadConfiguredLives(pendingConfigUrl, config);
+        saveConfiguredLives();
+    }
 
     void loadConfiguredLives(String apiUrl, JsonObject jsonObject) {
         mLiveChannelGroupList.clear();  //修复从后台切换重复加载频道列表
@@ -77,11 +95,13 @@ final class LiveSourceConfig {
         mConfiguredLiveChannelGroupList.addAll(mLiveChannelGroupList);
     }
 
-    List<LiveChannelGroup> getChannelGroupList() {
+    synchronized List<LiveChannelGroup> getChannelGroupList() {
+        ensureConfiguredLives();
         return mLiveChannelGroupList;
     }
 
-    void restoreConfiguredLives() {
+    synchronized void restoreConfiguredLives() {
+        ensureConfiguredLives();
         mLiveChannelGroupList.clear();
         mLiveChannelGroupList.addAll(mConfiguredLiveChannelGroupList);
     }
@@ -358,7 +378,8 @@ final class LiveSourceConfig {
                 + uri.getPath() + "?" + uri.getQuery();
     }
 
-    void loadLives(JsonArray livesArray) {
+    synchronized void loadLives(JsonArray livesArray) {
+        ensureConfiguredLives();
         L.d("loadLives()");
         mLiveChannelGroupList.clear();
         int groupIndex = 0;

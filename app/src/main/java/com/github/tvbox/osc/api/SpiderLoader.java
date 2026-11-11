@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.ZipFile;
 import com.github.tvbox.osc.api.ApiConfig.LoadConfigCallback;
 
 import static com.github.tvbox.osc.api.ApiConfig.UA_OKHTTP;
@@ -31,8 +32,16 @@ final class SpiderLoader {
     /** 站点级 jar 的按 url 下载锁：避免并发线程重复下载同一个包 */
     private final ConcurrentHashMap<String, Object> mSiteJarLocks = new ConcurrentHashMap<>();
     private final BaseLoader mBaseLoader = new BaseLoader();
+    private Runnable pendingRefresh;
 
-    void clear() {
+    synchronized void refreshCachedJar() {
+        if (pendingRefresh == null) return;
+        new Thread(pendingRefresh, "refresh-spider-cache").start();
+        pendingRefresh = null;
+    }
+
+    synchronized void clear() {
+        pendingRefresh = null;
         mBaseLoader.clear();
         mSiteJarPaths.clear();
     }
@@ -59,19 +68,29 @@ final class SpiderLoader {
             @Override
             public void run() {
                 boolean ok = false;
+                File refreshTarget = null;
                 try {
                     if (!NullUtil.isNull(jarUrl)) {
                         File jarDir = new File(ctx.getFilesDir().getAbsolutePath() + "/spider");
                         if (jarDir.exists() || jarDir.mkdirs()) {
                             File jarFile = new File(jarDir, "csp_" + MD5.encode(jarUrl) + ".jar");
+                            File pending = new File(jarFile.getAbsolutePath() + ".pending");
+                            if (pending.exists()) {
+                                if (isValidJar(pending, md5)) pending.renameTo(jarFile);
+                                else pending.delete();
+                            }
                             // 与原实现的 setForceReDownload(false) 一致：已下过就直接复用，不必每次启动重下
-                            if ((jarFile.exists() && jarFile.length() > 0) || downloadJar(jarUrl, jarFile)) {
+                            boolean cached = isValidJar(jarFile, md5);
+                            if (cached || downloadJar(jarUrl, jarFile, md5)) {
                                 ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
                                 L.w("loadJar file=" + jarFile.getName() + " size=" + jarFile.length()
                                         + " success=" + ok);
                                 if (!ok) {
-                                    jarFile.delete();
+                                    if (downloadJar(jarUrl, jarFile, md5)) {
+                                        ok = mBaseLoader.loadJar(jarFile.getAbsolutePath());
+                                    }
                                 }
+                                if (ok && cached && md5.isEmpty()) refreshTarget = pending;
                             }
                         } else {
                             L.w("loadJar 创建目录失败 " + jarDir.getAbsolutePath());
@@ -88,6 +107,13 @@ final class SpiderLoader {
                     L.w("loadJar 内置兜底 csp.jar size=" + cspFile.length()
                             + " success=" + mBaseLoader.loadJar(cspFile.getAbsolutePath()));
                 }
+                // Stage updates for the next load, keeping the active JAR intact.
+                if (refreshTarget != null) {
+                    File target = refreshTarget;
+                    synchronized (SpiderLoader.this) {
+                        pendingRefresh = () -> downloadJar(jarUrl, target);
+                    }
+                }
                 callback.success();
             }
         }.start();
@@ -97,11 +123,26 @@ final class SpiderLoader {
      * 显式带 okhttp UA 下载 jar 到目标文件；先写 .tmp 再改名，避免中断留下半截文件
      */
     private static boolean downloadJar(String url, File dest) {
-        File tmp = new File(dest.getAbsolutePath() + ".tmp");
+        return downloadJar(url, dest, "");
+    }
+
+    private static boolean isValidJar(File file, String md5) {
+        if (!file.isFile() || file.length() == 0) return false;
+        if (!md5.isEmpty() && !md5.equalsIgnoreCase(MD5.getFileMd5(file))) return false;
+        try (ZipFile jar = new ZipFile(file)) {
+            return jar.getEntry("classes.dex") != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean downloadJar(String url, File dest, String md5) {
+        File tmp = null;
         okhttp3.Response response = null;
         InputStream in = null;
         FileOutputStream out = null;
         try {
+            tmp = File.createTempFile("spider_", ".tmp", dest.getParentFile());
             okhttp3.Request request = new okhttp3.Request.Builder()
                     .url(url)
                     .header("User-Agent", UA_OKHTTP)
@@ -123,11 +164,8 @@ final class SpiderLoader {
             out = null;
             in.close();
             in = null;
-            if (tmp.length() == 0) {
+            if (!isValidJar(tmp, md5)) {
                 return false;
-            }
-            if (dest.exists() && !dest.delete()) {
-                L.w("loadJar 旧文件删除失败 " + dest.getAbsolutePath());
             }
             boolean moved = tmp.renameTo(dest);
             L.w("loadJar 下载完成 size=" + dest.length() + " rename=" + moved);
@@ -145,7 +183,7 @@ final class SpiderLoader {
             } catch (Exception ignored) {
             }
             if (response != null) response.close();
-            if (tmp.exists()) tmp.delete();
+            if (tmp != null && tmp.exists()) tmp.delete();
         }
     }
 
