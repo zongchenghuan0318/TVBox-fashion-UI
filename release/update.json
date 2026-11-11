@@ -1,8 +1,8 @@
 {
-  "versionCode": 220,
-  "versionName": "1.7.21",
-  "changelog": "# 1.7.21\n\n- 首页启动遮罩退场、配置就绪后等待 3 秒，自动在后台预加载全局爬虫 JAR。\n- 预加载与搜索、详情、播放共用同一次 JAR 加载任务，提前使用爬虫源时可等待已有任务完成。\n- 离开首页或切换配置时取消尚未开始的预加载，返回首页后按当前配置重新安排。\n\n版本 1.7.21（versionCode 220）。21 项回归测试通过，实际电视效果仍待真机验证。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.21/Z.apk",
-  "sha256": "98416a0b6001d0ad291c575a0dc7138d66aabc61f3052dd3bf26afa2c1af79fb",
-  "size": 22897019
+  "versionCode": 221,
+  "versionName": "1.7.22",
+  "changelog": "# 1.7.22\n\n- 默认置顶点播配置源恢复为 https://ysc.tengxuntaobao.win/ 。未保存自定义配置或置顶设置时，启动优先尝试该配置源。\n- 已保存的配置地址与用户置顶设置继续按原有优先级生效。\n\n版本 1.7.22（versionCode 221）。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.22/Z.apk",
+  "sha256": "4c5e0c8d61a8fc6cb0216f0ffce2033a137722f3b25141d8e17d101924d91add",
+  "size": 22897038
 }
