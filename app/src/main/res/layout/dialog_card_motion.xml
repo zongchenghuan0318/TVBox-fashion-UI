@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="820mm"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/shape_dialog_bg_main"
+        android:orientation="vertical"
+        android:paddingLeft="28mm"
+        android:paddingTop="22mm"
+        android:paddingRight="28mm"
+        android:paddingBottom="18mm">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="选择海报切换样式"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="24mm"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/motionSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4mm"
+            android:text="共 13 种卡片动效 · 选中后返回首页即可体验"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="15mm" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:layout_marginTop="14mm"
+            android:layout_marginBottom="12mm"
+            android:background="#1AFFFFFF" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/motionGrid"
+            android:layout_width="match_parent"
+            android:layout_height="430mm"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:paddingBottom="4mm" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8mm"
+            android:text="方向键双列浏览 · 确定键立即应用 · 若开启“低压力首页”则固定静态切换"
+            android:textColor="@color/settings_text_muted"
+            android:textSize="13mm" />
+    </LinearLayout>
+</FrameLayout>

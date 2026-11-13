@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 磨砂玻璃对话框面板背景 -->
+<!-- 软件更新面板背景：与设置页通用弹窗保持一致 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="24mm" />
-    <gradient
-        android:angle="270"
-        android:startColor="#1E212B"
-        android:endColor="#12141A" />
+    <corners android:radius="@dimen/radius_20" />
+    <solid android:color="#F2171920" />
     <stroke
-        android:width="1mm"
-        android:color="#24FFFFFF" />
+        android:width="@dimen/vs_1"
+        android:color="#26FFFFFF" />
 </shape>

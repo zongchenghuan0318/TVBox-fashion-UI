@@ -13,17 +13,30 @@ import com.github.tvbox.osc.util.HawkConfig;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 
-enum HomeCardMotion {
-    FILM("胶片走带", .87f, .76f), STACK("桌面抽牌", .72f, .70f), ORBIT("星轨环游", .72f, .63f),
-    LIFT("垂直升降", 1.42f, .66f), WHEEL("3D 海报转盘", .74f, .73f), PORTAL("穿过海报", .77f, .73f),
-    SLIT("光闸切片", .80f, .75f), FAN("折扇选片", .72f, .64f), FLAT("平直横移", 1.15f, .77f),
-    PULL("引力抽片", .70f, .66f), FAULT("断层错位", .70f, .66f),
-    DROP("翻板坠落", .70f, .66f), STARS("双星换位", .70f, .66f);
+public enum HomeCardMotion {
+    ORBIT("星轨环游", "默认", "卡片沿弧线环绕倾斜，空间感开阔", .72f, .63f),
+    LIFT("垂直升降", "层次", "上下层叠移动，保留相邻卡片露边", 1.42f, .66f),
+    FAN("折扇选片", "拟物", "以底部为轴心扇形展开并围绕焦点切换", .72f, .64f),
+    STACK("桌面抽牌", "拟物", "像桌面牌组一样错位叠放与抽选", .72f, .70f),
+    SLIT("光闸切片", "特效", "海报以分条光闸错向动画过渡", .80f, .75f),
+    FILM("胶片走带", "轻量", "电影胶片般平滑横向推进", .87f, .76f),
+    WHEEL("3D 海报转盘", "3D", "带横向透视和侧翼倾角的旋转效果", .74f, .73f),
+    PORTAL("穿过海报", "3D", "选中卡片放大穿越，两侧向纵深退后", .77f, .73f),
+    FLAT("平直横移", "轻量", "克制平稳的横向位移，低性能设备友好", 1.15f, .77f),
+    PULL("引力抽片", "特效", "居中海报向前抬升并伴有轻微倾斜", .70f, .66f),
+    FAULT("断层错位", "特效", "海报分带横向错位交错过渡", .70f, .66f),
+    DROP("翻板坠落", "特效", "旧海报翻转退场，新海报落位", .70f, .66f),
+    STARS("双星换位", "特效", "两张海报相互交错换位展示", .70f, .66f);
 
-    final String label;
+    public final String label;
+    public final String tag;
+    public final String desc;
     final float aspect, heightFraction;
-    HomeCardMotion(String label, float aspect, float heightFraction) {
+
+    HomeCardMotion(String label, String tag, String desc, float aspect, float heightFraction) {
         this.label = label;
+        this.tag = tag;
+        this.desc = desc;
         this.aspect = aspect;
         this.heightFraction = heightFraction;
     }
@@ -32,7 +45,7 @@ enum HomeCardMotion {
         return this == PULL || this == FAULT || this == DROP || this == STARS;
     }
 
-    static HomeCardMotion current() {
+    public static HomeCardMotion current() {
         String saved = Hawk.get(HawkConfig.HOME_CARD_STYLE, ORBIT.name());
         for (HomeCardMotion style : values()) if (style.name().equals(saved)) return style;
         return ORBIT;

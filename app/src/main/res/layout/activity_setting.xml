@@ -5,13 +5,6 @@
     android:orientation="vertical"
     android:background="@drawable/bg_settings_page">
 
-    <!-- 保留现有设置菜单的数据容器 -->
-    <com.owen.tvrecyclerview.widget.TvRecyclerView
-        android:id="@+id/sortRV"
-        android:layout_width="1mm"
-        android:layout_height="1mm"
-        android:visibility="gone" />
-
     <!-- 顶部状态栏：极简磨砂质感，紧凑精致 -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -20,20 +13,19 @@
         android:orientation="horizontal"
         android:paddingLeft="44mm"
         android:paddingRight="44mm"
-        android:paddingTop="20mm"
-        android:paddingBottom="10mm">
+        android:paddingTop="16mm"
+        android:paddingBottom="8mm">
 
         <!-- 磨砂圆形返回按钮 -->
         <FrameLayout
             android:id="@+id/title_setting_tv"
-            android:layout_width="44mm"
-            android:layout_height="44mm"
+            android:layout_width="48mm"
+            android:layout_height="48mm"
             android:background="@drawable/selector_settings_control"
             android:clickable="true"
             android:focusable="true"
             android:focusableInTouchMode="false"
             android:contentDescription="返回"
-            android:nextFocusRight="@id/settingEasterEggTrigger"
             android:nextFocusDown="@id/navPlay">
 
             <ImageView
@@ -44,21 +36,18 @@
                 android:importantForAccessibility="no" />
         </FrameLayout>
 
-        <!-- 标题区域（支持彩蛋点击） -->
+        <!-- 标题区域（支持触控彩蛋点击，不占用遥控器普通焦点路径） -->
         <LinearLayout
             android:id="@+id/settingEasterEggTrigger"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="16mm"
+            android:layout_marginLeft="14mm"
             android:paddingLeft="8mm"
             android:paddingRight="12mm"
             android:paddingTop="4mm"
             android:paddingBottom="4mm"
-            android:background="@drawable/selector_setting_row"
             android:clickable="true"
-            android:focusable="true"
-            android:nextFocusLeft="@id/title_setting_tv"
-            android:nextFocusDown="@id/navPlay"
+            android:focusable="false"
             android:orientation="vertical">
 
             <TextView
@@ -66,7 +55,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="设置"
-                android:textSize="28mm"
+                android:textSize="26mm"
                 android:fontFamily="sans-serif-medium"
                 android:textColor="#FFFFFF" />
 
@@ -75,7 +64,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2mm"
                 android:text="把观看体验，调成你喜欢的样子"
-                android:textSize="14mm"
+                android:textSize="13mm"
                 android:textColor="@color/settings_text_secondary" />
         </LinearLayout>
 
@@ -88,19 +77,19 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingLeft="14mm"
-            android:paddingRight="14mm"
-            android:paddingTop="6mm"
-            android:paddingBottom="6mm"
+            android:paddingLeft="12mm"
+            android:paddingRight="12mm"
+            android:paddingTop="5mm"
+            android:paddingBottom="5mm"
             android:background="@drawable/shape_settings_inset"
             android:text="Z 影视"
-            android:textSize="14mm"
+            android:textSize="13mm"
             android:fontFamily="sans-serif-medium"
             android:textColor="#E0FFFFFF" />
     </LinearLayout>
 
-    <com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager
-        android:id="@+id/viewPager"
+    <FrameLayout
+        android:id="@+id/settingsContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />

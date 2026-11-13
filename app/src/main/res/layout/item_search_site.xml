@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="52mm"
+    android:background="@drawable/selector_setting_row_unified"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="18mm"
+    android:paddingRight="16mm"
+    android:paddingTop="8mm"
+    android:paddingBottom="8mm"
+    android:stateListAnimator="@animator/setting_row_focus">
+
+    <TextView
+        android:id="@+id/tvSiteCheck"
+        android:layout_width="28mm"
+        android:layout_height="28mm"
+        android:background="@drawable/shape_settings_inset"
+        android:gravity="center"
+        android:textSize="15mm"
+        android:fontFamily="sans-serif-medium"
+        tools:text="✓" />
+
+    <TextView
+        android:id="@+id/tvSiteName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginLeft="14mm"
+        android:duplicateParentState="true"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/selector_setting_title"
+        android:textSize="18mm"
+        tools:text="文采┃秒播" />
+
+    <TextView
+        android:id="@+id/tvSiteType"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="8mm"
+        android:background="@drawable/shape_settings_inset"
+        android:paddingLeft="8mm"
+        android:paddingRight="8mm"
+        android:paddingTop="3mm"
+        android:paddingBottom="3mm"
+        android:textColor="@color/settings_text_muted"
+        android:textSize="12mm"
+        tools:text="直连" />
+
+    <TextView
+        android:id="@+id/tvSiteRank"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="6mm"
+        android:background="@drawable/shape_settings_inset"
+        android:paddingLeft="10mm"
+        android:paddingRight="10mm"
+        android:paddingTop="3mm"
+        android:paddingBottom="3mm"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="13mm"
+        tools:text="#1" />
+</LinearLayout>

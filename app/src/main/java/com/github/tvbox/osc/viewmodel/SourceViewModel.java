@@ -93,8 +93,8 @@ public class SourceViewModel extends ViewModel {
     public MutableLiveData<AbsXml> detailResult;
     public MutableLiveData<JSONObject> playResult;
     public ExecutorService mExecutorService;
-    private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(4);
-    private final ExecutorService mSpiderWorkerExecutor = Executors.newFixedThreadPool(12, new ThreadFactory() {
+    private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(6);
+    private final ExecutorService mSpiderWorkerExecutor = Executors.newFixedThreadPool(16, new ThreadFactory() {
         private final AtomicInteger threadIndex = new AtomicInteger(1);
         @Override
         public Thread newThread(Runnable r) {
@@ -698,7 +698,7 @@ public class SourceViewModel extends ViewModel {
                     }
                     return spider.searchContent(wd, false);
                 });
-                String content = searchFuture.get(12, TimeUnit.SECONDS);
+                String content = searchFuture.get(8, TimeUnit.SECONDS);
                 L.d(siteBean.getName()+" doSearch sp  content="+content);
                 parseJson(searchType, content, siteBean.getKey(), 0, requestId);
             } catch (TimeoutException e) {

@@ -1,14 +1,12 @@
 package com.github.tvbox.osc.ui.activity;
 
-import android.app.AlertDialog;
 import android.net.Uri;
-import android.text.InputType;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
-import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -18,6 +16,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.github.tvbox.osc.base.BaseActivity;
+import com.github.tvbox.osc.ui.dialog.BaseDialog;
+import com.github.tvbox.osc.ui.dialog.TipDialog;
 import com.github.tvbox.osc.util.LiveSourceManager;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
@@ -35,9 +35,13 @@ public class LiveSourceManagerActivity extends BaseActivity {
     private LiveSourceManager.Source selected;
     private ArrayList<LiveSourceManager.Source> originalOrder;
 
-    @Override protected int getLayoutResID() { return R.layout.activity_live_source_manager; }
+    @Override
+    protected int getLayoutResID() {
+        return R.layout.activity_live_source_manager;
+    }
 
-    @Override protected void init() {
+    @Override
+    protected void init() {
         list = findViewById(R.id.liveSourceList);
         actions = findViewById(R.id.liveSourceActions);
         toggle = findViewById(R.id.liveSourceToggle);
@@ -46,13 +50,14 @@ public class LiveSourceManagerActivity extends BaseActivity {
         delete = findViewById(R.id.liveSourceDelete);
         hint = findViewById(R.id.liveSourceHint);
         sources = new ArrayList<>(LiveSourceManager.getSources());
-        if (!sources.isEmpty()) selected = sources.get(Math.max(0,
-                Math.min(Hawk.get(LAST_SELECTED, 0), sources.size() - 1)));
+        if (!sources.isEmpty()) {
+            selected = sources.get(Math.max(0, Math.min(Hawk.get(LAST_SELECTED, 0), sources.size() - 1)));
+        }
         findViewById(R.id.liveSourceBack).setOnClickListener(v -> onBackPressed());
         findViewById(R.id.liveSourceAdd).setOnClickListener(v -> edit(null));
         toggle.setOnClickListener(v -> {
             if (originalOrder != null) move(-1);
-            else {
+            else if (selected != null) {
                 selected.enabled = !selected.enabled;
                 save();
                 updatePanel();
@@ -60,11 +65,11 @@ public class LiveSourceManagerActivity extends BaseActivity {
         });
         edit.setOnClickListener(v -> {
             if (originalOrder != null) move(1);
-            else edit(selected);
+            else if (selected != null) edit(selected);
         });
         sort.setOnClickListener(v -> {
             if (originalOrder != null) finishSorting(true);
-            else {
+            else if (selected != null) {
                 originalOrder = new ArrayList<>(sources);
                 updatePanel();
                 focusSelected();
@@ -72,7 +77,7 @@ public class LiveSourceManagerActivity extends BaseActivity {
         });
         delete.setOnClickListener(v -> {
             if (originalOrder != null) finishSorting(false);
-            else confirmDelete();
+            else if (selected != null) confirmDelete();
         });
         renderRows();
         focusSelected();
@@ -82,10 +87,10 @@ public class LiveSourceManagerActivity extends BaseActivity {
         list.removeAllViews();
         if (sources.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("还没有直播源，选择右上角“添加直播源”开始配置");
+            empty.setText("还没有直播源，选择右上角「+ 添加直播源」开始配置");
             empty.setTextColor(getResources().getColor(R.color.settings_text_secondary));
-            empty.setTextSize(TypedValue.COMPLEX_UNIT_MM, 14);
-            empty.setPadding(mm(12), mm(20), mm(12), mm(20));
+            empty.setTextSize(TypedValue.COMPLEX_UNIT_MM, 16);
+            empty.setPadding(mm(16), mm(24), mm(16), mm(24));
             list.addView(empty);
         }
         for (LiveSourceManager.Source source : sources) {
@@ -96,15 +101,15 @@ public class LiveSourceManagerActivity extends BaseActivity {
             row.setFocusableInTouchMode(true);
             row.setClickable(true);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setMinHeight(mm(52));
-            row.setTextSize(TypedValue.COMPLEX_UNIT_MM, 16);
+            row.setMinHeight(mm(56));
+            row.setTextSize(TypedValue.COMPLEX_UNIT_MM, 17);
             row.setMaxLines(2);
             row.setEllipsize(TextUtils.TruncateAt.END);
             row.setTextColor(getResources().getColor(R.color.color_FFFFFF));
-            row.setPadding(mm(14), mm(6), mm(14), mm(6));
+            row.setPadding(mm(16), mm(8), mm(16), mm(8));
             row.setBackgroundResource(R.drawable.selector_live_source_row);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-            params.bottomMargin = mm(4);
+            params.bottomMargin = mm(6);
             list.addView(row, params);
             row.setOnFocusChangeListener((v, focused) -> {
                 if (focused && originalOrder == null) {
@@ -133,8 +138,9 @@ public class LiveSourceManagerActivity extends BaseActivity {
             text.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), 0, name.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             int start = text.length();
             text.append("\n").append(source.enabled ? "已启用" : "已停用").append(" · ").append(sourceSummary(source));
-            text.setSpan(new RelativeSizeSpan(0.75f), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.setSpan(new ForegroundColorSpan(0xFFB0B0B0), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.setSpan(new RelativeSizeSpan(0.76f), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.setSpan(new ForegroundColorSpan(source.enabled ? 0xA8FFFFFF : 0x73FFFFFF),
+                    start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             row.setText(text);
             row.setSelected(source == selected);
             row.setContentDescription(name + (source.enabled ? "，已启用" : "，已停用")
@@ -148,12 +154,13 @@ public class LiveSourceManagerActivity extends BaseActivity {
                 ? "还没有直播源" : LiveSourceManager.displayName(selected, index));
         ((TextView) findViewById(R.id.liveSourceState)).setText(selected == null ? "添加一个直播源开始配置"
                 : (moving ? "排序中" : selected.enabled ? "已启用" : "已停用") + " · 第 " + (index + 1) + " / " + sources.size() + " 项");
-        ((TextView) findViewById(R.id.liveSourceAddress)).setText(selected == null ? ""
+        ((TextView) findViewById(R.id.liveSourceAddress)).setText(selected == null ? "暂无地址"
                 : selected.content.trim().startsWith("http") ? selected.content.trim() : sourceSummary(selected));
         toggle.setText(moving ? "上移" : selected != null && selected.enabled ? "停用此源" : "启用此源");
         edit.setText(moving ? "下移" : "编辑");
         sort.setText(moving ? "完成排序" : "调整顺序");
         delete.setText(moving ? "取消排序" : "删除");
+        delete.setTextColor(getResources().getColor(moving ? R.color.color_FFFFFF : R.color.settings_danger));
         toggle.setEnabled(selected != null && (!moving || index > 0));
         edit.setEnabled(selected != null && (!moving || index < sources.size() - 1));
         sort.setEnabled(selected != null && (moving || sources.size() > 1));
@@ -204,7 +211,8 @@ public class LiveSourceManagerActivity extends BaseActivity {
         }
     }
 
-    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int key = event.getKeyCode();
             if (list.hasFocus() && selected != null) {
@@ -231,7 +239,8 @@ public class LiveSourceManagerActivity extends BaseActivity {
         return super.dispatchKeyEvent(event);
     }
 
-    @Override public void onBackPressed() {
+    @Override
+    public void onBackPressed() {
         if (originalOrder != null) finishSorting(false);
         else if (actions.hasFocus()) focusSelected();
         else super.onBackPressed();
@@ -266,81 +275,81 @@ public class LiveSourceManagerActivity extends BaseActivity {
         focusSelected();
     }
 
-    private void save() { LiveSourceManager.saveUserSources(sources); }
+    private void save() {
+        LiveSourceManager.saveUserSources(sources);
+    }
 
     private void confirmDelete() {
-        LiveSourceManager.Source source = selected;
-        AlertDialog dialog = new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(this, R.style.DarkAlertDialog))
-                .setTitle("删除“" + LiveSourceManager.displayName(source, sources.indexOf(source)) + "”？")
-                .setMessage("删除后该源的频道将不会在下一次刷新中出现，当前正在播放的频道不会中断。")
-                .setNegativeButton("取消", null).setPositiveButton("删除", (d, w) -> {
+        final LiveSourceManager.Source source = selected;
+        TipDialog.confirm(this, "删除直播源",
+                "确定要删除“" + LiveSourceManager.displayName(source, sources.indexOf(source)) + "”吗？\n删除后下次刷新不再加载，当前正在播放的频道不会中断。",
+                "删除", () -> {
                     int index = sources.indexOf(source);
-                    sources.remove(source);
-                    selected = sources.isEmpty() ? null : sources.get(Math.min(index, sources.size() - 1));
-                    save();
-                    renderRows();
-                }).create();
-        dialog.setOnDismissListener(d -> focusSelected());
-        dialog.show();
+                    if (index >= 0) {
+                        sources.remove(source);
+                        selected = sources.isEmpty() ? null : sources.get(Math.min(index, sources.size() - 1));
+                        save();
+                        renderRows();
+                        focusSelected();
+                    }
+                });
     }
 
     private void edit(LiveSourceManager.Source source) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(mm(20), 0, mm(20), 0);
-        EditText name = new EditText(this);
-        name.setHint("名称（可选）");
-        name.setSingleLine(true);
-        EditText content = new EditText(this);
-        content.setHint("远程 URL、JSON 或 M3U 内容");
-        content.setMinLines(3);
-        content.setMaxLines(5);
-        content.setGravity(Gravity.TOP);
-        content.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_VARIATION_URI);
+        BaseDialog dialog = new BaseDialog(this);
+        dialog.setContentView(R.layout.dialog_live_source_edit);
+        TextView titleView = dialog.findViewById(R.id.tvLiveEditTitle);
+        EditText nameInput = dialog.findViewById(R.id.edLiveSourceName);
+        EditText contentInput = dialog.findViewById(R.id.edLiveSourceContent);
+        TextView errorView = dialog.findViewById(R.id.tvLiveEditError);
+
+        titleView.setText(source == null ? "添加直播源" : "编辑直播源");
         if (source != null) {
-            name.setText(source.name);
-            content.setText(source.content);
+            nameInput.setText(source.name);
+            contentInput.setText(source.content);
         }
-        box.addView(name);
-        box.addView(content);
-        AlertDialog dialog = new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(this, R.style.DarkAlertDialog))
-                .setTitle(source == null ? "添加直播源" : "编辑直播源").setView(box)
-                .setNegativeButton("取消", null).setPositiveButton("保存", null).create();
-        dialog.setOnDismissListener(d -> focusSelected());
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String value = content.getText().toString().trim();
+
+        dialog.findViewById(R.id.btnLiveEditCancel).setOnClickListener(v -> dialog.dismiss());
+        dialog.findViewById(R.id.btnLiveEditSave).setOnClickListener(v -> {
+            String value = contentInput.getText().toString().trim();
             if (value.isEmpty()) {
-                content.setError("请输入直播源地址或内容");
-                content.requestFocus();
+                errorView.setText("请输入直播源地址或内容");
+                errorView.setVisibility(View.VISIBLE);
+                contentInput.requestFocus();
                 return;
             }
             for (LiveSourceManager.Source existing : sources) {
                 if (existing != source && LiveSourceManager.key(existing.content).equals(LiveSourceManager.key(value))) {
-                    content.setError("已有相同地址或内容的直播源");
-                    content.requestFocus();
+                    errorView.setText("已有相同地址或内容的直播源");
+                    errorView.setVisibility(View.VISIBLE);
+                    contentInput.requestFocus();
                     return;
                 }
             }
             if (source == null) {
-                selected = LiveSourceManager.create(name.getText().toString(), value, true);
+                selected = LiveSourceManager.create(nameInput.getText().toString(), value, true);
                 sources.add(selected);
             } else {
-                source.name = name.getText().toString().trim();
+                source.name = nameInput.getText().toString().trim();
                 source.content = value;
                 selected = source;
             }
             save();
             renderRows();
             dialog.dismiss();
-        }));
+        });
+        dialog.setOnDismissListener(d -> focusSelected());
         dialog.show();
     }
 
-    @Override protected void onPause() {
+    @Override
+    protected void onPause() {
         List<LiveSourceManager.Source> saved = originalOrder == null ? sources : originalOrder;
         if (selected != null) Hawk.put(LAST_SELECTED, saved.indexOf(selected));
         super.onPause();
     }
 
-    private int mm(int value) { return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_MM, value, getResources().getDisplayMetrics())); }
+    private int mm(int value) {
+        return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_MM, value, getResources().getDisplayMetrics()));
+    }
 }

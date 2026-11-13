@@ -80,6 +80,7 @@ public class ControlManager {
             });
             try {
                 mServer.start();
+                com.github.catvod.Proxy.set(RemoteServer.serverPort);
                 IjkMediaPlayer.setDotPort(Hawk.get(HawkConfig.DOH_URL, 0) > 0, RemoteServer.serverPort);
                 break;
             } catch (IOException ex) {

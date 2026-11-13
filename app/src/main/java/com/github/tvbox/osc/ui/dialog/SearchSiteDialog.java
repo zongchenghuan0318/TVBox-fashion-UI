@@ -2,23 +2,24 @@ package com.github.tvbox.osc.ui.dialog;
 
 import android.content.Context;
 import android.view.View;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.ui.adapter.SearchSiteAdapter;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
+import com.github.tvbox.osc.util.DefaultConfig;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.studio.osc.R;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-
 /**
- * 搜索源管理：勾选哪些站点参与聚合搜索（全选/全不选/逐项勾选）。
- * 勾选结果实时写入 Hawk，全局影响所有聚合搜索入口；
- * 勾选的先后顺序同时也是所有搜索界面的搜索与展示顺序。
+ * 搜索源管理：顶部固定快捷操作栏（含一键精选高速源） + 下方纯站点列表 + 实时计数与优先级序号。
  */
 public class SearchSiteDialog extends BaseDialog {
 
@@ -27,10 +28,10 @@ public class SearchSiteDialog extends BaseDialog {
     }
 
     private final List<SearchSiteAdapter.Row> rows = new ArrayList<>();
-    /** 勾选顺序表：新勾选的排到最后，取消勾选的移除 */
     private final List<String> order = new ArrayList<>();
     private SearchSiteAdapter adapter;
     private OnChanged onChanged = null;
+    private TextView subtitleView;
 
     public SearchSiteDialog(@NonNull Context context) {
         super(context);
@@ -42,49 +43,43 @@ public class SearchSiteDialog extends BaseDialog {
     }
 
     public void init() {
+        subtitleView = findViewById(R.id.tvSearchSiteSubtitle);
         rows.clear();
-        rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_SELECT_ALL, null, null, true));
-        rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_UNSELECT_ALL, null, null, false));
-        rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_PIN_FIRST, null, null, false));
         order.clear();
         order.addAll(ApiConfig.getInstance().getSearchSiteOrder());
         for (SiteBean bean : ApiConfig.getInstance().getSiteBeanList()) {
-            // 配置里本身就不可搜索的源，列出来也没有意义
             if (!bean.isSearchable()) continue;
-            rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_SITE, bean.getKey(), bean.getName(),
+            boolean directHttp = bean.getType() == 0 || bean.getType() == 1;
+            String kindTag = resolveKindTag(bean);
+            rows.add(new SearchSiteAdapter.Row(SearchSiteAdapter.TYPE_SITE, bean.getKey(),
+                    bean.getName(), kindTag, directHttp,
                     ApiConfig.getInstance().isSearchSiteEnabled(bean.getKey())));
         }
-        // 默认启用/配置新增、还没登记过顺序的源按默认优先级补进顺序表：
-        // 命中优先关键词的排最前（文采┃秒播 > 非凡┃影视），其余按站点表顺序，
-        // 这样列表里的序号与搜索页的展示顺序从一开始就一致
         fillMissingChecked();
         refreshRank();
+        refreshSubtitle();
 
-        SearchSiteAdapter.OnRowAction action = new SearchSiteAdapter.OnRowAction() {
-            @Override
-            public void onRow(SearchSiteAdapter.Row row) {
-                if (row == null) return;
-                if (row.type == SearchSiteAdapter.TYPE_SELECT_ALL) {
-                    setAllChecked(true);
-                } else if (row.type == SearchSiteAdapter.TYPE_UNSELECT_ALL) {
-                    setAllChecked(false);
-                } else if (row.type == SearchSiteAdapter.TYPE_PIN_FIRST) {
-                    pickFirst();
-                } else {
-                    row.checked = !row.checked;
-                    if (row.checked) {
-                        // 勾选顺序即排序顺序：新勾选的排到最后
-                        order.remove(row.key);
-                        order.add(row.key);
-                    } else {
-                        order.remove(row.key);
-                    }
-                    refreshRank();
-                    adapter.notifyDataSetChanged();
-                    save();
-                }
+        findViewById(R.id.btnFastPreset).setOnClickListener(v -> applyFastPreset());
+        findViewById(R.id.btnSelectAll).setOnClickListener(v -> setAllChecked(true));
+        findViewById(R.id.btnUnselectAll).setOnClickListener(v -> setAllChecked(false));
+        findViewById(R.id.btnPinFirst).setOnClickListener(v -> pickFirst());
+        findViewById(R.id.btnSearchSiteDone).setOnClickListener(v -> dismiss());
+
+        SearchSiteAdapter.OnRowAction action = row -> {
+            if (row == null) return;
+            row.checked = !row.checked;
+            if (row.checked) {
+                order.remove(row.key);
+                order.add(row.key);
+            } else {
+                order.remove(row.key);
             }
+            refreshRank();
+            refreshSubtitle();
+            adapter.notifyDataSetChanged();
+            save();
         };
+
         adapter = new SearchSiteAdapter();
         adapter.setOnRowAction(action);
         adapter.setNewData(rows);
@@ -106,19 +101,88 @@ public class SearchSiteDialog extends BaseDialog {
             }
         });
         list.setSelectedPosition(0);
-        list.post(() -> list.requestFocus()); // 弹窗打开后列表立即获焦，防止遥控器方向键失效
-        // 打开即把顺序表与勾选状态对齐写回，保证首次进入后顺序就是确定的
+        list.post(() -> {
+            if (!rows.isEmpty()) {
+                list.requestFocus();
+            } else {
+                findViewById(R.id.btnSearchSiteDone).requestFocus();
+            }
+        });
         save();
     }
 
-    /** 让某个源排到搜索顺序的第一位（并自动勾选），例如把“粉猪秒播”放在最前 */
-    private void pickFirst() {
-        final List<SearchSiteAdapter.Row> sites = new ArrayList<>();
+    private String resolveKindTag(SiteBean bean) {
+        if (bean.getType() == 0 || bean.getType() == 1) return "直连";
+        String api = bean.getApi();
+        if (api != null && api.endsWith(".js")) return "JS";
+        if (api != null && api.endsWith(".py")) return "PY";
+        return "爬虫";
+    }
+
+    /**
+     * 一键精选高速常用源：保留全部直连源 + 优先级关键词命中的主力源（最多 12 个），
+     * 避免大配置四五十个慢源同时排队拉长搜索。
+     */
+    private void applyFastPreset() {
+        if (rows.isEmpty()) return;
         for (SearchSiteAdapter.Row row : rows) {
-            if (row.type == SearchSiteAdapter.TYPE_SITE) sites.add(row);
+            row.checked = false;
         }
-        if (sites.isEmpty()) return;
-        SelectDialog.pick(getContext(), "选择排在第一位的搜索源", sites, -1,
+        order.clear();
+
+        int selected = 0;
+        final int targetCap = 12;
+
+        // 1. 优先保留默认高优关键词命中源（文采 / 非凡等）
+        for (String kw : DefaultConfig.SEARCH_SITE_PRIORITY) {
+            for (SearchSiteAdapter.Row row : rows) {
+                if (!row.checked && row.name != null && row.name.contains(kw)) {
+                    row.checked = true;
+                    order.add(row.key);
+                    selected++;
+                }
+            }
+        }
+        // 2. 补充全部 HTTP 直连采集源
+        for (SearchSiteAdapter.Row row : rows) {
+            if (selected >= targetCap) break;
+            if (!row.checked && row.directHttp) {
+                row.checked = true;
+                order.add(row.key);
+                selected++;
+            }
+        }
+        // 3. 若配置里直连源很少，再从头补足到 8 个，避免可用源过少
+        for (SearchSiteAdapter.Row row : rows) {
+            if (selected >= 8) break;
+            if (!row.checked) {
+                row.checked = true;
+                order.add(row.key);
+                selected++;
+            }
+        }
+
+        refreshRank();
+        refreshSubtitle();
+        adapter.notifyDataSetChanged();
+        save();
+        Toast.makeText(getContext(), "已精选 " + selected + " 个高速常用源（点「全选」可恢复）", Toast.LENGTH_SHORT).show();
+    }
+
+    private void refreshSubtitle() {
+        if (subtitleView == null) return;
+        int checked = 0;
+        for (SearchSiteAdapter.Row row : rows) {
+            if (row.checked) checked++;
+        }
+        subtitleView.setText("已选 " + checked + " / " + rows.size() + " 个源 · 勾选顺序即搜索展示优先级");
+    }
+
+    /** 让某个源排到搜索顺序的第一位（并自动勾选） */
+    private void pickFirst() {
+        if (rows.isEmpty()) return;
+        SelectDialog.pick(getContext(), "选择排在第一位的搜索源",
+                "选中后会自动勾选并排至最前", rows, -1,
                 new SelectDialogAdapter.SelectDialogInterface<SearchSiteAdapter.Row>() {
                     @Override
                     public void click(SearchSiteAdapter.Row value, int pos) {
@@ -127,7 +191,12 @@ public class SearchSiteDialog extends BaseDialog {
 
                     @Override
                     public String getDisplay(SearchSiteAdapter.Row val) {
-                        return val.checked ? val.name : val.name + "（未勾选，选中后会自动勾选）";
+                        return val.name;
+                    }
+
+                    @Override
+                    public String getSubDisplay(SearchSiteAdapter.Row val) {
+                        return val.kindTag + (val.checked ? " · 当前第 " + val.rank + " 位" : " · 未勾选（选中后自动启用并置顶）");
                     }
                 });
     }
@@ -137,37 +206,33 @@ public class SearchSiteDialog extends BaseDialog {
         order.remove(row.key);
         order.add(0, row.key);
         refreshRank();
+        refreshSubtitle();
         adapter.notifyDataSetChanged();
         save();
     }
 
     private void setAllChecked(boolean checked) {
         for (SearchSiteAdapter.Row row : rows) {
-            if (row.type != SearchSiteAdapter.TYPE_SITE) continue;
             row.checked = checked;
         }
         if (checked) {
-            // 全选时按默认优先级补顺序：文采│秒播、非凡│影视排最前
             fillMissingChecked();
         } else {
             order.clear();
         }
         refreshRank();
+        refreshSubtitle();
         adapter.notifyDataSetChanged();
         save();
     }
 
-    /**
-     * 把已勾选、但还没登记进顺序表的源补上：先按默认优先级关键词命中顺序补
-     * （文采│秒播 > 非凡│影视），再按列表顺序兜底，保证不漏源。
-     */
     private void fillMissingChecked() {
         for (String key : ApiConfig.getInstance().getDefaultSearchSiteOrder()) {
             if (order.contains(key) || !isChecked(key)) continue;
             order.add(key);
         }
         for (SearchSiteAdapter.Row row : rows) {
-            if (row.type == SearchSiteAdapter.TYPE_SITE && row.checked && !order.contains(row.key)) {
+            if (row.checked && !order.contains(row.key)) {
                 order.add(row.key);
             }
         }
@@ -175,17 +240,15 @@ public class SearchSiteDialog extends BaseDialog {
 
     private boolean isChecked(String key) {
         for (SearchSiteAdapter.Row row : rows) {
-            if (row.type == SearchSiteAdapter.TYPE_SITE && key.equals(row.key)) {
+            if (key.equals(row.key)) {
                 return row.checked;
             }
         }
         return false;
     }
 
-    /** 把勾选顺序写回每行的序号，列表里直接显示「☑ 1. 源名」，让排序顺序可见可预期 */
     private void refreshRank() {
         for (SearchSiteAdapter.Row row : rows) {
-            if (row.type != SearchSiteAdapter.TYPE_SITE) continue;
             row.rank = row.checked ? order.indexOf(row.key) + 1 : 0;
         }
     }
@@ -193,7 +256,7 @@ public class SearchSiteDialog extends BaseDialog {
     private void save() {
         ArrayList<String> disabled = new ArrayList<>();
         for (SearchSiteAdapter.Row row : rows) {
-            if (row.type == SearchSiteAdapter.TYPE_SITE && !row.checked) {
+            if (!row.checked) {
                 disabled.add(row.key);
             }
         }

@@ -89,56 +89,68 @@
 
     <include layout="@layout/player_top_bar" />
     
-    <!-- 续播提示：默认焦点在“继续播放”（即保留已定位的续播进度），“从头开始”需要主动选择 -->
+    <!-- 续播轻量磨砂胶囊：展示续播时间点，默认聚焦「继续」，按右选「重头播」 -->
     <LinearLayout
         android:id="@+id/resume_restart_hint"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="36mm"
         android:layout_gravity="bottom|start"
-        android:layout_marginStart="24dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginStart="24mm"
+        android:layout_marginBottom="24mm"
+        android:background="@drawable/shape_resume_pill"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:paddingStart="14mm"
+        android:paddingEnd="8mm"
         android:visibility="gone">
+
+        <TextView
+            android:id="@+id/resume_hint_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="已续播"
+            android:textColor="#D9FFFFFF"
+            android:textSize="14mm" />
+
+        <View
+            android:layout_width="1mm"
+            android:layout_height="14mm"
+            android:layout_marginStart="10mm"
+            android:layout_marginEnd="8mm"
+            android:background="#28FFFFFF" />
 
         <TextView
             android:id="@+id/resume_continue_btn"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="26mm"
             android:background="@drawable/selector_resume_restart_hint"
             android:clickable="true"
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:gravity="center"
-            android:minHeight="48dp"
-            android:minWidth="120dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
+            android:paddingStart="10mm"
+            android:paddingEnd="10mm"
             android:nextFocusRight="@id/resume_restart_btn"
-            android:text="继续播放"
+            android:text="继续"
             android:textColor="@android:color/white"
-            android:textSize="16sp" />
+            android:textSize="13mm" />
 
         <TextView
             android:id="@+id/resume_restart_btn"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_height="26mm"
+            android:layout_marginStart="6mm"
             android:background="@drawable/selector_resume_restart_hint"
             android:clickable="true"
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:gravity="center"
-            android:minHeight="48dp"
-            android:minWidth="120dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
+            android:paddingStart="10mm"
+            android:paddingEnd="10mm"
             android:nextFocusLeft="@id/resume_continue_btn"
-            android:text="从头开始 · 8秒"
-            android:textColor="@android:color/white"
-            android:textSize="16sp" />
+            android:text="重头播 · 6s"
+            android:textColor="#D9FFFFFF"
+            android:textSize="13mm" />
     </LinearLayout>
 </FrameLayout>

@@ -71,6 +71,10 @@ public class ApiConfig {
         spiderLoader.preloadGlobalJar();
     }
 
+    public void preloadGlobalJar(Runnable onReady) {
+        spiderLoader.preloadGlobalJar(onReady);
+    }
+
     public void refreshStartupCaches() {
         Runnable refresh;
         synchronized (this) {

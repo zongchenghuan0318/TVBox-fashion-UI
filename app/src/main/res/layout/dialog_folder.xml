@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="900mm"
+        android:layout_height="560mm"
+        android:layout_gravity="center"
+        android:background="@drawable/shape_dialog_bg_main"
+        android:orientation="vertical"
+        android:paddingLeft="26mm"
+        android:paddingTop="20mm"
+        android:paddingRight="26mm"
+        android:paddingBottom="16mm">
+
+        <!-- 顶部标题栏：统一设置体系磨砂返回键 + 目录标题 + 关闭按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/btnFolderBack"
+                android:layout_width="44mm"
+                android:layout_height="44mm"
+                android:background="@drawable/selector_settings_control"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="返回"
+                android:nextFocusRight="@+id/btnFolderClose"
+                android:nextFocusDown="@+id/rvFolder">
+
+                <ImageView
+                    android:layout_width="16mm"
+                    android:layout_height="16mm"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_settings_back"
+                    android:importantForAccessibility="no" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="14mm"
+                android:layout_marginRight="14mm"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvFolderTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="22mm"
+                    android:fontFamily="sans-serif-medium"
+                    tools:text="生化危机：爆发夜（合集）" />
+
+                <TextView
+                    android:id="@+id/tvFolderSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2mm"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="14mm"
+                    tools:text="聚盘搜 · 正在加载目录…" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnFolderClose"
+                style="@style/SettingsButton"
+                android:minHeight="40mm"
+                android:minWidth="92mm"
+                android:text="关闭"
+                android:textSize="16mm"
+                android:nextFocusLeft="@+id/btnFolderBack"
+                android:nextFocusDown="@+id/rvFolder" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:layout_marginTop="14mm"
+            android:layout_marginBottom="12mm"
+            android:background="#1AFFFFFF" />
+
+        <!-- 内容区 -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/rvFolder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:nextFocusUp="@+id/btnFolderBack"
+                app:tv_horizontalSpacingWithMargins="8mm"
+                app:tv_selectedItemIsCentered="false"
+                app:tv_verticalSpacingWithMargins="8mm" />
+
+            <LinearLayout
+                android:id="@+id/llFolderLoading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:layout_width="42mm"
+                    android:layout_height="42mm"
+                    android:indeterminate="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12mm"
+                    android:text="正在加载聚合目录…"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="17mm" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llFolderEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="68mm"
+                    android:layout_height="68mm"
+                    android:alpha="0.45"
+                    android:src="@drawable/icon_empty" />
+
+                <TextView
+                    android:id="@+id/tvFolderEmptyTip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12mm"
+                    android:text="该聚合目录暂无可播放资源"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="18mm" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10mm"
+            android:text="方向键浏览 · 确定键进入详情或子目录 · 返回键返回上一层"
+            android:textColor="@color/settings_text_muted"
+            android:textSize="13mm" />
+    </LinearLayout>
+</FrameLayout>

@@ -9,35 +9,29 @@
     </item>
     <item android:state_pressed="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#4DFFFFFF" />
-            <stroke
-                android:width="@dimen/vs_2"
-                android:color="#FFFFFFFF" />
+            <stroke android:width="@dimen/vs_2" android:color="#FFFFFFFF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
-            <solid android:color="#32FFFFFF" />
-            <stroke
-                android:width="@dimen/vs_2"
-                android:color="#D9FFFFFF" />
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="#28FFFFFF" />
+            <stroke android:width="@dimen/vs_2" android:color="#F2FFFFFF" />
         </shape>
     </item>
     <item android:state_selected="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
-            <solid android:color="#24FFFFFF" />
-            <stroke
-                android:width="@dimen/vs_1"
-                android:color="#59FFFFFF" />
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="#20FFFFFF" />
+            <stroke android:width="@dimen/vs_1" android:color="#66FFFFFF" />
         </shape>
     </item>
     <item>
         <shape>
-            <corners android:radius="@dimen/vs_12" />
-            <solid android:color="#0FFFFFFF" />
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="#0AFFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"
                 android:color="#1FFFFFFF" />

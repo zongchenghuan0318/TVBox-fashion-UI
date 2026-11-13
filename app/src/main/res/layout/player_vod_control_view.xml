@@ -147,51 +147,47 @@
         android:id="@+id/pause_frg_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#4D000000"
+        android:background="@android:color/transparent"
         android:tag="vod_control_pause"
         android:visibility="gone"
         tools:visibility="gone">
 
-        <!-- 暂停时左下角常驻展示正在播放的片名与集数 -->
+        <!-- 暂停时左下角简洁展示片名与集数 -->
         <TextView
             android:id="@+id/tv_info_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|left"
-            android:layout_marginLeft="32dp"
-            android:layout_marginBottom="28dp"
+            android:layout_marginLeft="24mm"
+            android:layout_marginBottom="20mm"
             android:ellipsize="end"
             android:maxLines="1"
-            android:shadowColor="#CC000000"
-            android:shadowDx="2"
-            android:shadowDy="2"
-            android:shadowRadius="6"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_24"
-            android:textStyle="bold"
+            android:shadowColor="#99000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:textColor="#CCFFFFFF"
+            android:textSize="16mm"
             tools:text="影视播放" />
 
+        <!-- 中央精简暂停磨砂小胶囊 -->
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="40mm"
             android:layout_gravity="center"
             android:background="@drawable/shape_player_seek_overlay"
             android:clickable="true"
             android:focusable="false"
             android:focusableInTouchMode="false"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingLeft="36dp"
-            android:paddingTop="20dp"
-            android:paddingRight="36dp"
-            android:paddingBottom="20dp"
-            android:elevation="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="18mm"
+            android:paddingRight="18mm"
             android:tag="pause_layout">
 
             <ImageView
-                android:layout_width="@dimen/vs_50"
-                android:layout_height="@dimen/vs_50"
-                android:layout_gravity="center"
+                android:layout_width="16mm"
+                android:layout_height="16mm"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:src="@drawable/icon_play" />
@@ -199,58 +195,59 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_10"
-                android:text="已暂停 · 按确定键继续"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:layout_marginLeft="8mm"
+                android:text="已暂停"
+                android:textColor="#EEFFFFFF"
+                android:textSize="15mm"
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/tv_pause_progress_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginTop="@dimen/vs_6"
+                android:layout_marginLeft="10mm"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="monospace"
                 android:tag="vod_control_pause_t"
-                android:textColor="@color/color_CCFFFFFF"
-                android:textSize="@dimen/ts_22"
-                tools:text="00:24:15 / 01:45:00" />
+                android:textColor="#B8FFFFFF"
+                android:textSize="14mm"
+                tools:text="00:24:15" />
         </LinearLayout>
     </FrameLayout>
 
     <TextView
         android:id="@+id/tv_slide_progress_text"
-        android:layout_width="@dimen/vs_200"
-        android:layout_height="@dimen/vs_70"
+        android:layout_width="wrap_content"
+        android:layout_height="38mm"
+        android:minWidth="120mm"
         android:layout_gravity="center"
         android:background="@drawable/shape_player_overlay_hint"
         android:focusable="false"
         android:focusableInTouchMode="false"
         android:gravity="center"
-        android:paddingLeft="@dimen/vs_20"
-        android:paddingRight="@dimen/vs_20"
+        android:paddingLeft="18mm"
+        android:paddingRight="18mm"
         android:tag="vod_control_slide_info"
         android:textAlignment="gravity"
-        android:textColor="@android:color/white"
-        android:textSize="@dimen/ts_22"
+        android:textColor="#EEFFFFFF"
+        android:textSize="15mm"
         android:visibility="gone"
-        tools:text="100" />
+        tools:text="亮度 80%" />
 
     <com.github.tvbox.osc.player.view.SpeedBoostView
         android:tag="vod_control_speed_boost"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="64dp"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
+        android:layout_marginTop="24mm"
+        android:layout_marginLeft="16mm"
+        android:layout_marginRight="16mm"
         android:clickable="true"
         android:focusable="false"
         android:visibility="gone" />
 
-    <!-- 遥控器快进/快退中央磨砂玻璃 HUD 胶囊舱 -->
+    <!-- 快进/快退精简磨砂玻璃 HUD 胶囊 -->
     <LinearLayout
         android:id="@+id/ll_progress_container"
         android:layout_width="wrap_content"
@@ -259,14 +256,12 @@
         android:background="@drawable/shape_player_seek_overlay"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingLeft="28dp"
-        android:paddingTop="18dp"
-        android:paddingRight="28dp"
-        android:paddingBottom="18dp"
-        android:elevation="12dp"
+        android:paddingLeft="18mm"
+        android:paddingTop="10mm"
+        android:paddingRight="18mm"
+        android:paddingBottom="10mm"
         android:visibility="gone">
 
-        <!-- 增量跳跃信息：方向图标 + 青色大字步进 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -275,57 +270,48 @@
 
             <ImageView
                 android:id="@+id/tv_progress_icon"
-                android:layout_width="@dimen/vs_28"
-                android:layout_height="@dimen/vs_28"
-                android:alpha="0.95"
+                android:layout_width="16mm"
+                android:layout_height="16mm"
+                android:alpha="0.9"
                 tools:src="@drawable/icon_back" />
-
-            <TextView
-                android:id="@+id/tv_progress_delta"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_8"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_24"
-                android:textStyle="bold"
-                tools:text="+00:30" />
-        </LinearLayout>
-
-        <!-- 目标落点时间 / 视频总时长 -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_8"
-            android:gravity="bottom"
-            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/tv_progress_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginLeft="8mm"
                 android:fontFamily="monospace"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_36"
+                android:textColor="#FFFFFF"
+                android:textSize="20mm"
                 android:textStyle="bold"
-                tools:text="00:35" />
+                tools:text="12:34" />
 
             <TextView
                 android:id="@+id/tv_progress_total"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_8"
-                android:layout_marginBottom="@dimen/vs_4"
+                android:layout_marginLeft="6mm"
                 android:fontFamily="monospace"
-                android:textColor="@color/color_99FFFFFF"
-                android:textSize="@dimen/ts_20"
+                android:textColor="#99FFFFFF"
+                android:textSize="14mm"
                 tools:text="/ 45:00" />
+
+            <TextView
+                android:id="@+id/tv_progress_delta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10mm"
+                android:textColor="#CCFFFFFF"
+                android:textSize="14mm"
+                android:fontFamily="sans-serif-medium"
+                tools:text="+00:30" />
         </LinearLayout>
 
-        <!-- 迷你胶囊时间轴 -->
+        <!-- 迷你时间轴 -->
         <FrameLayout
-            android:layout_width="@dimen/vs_300"
-            android:layout_height="@dimen/vs_4"
-            android:layout_marginTop="@dimen/vs_12"
+            android:layout_width="@dimen/vs_200"
+            android:layout_height="@dimen/vs_3"
+            android:layout_marginTop="8mm"
             android:background="@drawable/shape_player_seek_track">
 
             <View

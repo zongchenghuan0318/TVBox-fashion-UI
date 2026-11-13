@@ -138,6 +138,9 @@ public class LivePlayActivity extends BaseActivity {
         initSettingItemView();
         initSite();
         initLiveSettingGroupList();
+        if (mVideoView != null) {
+            mVideoView.requestFocus();
+        }
     }
 
     @Override
@@ -643,7 +646,7 @@ public class LivePlayActivity extends BaseActivity {
         pendingChannelIndex = next[1];
         showChannelInfo(target);
         mHandler.removeCallbacks(playPendingChannel);
-        mHandler.postDelayed(playPendingChannel, 400);
+        mHandler.postDelayed(playPendingChannel, 250);
     }
 
     private void playAdjacentChannel(int direction) {

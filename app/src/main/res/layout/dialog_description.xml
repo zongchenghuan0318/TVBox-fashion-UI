@@ -70,6 +70,8 @@
                 android:layout_height="@dimen/vs_40"
                 android:background="@drawable/button_dialog_main"
                 android:focusable="true"
+                android:minWidth="@dimen/vs_128"
+                android:minHeight="@dimen/vs_44"
                 android:gravity="center"
                 android:text="关闭"
                 android:textColor="@color/color_FFFFFF"

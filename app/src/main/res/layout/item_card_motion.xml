@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="5mm"
+    android:minHeight="84mm"
+    android:background="@drawable/selector_setting_row_unified"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:paddingLeft="16mm"
+    android:paddingRight="16mm"
+    android:paddingTop="12mm"
+    android:paddingBottom="12mm"
+    android:stateListAnimator="@animator/setting_row_focus">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:duplicateParentState="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvMotionName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:duplicateParentState="true"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textColor="@color/selector_setting_title"
+            android:textSize="18mm"
+            android:fontFamily="sans-serif-medium"
+            tools:text="星轨环游" />
+
+        <TextView
+            android:id="@+id/tvMotionTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8mm"
+            android:background="@drawable/shape_settings_inset"
+            android:paddingLeft="8mm"
+            android:paddingRight="8mm"
+            android:paddingTop="3mm"
+            android:paddingBottom="3mm"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="12mm"
+            tools:text="默认" />
+
+        <TextView
+            android:id="@+id/tvMotionCurrent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="6mm"
+            android:background="@drawable/shape_settings_inset"
+            android:paddingLeft="8mm"
+            android:paddingRight="8mm"
+            android:paddingTop="3mm"
+            android:paddingBottom="3mm"
+            android:text="✓ 当前"
+            android:textColor="@color/settings_success"
+            android:textSize="12mm"
+            android:fontFamily="sans-serif-medium"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvMotionDesc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6mm"
+        android:duplicateParentState="true"
+        android:lineSpacingExtra="2mm"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="13mm"
+        tools:text="卡片沿弧线环绕倾斜，空间感开阔" />
+</LinearLayout>

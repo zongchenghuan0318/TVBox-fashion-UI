@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple TV 通用弹窗与列表交互按钮：半透明熏黑磨砂，落焦纯白发光胶囊 -->
+<!-- 通用弹窗操作按钮：与设置页保持相同的默认、聚焦、按下和禁用语义 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_enabled="false">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#0DFFFFFF" />
             <stroke android:width="@dimen/vs_1" android:color="#14FFFFFF" />
         </shape>
     </item>
     <item android:state_pressed="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#59FFFFFF" />
             <stroke android:width="@dimen/vs_2" android:color="#FFFFFFFF" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#3DFFFFFF" />
             <stroke android:width="@dimen/vs_2" android:color="#E6FFFFFF" />
         </shape>
     </item>
     <item android:state_selected="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#2BFFFFFF" />
             <stroke android:width="@dimen/vs_1" android:color="#73FFFFFF" />
         </shape>
     </item>
     <item>
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#18FFFFFF" />
             <stroke android:width="@dimen/vs_1" android:color="#2EFFFFFF" />
         </shape>

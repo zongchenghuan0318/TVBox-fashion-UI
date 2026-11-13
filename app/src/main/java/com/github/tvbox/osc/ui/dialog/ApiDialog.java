@@ -52,12 +52,12 @@ import me.jessyan.autosize.utils.AutoSizeUtils;
  * @since 2020/12/27
  */
 public class ApiDialog extends BaseDialog {
-    /** 校验中提示色 */
-    private static final int STATUS_INFO = 0xFF333333;
+    /** 校验中提示色（适配深色磨砂底板） */
+    private static final int STATUS_INFO = 0xFFE2E8F0;
     /** 校验成功提示色 */
-    private static final int STATUS_OK = 0xFF2E7D32;
+    private static final int STATUS_OK = 0xFF34D399;
     /** 校验失败提示色 */
-    private static final int STATUS_FAIL = 0xFFD32F2F;
+    private static final int STATUS_FAIL = 0xFFFF6B6B;
 
     private ImageView qrCodeImg;
     private TextView tvAddress;
@@ -129,6 +129,9 @@ public class ApiDialog extends BaseDialog {
         }
         initClick();
         refreshQRCode();
+        if (btnSaved != null) {
+            btnSaved.post(btnSaved::requestFocus);
+        }
     }
 
     /**
@@ -397,6 +400,13 @@ public class ApiDialog extends BaseDialog {
         //确定：先校验配置，校验通过才保存并允许退出
         btnSubmit.setOnClickListener(v -> verifyAndSave());
 
+        findViewById(R.id.btn_clear_input).setOnClickListener(v -> {
+            if (mVerifying) return;
+            apiEdit.setText("");
+            apiEdit.requestFocus();
+            showStatus("已清空地址，请输入新的配置源或从「配置库」选择", STATUS_INFO);
+        });
+
         findViewById(R.id.apiHistory).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -405,7 +415,8 @@ public class ApiDialog extends BaseDialog {
                 String current = Hawk.get(HawkConfig.API_URL, "");
                 int idx = history.indexOf(current);
                 ApiHistoryDialog dialog = new ApiHistoryDialog(getContext());
-                dialog.setTip("已保存配置 · 点击切换 · 置顶的配置启动时最先尝试");
+                dialog.setTip("配置库（点播源管理）");
+                dialog.setSubtitle("点击切换配置 · 置顶配置将在启动时最先尝试");
                 dialog.setAdapter(new ApiHistoryDialogAdapter.SelectDialogInterface() {
                     @Override
                     public void click(String value) {

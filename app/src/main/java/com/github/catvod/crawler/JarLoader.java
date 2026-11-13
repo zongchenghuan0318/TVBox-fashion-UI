@@ -36,6 +36,13 @@ public class JarLoader {
                 try {
                     Class classInit = classLoader.loadClass("com.github.catvod.spider.Init");
                     if (classInit != null) {
+                        try {
+                            Class proxy = classLoader.loadClass("com.github.catvod.spider.Proxy");
+                            proxyFun = proxy.getMethod("proxy", Map.class);
+                            L.d("proxyFun=" + proxyFun);
+                        } catch (Throwable th) {
+                            L.e(th);
+                        }
                         Method method = classInit.getMethod("init", Context.class);
                         long startedAt = android.os.SystemClock.elapsedRealtime();
                         android.util.Log.i("Startup", "plugin Init.init started");
@@ -47,14 +54,6 @@ public class JarLoader {
                         }
                         L.d("自定义爬虫代码加载成功!");
                         success = true;
-                        try {
-                            Class proxy = classLoader.loadClass("com.github.catvod.spider.Proxy");
-                            Method mth = proxy.getMethod("proxy", Map.class);
-                            proxyFun = mth;
-                            L.d("proxyFun="+proxyFun);
-                        } catch (Throwable th) {
-                           L.e(th);
-                        }
                         break;
                     }
                     Thread.sleep(200);

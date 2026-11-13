@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 设置分组卡片：与磨砂卡片（bg_live_source_card）一致的中性深色 + 细边 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="16mm" />
-    <solid android:color="#141820" />
+    <corners android:radius="14mm" />
+    <solid android:color="@color/settings_surface" />
     <stroke android:width="1mm" android:color="@color/color_rail_glass_rim" />
 </shape>

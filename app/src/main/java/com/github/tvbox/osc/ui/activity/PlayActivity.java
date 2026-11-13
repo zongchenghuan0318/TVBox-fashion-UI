@@ -122,12 +122,18 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     /** 本次实际播放地址：旧版本以播放 URL 作为进度 key，用它兜底读取老进度 */
     private String mCurrentPlayUrl;
     private String mResumeKey;
+    private String mResumeNameKey;
+    private String mResumeIndexKey;
     /** 刚看完并已切到下一集的那一集的 key：切集过程中不再回写它的进度，避免把片尾位置写回去 */
     private String mFinishedProgressKey;
     private long mResumePosition;
+    private long mPendingSeekVerifyMs;
+    private int mSeekVerifyRetries;
+    private long mResumeDisplayPositionMs;
     private boolean mHasSavedResumePosition;
     private boolean mResumePromptShown;
     private View mResumeRestartHint;
+    private TextView mResumeHintLabel;
     private TextView mResumeContinueBtn;
     private TextView mResumeRestartBtn;
     private boolean mResumeHintPending;
@@ -136,6 +142,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private long lastBackPressedMs;
     private static final long BACK_EXIT_INTERVAL_MS = 1500L;
     private final Runnable mResumeHintTick = this::refreshResumeHintCountdown;
+    private final Runnable mVerifyResumeSeek = this::verifyResumeSeekLanded;
     private static final long RESUME_PROMPT_MIN_POSITION_MS = 30_000L;
     // 进度的内存副本（进程内有效），保证写入后立即可读，不依赖后台写库的完成时机
     private static final Map<String, Long> PROGRESS_LATEST = new ConcurrentHashMap<>();
@@ -228,6 +235,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         // 点播开启磁盘缓存：边看边存，拖动/回看命中本地缓存（看完即释放由播放器负责）
         xyz.doikki.videoplayer.exo.ExoMediaSourceHelper.getInstance(this).setCacheEnabled(true);
         mResumeRestartHint = findViewById(R.id.resume_restart_hint);
+        mResumeHintLabel = findViewById(R.id.resume_hint_label);
         mResumeContinueBtn = findViewById(R.id.resume_continue_btn);
         mResumeRestartBtn = findViewById(R.id.resume_restart_btn);
         // 续播位置在 STATE_PREPARED 时已经 seek 好，“继续播放”只需收起提示
@@ -259,12 +267,19 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     if (mResumePosition > 0) {
                         long resumePosition = mResumePosition;
                         mResumePosition = 0;
+                        mPendingSeekVerifyMs = resumePosition;
+                        mSeekVerifyRetries = 0;
+                        mResumeDisplayPositionMs = resumePosition;
                         if (mHasSavedResumePosition && !mResumePromptShown && !autoResumeWithoutPrompt
                                 && hasUsefulResumePosition(resumePosition)) {
                             mResumeHintPending = true;
                         }
                         autoResumeWithoutPrompt = false;
                         mVideoView.seekTo(resumePosition);
+                        if (mHandler != null) {
+                            mHandler.removeCallbacks(mVerifyResumeSeek);
+                            mHandler.postDelayed(mVerifyResumeSeek, 400L);
+                        }
                     }
                 } else if (playState == VideoView.STATE_PREPARING || playState == VideoView.STATE_BUFFERING) {
                     showTipsView("缓冲中...", true, false);
@@ -272,13 +287,13 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
                     hideTipsView();
+                    verifyResumeSeekLanded();
                     if (mResumeHintPending) showResumePrompt();
                 } else if (playState == VideoView.STATE_BUFFERED) {
                     hideTipsView();
                 } else if (playState == VideoView.STATE_PLAYBACK_COMPLETED) {
-                    if (mResumeKey != null) {
-                        saveProgressValue(mResumeKey, 0);
-                    }
+                    mPendingSeekVerifyMs = 0L;
+                    clearSavedProgressKeys(mResumeKey, mResumeNameKey, mResumeIndexKey);
                 } else if (playState == VideoView.STATE_ERROR) {
                     playbackStartPending = false;
                     mHandler.removeCallbacks(playbackStartTimeout);
@@ -437,23 +452,17 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
 
             @Override
             public void playNext(boolean rmProgress) {
-                // 必须在切集前取当前集的 key（切集后 playIndex 已变）；删除要用和保存一致的 v3 key
+                // 必须在切集前取当前集的 key（切集后 playIndex 已变）；同时清理同集名/集序号兜底 key
                 String finishedKey = mResumeKey != null ? mResumeKey : buildEpisodeProgressKey();
+                String finishedNameKey = mResumeNameKey != null ? mResumeNameKey : buildEpisodeNameProgressKey();
+                String finishedIndexKey = mResumeIndexKey != null ? mResumeIndexKey : buildStableProgressKey();
                 boolean leavingEpisode = mVodInfo != null && mVodInfo.seriesMap != null && mVodInfo.playFlag != null
                         && mVodInfo.seriesMap.get(mVodInfo.playFlag) != null
                         && mVodInfo.playIndex + 1 < mVodInfo.seriesMap.get(mVodInfo.playFlag).size();
                 PlayActivity.this.playNext();
                 if (rmProgress && finishedKey != null && !finishedKey.trim().isEmpty()) {
                     if (leavingEpisode) mFinishedProgressKey = finishedKey;
-                    // 置 0 而不是只删库：内存副本立即生效，不会因后台删除未完成而读到旧进度
-                    PROGRESS_LATEST.put(finishedKey, 0L);
-                    final String k = finishedKey;
-                    AsyncTask.SERIAL_EXECUTOR.execute(() -> {
-                        try {
-                            CacheManager.delete(MD5.string2MD5(k), 0);
-                        } catch (Throwable ignored) {
-                        }
-                    });
+                    clearSavedProgressKeys(finishedKey, finishedNameKey, finishedIndexKey);
                 }
             }
 
@@ -577,6 +586,38 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         if (source == null || source.trim().isEmpty()) source = mVodInfo.sourceKey;
         return "resume|v3|" + source + "|" + mVodInfo.id + "|" + mVodInfo.playFlag
                 + "|" + episodeIdentity;
+    }
+
+    private String buildEpisodeNameProgressKey() {
+        if (mVodInfo == null || mVodInfo.seriesMap == null || mVodInfo.playFlag == null) {
+            return null;
+        }
+        java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (episodes == null || mVodInfo.playIndex < 0 || mVodInfo.playIndex >= episodes.size()) {
+            return null;
+        }
+        VodInfo.VodSeries episode = episodes.get(mVodInfo.playIndex);
+        if (episode == null || episode.name == null || episode.name.trim().isEmpty()) {
+            return null;
+        }
+        String source = mSourceKeyStr;
+        if (source == null || source.trim().isEmpty()) source = mVodInfo.sourceKey;
+        return "resume|v3n|" + source + "|" + mVodInfo.id + "|" + mVodInfo.playFlag + "|" + episode.name.trim();
+    }
+
+    private void clearSavedProgressKeys(String... keys) {
+        if (keys == null) return;
+        for (String key : keys) {
+            if (key == null || key.trim().isEmpty()) continue;
+            PROGRESS_LATEST.put(key, 0L);
+            final String k = key;
+            AsyncTask.SERIAL_EXECUTOR.execute(() -> {
+                try {
+                    CacheManager.delete(MD5.string2MD5(k), 0);
+                } catch (Throwable ignored) {
+                }
+            });
+        }
     }
 
     private String buildLegacyProgressKey() {
@@ -1008,20 +1049,38 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         long position = mController != null ? mController.getCurrentOrPendingPosition() : mVideoView.getCurrentPosition();
         long duration = mVideoView.getDuration();
         if (position <= 0 || (duration > 0 && position >= duration - 1000)) return;
+        // 刚起播且续播 seek 尚未落地前，禁止用前几秒的位置覆盖已有历史进度
+        if (mPendingSeekVerifyMs >= 10_000L && position < 5_000L) return;
         // 切集时 playIndex 已先变成下一集，这里必须用当前正在播放的那一集的 key，否则进度会写错集
         String key = mResumeKey != null ? mResumeKey : buildEpisodeProgressKey();
         // 已看完并切走的那一集不再回写进度
         if (mFinishedProgressKey != null && mFinishedProgressKey.equals(key)) return;
         saveProgressValue(key, position);
+        if (mResumeNameKey != null && !mResumeNameKey.equals(key)) {
+            saveProgressValue(mResumeNameKey, position);
+        }
+        if (mResumeIndexKey != null && !mResumeIndexKey.equals(key)) {
+            saveProgressValue(mResumeIndexKey, position);
+        }
         L.d("resume save key=" + key + " position=" + position);
     }
 
     private void prepareResumePosition() {
         dismissResumePrompt(false);
         mResumePromptShown = false;
+        mPendingSeekVerifyMs = 0L;
+        mSeekVerifyRetries = 0;
         mFinishedProgressKey = null;
         mResumeKey = buildEpisodeProgressKey();
+        mResumeNameKey = buildEpisodeNameProgressKey();
+        mResumeIndexKey = buildStableProgressKey();
         mResumePosition = readSavedProgress(mResumeKey);
+        if (mResumePosition <= 0 && mResumeNameKey != null) {
+            mResumePosition = readSavedProgress(mResumeNameKey);
+        }
+        if (mResumePosition <= 0 && mResumeIndexKey != null) {
+            mResumePosition = readSavedProgress(mResumeIndexKey);
+        }
         mHasSavedResumePosition = mResumePosition >= RESUME_PROMPT_MIN_POSITION_MS;
         if (mResumePosition <= 0) {
             int st = 0;
@@ -1035,6 +1094,27 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         L.d("resume read key=" + mResumeKey + " position=" + mResumePosition);
     }
 
+    private void verifyResumeSeekLanded() {
+        if (mPendingSeekVerifyMs <= 0 || mVideoView == null || !isActivityActive()) return;
+        long current = mVideoView.getCurrentPosition();
+        long threshold = Math.min(3000L, mPendingSeekVerifyMs / 2);
+        if (current >= threshold) {
+            mPendingSeekVerifyMs = 0L;
+            return;
+        }
+        if (mSeekVerifyRetries < 2) {
+            mSeekVerifyRetries++;
+            L.d("resume seek verify retry=" + mSeekVerifyRetries + " target=" + mPendingSeekVerifyMs + " current=" + current);
+            mVideoView.seekTo(mPendingSeekVerifyMs);
+            if (mHandler != null) {
+                mHandler.removeCallbacks(mVerifyResumeSeek);
+                mHandler.postDelayed(mVerifyResumeSeek, 500L);
+            }
+        } else {
+            mPendingSeekVerifyMs = 0L;
+        }
+    }
+
     private boolean hasUsefulResumePosition(long position) {
         if (position < RESUME_PROMPT_MIN_POSITION_MS) return false;
         long duration = mVideoView == null ? 0L : mVideoView.getDuration();
@@ -1045,12 +1125,26 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         mResumeHintPending = false;
         if (mVideoView == null || !isActivityActive() || mResumePromptShown) return;
         mResumePromptShown = true;
-        mResumeHintDeadline = SystemClock.uptimeMillis() + 8000L;
+        mResumeHintDeadline = SystemClock.uptimeMillis() + 6000L;
+        if (mResumeHintLabel != null) {
+            mResumeHintLabel.setText("已续播至 " + formatResumeTime(mResumeDisplayPositionMs));
+        }
         mResumeRestartHint.setVisibility(View.VISIBLE);
         mResumeRestartHint.setAlpha(0f);
         mResumeRestartHint.animate().alpha(1f).setDuration(150L).start();
         mResumeContinueBtn.requestFocus();
         refreshResumeHintCountdown();
+    }
+
+    private String formatResumeTime(long ms) {
+        long totalSec = Math.max(0L, ms / 1000L);
+        long hours = totalSec / 3600L;
+        long minutes = (totalSec % 3600L) / 60L;
+        long seconds = totalSec % 60L;
+        if (hours > 0) {
+            return String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds);
+        }
+        return String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds);
     }
 
     private boolean isResumeHintVisible() {
@@ -1064,7 +1158,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             dismissResumePrompt(true);
             return;
         }
-        mResumeRestartBtn.setText("从头开始 · " + ((remaining + 999L) / 1000L) + "秒");
+        mResumeRestartBtn.setText("重头播 · " + ((remaining + 999L) / 1000L) + "s");
         mHandler.removeCallbacks(mResumeHintTick);
         mHandler.postDelayed(mResumeHintTick, Math.min(1000L, remaining));
     }
@@ -1078,8 +1172,9 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         dismissResumePrompt(true);
         if (mVideoView == null || !isActivityActive()) return;
         mResumePosition = 0L;
+        mPendingSeekVerifyMs = 0L;
         mHasSavedResumePosition = false;
-        saveProgressValue(mResumeKey, 0L);
+        clearSavedProgressKeys(mResumeKey, mResumeNameKey, mResumeIndexKey);
         mVideoView.seekTo(0L);
         mVideoView.start();
     }

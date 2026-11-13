@@ -5,60 +5,73 @@
     android:layout_height="match_parent">
 
     <LinearLayout
-        android:layout_width="@dimen/vs_440"
+        android:layout_width="@dimen/vs_460"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:background="@drawable/shape_dialog_bg_main"
         android:orientation="vertical"
-        android:padding="@dimen/vs_30">
+        android:padding="@dimen/vs_28">
 
+        <TextView
+            android:id="@+id/tipTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="操作确认"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="@dimen/ts_16"
+            android:fontFamily="sans-serif-medium"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/tipInfo"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:gravity="center"
-            android:lineSpacingMultiplier="1.25"
+            android:lineSpacingMultiplier="1.3"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_24"
+            android:textSize="@dimen/ts_22"
             tools:text="确定要清空全部收藏吗？" />
 
-
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="@dimen/vs_30"
+            android:layout_marginTop="@dimen/vs_24"
+            android:gravity="center"
             android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/rightBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginRight="@dimen/vs_5"
-                android:background="@drawable/button_dialog_main"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_44"
+                android:layout_weight="1"
+                android:layout_marginRight="@dimen/vs_8"
+                android:background="@drawable/selector_settings_action"
+                android:clickable="true"
                 android:focusable="true"
+                android:nextFocusRight="@id/leftBtn"
                 android:gravity="center"
-                android:padding="@dimen/vs_10"
                 android:text="取消"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_22" />
+                android:textSize="@dimen/ts_20"
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/leftBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginLeft="@dimen/vs_5"
-                android:background="@drawable/button_dialog_main"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_44"
+                android:layout_weight="1"
+                android:layout_marginLeft="@dimen/vs_8"
+                android:background="@drawable/selector_update_primary"
+                android:clickable="true"
                 android:focusable="true"
+                android:nextFocusLeft="@id/rightBtn"
                 android:gravity="center"
-                android:padding="@dimen/vs_10"
                 android:text="确定"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_22" />
+                android:textColor="@color/selector_update_action_text"
+                android:textSize="@dimen/ts_20"
+                android:fontFamily="sans-serif-medium" />
         </LinearLayout>
 
     </LinearLayout>

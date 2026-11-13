@@ -12,6 +12,10 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import com.github.tvbox.osc.callback.EmptyCallback;
 import com.github.tvbox.osc.callback.LoadingCallback;
@@ -56,9 +60,91 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         setContentView(getLayoutResID());
         RemoteKeySound.attach(getWindow(), this);
         com.github.tvbox.osc.util.SeniorMode.apply(findViewById(android.R.id.content));
+        installPluginProxyPanelGuard();
         mContext = this;
         AppManager.getInstance().addActivity(this);
         init();
+    }
+
+    private final ViewTreeObserver.OnGlobalLayoutListener pluginProxyPanelListener = () -> {
+        ViewGroup content = getWindow() != null ? getWindow().findViewById(android.R.id.content) : null;
+        if (content != null) {
+            hideInjectedPluginOverlays(content);
+        }
+    };
+
+    private final ViewGroup.OnHierarchyChangeListener contentHierarchyListener = new ViewGroup.OnHierarchyChangeListener() {
+        @Override
+        public void onChildViewAdded(View parent, View child) {
+            if (isInjectedPluginOverlay(parent, child)) {
+                suppressOverlayView(child);
+            } else if (parent instanceof ViewGroup && isExtraNoIdChild((ViewGroup) parent, child)) {
+                child.post(() -> {
+                    if (isInjectedPluginOverlay(parent, child)) {
+                        suppressOverlayView(child);
+                    }
+                });
+            }
+        }
+
+        @Override
+        public void onChildViewRemoved(View parent, View child) {
+        }
+    };
+
+    private void installPluginProxyPanelGuard() {
+        try {
+            ViewGroup content = getWindow() != null ? getWindow().findViewById(android.R.id.content) : null;
+            if (content == null) return;
+            content.setOnHierarchyChangeListener(contentHierarchyListener);
+            content.getViewTreeObserver().addOnGlobalLayoutListener(pluginProxyPanelListener);
+            hideInjectedPluginOverlays(content);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void hideInjectedPluginOverlays(ViewGroup content) {
+        for (int i = 0; i < content.getChildCount(); i++) {
+            View child = content.getChildAt(i);
+            if (isInjectedPluginOverlay(content, child)) {
+                suppressOverlayView(child);
+            }
+        }
+    }
+
+    private boolean isExtraNoIdChild(ViewGroup parent, View child) {
+        if (child == null || child.getId() != View.NO_ID) return false;
+        if (child instanceof com.kingja.loadsir.core.LoadLayout) return false;
+        return parent.indexOfChild(child) > 0;
+    }
+
+    private boolean isInjectedPluginOverlay(View parent, View child) {
+        if (!(parent instanceof ViewGroup) || !isExtraNoIdChild((ViewGroup) parent, child)) {
+            return false;
+        }
+        return containsDeterminateProgressBar(child);
+    }
+
+    private boolean containsDeterminateProgressBar(View view) {
+        if (view instanceof ProgressBar) {
+            return !((ProgressBar) view).isIndeterminate();
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (containsDeterminateProgressBar(group.getChildAt(i))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void suppressOverlayView(View overlay) {
+        if (overlay.getVisibility() != View.GONE) {
+            overlay.setVisibility(View.GONE);
+        }
+        overlay.setAlpha(0f);
     }
 
     private void applyLandscapeOrientation() {
@@ -180,6 +266,17 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
 
     @Override
     protected void onDestroy() {
+        try {
+            ViewGroup content = getWindow() != null ? getWindow().findViewById(android.R.id.content) : null;
+            if (content != null) {
+                content.setOnHierarchyChangeListener(null);
+                ViewTreeObserver observer = content.getViewTreeObserver();
+                if (observer.isAlive()) {
+                    observer.removeOnGlobalLayoutListener(pluginProxyPanelListener);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
         super.onDestroy();
         AppManager.getInstance().finishActivity(this);
     }

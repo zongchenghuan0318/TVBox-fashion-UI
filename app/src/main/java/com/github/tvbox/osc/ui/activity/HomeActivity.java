@@ -93,6 +93,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private View homeLaunchCover;
     private boolean homeHeroReady;
     private boolean homeConfigReady;
+    private boolean homeSpiderReady;
     private boolean homeResumed;
     private boolean pendingConfigReload;
     private boolean pendingHomeSettingsReload;
@@ -100,8 +101,17 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     private final Runnable preloadGlobalJar = () -> {
         if (canPreloadGlobalJar()) ApiConfig.getInstance().preloadGlobalJar();
     };
+    private final Runnable homeSpiderWaitTimeout = () -> {
+        if (!isFinishing() && !isDestroyed() && !homeSpiderReady) {
+            homeSpiderReady = true;
+            tryDismissHomeLaunchCover();
+        }
+    };
     private final Runnable homeLaunchTimeout = () -> {
-        if (!isFinishing() && !isDestroyed()) hideHomeLaunchCover();
+        if (!isFinishing() && !isDestroyed()) {
+            homeSpiderReady = true;
+            hideHomeLaunchCover();
+        }
     };
     /** 首页入口焦点只校正一次，避免后续分类刷新把用户已经移到卡片区的焦点拉回去 */
     private boolean homeEntryFocusRestored;
@@ -303,18 +313,19 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void tryDismissHomeLaunchCover() {
-        if ((!homeHeroReady || !homeConfigReady)
+        if ((!homeHeroReady || !homeConfigReady || !homeSpiderReady)
                 || homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) {
             return;
         }
         android.util.Log.i("Startup", "cover dismissed; configReady=" + homeConfigReady
-                + " heroReady=" + homeHeroReady);
+                + " heroReady=" + homeHeroReady + " spiderReady=" + homeSpiderReady);
         hideHomeLaunchCover();
     }
 
     private void hideHomeLaunchCover() {
         if (homeLaunchCover == null || homeLaunchCover.getVisibility() != View.VISIBLE) return;
         mHandler.removeCallbacks(homeLaunchTimeout);
+        mHandler.removeCallbacks(homeSpiderWaitTimeout);
         homeLaunchCover.animate().cancel();
         homeLaunchCover.animate()
                 .alpha(0f)
@@ -322,7 +333,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 .withEndAction(() -> {
                     homeLaunchCover.setVisibility(View.GONE);
                     homeLaunchCover.setAlpha(1f);
-                    scheduleGlobalJarPreload();
                 })
                 .start();
     }
@@ -334,7 +344,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void scheduleGlobalJarPreload() {
         mHandler.removeCallbacks(preloadGlobalJar);
-        if (canPreloadGlobalJar()) mHandler.postDelayed(preloadGlobalJar, 3000L);
+        if (canPreloadGlobalJar()) mHandler.postDelayed(preloadGlobalJar, 300L);
     }
 
     @Override
@@ -345,7 +355,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         EventBus.getDefault().register(this);
         initView();
         mHandler.postDelayed(homeLaunchTimeout, 12000L);
-        hideStartupProxyPanel();
         initSortView();
         initTopSortView();
         applyLayoutStyle(Hawk.get(HawkConfig.HOME_LAYOUT_STYLE, HawkConfig.HOME_LAYOUT_DEFAULT));
@@ -358,43 +367,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         mHandler.postDelayed(() -> {
             if (categorySourceIdentity.isEmpty()) requestCategoryMetadata();
         }, 15000);
-    }
-
-    private final android.view.ViewTreeObserver.OnGlobalLayoutListener proxyPanelListener =
-            () -> hideProxyProgress((ViewGroup) getWindow().getDecorView());
-
-    private void hideStartupProxyPanel() {
-        getWindow().getDecorView().getViewTreeObserver().addOnGlobalLayoutListener(proxyPanelListener);
-    }
-
-    private void hideProxyProgress(ViewGroup root) {
-        for (int i = 0; i < root.getChildCount(); i++) {
-            View child = root.getChildAt(i);
-            if (child.getVisibility() != View.VISIBLE) continue;
-            if (child instanceof android.widget.ProgressBar && !((android.widget.ProgressBar) child).isIndeterminate()) {
-                ViewGroup panel = root;
-                while (panel.getHeight() > 0 && panel.getHeight() <= getWindow().getDecorView().getHeight() / 3) {
-                    // The plugin changes its phase text, but always displays a percentage beside the bar.
-                    if (hasProgressPercentage(panel)) {
-                        panel.setVisibility(View.GONE);
-                        break;
-                    }
-                    if (!(panel.getParent() instanceof ViewGroup)) break;
-                    panel = (ViewGroup) panel.getParent();
-                }
-            } else if (child instanceof ViewGroup) {
-                hideProxyProgress((ViewGroup) child);
-            }
-        }
-    }
-
-    private boolean hasProgressPercentage(ViewGroup panel) {
-        for (int i = 0; i < panel.getChildCount(); i++) {
-            View v = panel.getChildAt(i);
-            if (v instanceof TextView && ((TextView) v).getText().toString().trim().matches("[0-9]{1,3}\\s*[%％]")) return true;
-            if (v instanceof ViewGroup && hasProgressPercentage((ViewGroup) v)) return true;
-        }
-        return false;
     }
 
     private void initSortView(){
@@ -1271,11 +1243,24 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     @Override
                     public void run() {
                         if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                        startSpiderPreloadForStartup(generation);
                         initHomeBean();
                     }
                 });
             }
         });
+    }
+
+    private void startSpiderPreloadForStartup(int generation) {
+        mHandler.removeCallbacks(homeSpiderWaitTimeout);
+        // 最长在启动页额外等待 5 秒，防止首次冷下载插件卡死启动流程
+        mHandler.postDelayed(homeSpiderWaitTimeout, 5000L);
+        ApiConfig.getInstance().preloadGlobalJar(() -> runOnUiThread(() -> {
+            if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+            mHandler.removeCallbacks(homeSpiderWaitTimeout);
+            homeSpiderReady = true;
+            tryDismissHomeLaunchCover();
+        }));
     }
 
     private void initHomeBean() {
@@ -1289,7 +1274,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
                     homeConfigReady = true;
                     tryDismissHomeLaunchCover();
-                    scheduleGlobalJarPreload();
                     requestCategoryMetadata();
                     if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
                 });
@@ -1445,6 +1429,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 // 失败后至少要能继续渲染首屏，避免停在“配置未就绪”的遮罩上。
                 if (!isFinishing() && !isDestroyed()) {
                     homeConfigReady = true;
+                    homeSpiderReady = true;
                     tryDismissHomeLaunchCover();
                 }
             } catch (Throwable ignored) {
@@ -1454,8 +1439,10 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     private void prepareHomeReload() {
         mHandler.removeCallbacks(preloadGlobalJar);
+        mHandler.removeCallbacks(homeSpiderWaitTimeout);
         homeLoadGeneration++;
         homeConfigReady = false;
+        homeSpiderReady = false;
         categoryMetadataPending = false;
         categorySourceIdentity = "";
         mSortSignature = "";
@@ -1485,6 +1472,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 .getStringValue(ApiConfig.PRE_KEY_CONFIG);
         if (ApiConfig.getInstance().isPreparedConfiguration(apiUrl, content)) {
             homeConfigReady = true;
+            startSpiderPreloadForStartup(generation);
             tryDismissHomeLaunchCover();
             requestCategoryMetadata();
             if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
@@ -1495,6 +1483,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                 @Override public void success() {
                     runOnUiThread(() -> {
                         if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
+                        startSpiderPreloadForStartup(generation);
                         initHomeBean();
                     });
                 }
@@ -1502,6 +1491,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
                     runOnUiThread(() -> {
                         if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
                         homeConfigReady = true;
+                        homeSpiderReady = true;
                         tryDismissHomeLaunchCover();
                         if (mFirstFragment != null) mFirstFragment.refreshHomeFeed();
                         android.widget.Toast.makeText(HomeActivity.this, message,
@@ -1515,6 +1505,7 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
             runOnUiThread(() -> {
                 if (generation != homeLoadGeneration || isFinishing() || isDestroyed()) return;
                 homeConfigReady = true;
+                homeSpiderReady = true;
                 tryDismissHomeLaunchCover();
             });
         }
@@ -1608,7 +1599,6 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
 
     @Override
     protected void onDestroy() {
-        getWindow().getDecorView().getViewTreeObserver().removeOnGlobalLayoutListener(proxyPanelListener);
         if (sourceViewModel != null) sourceViewModel.cancelSortRequests();
         EventBus.getDefault().unregister(this);
 //        AppManager.getInstance().appExit(0);

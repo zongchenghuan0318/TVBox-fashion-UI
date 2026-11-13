@@ -38,6 +38,8 @@ final class SpiderLoader {
     private boolean refreshRequested;
     private final FutureTask<Void> globalJarTask;
     private final AtomicBoolean globalJarStarted = new AtomicBoolean();
+    private final java.util.List<Runnable> globalJarListeners = new java.util.ArrayList<>();
+    private volatile boolean globalJarCompleted;
 
     SpiderLoader(String spider) {
         globalJarTask = new FutureTask<>(() -> {
@@ -46,14 +48,49 @@ final class SpiderLoader {
             } catch (Throwable th) {
                 // 全局爬虫 jar 加载是后台增强路径：失败只降级为内置 csp.jar 兜底，绝不冒泡成崩溃。
                 L.w("loadGlobalJar 异常 " + th.getMessage());
+            } finally {
+                notifyGlobalJarCompleted();
             }
             return null;
         });
     }
 
+    private void notifyGlobalJarCompleted() {
+        java.util.List<Runnable> snapshot;
+        synchronized (globalJarListeners) {
+            globalJarCompleted = true;
+            snapshot = new java.util.ArrayList<>(globalJarListeners);
+            globalJarListeners.clear();
+        }
+        for (Runnable listener : snapshot) {
+            try {
+                listener.run();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
     void preloadGlobalJar() {
         if (globalJarStarted.compareAndSet(false, true)) {
             new Thread(globalJarTask, "load-global-spider").start();
+        }
+    }
+
+    void preloadGlobalJar(Runnable onReady) {
+        if (onReady == null) {
+            preloadGlobalJar();
+            return;
+        }
+        boolean runNow;
+        synchronized (globalJarListeners) {
+            runNow = globalJarCompleted;
+            if (!runNow) {
+                globalJarListeners.add(onReady);
+            }
+        }
+        preloadGlobalJar();
+        if (runNow) {
+            onReady.run();
         }
     }
 

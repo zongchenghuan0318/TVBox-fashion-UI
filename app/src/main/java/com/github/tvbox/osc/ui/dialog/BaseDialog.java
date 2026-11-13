@@ -4,8 +4,10 @@ import android.app.Dialog;
 import android.content.Context;
 import android.os.Build;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 
+import com.github.tvbox.osc.util.SeniorMode;
 import com.studio.osc.R;
 
 import androidx.annotation.NonNull;
@@ -27,12 +29,31 @@ public class BaseDialog extends Dialog {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
         // 部分厂商 TV 固件 clearFlags 后不会自动把焦点推入弹窗，手动触发一次确保遥控器可操作
         View decorView = getWindow().getDecorView();
+        SeniorMode.apply(decorView);
         decorView.post(() -> {
             View focused = decorView.findFocus();
-            if (focused == null) {
+            if (focused == null && !requestFirstFocusable(decorView)) {
                 decorView.requestFocus();
             }
         });
+    }
+
+    private boolean requestFirstFocusable(View view) {
+        if (view.getVisibility() != View.VISIBLE) {
+            return false;
+        }
+        if (view.isFocusable() && view.isEnabled()) {
+            return view.requestFocus();
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (requestFirstFocusable(group.getChildAt(i))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void hideSysBar() {

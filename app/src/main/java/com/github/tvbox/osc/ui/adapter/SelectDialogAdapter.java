@@ -5,6 +5,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ListAdapter;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.studio.osc.R;
 
 import org.jetbrains.annotations.NotNull;
@@ -12,14 +18,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DiffUtil;
-import androidx.recyclerview.widget.ListAdapter;
-import androidx.recyclerview.widget.RecyclerView;
-
 public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.SelectViewHolder> {
 
-    class SelectViewHolder extends RecyclerView.ViewHolder {
+    static class SelectViewHolder extends RecyclerView.ViewHolder {
         public SelectViewHolder(@NonNull View itemView) {
             super(itemView);
         }
@@ -27,26 +28,28 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
 
     public interface SelectDialogInterface<T> {
         void click(T value, int pos);
+
         String getDisplay(T val);
+
         default String getSubDisplay(T val) {
             return null;
         }
     }
 
-    private ArrayList<T> data = new ArrayList<>();
-
+    private final ArrayList<T> data = new ArrayList<>();
     private int select = 0;
+    private final SelectDialogInterface<T> dialogInterface;
 
-    private SelectDialogInterface dialogInterface = null;
-
-    public SelectDialogAdapter(SelectDialogInterface dialogInterface, DiffUtil.ItemCallback diffCallback) {
+    public SelectDialogAdapter(SelectDialogInterface<T> dialogInterface, DiffUtil.ItemCallback<T> diffCallback) {
         super(diffCallback);
         this.dialogInterface = dialogInterface;
     }
 
     public void setData(List<T> newData, int defaultSelect) {
         data.clear();
-        data.addAll(newData);
+        if (newData != null) {
+            data.addAll(newData);
+        }
         select = defaultSelect;
         notifyDataSetChanged();
     }
@@ -56,56 +59,57 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
         return data.size();
     }
 
-
+    @NonNull
     @Override
-    public SelectDialogAdapter.SelectViewHolder onCreateViewHolder( @NotNull ViewGroup parent, int viewType) {
-        return new SelectDialogAdapter.SelectViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_dialog_select, parent, false));
+    public SelectViewHolder onCreateViewHolder(@NotNull ViewGroup parent, int viewType) {
+        return new SelectViewHolder(LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_dialog_select, parent, false));
     }
 
     @Override
-    public void onBindViewHolder( @NotNull SelectDialogAdapter.SelectViewHolder holder, int position) {
+    public void onBindViewHolder(@NotNull SelectViewHolder holder, int position) {
         T value = data.get(position);
         String name = dialogInterface.getDisplay(value);
         boolean isSelected = position == select;
-        if (isSelected) {
-            name = "√ " + name;
-        }
-        TextView tvName = (TextView) holder.itemView.findViewById(R.id.tvName);
+
+        TextView tvName = holder.itemView.findViewById(R.id.tvName);
         if (tvName != null) {
             tvName.setText(name);
-            tvName.setSelected(isSelected);
             tvName.getPaint().setFakeBoldText(isSelected);
-            tvName.setTextColor(androidx.core.content.ContextCompat.getColor(tvName.getContext(), isSelected ? R.color.color_dialog_option_selected : R.color.color_dialog_option));
+            tvName.setTextColor(ContextCompat.getColor(tvName.getContext(),
+                    isSelected ? R.color.color_dialog_option_selected : R.color.color_dialog_option));
         }
-        TextView tvSub = (TextView) holder.itemView.findViewById(R.id.tvSub);
+
+        TextView tvSub = holder.itemView.findViewById(R.id.tvSub);
         if (tvSub != null) {
             String sub = dialogInterface.getSubDisplay(value);
             if (sub != null && !sub.isEmpty()) {
                 tvSub.setText(sub);
                 tvSub.setVisibility(View.VISIBLE);
-                tvSub.setTextColor(androidx.core.content.ContextCompat.getColor(tvSub.getContext(), isSelected ? R.color.color_dialog_sub_selected : R.color.color_dialog_sub));
+                tvSub.setTextColor(ContextCompat.getColor(tvSub.getContext(),
+                        isSelected ? R.color.color_dialog_sub_selected : R.color.color_dialog_sub));
             } else {
                 tvSub.setVisibility(View.GONE);
             }
         }
+
+        View badge = holder.itemView.findViewById(R.id.tvSelectedBadge);
+        if (badge != null) {
+            badge.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+        }
+
         holder.itemView.setSelected(isSelected);
-        holder.itemView.setContentDescription(name);
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (position != select) {
-                    notifyItemChanged(select);
-                    select = position;
-                    notifyItemChanged(select);
-                }
-                dialogInterface.click(value, position);
+        holder.itemView.setContentDescription(name + (isSelected ? "，当前选中" : ""));
+        holder.itemView.setOnClickListener(v -> {
+            int adapterPos = holder.getAdapterPosition();
+            if (adapterPos < 0 || adapterPos >= data.size()) return;
+            if (adapterPos != select) {
+                int oldSelect = select;
+                select = adapterPos;
+                if (oldSelect >= 0) notifyItemChanged(oldSelect);
+                notifyItemChanged(select);
             }
-        });
-        holder.itemView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                v.setSelected(hasFocus || holder.getAdapterPosition() == select);
-            }
+            dialogInterface.click(data.get(adapterPos), adapterPos);
         });
     }
 }

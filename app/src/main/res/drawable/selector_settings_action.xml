@@ -3,7 +3,7 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_enabled="false">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#0FFFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"
@@ -12,7 +12,7 @@
     </item>
     <item android:state_pressed="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#59FFFFFF" />
             <stroke
                 android:width="@dimen/vs_2"
@@ -21,7 +21,7 @@
     </item>
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#3DFFFFFF" />
             <stroke
                 android:width="@dimen/vs_2"
@@ -30,7 +30,7 @@
     </item>
     <item android:state_selected="true">
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#2BFFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"
@@ -39,7 +39,7 @@
     </item>
     <item>
         <shape>
-            <corners android:radius="@dimen/vs_12" />
+            <corners android:radius="@dimen/vs_10" />
             <solid android:color="#18FFFFFF" />
             <stroke
                 android:width="@dimen/vs_1"

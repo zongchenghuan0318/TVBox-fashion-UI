@@ -2,13 +2,13 @@
 <resources>
     <!-- 设置页颜色与首页共用同一套 token（color_home_base / color_rail_*），保证两页观感一致 -->
     <color name="settings_background">@color/color_home_base</color>
-    <color name="settings_surface">#141820</color>
-    <color name="settings_surface_raised">#1C2029</color>
+    <color name="settings_surface">#17191D</color>
+    <color name="settings_surface_raised">#202329</color>
     <color name="settings_border">@color/color_rail_glass_rim</color>
     <color name="settings_border_strong">@color/color_rail_stroke</color>
     <color name="settings_text">@color/color_rail_text_active</color>
-    <color name="settings_text_secondary">@color/color_rail_text_muted</color>
-    <color name="settings_text_muted">#66FFFFFF</color>
+    <color name="settings_text_secondary">#A8FFFFFF</color>
+    <color name="settings_text_muted">#73FFFFFF</color>
 
     <!-- 分组导航：与首页侧栏同款选中 / 焦点颜色 -->
     <color name="settings_nav_text_selected">@color/color_rail_text_active</color>
@@ -18,6 +18,8 @@
     <color name="settings_focus">#FFFFFFFF</color>
     <color name="settings_success">#34D399</color>
     <color name="settings_warning">#FBBF24</color>
+    <color name="settings_danger">#FF6B6B</color>
+    <color name="settings_info">#E2E8F0</color>
 
     <style name="SettingsButton">
         <item name="android:layout_width">wrap_content</item>

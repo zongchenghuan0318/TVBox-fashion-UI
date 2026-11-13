@@ -1,40 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="center_vertical"
     android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/tvName"
-        android:layout_width="@dimen/vs_0"
+    <LinearLayout
+        android:id="@+id/tvNameRow"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
+        android:minHeight="56mm"
         android:layout_weight="1"
-        android:background="@drawable/selector_settings_action"
+        android:background="@drawable/selector_setting_row_unified"
         android:clickable="true"
-        android:ellipsize="middle"
         android:focusable="true"
-        android:gravity="center"
-        android:padding="@dimen/vs_10"
-        android:singleLine="true"
-        android:text="@{name}"
-        android:textColor="@color/color_FFFFFF"
-        android:textSize="@dimen/ts_26"
-        tools:text="11111111111111" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="18mm"
+        android:paddingRight="16mm"
+        android:paddingTop="10mm"
+        android:paddingBottom="10mm">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:duplicateParentState="true"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:textColor="@color/selector_setting_title"
+            android:textSize="18mm"
+            tools:text="2026-11-12-203015" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10mm"
+            android:text="还原 ›"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="15mm" />
+    </LinearLayout>
 
     <ImageView
         android:id="@+id/tvDel"
-        android:layout_width="@dimen/vs_50"
-        android:layout_height="match_parent"
-        android:layout_marginStart="@dimen/vs_5"
-        android:layout_marginLeft="@dimen/vs_5"
+        android:layout_width="56mm"
+        android:layout_height="56mm"
+        android:layout_marginLeft="8mm"
         android:background="@drawable/selector_settings_action"
         android:clickable="true"
         android:focusable="true"
-        android:padding="@dimen/vs_10"
-        android:src="@drawable/icon_delete"
-        android:visibility="gone" />
+        android:contentDescription="删除备份"
+        android:padding="16mm"
+        android:src="@drawable/icon_delete" />
 
 </LinearLayout>

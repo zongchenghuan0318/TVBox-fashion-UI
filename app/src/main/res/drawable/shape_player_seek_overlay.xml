@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple TV 快进/快退提示卡片：深熏黑磨砂玻璃 + 细微高光切线 -->
+<!-- 统一播放器轻盈磨砂胶囊底板：高通透深灰玻璃 + 极细高光描边，不遮挡视频主体 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="14dp" />
-    <solid android:color="#E611141D" />
+    <corners android:radius="18mm" />
+    <solid android:color="#7812141A" />
     <stroke
-        android:width="1.5dp"
-        android:color="#33FFFFFF" />
+        android:width="1mm"
+        android:color="#29FFFFFF" />
 </shape>

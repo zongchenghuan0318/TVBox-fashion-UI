@@ -26,21 +26,53 @@ public class TipDialog extends BaseDialog {
         leftBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                listener.left();
+                if (listener != null) listener.left();
             }
         });
         rightBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                listener.right();
+                if (listener != null) listener.right();
             }
         });
         setOnCancelListener(new OnCancelListener() {
             @Override
             public void onCancel(DialogInterface dialog) {
-                listener.cancel();
+                if (listener != null) listener.cancel();
             }
         });
+    }
+
+    public static void confirm(Context context, String title, String message, String confirmText, Runnable onConfirm) {
+        final TipDialog[] holder = new TipDialog[1];
+        TipDialog dialog = new TipDialog(context, message, confirmText, "取消", new OnListener() {
+            @Override
+            public void left() {
+                holder[0].dismiss();
+                if (onConfirm != null) onConfirm.run();
+            }
+
+            @Override
+            public void right() {
+                holder[0].dismiss();
+            }
+
+            @Override
+            public void cancel() {
+                holder[0].dismiss();
+            }
+        });
+        holder[0] = dialog;
+        TextView titleView = dialog.findViewById(R.id.tipTitle);
+        if (titleView != null && title != null && !title.isEmpty()) {
+            titleView.setText(title);
+            titleView.setVisibility(View.VISIBLE);
+        }
+        dialog.setOnShowListener(d -> {
+            View cancelBtn = dialog.findViewById(R.id.rightBtn);
+            if (cancelBtn != null) cancelBtn.requestFocus();
+        });
+        dialog.show();
     }
 
     public interface OnListener {

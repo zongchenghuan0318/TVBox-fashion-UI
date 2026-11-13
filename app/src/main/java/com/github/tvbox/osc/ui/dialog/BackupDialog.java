@@ -1,14 +1,15 @@
 package com.github.tvbox.osc.ui.dialog;
 
-import com.lcstudio.commonsurport.L;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Environment;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.chad.library.adapter.base.BaseQuickAdapter;
+import androidx.annotation.NonNull;
+
 import com.github.tvbox.osc.base.App;
 import com.github.tvbox.osc.data.AppDataManager;
 import com.github.tvbox.osc.ui.adapter.BackupAdapter;
@@ -16,6 +17,7 @@ import com.github.tvbox.osc.util.FileUtils;
 import com.hjq.permissions.OnPermissionCallback;
 import com.hjq.permissions.Permission;
 import com.hjq.permissions.XXPermissions;
+import com.lcstudio.commonsurport.L;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.studio.osc.R;
 
@@ -30,78 +32,91 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-
-import androidx.annotation.NonNull;
+import java.util.Locale;
 
 public class BackupDialog extends BaseDialog {
+    private final BackupAdapter adapter;
+    private final TvRecyclerView listView;
+    private final View emptyView;
+    private final TextView statusView;
+    private final TextView permissionBtn;
 
     public BackupDialog(@NonNull @NotNull Context context) {
         super(context);
         setContentView(R.layout.dialog_backup);
-        TvRecyclerView tvRecyclerView = ((TvRecyclerView) findViewById(R.id.list));
-        BackupAdapter adapter = new BackupAdapter();
-        tvRecyclerView.setAdapter(adapter);
-        adapter.setNewData(allBackup());
-        adapter.setOnItemChildClickListener(new BaseQuickAdapter.OnItemChildClickListener() {
-            @Override
-            public void onItemChildClick(BaseQuickAdapter adapter, View view, int position) {
-                if (view.getId() == R.id.tvName) {
-                    String target = (String) adapter.getItem(position);
-                    TipDialog tipDialog = new TipDialog(getContext(), "确定要从备份 [" + target + "] 恢复数据吗？当前数据将被覆盖。", "确定恢复", "取消", new TipDialog.OnListener() {
-                        @Override
-                        public void left() {
-                            restore(target);
-                        }
+        listView = findViewById(R.id.list);
+        emptyView = findViewById(R.id.tvBackupEmpty);
+        statusView = findViewById(R.id.tvBackupStatus);
+        permissionBtn = findViewById(R.id.storagePermission);
 
-                        @Override
-                        public void right() {
-                        }
+        adapter = new BackupAdapter();
+        listView.setAdapter(adapter);
+        refreshBackups();
 
-                        @Override
-                        public void cancel() {
-                        }
-                    });
-                    tipDialog.show();
-                }
+        adapter.setOnItemChildClickListener((adp, view, position) -> {
+            String target = (String) adp.getItem(position);
+            if (target == null) return;
+            if (view.getId() == R.id.tvNameRow) {
+                TipDialog.confirm(getContext(), "确认还原备份",
+                        "确定要从备份 [" + target + "] 恢复数据吗？\n当前配置与记录将被覆盖。",
+                        "确定恢复", () -> restore(target));
+            } else if (view.getId() == R.id.tvDel) {
+                TipDialog.confirm(getContext(), "删除本地备份",
+                        "确定要删除备份 [" + target + "] 吗？删除后无法找回。",
+                        "删除", () -> {
+                            deleteBackupDir(target);
+                            refreshBackups();
+                        });
             }
         });
-        findViewById(R.id.backupNow).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                backup();
-                adapter.setNewData(allBackup());
-            }
+
+        findViewById(R.id.backupNow).setOnClickListener(v -> {
+            backup();
+            refreshBackups();
         });
-        findViewById(R.id.storagePermission).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (XXPermissions.isGranted(getContext(), Permission.Group.STORAGE)) {
-                    Toast.makeText(getContext(), "已获得存储权限", Toast.LENGTH_SHORT).show();
-                } else {
-                    XXPermissions.with(getContext())
-                            .permission(Permission.Group.STORAGE)
-                            .request(new OnPermissionCallback() {
-                                @Override
-                                public void onGranted(List<String> permissions, boolean all) {
-                                    if (all) {
-                                        adapter.setNewData(allBackup());
-                                        Toast.makeText(getContext(), "已获得存储权限", Toast.LENGTH_SHORT).show();
-                                    }
+
+        findViewById(R.id.btnBackupClose).setOnClickListener(v -> dismiss());
+
+        permissionBtn.setOnClickListener(v -> {
+            if (XXPermissions.isGranted(getContext(), Permission.Group.STORAGE)) {
+                Toast.makeText(getContext(), "已获得存储权限", Toast.LENGTH_SHORT).show();
+            } else {
+                XXPermissions.with(getContext())
+                        .permission(Permission.Group.STORAGE)
+                        .request(new OnPermissionCallback() {
+                            @Override
+                            public void onGranted(List<String> permissions, boolean all) {
+                                if (all) {
+                                    refreshBackups();
+                                    Toast.makeText(getContext(), "已获得存储权限", Toast.LENGTH_SHORT).show();
                                 }
+                            }
 
-                                @Override
-                                public void onDenied(List<String> permissions, boolean never) {
-                                    if (never) {
-                                        Toast.makeText(getContext(), "获取存储权限失败,请在系统设置中开启", Toast.LENGTH_SHORT).show();
-                                        XXPermissions.startPermissionActivity((Activity) getContext(), permissions);
-                                    } else {
-                                        Toast.makeText(getContext(), "获取存储权限失败", Toast.LENGTH_SHORT).show();
-                                    }
+                            @Override
+                            public void onDenied(List<String> permissions, boolean never) {
+                                if (never && getContext() instanceof Activity) {
+                                    Toast.makeText(getContext(), "获取存储权限失败，请在系统设置中开启", Toast.LENGTH_SHORT).show();
+                                    XXPermissions.startPermissionActivity((Activity) getContext(), permissions);
+                                } else {
+                                    Toast.makeText(getContext(), "获取存储权限失败", Toast.LENGTH_SHORT).show();
                                 }
-                            });
-                }
+                            }
+                        });
             }
         });
+    }
+
+    private void refreshBackups() {
+        List<String> backups = allBackup();
+        adapter.setNewData(backups);
+        boolean empty = backups.isEmpty();
+        listView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
+
+        boolean granted = XXPermissions.isGranted(getContext(), Permission.Group.STORAGE);
+        permissionBtn.setText(granted ? "存储权限已授权" : "授权存储权限");
+        statusView.setText((granted ? "存储权限：已授权" : "存储权限：未授权")
+                + " · " + (empty ? "暂无本地备份" : "共 " + backups.size() + " 份本地备份"));
     }
 
     @Override
@@ -110,6 +125,23 @@ public class BackupDialog extends BaseDialog {
         View backupNow = findViewById(R.id.backupNow);
         if (backupNow != null) {
             backupNow.post(backupNow::requestFocus);
+        }
+    }
+
+    public static int getBackupCount() {
+        try {
+            String root = Environment.getExternalStorageDirectory().getAbsolutePath();
+            File dir = new File(root + "/tvbox_backup/");
+            if (!dir.exists()) return 0;
+            File[] files = dir.listFiles();
+            if (files == null) return -1;
+            int count = 0;
+            for (File f : files) {
+                if (f.isDirectory()) count++;
+            }
+            return count;
+        } catch (Throwable ignored) {
+            return -1;
         }
     }
 
@@ -133,7 +165,6 @@ public class BackupDialog extends BaseDialog {
                 }
             });
             for (File f : list) {
-                // 旧备份不再自动删除：备份是用户数据，打开弹窗时静默清理会造成不可恢复的丢失
                 if (f.isDirectory()) {
                     result.add(f.getName());
                 }
@@ -142,6 +173,20 @@ public class BackupDialog extends BaseDialog {
             L.e(e);
         }
         return result;
+    }
+
+    private void deleteBackupDir(String dir) {
+        try {
+            String root = Environment.getExternalStorageDirectory().getAbsolutePath();
+            File target = new File(root + "/tvbox_backup/" + dir);
+            if (target.exists()) {
+                FileUtils.recursiveDelete(target);
+                Toast.makeText(getContext(), "已删除备份 " + dir, Toast.LENGTH_SHORT).show();
+            }
+        } catch (Throwable e) {
+            L.e(e);
+            Toast.makeText(getContext(), "删除备份失败", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /** 恢复数据后重启应用，让内存中的缓存（Hawk 等）重新从存储读取 */
@@ -179,22 +224,19 @@ public class BackupDialog extends BaseDialog {
                                 sharedPreferences.edit().putString(key, value).commit();
                             }
                         }
-                        new androidx.appcompat.app.AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(
-                                getContext(), R.style.DarkAlertDialog))
-                                .setTitle("恢复成功")
-                                .setMessage("需要重启应用后数据才会完全生效，现在重启吗？")
-                                .setPositiveButton("立即重启", (d, w) -> restartApp())
-                                .setNegativeButton("稍后", null)
-                                .show();
+                        TipDialog.confirm(getContext(), "恢复成功",
+                                "备份数据已恢复，需要重启应用后完全生效，现在重启吗？",
+                                "立即重启", this::restartApp);
                     } else {
-                       // Toast.makeText(getContext(), "Hawk恢复失败!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "配置文件读取失败", Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    //Toast.makeText(getContext(), "DB文件恢复失败!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "数据库恢复失败", Toast.LENGTH_SHORT).show();
                 }
             }
         } catch (Throwable e) {
             L.e(e);
+            Toast.makeText(getContext(), "恢复失败", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -202,10 +244,11 @@ public class BackupDialog extends BaseDialog {
         try {
             String root = Environment.getExternalStorageDirectory().getAbsolutePath();
             File file = new File(root + "/tvbox_backup/");
-            if (!file.exists())
+            if (!file.exists()) {
                 file.mkdirs();
+            }
             Date now = new Date();
-            SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd-HHmmss");
+            SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd-HHmmss", Locale.US);
             File backup = new File(file, f.format(now));
             backup.mkdirs();
             File db = new File(backup, "sqlite");
@@ -221,17 +264,17 @@ public class BackupDialog extends BaseDialog {
                 }
                 if (!FileUtils.writeSimple(jsonObject.toString().getBytes("UTF-8"), new File(backup, "hawk"))) {
                     backup.delete();
-                    Toast.makeText(getContext(), "备份Hawk失败!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "备份配置失败", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(getContext(), "备份成功!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "备份成功", Toast.LENGTH_SHORT).show();
                 }
             } else {
-                Toast.makeText(getContext(), "DB文件不存在!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "数据库不存在，备份失败", Toast.LENGTH_SHORT).show();
                 backup.delete();
             }
         } catch (Throwable e) {
             L.e(e);
-            Toast.makeText(getContext(), "备份失败!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "备份失败，请检查存储权限", Toast.LENGTH_SHORT).show();
         }
     }
 }

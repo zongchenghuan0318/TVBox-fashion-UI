@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="820mm"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/shape_dialog_bg_main"
+        android:orientation="vertical"
+        android:paddingLeft="28mm"
+        android:paddingTop="22mm"
+        android:paddingRight="28mm"
+        android:paddingBottom="20mm">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="选择首页布局风格"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="24mm"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4mm"
+            android:text="查看下方空间示意图快速对比 · 选中后返回首页立即生效"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="15mm" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:layout_marginTop="14mm"
+            android:layout_marginBottom="14mm"
+            android:background="#1AFFFFFF" />
+
+        <!-- 第一行：极简画报沉浸 / Apple TV 顶栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/cardImmersive"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginRight="8mm"
+                android:background="@drawable/selector_setting_row_unified"
+                android:clickable="true"
+                android:focusable="true"
+                android:nextFocusRight="@+id/cardAppleTv"
+                android:nextFocusDown="@+id/cardDrawer"
+                android:orientation="vertical"
+                android:padding="14mm"
+                android:stateListAnimator="@animator/setting_row_focus">
+
+                <com.github.tvbox.osc.ui.view.HomeLayoutPreviewView
+                    android:id="@+id/previewImmersive"
+                    android:layout_width="match_parent"
+                    android:layout_height="120mm" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:duplicateParentState="true"
+                        android:text="极简画报沉浸"
+                        android:textColor="@color/selector_setting_title"
+                        android:textSize="18mm"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:id="@+id/badgeImmersive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shape_settings_inset"
+                        android:paddingLeft="8mm"
+                        android:paddingRight="8mm"
+                        android:paddingTop="3mm"
+                        android:paddingBottom="3mm"
+                        android:text="✓ 当前"
+                        android:textColor="@color/settings_success"
+                        android:textSize="13mm"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4mm"
+                    android:lineSpacingExtra="2mm"
+                    android:maxLines="2"
+                    android:text="全屏超大画报无干扰，静置自动轮播，按上键呼出顶栏"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13mm" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cardAppleTv"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="8mm"
+                android:background="@drawable/selector_setting_row_unified"
+                android:clickable="true"
+                android:focusable="true"
+                android:nextFocusLeft="@+id/cardImmersive"
+                android:nextFocusDown="@+id/cardSidebar"
+                android:orientation="vertical"
+                android:padding="14mm"
+                android:stateListAnimator="@animator/setting_row_focus">
+
+                <com.github.tvbox.osc.ui.view.HomeLayoutPreviewView
+                    android:id="@+id/previewAppleTv"
+                    android:layout_width="match_parent"
+                    android:layout_height="120mm" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:duplicateParentState="true"
+                        android:text="Apple TV 顶栏"
+                        android:textColor="@color/selector_setting_title"
+                        android:textSize="18mm"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:id="@+id/badgeAppleTv"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shape_settings_inset"
+                        android:paddingLeft="8mm"
+                        android:paddingRight="8mm"
+                        android:paddingTop="3mm"
+                        android:paddingBottom="3mm"
+                        android:text="✓ 当前"
+                        android:textColor="@color/settings_success"
+                        android:textSize="13mm"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4mm"
+                    android:lineSpacingExtra="2mm"
+                    android:maxLines="2"
+                    android:text="顶部磨砂玻璃导航常驻，宽幅画报与平滑视差聚焦"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13mm" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 第二行：Netflix 动态抽屉 / 经典侧边栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12mm"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/cardDrawer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginRight="8mm"
+                android:background="@drawable/selector_setting_row_unified"
+                android:clickable="true"
+                android:focusable="true"
+                android:nextFocusUp="@+id/cardImmersive"
+                android:nextFocusRight="@+id/cardSidebar"
+                android:orientation="vertical"
+                android:padding="14mm"
+                android:stateListAnimator="@animator/setting_row_focus">
+
+                <com.github.tvbox.osc.ui.view.HomeLayoutPreviewView
+                    android:id="@+id/previewDrawer"
+                    android:layout_width="match_parent"
+                    android:layout_height="120mm" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:duplicateParentState="true"
+                        android:text="Netflix 动态抽屉"
+                        android:textColor="@color/selector_setting_title"
+                        android:textSize="18mm"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:id="@+id/badgeDrawer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shape_settings_inset"
+                        android:paddingLeft="8mm"
+                        android:paddingRight="8mm"
+                        android:paddingTop="3mm"
+                        android:paddingBottom="3mm"
+                        android:text="✓ 当前"
+                        android:textColor="@color/settings_success"
+                        android:textSize="13mm"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4mm"
+                    android:lineSpacingExtra="2mm"
+                    android:maxLines="2"
+                    android:text="左侧悬浮抽屉按需滑出，兼顾大屏视野与快速切分类"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13mm" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cardSidebar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="8mm"
+                android:background="@drawable/selector_setting_row_unified"
+                android:clickable="true"
+                android:focusable="true"
+                android:nextFocusUp="@+id/cardAppleTv"
+                android:nextFocusLeft="@+id/cardDrawer"
+                android:orientation="vertical"
+                android:padding="14mm"
+                android:stateListAnimator="@animator/setting_row_focus">
+
+                <com.github.tvbox.osc.ui.view.HomeLayoutPreviewView
+                    android:id="@+id/previewSidebar"
+                    android:layout_width="match_parent"
+                    android:layout_height="120mm" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:duplicateParentState="true"
+                        android:text="经典侧边栏"
+                        android:textColor="@color/selector_setting_title"
+                        android:textSize="18mm"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:id="@+id/badgeSidebar"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shape_settings_inset"
+                        android:paddingLeft="8mm"
+                        android:paddingRight="8mm"
+                        android:paddingTop="3mm"
+                        android:paddingBottom="3mm"
+                        android:text="✓ 当前"
+                        android:textColor="@color/settings_success"
+                        android:textSize="13mm"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4mm"
+                    android:lineSpacingExtra="2mm"
+                    android:maxLines="2"
+                    android:text="左侧多级导航常驻，传统电视遥控器直觉操作"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13mm" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12mm"
+            android:text="方向键选择布局 · 确定键立即切换 · 返回键取消"
+            android:textColor="@color/settings_text_muted"
+            android:textSize="13mm" />
+    </LinearLayout>
+</FrameLayout>

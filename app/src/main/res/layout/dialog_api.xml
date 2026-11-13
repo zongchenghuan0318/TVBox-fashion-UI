@@ -6,11 +6,11 @@
     android:layout_gravity="center"
     android:background="@drawable/shape_dialog_bg_main"
     android:orientation="horizontal"
-    android:padding="@dimen/vs_30">
+    android:padding="@dimen/vs_28">
 
     <!-- 左：当前配置与二维码 -->
     <LinearLayout
-        android:layout_width="@dimen/vs_320"
+        android:layout_width="@dimen/vs_310"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
@@ -19,22 +19,22 @@
             android:layout_height="wrap_content"
             android:text="配置管理"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_26"
-            android:textStyle="bold" />
+            android:textSize="@dimen/ts_24"
+            android:fontFamily="sans-serif-medium" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_6"
-            android:text="扫码在手机上打开当前配置"
-            android:textColor="@color/color_6CFFFFFF"
-            android:textSize="@dimen/ts_18" />
+            android:layout_marginTop="@dimen/vs_4"
+            android:text="微信或浏览器扫码在手机端推送配置"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="15mm" />
 
         <FrameLayout
-            android:layout_width="@dimen/vs_260"
-            android:layout_height="@dimen/vs_260"
+            android:layout_width="@dimen/vs_250"
+            android:layout_height="@dimen/vs_250"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="@dimen/vs_16"
+            android:layout_marginTop="18mm"
             android:background="@drawable/shape_qr_container"
             android:padding="@dimen/vs_10">
 
@@ -58,8 +58,8 @@
             android:paddingRight="@dimen/vs_12"
             android:paddingBottom="@dimen/vs_8"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_18"
-            tools:text="1111111111111111111111111" />
+            android:textSize="@dimen/ts_16"
+            tools:text="http://192.168.1.10:9978" />
     </LinearLayout>
 
     <!-- 柔和垂直微隔离 -->
@@ -72,103 +72,117 @@
 
     <!-- 右：点播源 -->
     <LinearLayout
-        android:layout_width="@dimen/vs_520"
+        android:layout_width="540mm"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="选择你的点播源"
+            android:text="点播配置源"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_26"
-            android:textStyle="bold" />
+            android:textSize="@dimen/ts_24"
+            android:fontFamily="sans-serif-medium" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_6"
-            android:layout_marginBottom="@dimen/vs_15"
-            android:text="添加或切换配置地址，应用前会自动检查可用性"
-            android:textColor="@color/color_6CFFFFFF"
-            android:textSize="@dimen/ts_20" />
+            android:layout_marginTop="@dimen/vs_4"
+            android:layout_marginBottom="@dimen/vs_14"
+            android:text="输入或从配置库选择地址，应用前自动检查可用性"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="@dimen/ts_16" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <EditText
                 android:id="@+id/ed_input"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_40"
+                android:layout_height="@dimen/vs_44"
                 android:layout_weight="1"
                 android:background="@drawable/input_dialog_api_input"
                 android:gravity="center_vertical"
                 android:hint="输入配置源地址"
                 android:inputType="text"
                 android:maxLines="1"
-                android:paddingLeft="@dimen/vs_12"
-                android:paddingRight="@dimen/vs_12"
+                android:paddingLeft="@dimen/vs_14"
+                android:paddingRight="@dimen/vs_14"
                 android:textColor="@color/color_FFFFFF"
-                android:textColorHint="@color/color_6CFFFFFF"
-                android:textSize="@dimen/ts_22" />
+                android:textColorHint="@color/settings_text_muted"
+                android:textSize="@dimen/ts_18" />
 
             <TextView
-                android:id="@+id/tv_test_http"
+                android:id="@+id/btn_clear_input"
                 android:layout_width="wrap_content"
-                android:layout_height="@dimen/vs_40"
+                android:layout_height="@dimen/vs_44"
                 android:layout_marginLeft="@dimen/vs_8"
                 android:background="@drawable/selector_settings_action"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
-                android:minWidth="@dimen/vs_80"
-                android:paddingLeft="@dimen/vs_15"
-                android:paddingRight="@dimen/vs_15"
-                android:text="测试连接"
+                android:paddingLeft="@dimen/vs_14"
+                android:paddingRight="@dimen/vs_14"
+                android:text="清空"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_20" />
-
-            <TextView
-                android:id="@+id/file_open_tv"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/vs_40"
-                android:layout_marginLeft="@dimen/vs_8"
-                android:background="@drawable/selector_settings_action"
-                android:focusable="true"
-                android:gravity="center"
-                android:minWidth="@dimen/vs_80"
-                android:paddingLeft="@dimen/vs_15"
-                android:paddingRight="@dimen/vs_15"
-                android:text="本地文件"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="17mm" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_12"
+            android:layout_marginTop="@dimen/vs_10"
             android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_test_http"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_44"
+                android:layout_weight="1"
+                android:layout_marginRight="@dimen/vs_8"
+                android:background="@drawable/selector_settings_action"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="测试连接"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="17mm" />
+
+            <TextView
+                android:id="@+id/file_open_tv"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_44"
+                android:layout_weight="1"
+                android:layout_marginRight="@dimen/vs_8"
+                android:background="@drawable/selector_settings_action"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="本地文件"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="17mm" />
 
             <TextView
                 android:id="@+id/apiHistory"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_40"
-                android:layout_marginRight="@dimen/vs_8"
+                android:layout_height="@dimen/vs_44"
                 android:layout_weight="1"
+                android:layout_marginRight="@dimen/vs_8"
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="配置库"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="17mm" />
 
             <TextView
                 android:id="@+id/apiSave"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_40"
+                android:layout_height="@dimen/vs_44"
                 android:layout_weight="1"
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
@@ -176,56 +190,62 @@
                 android:gravity="center"
                 android:text="收藏地址"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="17mm" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/tvVerifyStatus"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="@dimen/vs_15"
+            android:layout_marginTop="@dimen/vs_14"
             android:layout_weight="1"
-            android:background="@drawable/shape_edit_bg"
+            android:background="@drawable/shape_settings_inset"
             android:gravity="center_vertical"
+            android:lineSpacingExtra="3mm"
             android:maxLines="3"
-            android:paddingLeft="@dimen/vs_20"
-            android:paddingRight="@dimen/vs_20"
-            android:text="输入或选择配置源地址，应用前会自动检查可用性"
-            android:textColor="@color/color_6CFFFFFF"
-            android:textSize="@dimen/ts_20"
+            android:paddingLeft="18mm"
+            android:paddingRight="18mm"
+            android:text="提示：支持在线 JSON 配置或本地文件，可先点击「测试连接」"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="17mm"
             android:visibility="visible"
             tools:text="✓ 配置源可用" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_15"
+            android:layout_marginTop="@dimen/vs_14"
             android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/storagePermission"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_40"
+                android:layout_height="@dimen/vs_44"
                 android:layout_marginRight="@dimen/vs_8"
                 android:layout_weight="1"
                 android:background="@drawable/selector_settings_action"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="取消"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_22" />
+                android:textSize="@dimen/ts_18"
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/inputSubmit"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_40"
-                android:layout_weight="1"
-                android:background="@drawable/selector_settings_action"
+                android:layout_height="@dimen/vs_44"
+                android:layout_marginLeft="@dimen/vs_8"
+                android:layout_weight="1.4"
+                android:background="@drawable/selector_update_primary"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
-                android:text="确定"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_22" />
+                android:text="校验并应用"
+                android:textColor="@color/selector_update_action_text"
+                android:textSize="@dimen/ts_18"
+                android:fontFamily="sans-serif-medium" />
         </LinearLayout>
 
     </LinearLayout>

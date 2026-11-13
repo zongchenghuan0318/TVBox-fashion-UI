@@ -12,12 +12,12 @@
         android:layout_gravity="right"
         android:background="@drawable/shape_player_episode_panel"
         android:orientation="vertical"
-        android:paddingLeft="@dimen/vs_28"
-        android:paddingTop="@dimen/vs_30"
-        android:paddingRight="@dimen/vs_24"
-        android:paddingBottom="@dimen/vs_20">
+        android:paddingLeft="24mm"
+        android:paddingTop="22mm"
+        android:paddingRight="22mm"
+        android:paddingBottom="16mm">
 
-        <!-- 标题：选集 + 总集数 -->
+        <!-- 标题栏：选集 + 集数 + 正序/倒序 + 关闭 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -29,75 +29,115 @@
                 android:layout_height="wrap_content"
                 android:text="选集"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_34"
-                android:textStyle="bold" />
+                android:textSize="24mm"
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/episodeCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_12"
-                android:background="@drawable/shape_player_episode_count_pill"
-                android:paddingLeft="@dimen/vs_10"
-                android:paddingTop="@dimen/vs_3"
-                android:paddingRight="@dimen/vs_10"
-                android:paddingBottom="@dimen/vs_3"
+                android:layout_marginLeft="10mm"
+                android:background="@drawable/shape_settings_inset"
+                android:paddingLeft="10mm"
+                android:paddingTop="3mm"
+                android:paddingRight="10mm"
+                android:paddingBottom="3mm"
                 android:singleLine="true"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_16"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="13mm"
                 tools:text="共 48 集" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1mm"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/btnEpisodeOrder"
+                android:layout_width="wrap_content"
+                android:layout_height="36mm"
+                android:background="@drawable/selector_settings_action"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingLeft="12mm"
+                android:paddingRight="12mm"
+                android:text="正序"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="14mm"
+                android:nextFocusRight="@+id/btnEpisodeClose"
+                android:nextFocusDown="@+id/episodeGrid" />
+
+            <TextView
+                android:id="@+id/btnEpisodeClose"
+                android:layout_width="36mm"
+                android:layout_height="36mm"
+                android:layout_marginLeft="8mm"
+                android:background="@drawable/selector_settings_control"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="15mm"
+                android:contentDescription="关闭选集"
+                android:nextFocusLeft="@+id/btnEpisodeOrder"
+                android:nextFocusDown="@+id/episodeGrid" />
         </LinearLayout>
 
-        <!-- 当前播放 -->
+        <!-- 当前播放状态 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_10"
+            android:layout_marginTop="8mm"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <View
-                android:layout_width="@dimen/vs_6"
-                android:layout_height="@dimen/vs_6"
-                android:background="@drawable/shape_player_episode_dot" />
+                android:layout_width="6mm"
+                android:layout_height="6mm"
+                android:background="@drawable/shape_player_episode_accent_bar" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_8"
+                android:layout_marginLeft="8mm"
                 android:text="正在播放"
-                android:textColor="@color/color_66FFFFFF"
-                android:textSize="@dimen/ts_20" />
+                android:textColor="@color/settings_text_muted"
+                android:textSize="15mm" />
 
             <TextView
                 android:id="@+id/episodeCurrent"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_8"
+                android:layout_marginLeft="8mm"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:singleLine="true"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="15mm"
+                android:fontFamily="sans-serif-medium"
                 tools:text="第 5 集" />
         </LinearLayout>
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_1"
-            android:layout_marginTop="@dimen/vs_16"
-            android:layout_marginBottom="@dimen/vs_10"
+            android:layout_height="1mm"
+            android:layout_marginTop="12mm"
+            android:layout_marginBottom="10mm"
             android:background="#1AFFFFFF" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/episodeRangeRV"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_48"
-            android:layout_marginBottom="@dimen/vs_8"
+            android:layout_height="40mm"
+            android:layout_marginBottom="8mm"
             android:clipChildren="false"
             android:clipToPadding="false"
+            android:nextFocusUp="@+id/btnEpisodeOrder"
+            android:nextFocusDown="@+id/episodeGrid"
             android:visibility="gone"
-            app:tv_horizontalSpacingWithMargins="@dimen/vs_8"
+            app:tv_horizontalSpacingWithMargins="8mm"
             tools:visibility="visible" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
@@ -107,17 +147,17 @@
             android:layout_weight="1"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:paddingTop="@dimen/vs_6"
-            android:paddingBottom="@dimen/vs_6"
-            app:tv_horizontalSpacingWithMargins="@dimen/vs_8"
-            app:tv_verticalSpacingWithMargins="@dimen/vs_8" />
+            android:paddingTop="4mm"
+            android:paddingBottom="6mm"
+            app:tv_horizontalSpacingWithMargins="8mm"
+            app:tv_verticalSpacingWithMargins="8mm" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_12"
-            android:text="方向键选择 · 确定播放 · 返回关闭"
-            android:textColor="@color/color_66FFFFFF"
-            android:textSize="@dimen/ts_16" />
+            android:layout_marginTop="8mm"
+            android:text="方向键选集 · 确定立即播放 · 返回键关闭"
+            android:textColor="@color/settings_text_muted"
+            android:textSize="13mm" />
     </LinearLayout>
 </FrameLayout>

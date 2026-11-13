@@ -31,7 +31,9 @@ import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchHistoryAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchResultAdapter;
 import com.github.tvbox.osc.util.PosterPreloader;
+import com.github.tvbox.osc.ui.dialog.FolderDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
+import com.github.tvbox.osc.ui.dialog.TipDialog;
 import com.github.tvbox.osc.ui.tv.widget.SearchKeyboard;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -82,6 +84,10 @@ public class SearchActivity extends BaseActivity {
     private boolean folderMode;
     private int folderRequestId = -1;
     private View llLayout;
+    private View llSearchLeftPanel;
+    private View llFolderHeader;
+    private TextView tvFolderModeTitle;
+    private TextView tvFolderModeSubtitle;
     private LinearLayout llWord;
     private LinearLayout llClearHistory;
     private TextView tvHistoryHint;
@@ -91,7 +97,9 @@ public class SearchActivity extends BaseActivity {
     private SourceViewModel sourceViewModel;
     private EditText etSearch;
     private TextView tvSearch;
+    private View llSearchStatusBar;
     private TextView tvSearchProgress;
+    private View btnManageSearchSourcesTop;
     private TextView tvClear;
     private SearchKeyboard keyboard;
     private SearchResultAdapter searchResultAdapter;
@@ -106,6 +114,7 @@ public class SearchActivity extends BaseActivity {
     private final ExecutorService resultExecutor = Executors.newSingleThreadExecutor();
     private final List<Movie.Video> pendingResults = new ArrayList<>();
     private final Map<String, Integer> sourceOrder = new HashMap<>();
+    private static final Set<String> SESSION_SLOW_SOURCES = Collections.synchronizedSet(new HashSet<>());
     private boolean resultMergeRunning;
     private boolean mergeScheduled;
     private int resultGeneration;
@@ -128,10 +137,10 @@ public class SearchActivity extends BaseActivity {
     private boolean suppressSuggestionWatcher;
     private static final long SUGGESTION_DEBOUNCE_MS = 250L;
     private static final int MAX_SEARCH_HISTORY = 20;
-    private static final long SEARCH_TIMEOUT_MS = 45000L;
-    private static final int MAX_SOURCE_ATTEMPTS = 3;
-    private static final long SOURCE_RETRY_DELAY_MS = 2500L;
-    private static final long RESULT_MERGE_DELAY_MS = 500L;
+    private static final long SEARCH_TIMEOUT_MS = 16000L;
+    private static final int MAX_SOURCE_ATTEMPTS = 2;
+    private static final long SOURCE_RETRY_DELAY_MS = 2000L;
+    private static final long RESULT_MERGE_DELAY_MS = 280L;
     private static final int MAX_SOURCE_RESULTS = 30;
     private static final int MAX_TOTAL_RESULTS = 200;
     private static final Pattern AGGREGATE_NOTE = Pattern.compile("(搜索|结果|资源)\\s*有?\\s*\\d+\\s*条");
@@ -139,13 +148,14 @@ public class SearchActivity extends BaseActivity {
         @Override
         public void run() {
             if (!searchFinished && searchResultAdapter != null) {
+                for (SiteBean site : activeSearchSites) {
+                    if (!respondedSourceKeys.contains(site.getKey())) {
+                        SESSION_SLOW_SOURCES.add(site.getKey());
+                    }
+                }
                 beginRetryPhase();
                 updateSearchProgress(true);
-                if (!searchResultAdapter.getData().isEmpty() && completedSearchSources < searchSourceCount) {
-                    Toast.makeText(SearchActivity.this, "首轮搜索完成，失败来源将在后台重试", Toast.LENGTH_SHORT).show();
-                }
             }
-
         }
     };
 
@@ -157,9 +167,8 @@ public class SearchActivity extends BaseActivity {
     @Override
     protected void init() {
         spDataUtil = new SPDataUtil(SearchActivity.this);
-        // 扩大到 12 线程：避免多源并发时慢速源把所有槽位占满，饿死后续高速源
         int cores = Runtime.getRuntime().availableProcessors();
-        mExecutorService = Executors.newFixedThreadPool(Math.min(12, Math.max(8, cores * 2)));
+        mExecutorService = Executors.newFixedThreadPool(Math.min(16, Math.max(10, cores * 2)));
         initView();
         initViewModel();
         initData();
@@ -184,11 +193,21 @@ public class SearchActivity extends BaseActivity {
             backTv.setOnClickListener(v -> finish());
         }
         llLayout = findViewById(R.id.llLayout);
+        llSearchLeftPanel = findViewById(R.id.llSearchLeftPanel);
+        llFolderHeader = findViewById(R.id.llFolderHeader);
+        tvFolderModeTitle = findViewById(R.id.tvFolderModeTitle);
+        tvFolderModeSubtitle = findViewById(R.id.tvFolderModeSubtitle);
+        View btnFolderModeBack = findViewById(R.id.btnFolderModeBack);
+        if (btnFolderModeBack != null) {
+            btnFolderModeBack.setOnClickListener(v -> finish());
+        }
         llWord = findViewById(R.id.llWord);
         etSearch = findViewById(R.id.etSearch);
         etSearch.setOnClickListener(v -> showSoftKeyboard(etSearch));
         tvSearch = findViewById(R.id.tvSearch);
+        llSearchStatusBar = findViewById(R.id.llSearchStatusBar);
         tvSearchProgress = findViewById(R.id.tvSearchProgress);
+        btnManageSearchSourcesTop = findViewById(R.id.btnManageSearchSourcesTop);
         tvClear = findViewById(R.id.tvClear);
         mSearchResultRV = findViewById(R.id.sortRV);
         keyboard = findViewById(R.id.keyBoardRoot);
@@ -198,11 +217,24 @@ public class SearchActivity extends BaseActivity {
         tvHistoryHint = findViewById(R.id.tvHistoryHint);
         llSearchEmpty = findViewById(R.id.llSearchEmpty);
         btnEmptyManageSources = findViewById(R.id.btnEmptyManageSources);
-        if (btnEmptyManageSources != null) {
-            btnEmptyManageSources.setOnClickListener(v -> {
-                FastClickCheckUtil.check(v);
-                new SearchSiteDialog(SearchActivity.this).show();
+        View.OnClickListener openManageSources = v -> {
+            FastClickCheckUtil.check(v);
+            final boolean[] changed = {false};
+            SearchSiteDialog dialog = new SearchSiteDialog(SearchActivity.this);
+            dialog.setOnChanged(() -> changed[0] = true);
+            dialog.init();
+            dialog.setOnDismissListener(d -> {
+                if (changed[0] && !folderMode && !TextUtils.isEmpty(searchWord)) {
+                    search(searchWord);
+                }
             });
+            dialog.show();
+        };
+        if (btnEmptyManageSources != null) {
+            btnEmptyManageSources.setOnClickListener(openManageSources);
+        }
+        if (btnManageSearchSourcesTop != null) {
+            btnManageSearchSourcesTop.setOnClickListener(openManageSources);
         }
         initHistoryView();
         initHotRecycleView();
@@ -362,13 +394,17 @@ public class SearchActivity extends BaseActivity {
                     + " hasPlayableUrls=" + hasPlayableUrls(video)
                     + " noteMatches=" + (!TextUtils.isEmpty(video.note) && AGGREGATE_NOTE.matcher(video.note).find()));
             if (opensFolder) {
-                stopSearchRequests();
-                cancelSuggestions();
-                Bundle folder = new Bundle();
-                folder.putString("folderId", video.id);
-                folder.putString("folderSourceKey", video.sourceKey);
-                folder.putString("title", video.name);
-                jumpActivity(SearchActivity.class, folder);
+                if (folderMode) {
+                    stopSearchRequests();
+                    cancelSuggestions();
+                    Bundle folder = new Bundle();
+                    folder.putString("folderId", video.id);
+                    folder.putString("folderSourceKey", video.sourceKey);
+                    folder.putString("title", video.name);
+                    jumpActivity(SearchActivity.class, folder);
+                    return;
+                }
+                new FolderDialog(SearchActivity.this, sourceViewModel, video).show();
                 return;
             }
             stopSearchRequests();
@@ -381,12 +417,12 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
-    private boolean isFolder(Movie.Video video) {
+    public static boolean isFolderItem(Movie.Video video) {
         if (video == null) return false;
         return "folder".equalsIgnoreCase(video.tag) || "floder".equalsIgnoreCase(video.tag);
     }
 
-    private boolean isAggregateSearchCard(Movie.Video video) {
+    public static boolean isAggregateItem(Movie.Video video) {
         if (video == null || TextUtils.isEmpty(video.id)) return false;
         if ("aggregate".equalsIgnoreCase(video.tag)
                 || "search".equalsIgnoreCase(video.tag)
@@ -398,7 +434,15 @@ public class SearchActivity extends BaseActivity {
                 && AGGREGATE_NOTE.matcher(video.note).find();
     }
 
-    private boolean hasPlayableUrls(Movie.Video video) {
+    private boolean isFolder(Movie.Video video) {
+        return isFolderItem(video);
+    }
+
+    private boolean isAggregateSearchCard(Movie.Video video) {
+        return isAggregateItem(video);
+    }
+
+    private static boolean hasPlayableUrls(Movie.Video video) {
         if (video == null || video.urlsBean == null || video.urlsBean.flagInfoList == null) {
             return false;
         }
@@ -549,12 +593,7 @@ public class SearchActivity extends BaseActivity {
         spDataUtil.saveObjectValue("histroys", historys);
     }
     private void clearHistory() {
-        new androidx.appcompat.app.AlertDialog.Builder(this, R.style.DarkAlertDialog)
-                .setTitle("清空搜索历史？")
-                .setMessage("清空后将无法恢复这些搜索记录。")
-                .setNegativeButton("取消", null)
-                .setPositiveButton("清空", (d, w) -> doClearHistory())
-                .show();
+        TipDialog.confirm(this, "清空搜索历史", "确定要清空全部搜索历史记录吗？", "清空", this::doClearHistory);
     }
 
     private void doClearHistory() {
@@ -573,13 +612,26 @@ public class SearchActivity extends BaseActivity {
             showSuccess();
             if (absXml == null || absXml.movie == null || absXml.movie.videoList == null
                     || absXml.movie.videoList.isEmpty()) {
-                tvSearchProgress.setText("目录为空或暂时无法加载");
+                if (tvFolderModeSubtitle != null) tvFolderModeSubtitle.setText("目录为空或暂时无法加载");
+                if (llSearchEmpty != null) {
+                    llSearchEmpty.setVisibility(View.VISIBLE);
+                    TextView tip = findViewById(R.id.tvSearchEmptyTip);
+                    if (tip != null) tip.setText("该聚合目录暂无可播放资源");
+                    if (btnEmptyManageSources != null) btnEmptyManageSources.setVisibility(View.GONE);
+                }
+                mSearchResultRV.setVisibility(View.GONE);
             } else {
+                if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
                 searchResultAdapter.setNewData(new ArrayList<>(absXml.movie.videoList));
-                tvSearchProgress.setText("已加载 " + searchResultAdapter.getData().size() + " 条资源");
+                if (tvFolderModeSubtitle != null) {
+                    tvFolderModeSubtitle.setText("共 " + searchResultAdapter.getData().size() + " 项资源");
+                }
                 mSearchResultRV.setVisibility(View.VISIBLE);
-                mSearchResultRV.setSelection(0);
-                mSearchResultRV.requestFocus();
+                mSearchResultRV.scrollToPosition(0);
+                mSearchResultRV.post(() -> {
+                    mSearchResultRV.setSelection(0);
+                    mSearchResultRV.requestFocus();
+                });
             }
         });
     }
@@ -657,8 +709,6 @@ public class SearchActivity extends BaseActivity {
         if (intent != null && intent.hasExtra("title")) {
             key = intent.getStringExtra("title");
             if (!NullUtil.isNull(key)) {
-                //edit不为空，则edit不需要焦点，让parent抢走焦点
-                showLoading();
                 search(key);
             }
         }
@@ -668,19 +718,21 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void loadFolder(String id, String sourceKey, String title) {
-        if (TextUtils.isEmpty(id) || TextUtils.isEmpty(sourceKey)) {
-            tvSearchProgress.setText("目录信息不完整");
-            return;
-        }
         if (folderMode) {
-            if (etSearch != null) etSearch.setText(TextUtils.isEmpty(title) ? "目录" : title);
+            if (llSearchLeftPanel != null) llSearchLeftPanel.setVisibility(View.GONE);
             if (llWord != null) llWord.setVisibility(View.GONE);
-            if (mSearchHistoryRV != null) mSearchHistoryRV.setVisibility(View.GONE);
-            if (tvSearch != null) tvSearch.setVisibility(View.GONE);
+            if (llSearchStatusBar != null) llSearchStatusBar.setVisibility(View.GONE);
+            if (llFolderHeader != null) llFolderHeader.setVisibility(View.VISIBLE);
+            if (tvFolderModeTitle != null) tvFolderModeTitle.setText(TextUtils.isEmpty(title) ? "聚合目录" : title);
+            if (tvFolderModeSubtitle != null) tvFolderModeSubtitle.setText("正在加载聚合目录…");
+            if (Hawk.get(HawkConfig.SEARCH_VIEW, 1) != 0 && mSearchResultRV != null) {
+                mSearchResultRV.setLayoutManager(new V7GridLayoutManager(this.mContext,
+                        com.github.tvbox.osc.util.SeniorMode.getGridColumnCount(5)));
+            }
         }
-        if (tvSearchProgress != null) {
-            tvSearchProgress.setVisibility(View.VISIBLE);
-            tvSearchProgress.setText("正在加载目录…");
+        if (TextUtils.isEmpty(id) || TextUtils.isEmpty(sourceKey)) {
+            if (tvFolderModeSubtitle != null) tvFolderModeSubtitle.setText("目录信息不完整");
+            return;
         }
         folderRequestId = sourceViewModel.getFolderList(sourceKey, id);
         android.util.Log.i(TRACE_TAG, "folder requested activity=" + System.identityHashCode(this)
@@ -765,12 +817,15 @@ public class SearchActivity extends BaseActivity {
             if (!retryPhase && respondedSourceKeys.contains(event.sourceKey)) return;
             boolean success = event.obj != null;
             if (success) {
+                SESSION_SLOW_SOURCES.remove(event.sourceKey);
                 try {
                     showSearchData((AbsXml) event.obj);
                 } catch (Exception e) {
                     L.e("showSearchData " + e.getMessage());
                     success = false;
                 }
+            } else {
+                SESSION_SLOW_SOURCES.add(event.sourceKey);
             }
             if (!retryPhase) {
                 respondedSourceKeys.add(event.sourceKey);
@@ -840,8 +895,9 @@ public class SearchActivity extends BaseActivity {
         showSuccess();
         this.searchWord = wd;
         if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
+        if (llSearchStatusBar != null) llSearchStatusBar.setVisibility(View.VISIBLE);
         tvSearchProgress.setVisibility(View.VISIBLE);
-        tvSearchProgress.setText("正在准备搜索来源…");
+        tvSearchProgress.setText("正在搜索「" + wd + "」…");
         mSearchResultRV.setVisibility(View.VISIBLE);
         searchResultAdapter.setNewData(new ArrayList<>());
         mSearchResultRV.scrollToPosition(0);
@@ -868,8 +924,10 @@ public class SearchActivity extends BaseActivity {
         List<SiteBean> siteBeans = ApiConfig.getInstance().getOrderedSearchSiteList();
         if (siteBeans.isEmpty()) {
             searchFinished = true;
-            tvSearchProgress.setText("没有启用搜索源，请先在设置中勾选可搜索的来源");
-            Toast.makeText(mContext, "未选择任何搜索源，请到 设置 → 常规与播放 → 搜索源管理 中勾选", Toast.LENGTH_LONG).show();
+            if (llSearchStatusBar != null) llSearchStatusBar.setVisibility(View.GONE);
+            if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.VISIBLE);
+            if (mSearchResultRV != null) mSearchResultRV.setVisibility(View.GONE);
+            Toast.makeText(mContext, "未选择任何搜索源，请先在搜索源管理中勾选", Toast.LENGTH_LONG).show();
             return;
         }
         searchSourceCount = siteBeans.size();
@@ -924,16 +982,38 @@ public class SearchActivity extends BaseActivity {
     private void submitSearchSources(List<SiteBean> siteBeans) {
         final int requestId = searchRequestId;
         final String query = searchWord;
-        for (final SiteBean siteBean : siteBeans) {
-            searchTasks.add(mExecutorService.submit(new Runnable() {
-                @Override
-                public void run() {
-                    if (searchFinished || requestId != searchRequestId
-                            || Thread.currentThread().isInterrupted()) {
-                        return;
-                    }
-                    sourceViewModel.getSearch(siteBean.getKey(), query, requestId);
+
+        List<SiteBean> directHttp = new ArrayList<>();
+        List<SiteBean> fastSpiders = new ArrayList<>();
+        List<SiteBean> slowSpiders = new ArrayList<>();
+
+        for (SiteBean siteBean : siteBeans) {
+            if (siteBean.getType() == 0 || siteBean.getType() == 1) {
+                directHttp.add(siteBean);
+            } else if (SESSION_SLOW_SOURCES.contains(siteBean.getKey())) {
+                slowSpiders.add(siteBean);
+            } else {
+                fastSpiders.add(siteBean);
+            }
+        }
+
+        // HTTP 直连源走异步回调，不占爬虫线程池，直接立即发出
+        for (SiteBean siteBean : directHttp) {
+            if (searchFinished || requestId != searchRequestId) return;
+            sourceViewModel.getSearch(siteBean.getKey(), query, requestId);
+        }
+
+        // 爬虫源优先派发健康源，本轮曾经超时的慢源延后派发，防止占满工作线程
+        List<SiteBean> orderedSpiders = new ArrayList<>(fastSpiders.size() + slowSpiders.size());
+        orderedSpiders.addAll(fastSpiders);
+        orderedSpiders.addAll(slowSpiders);
+        for (final SiteBean siteBean : orderedSpiders) {
+            searchTasks.add(mExecutorService.submit(() -> {
+                if (searchFinished || requestId != searchRequestId
+                        || Thread.currentThread().isInterrupted()) {
+                    return;
                 }
+                sourceViewModel.getSearch(siteBean.getKey(), query, requestId);
             }));
         }
     }
@@ -969,19 +1049,21 @@ public class SearchActivity extends BaseActivity {
         boolean hasResults = !searchResultAdapter.getData().isEmpty();
         boolean finished = timedOut || (searchSourceCount > 0 && completedSearchSources >= searchSourceCount) || searchFinished;
         if (finished && hasResults) {
-            // 搜索完成且有结果：隐藏进度文字，结果列表直接顶到最上面不被遮挡
+            // 搜索完成且已有结果：收起顶部状态条，让结果网格占满空间
+            if (llSearchStatusBar != null) llSearchStatusBar.setVisibility(View.GONE);
             tvSearchProgress.setVisibility(View.GONE);
-        } else if (timedOut && completedSearchSources < searchSourceCount && !hasResults) {
-            // 超时且无结果：显示提示
-            tvSearchProgress.setVisibility(View.VISIBLE);
-            tvSearchProgress.setText("搜索超时，没有找到结果");
-        } else if (finished && !hasResults) {
-            // 完成但无结果：隐藏进度文字（空状态图已经显示了）
+        } else if (finished) {
+            // 完成或超时且无结果：隐藏状态条，交给空状态引导管理源
+            if (llSearchStatusBar != null) llSearchStatusBar.setVisibility(View.GONE);
             tvSearchProgress.setVisibility(View.GONE);
         } else {
-            // 搜索进行中：显示进度
+            if (llSearchStatusBar != null) llSearchStatusBar.setVisibility(View.VISIBLE);
             tvSearchProgress.setVisibility(View.VISIBLE);
-            tvSearchProgress.setText("正在搜索 · 已收到 " + completedSearchSources + "/" + searchSourceCount + " 个来源的响应");
+            if (hasResults) {
+                tvSearchProgress.setText("已找到 " + searchResultAdapter.getData().size() + " 条结果 · 其余源补充中");
+            } else {
+                tvSearchProgress.setText("正在搜索「" + searchWord + "」…");
+            }
         }
         if (llSearchEmpty != null) {
             llSearchEmpty.setVisibility(!hasResults && finished ? View.VISIBLE : View.GONE);
@@ -1019,10 +1101,13 @@ public class SearchActivity extends BaseActivity {
         if (mergeScheduled || resultMergeRunning || pendingResults.isEmpty()) return;
         mergeScheduled = true;
         searchHandler.removeCallbacks(mergeResults);
+        // 尚无结果上屏时 0ms 立即刷新首包；后续批量结果再做短暂合并节流
+        long delay = (searchResultAdapter == null || searchResultAdapter.getData().isEmpty())
+                ? 0L : RESULT_MERGE_DELAY_MS;
         searchHandler.postDelayed(() -> {
             mergeScheduled = false;
             mergePendingResults();
-        }, RESULT_MERGE_DELAY_MS);
+        }, delay);
     }
 
     private void mergePendingResults() {
@@ -1051,6 +1136,9 @@ public class SearchActivity extends BaseActivity {
             });
             searchHandler.post(() -> {
                 if (generation != resultGeneration || isFinishing() || isDestroyed()) return;
+                final boolean wasAtTop = old.isEmpty()
+                        || !mSearchResultRV.hasFocus()
+                        || mSearchResultRV.computeVerticalScrollOffset() <= 16;
                 searchResultAdapter.getData().clear();
                 searchResultAdapter.getData().addAll(merged);
                 changes.dispatchUpdatesTo(searchResultAdapter);
@@ -1059,16 +1147,18 @@ public class SearchActivity extends BaseActivity {
                     showSuccess();
                     if (llSearchEmpty != null) llSearchEmpty.setVisibility(View.GONE);
                     mSearchResultRV.setVisibility(View.VISIBLE);
-                    // 首批结果到来时自动滚回顶部，避免搜索结果从中途位置开始显示
-                    if (old.isEmpty()) {
+                    if (wasAtTop) {
+                        // 高优先级源后到达时会在头部插入结果，导致 RecyclerView 锚点下移；
+                        // 只要用户还没向下翻页，就始终钉在第一行保证第一排结果可见。
                         mSearchResultRV.scrollToPosition(0);
-                        // 用户是在“搜索”按钮上确认的，首批结果出来后直接把焦点交给结果第一项
-                        if (tvSearch != null && tvSearch.hasFocus()) {
-                            mSearchResultRV.post(() -> {
+                        mSearchResultRV.post(() -> {
+                            if (generation != resultGeneration || isFinishing() || isDestroyed()) return;
+                            mSearchResultRV.scrollToPosition(0);
+                            if (old.isEmpty() && tvSearch != null && tvSearch.hasFocus()) {
                                 mSearchResultRV.setSelection(0);
                                 mSearchResultRV.requestFocus();
-                            });
-                        }
+                            }
+                        });
                     }
                 }
                 updateSearchProgress(searchFinished && completedSearchSources < searchSourceCount);

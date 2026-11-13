@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="600mm"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/shape_dialog_bg_main"
+        android:orientation="vertical"
+        android:padding="28mm">
+
+        <TextView
+            android:id="@+id/tvLiveEditTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="添加直播源"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="24mm"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4mm"
+            android:text="支持远程订阅 URL、JSON 或 M3U 文本内容"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14mm" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:layout_marginTop="14mm"
+            android:layout_marginBottom="14mm"
+            android:background="#1AFFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="名称（可选）"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14mm" />
+
+        <EditText
+            android:id="@+id/edLiveSourceName"
+            android:layout_width="match_parent"
+            android:layout_height="46mm"
+            android:layout_marginTop="6mm"
+            android:background="@drawable/input_dialog_api_input"
+            android:hint="例如：央视高清源"
+            android:maxLines="1"
+            android:paddingLeft="14mm"
+            android:paddingRight="14mm"
+            android:singleLine="true"
+            android:textColor="@color/color_FFFFFF"
+            android:textColorHint="@color/settings_text_muted"
+            android:textSize="18mm" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14mm"
+            android:text="地址或内容"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14mm" />
+
+        <EditText
+            android:id="@+id/edLiveSourceContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6mm"
+            android:minHeight="110mm"
+            android:background="@drawable/input_dialog_api_input"
+            android:gravity="top|start"
+            android:hint="请输入直播源 URL 或贴入 M3U/JSON 内容"
+            android:inputType="textMultiLine|textUri"
+            android:maxLines="5"
+            android:padding="14mm"
+            android:textColor="@color/color_FFFFFF"
+            android:textColorHint="@color/settings_text_muted"
+            android:textSize="17mm" />
+
+        <TextView
+            android:id="@+id/tvLiveEditError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8mm"
+            android:textColor="@color/settings_danger"
+            android:textSize="14mm"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20mm"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnLiveEditCancel"
+                style="@style/SettingsButton"
+                android:minWidth="120mm"
+                android:text="取消" />
+
+            <TextView
+                android:id="@+id/btnLiveEditSave"
+                style="@style/SettingsButton.Primary"
+                android:layout_marginLeft="12mm"
+                android:minWidth="130mm"
+                android:text="保存" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

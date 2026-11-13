@@ -6,61 +6,87 @@
     android:layout_height="match_parent">
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="@dimen/vs_520"
+        android:layout_width="560mm"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:background="@drawable/shape_dialog_bg_main">
 
-        <TextView
-            android:id="@+id/title"
+        <LinearLayout
+            android:id="@+id/header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingLeft="@dimen/vs_30"
-            android:paddingTop="@dimen/vs_24"
-            android:paddingRight="@dimen/vs_30"
-            android:paddingBottom="@dimen/vs_20"
-            android:singleLine="true"
-            android:text="11111111"
-            android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_26"
-            android:textStyle="bold"
+            android:orientation="vertical"
+            android:paddingLeft="28mm"
+            android:paddingTop="22mm"
+            android:paddingRight="28mm"
+            android:paddingBottom="16mm"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="11111111111111111111111" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:text="请选择"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="24mm"
+                android:fontFamily="sans-serif-medium"
+                tools:text="请选择默认播放器" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4mm"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="15mm"
+                android:visibility="gone"
+                tools:text="共 3 项 · 上下选择，按确定应用" />
+        </LinearLayout>
 
         <View
             android:id="@+id/title_divider"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_1"
-            android:layout_marginLeft="@dimen/vs_24"
-            android:layout_marginRight="@dimen/vs_24"
+            android:layout_height="1mm"
+            android:layout_marginLeft="24mm"
+            android:layout_marginRight="24mm"
             android:background="#1AFFFFFF"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/title" />
+            app:layout_constraintTop_toBottomOf="@+id/header" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipToPadding="false"
             android:orientation="vertical"
-            android:paddingLeft="@dimen/vs_24"
-            android:paddingTop="@dimen/vs_10"
-            android:paddingRight="@dimen/vs_24"
-            android:paddingBottom="@dimen/vs_10"
+            android:paddingLeft="20mm"
+            android:paddingTop="12mm"
+            android:paddingRight="20mm"
+            android:paddingBottom="8mm"
             app:layout_constrainedHeight="true"
-            app:layout_constraintHeight_max="@dimen/vs_480"
+            app:layout_constraintHeight_max="460mm"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/title_divider"
             app:tv_layoutManager="V7LinearLayoutManager"
             app:tv_selectedItemIsCentered="true"
-            app:tv_verticalSpacingWithMargins="@dimen/vs_6" />
+            app:tv_verticalSpacingWithMargins="6mm" />
 
-        <View
+        <TextView
+            android:id="@+id/footerHint"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_24"
+            android:layout_height="wrap_content"
+            android:paddingLeft="28mm"
+            android:paddingTop="6mm"
+            android:paddingRight="28mm"
+            android:paddingBottom="18mm"
+            android:text="上下键移动 · 确定键应用 · 返回键关闭"
+            android:textColor="@color/settings_text_muted"
+            android:textSize="14mm"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/list" />

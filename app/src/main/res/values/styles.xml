@@ -59,8 +59,8 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/settings_text_secondary</item>
-        <item name="android:textSize">16mm</item>
-        <item name="android:letterSpacing">0.03</item>
+        <item name="android:textSize">15mm</item>
+        <item name="android:letterSpacing">0.05</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
@@ -81,7 +81,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/shape_setting_group</item>
         <item name="android:orientation">vertical</item>
-        <item name="android:padding">4mm</item>
+        <item name="android:padding">3mm</item>
     </style>
 
     <!-- 设置页：组内发丝分隔线（半透明白色发丝微切线） -->
@@ -97,17 +97,17 @@
     <style name="SettingRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:minHeight">54mm</item>
+        <item name="android:minHeight">58mm</item>
         <item name="android:layout_marginBottom">@dimen/vs_0</item>
         <item name="android:background">@drawable/selector_setting_row_unified</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:orientation">horizontal</item>
-        <item name="android:paddingLeft">18mm</item>
-        <item name="android:paddingRight">18mm</item>
-        <item name="android:paddingTop">10mm</item>
-        <item name="android:paddingBottom">10mm</item>
+        <item name="android:paddingLeft">20mm</item>
+        <item name="android:paddingRight">16mm</item>
+        <item name="android:paddingTop">11mm</item>
+        <item name="android:paddingBottom">11mm</item>
         <item name="android:stateListAnimator">@animator/setting_row_focus</item>
     </style>
 
@@ -125,7 +125,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:singleLine">true</item>
         <item name="android:textColor">@color/selector_setting_title</item>
-        <item name="android:textSize">18mm</item>
+        <item name="android:textSize">19mm</item>
         <item name="android:duplicateParentState">true</item>
     </style>
 
@@ -140,14 +140,14 @@
     <style name="SettingNavItem">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:minHeight">56mm</item>
-        <item name="android:layout_marginBottom">8mm</item>
-        <item name="android:paddingLeft">18mm</item>
-        <item name="android:paddingRight">18mm</item>
+        <item name="android:minHeight">60mm</item>
+        <item name="android:layout_marginBottom">6mm</item>
+        <item name="android:paddingLeft">20mm</item>
+        <item name="android:paddingRight">16mm</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:background">@drawable/selector_settings_nav_unified</item>
         <item name="android:textColor">@color/selector_settings_nav_text</item>
-        <item name="android:textSize">19mm</item>
+        <item name="android:textSize">18mm</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
     </style>
@@ -160,7 +160,7 @@
         <item name="android:ellipsize">middle</item>
         <item name="android:singleLine">true</item>
         <item name="android:textColor">@color/selector_setting_value</item>
-        <item name="android:textSize">16mm</item>
+        <item name="android:textSize">17mm</item>
         <item name="android:layout_marginLeft">12mm</item>
         <item name="android:duplicateParentState">true</item>
     </style>
@@ -173,7 +173,7 @@
         <item name="android:layout_marginStart">8mm</item>
         <item name="android:text">›</item>
         <item name="android:textColor">@color/selector_setting_arrow</item>
-        <item name="android:textSize">18mm</item>
+        <item name="android:textSize">20mm</item>
         <item name="android:duplicateParentState">true</item>
     </style>
 </resources>

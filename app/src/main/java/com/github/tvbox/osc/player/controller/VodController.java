@@ -644,48 +644,76 @@ public class VodController extends BaseController {
         if (mEpisodeDialog != null && mEpisodeDialog.isShowing()) {
             return;
         }
-        Dialog dialog = new Dialog(mActivity);
+        com.github.tvbox.osc.ui.dialog.BaseDialog dialog =
+                new com.github.tvbox.osc.ui.dialog.BaseDialog(mActivity, R.style.CustomDialogStyleDim);
         View panel = LayoutInflater.from(mActivity).inflate(R.layout.dialog_player_episode, null);
         TextView count = panel.findViewById(R.id.episodeCount);
         count.setText("共 " + mEpisodes.size() + " 集");
         TextView current = panel.findViewById(R.id.episodeCurrent);
         current.setText(episodeName(mCurrentEpisode));
+        TextView btnOrder = panel.findViewById(R.id.btnEpisodeOrder);
+        View btnClose = panel.findViewById(R.id.btnEpisodeClose);
+        btnClose.setOnClickListener(v -> dialog.dismiss());
 
         TvRecyclerView episodeRangeRV = panel.findViewById(R.id.episodeRangeRV);
         TvRecyclerView episodeGrid = panel.findViewById(R.id.episodeGrid);
-        episodeGrid.setLayoutManager(new V7GridLayoutManager(mActivity, 3));
+
+        int spanCount = resolveEpisodeColumns();
+        episodeGrid.setLayoutManager(new V7GridLayoutManager(mActivity, spanCount));
         PlayerEpisodeAdapter adapter = new PlayerEpisodeAdapter();
-        adapter.setNewData(new ArrayList<>(mEpisodes));
-        adapter.setCurrent(mCurrentEpisode);
         episodeGrid.setAdapter(adapter);
 
-        PlayerEpisodeRangeAdapter rangeAdapter = null;
+        final boolean[] reversed = {false};
         final int step = 30;
+        final PlayerEpisodeRangeAdapter[] rangeAdapterHolder = new PlayerEpisodeRangeAdapter[1];
+        final List<EpisodeRangeBean> rangeList = new ArrayList<>();
+
+        Runnable rebuildData = () -> {
+            int total = mEpisodes.size();
+            List<VodInfo.VodSeries> displayList = new ArrayList<>(total);
+            if (reversed[0]) {
+                for (int i = total - 1; i >= 0; i--) displayList.add(mEpisodes.get(i));
+            } else {
+                displayList.addAll(mEpisodes);
+            }
+            int displayCurrent = reversed[0] ? (total - 1 - mCurrentEpisode) : mCurrentEpisode;
+            adapter.setNewData(displayList);
+            adapter.setCurrent(displayCurrent);
+            btnOrder.setText(reversed[0] ? "倒序" : "正序");
+
+            if (total > step && episodeRangeRV != null && rangeAdapterHolder[0] != null) {
+                rangeList.clear();
+                for (int i = 0; i < total; i += step) {
+                    int endIdx = Math.min(i + step - 1, total - 1);
+                    String label = reversed[0]
+                            ? ((total - i) + "-" + (total - endIdx))
+                            : ((i + 1) + "-" + (endIdx + 1));
+                    rangeList.add(new EpisodeRangeBean(i, endIdx, label));
+                }
+                rangeAdapterHolder[0].setNewData(new ArrayList<>(rangeList));
+                int currentRange = Math.max(0, Math.min(displayCurrent / step, rangeList.size() - 1));
+                rangeAdapterHolder[0].setSelectedIndex(currentRange);
+                episodeRangeRV.scrollToPosition(currentRange);
+            }
+        };
+
         if (mEpisodes.size() > step && episodeRangeRV != null) {
             episodeRangeRV.setVisibility(View.VISIBLE);
             episodeRangeRV.setLayoutManager(new V7LinearLayoutManager(mActivity, 0, false));
-            rangeAdapter = new PlayerEpisodeRangeAdapter();
-            List<EpisodeRangeBean> rangeList = new ArrayList<>();
-            for (int i = 0; i < mEpisodes.size(); i += step) {
-                int start = i + 1;
-                int end = Math.min(i + step, mEpisodes.size());
-                rangeList.add(new EpisodeRangeBean(i, end - 1, start + "-" + end));
-            }
-            rangeAdapter.setNewData(rangeList);
-            int currentRange = mCurrentEpisode / step;
-            rangeAdapter.setSelectedIndex(currentRange);
-            episodeRangeRV.setAdapter(rangeAdapter);
-            episodeRangeRV.scrollToPosition(currentRange);
+            rangeAdapterHolder[0] = new PlayerEpisodeRangeAdapter();
+            episodeRangeRV.setAdapter(rangeAdapterHolder[0]);
+            episodeGrid.setNextFocusUpId(R.id.episodeRangeRV);
+            btnOrder.setNextFocusDownId(R.id.episodeRangeRV);
+            btnClose.setNextFocusDownId(R.id.episodeRangeRV);
 
-            final PlayerEpisodeRangeAdapter finalRangeAdapter = rangeAdapter;
             PlayerEpisodeRangeAdapter.OnItemClickListener rangeClickListener = (baseQuickAdapter, v, position) -> {
                 if (position >= 0 && position < rangeList.size()) {
-                    finalRangeAdapter.setSelectedIndex(position);
+                    rangeAdapterHolder[0].setSelectedIndex(position);
                     EpisodeRangeBean item = rangeList.get(position);
                     focusEpisodeWhenLaidOut(episodeGrid, dialog, item.startIndex);
                 }
             };
-            rangeAdapter.setOnItemClickListener(rangeClickListener);
+            rangeAdapterHolder[0].setOnItemClickListener(rangeClickListener);
             episodeRangeRV.setOnItemListener(new TvRecyclerView.OnItemListener() {
                 @Override
                 public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
@@ -696,7 +724,7 @@ public class VodController extends BaseController {
                 @Override
                 public void onItemClick(TvRecyclerView parent, View itemView, int position) {
                     if (position >= 0 && position < rangeList.size()) {
-                        finalRangeAdapter.setSelectedIndex(position);
+                        rangeAdapterHolder[0].setSelectedIndex(position);
                         EpisodeRangeBean item = rangeList.get(position);
                         focusEpisodeWhenLaidOut(episodeGrid, dialog, item.startIndex);
                     }
@@ -704,19 +732,29 @@ public class VodController extends BaseController {
             });
         } else {
             if (episodeRangeRV != null) episodeRangeRV.setVisibility(View.GONE);
+            episodeGrid.setNextFocusUpId(R.id.btnEpisodeOrder);
         }
 
-        final PlayerEpisodeRangeAdapter effectiveRangeAdapter = rangeAdapter;
+        rebuildData.run();
+
+        btnOrder.setOnClickListener(v -> {
+            reversed[0] = !reversed[0];
+            rebuildData.run();
+            int displayCurrent = reversed[0]
+                    ? (mEpisodes.size() - 1 - mCurrentEpisode) : mCurrentEpisode;
+            episodeGrid.scrollToPosition(Math.max(0, displayCurrent));
+        });
+
         episodeGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {}
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                if (effectiveRangeAdapter != null && episodeRangeRV != null && position >= 0 && position < mEpisodes.size()) {
+                if (rangeAdapterHolder[0] != null && episodeRangeRV != null && position >= 0 && position < mEpisodes.size()) {
                     int rIdx = position / step;
-                    if (rIdx != effectiveRangeAdapter.getSelectedIndex()) {
-                        effectiveRangeAdapter.setSelectedIndex(rIdx);
+                    if (rIdx != rangeAdapterHolder[0].getSelectedIndex()) {
+                        rangeAdapterHolder[0].setSelectedIndex(rIdx);
                         episodeRangeRV.scrollToPosition(rIdx);
                     }
                 }
@@ -724,20 +762,22 @@ public class VodController extends BaseController {
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-                if (position != mCurrentEpisode) {
-                    mCurrentEpisode = position;
+                int realPos = reversed[0] ? (mEpisodes.size() - 1 - position) : position;
+                if (realPos >= 0 && realPos < mEpisodes.size() && realPos != mCurrentEpisode) {
+                    mCurrentEpisode = realPos;
                     updateEpisodeButton();
-                    controlListener.playEpisode(position);
+                    controlListener.playEpisode(realPos);
                 }
                 dialog.dismiss();
             }
         });
 
         adapter.setOnItemClickListener((baseQuickAdapter, view, position) -> {
-            if (position != mCurrentEpisode) {
-                mCurrentEpisode = position;
+            int realPos = reversed[0] ? (mEpisodes.size() - 1 - position) : position;
+            if (realPos >= 0 && realPos < mEpisodes.size() && realPos != mCurrentEpisode) {
+                mCurrentEpisode = realPos;
                 updateEpisodeButton();
-                controlListener.playEpisode(position);
+                controlListener.playEpisode(realPos);
             }
             dialog.dismiss();
         });
@@ -764,25 +804,41 @@ public class VodController extends BaseController {
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         window.setWindowAnimations(R.style.PlayerEpisodeWindowAnim);
         WindowManager.LayoutParams windowParams = window.getAttributes();
-        windowParams.width = (int) (mActivity.getResources().getDisplayMetrics().widthPixels * 0.44f);
+        float widthRatio = spanCount <= 2 ? 0.48f : 0.44f;
+        windowParams.width = (int) (mActivity.getResources().getDisplayMetrics().widthPixels * widthRatio);
         windowParams.height = WindowManager.LayoutParams.MATCH_PARENT;
         windowParams.gravity = Gravity.RIGHT;
         windowParams.dimAmount = 0.55f;
         window.setAttributes(windowParams);
         dialog.show();
         window.setLayout(windowParams.width, WindowManager.LayoutParams.MATCH_PARENT);
-        if (mCurrentEpisode >= 0 && mCurrentEpisode < mEpisodes.size()) {
-            episodeGrid.scrollToPosition(mCurrentEpisode);
+        int initialDisplayPos = reversed[0] ? (mEpisodes.size() - 1 - mCurrentEpisode) : mCurrentEpisode;
+        if (initialDisplayPos >= 0 && initialDisplayPos < mEpisodes.size()) {
+            episodeGrid.scrollToPosition(initialDisplayPos);
         }
-        episodeGrid.post(() -> focusEpisodeWhenLaidOut(episodeGrid, dialog, mCurrentEpisode));
+        episodeGrid.post(() -> focusEpisodeWhenLaidOut(episodeGrid, dialog, initialDisplayPos));
+    }
+
+    private int resolveEpisodeColumns() {
+        if (mEpisodes.isEmpty()) return 3;
+        int sample = Math.min(mEpisodes.size(), 24);
+        int totalLen = 0;
+        for (int i = 0; i < sample; i++) {
+            String name = mEpisodes.get(i) != null ? mEpisodes.get(i).name : null;
+            totalLen += (name == null ? 3 : name.trim().length());
+        }
+        float avg = totalLen / (float) sample;
+        if (avg <= 5.5f) return 4;
+        if (avg <= 10.5f) return 3;
+        return 2;
     }
 
     /**
-     * 选集列表布局完成后再把焦点交给当前集：由 RecyclerView 的布局回调触发，不再轮询等待。
-     * 若目标项已经在布局中则立即完成，否则等下一次布局变化。
+     * 选集列表布局完成后再把焦点交给目标剧集：先确保滚入视口再定位焦点，解决分集区间点击后目标不在屏内的问题。
      */
     private void focusEpisodeWhenLaidOut(TvRecyclerView grid, Dialog dialog, int position) {
         if (position < 0 || position >= mEpisodes.size()) return;
+        grid.scrollToPosition(position);
         final View.OnLayoutChangeListener[] listener = new View.OnLayoutChangeListener[1];
         final Runnable tryFocus = () -> {
             if (!dialog.isShowing() || mActivity == null || grid.getLayoutManager() == null) {
@@ -1005,7 +1061,7 @@ public class VodController extends BaseController {
         if (mProgressLine == null) {
             return;
         }
-        int max = getResources().getDimensionPixelSize(R.dimen.vs_300);
+        int max = getResources().getDimensionPixelSize(R.dimen.vs_200);
         float ratio = duration > 0 ? Math.min(1f, Math.max(0f, seekTo / (float) duration)) : 0f;
         int width = (int) (max * ratio);
         ViewGroup.LayoutParams params = mProgressLine.getLayoutParams();

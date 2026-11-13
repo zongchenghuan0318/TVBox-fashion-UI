@@ -14,6 +14,8 @@ public class BackupAdapter extends BaseQuickAdapter<String, BaseViewHolder> {
     @Override
     protected void convert(BaseViewHolder helper, String item) {
         helper.setText(R.id.tvName, item);
-        helper.addOnClickListener(R.id.tvName);
+        helper.getView(R.id.tvNameRow).setContentDescription("备份 " + item + "，点击还原");
+        helper.addOnClickListener(R.id.tvNameRow);
+        helper.addOnClickListener(R.id.tvDel);
     }
 }

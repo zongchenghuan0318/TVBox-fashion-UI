@@ -1,27 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 设置页：左侧分组导航（播放 / 首页与搜索 / 数据与缓存 / 关于），右侧只显示当前分组 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingLeft="44mm"
-    android:paddingRight="44mm">
+    android:paddingRight="44mm"
+    android:paddingBottom="12mm">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:paddingTop="6mm">
+        android:paddingTop="4mm">
 
         <!-- ================= 左侧分组导航 ================= -->
         <LinearLayout
-            android:layout_width="200mm"
+            android:layout_width="232mm"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
             <TextView
                 android:id="@+id/navPlay"
                 style="@style/SettingNavItem"
+                android:nextFocusUp="@id/title_setting_tv"
                 android:text="播放" />
 
             <TextView
@@ -37,6 +38,7 @@
             <TextView
                 android:id="@+id/navAbout"
                 style="@style/SettingNavItem"
+                android:nextFocusDown="@id/navAbout"
                 android:text="关于" />
         </LinearLayout>
 
@@ -49,8 +51,11 @@
             android:layout_weight="1"
             android:clipToPadding="false"
             android:fillViewport="true"
-            android:paddingBottom="36mm"
-            android:scrollbars="none">
+            android:paddingRight="10mm"
+            android:paddingBottom="28mm"
+            android:scrollbarSize="3mm"
+            android:scrollbarThumbVertical="@drawable/shape_scrollbar_thumb"
+            android:scrollbars="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -64,7 +69,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <TextView style="@style/SettingSectionTitle"
+                    <TextView
+                        style="@style/SettingSectionTitle"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="播放器" />
@@ -72,7 +78,8 @@
                     <LinearLayout style="@style/SettingGroup">
                         <LinearLayout
                             android:id="@+id/llPlay"
-                            style="@style/SettingRow">
+                            style="@style/SettingRow"
+                            android:nextFocusUp="@id/llPlay">
                             <TextView style="@style/SettingRowTitle" android:text="播放器" />
                             <TextView android:id="@+id/tvPlay" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
@@ -109,8 +116,9 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <TextView style="@style/SettingSectionTitle"
-                        android:layout_marginTop="18mm"
+                    <TextView
+                        style="@style/SettingSectionTitle"
+                        android:layout_marginTop="16mm"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="字幕与音轨" />
@@ -144,12 +152,14 @@
                             <com.github.tvbox.osc.ui.view.CapsuleSwitch
                                 android:id="@+id/switchSubtitle"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content" />
+                                android:layout_height="wrap_content"
+                                android:importantForAccessibility="no" />
                         </LinearLayout>
                     </LinearLayout>
 
-                    <TextView style="@style/SettingSectionTitle"
-                        android:layout_marginTop="18mm"
+                    <TextView
+                        style="@style/SettingSectionTitle"
+                        android:layout_marginTop="16mm"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="片头与片尾" />
@@ -177,7 +187,8 @@
 
                         <LinearLayout
                             android:id="@+id/llPlayTimeStep"
-                            style="@style/SettingRow">
+                            style="@style/SettingRow"
+                            android:nextFocusDown="@id/llPlayTimeStep">
                             <TextView style="@style/SettingRowTitle" android:text="调整步长" />
                             <TextView android:id="@+id/tvPlayTimeStep" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
@@ -193,7 +204,8 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <TextView style="@style/SettingSectionTitle"
+                    <TextView
+                        style="@style/SettingSectionTitle"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="首页" />
@@ -201,7 +213,8 @@
                     <LinearLayout style="@style/SettingGroup">
                         <LinearLayout
                             android:id="@+id/llHomeApi"
-                            style="@style/SettingRow">
+                            style="@style/SettingRow"
+                            android:nextFocusUp="@id/llHomeApi">
                             <TextView style="@style/SettingRowTitle" android:text="首页数据源" />
                             <TextView android:id="@+id/tvHomeApi" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
@@ -210,10 +223,10 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
-                            android:id="@+id/llHomeMode"
+                            android:id="@+id/llHomeLayout"
                             style="@style/SettingRow">
-                            <TextView style="@style/SettingRowTitle" android:text="首页模式" />
-                            <TextView android:id="@+id/tvHomeMode" style="@style/SettingRowValue" />
+                            <TextView style="@style/SettingRowTitle" android:text="首页布局" />
+                            <TextView android:id="@+id/tvHomeLayout" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
                         </LinearLayout>
 
@@ -240,16 +253,17 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
-                            android:id="@+id/llHomeLayout"
+                            android:id="@+id/llHomeMode"
                             style="@style/SettingRow">
-                            <TextView style="@style/SettingRowTitle" android:text="首页布局" />
-                            <TextView android:id="@+id/tvHomeLayout" style="@style/SettingRowValue" />
+                            <TextView style="@style/SettingRowTitle" android:text="首页模式" />
+                            <TextView android:id="@+id/tvHomeMode" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
                         </LinearLayout>
                     </LinearLayout>
 
-                    <TextView style="@style/SettingSectionTitle"
-                        android:layout_marginTop="18mm"
+                    <TextView
+                        style="@style/SettingSectionTitle"
+                        android:layout_marginTop="16mm"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="搜索" />
@@ -267,7 +281,8 @@
 
                         <LinearLayout
                             android:id="@+id/llSearchSite"
-                            style="@style/SettingRow">
+                            style="@style/SettingRow"
+                            android:nextFocusDown="@id/llSearchSite">
                             <TextView style="@style/SettingRowTitle" android:text="搜索源管理" />
                             <TextView android:id="@+id/tvSearchSite" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
@@ -283,15 +298,17 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <TextView style="@style/SettingSectionTitle"
+                    <TextView
+                        style="@style/SettingSectionTitle"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
-                        android:text="内容来源" />
+                        android:text="内容来源与网络" />
 
                     <LinearLayout style="@style/SettingGroup">
                         <LinearLayout
                             android:id="@+id/llApi"
-                            style="@style/SettingRow">
+                            style="@style/SettingRow"
+                            android:nextFocusUp="@id/llApi">
                             <TextView style="@style/SettingRowTitle" android:text="配置接口" />
                             <TextView android:id="@+id/tvApi" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
@@ -306,10 +323,21 @@
                             <TextView android:id="@+id/tvLiveSource" style="@style/SettingRowValue" />
                             <TextView style="@style/SettingRowArrow" />
                         </LinearLayout>
+
+                        <View style="@style/SettingDivider" />
+
+                        <LinearLayout
+                            android:id="@+id/llDoh"
+                            style="@style/SettingRow">
+                            <TextView style="@style/SettingRowTitle" android:text="安全 DNS (DoH)" />
+                            <TextView android:id="@+id/tvDoh" style="@style/SettingRowValue" />
+                            <TextView style="@style/SettingRowArrow" />
+                        </LinearLayout>
                     </LinearLayout>
 
-                    <TextView style="@style/SettingSectionTitle"
-                        android:layout_marginTop="18mm"
+                    <TextView
+                        style="@style/SettingSectionTitle"
+                        android:layout_marginTop="16mm"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="缓存与备份" />
@@ -319,7 +347,7 @@
                             android:id="@+id/llClearCache"
                             style="@style/SettingRow">
                             <TextView style="@style/SettingRowTitle" android:text="清理应用缓存" />
-                            <TextView android:id="@+id/tvClearCache" style="@style/SettingRowValue" android:text="一键释放" />
+                            <TextView android:id="@+id/tvClearCache" style="@style/SettingRowValue" android:text="计算中..." />
                             <TextView style="@style/SettingRowArrow" />
                         </LinearLayout>
 
@@ -327,9 +355,10 @@
 
                         <LinearLayout
                             android:id="@+id/llBackup"
-                            style="@style/SettingRow">
+                            style="@style/SettingRow"
+                            android:nextFocusDown="@id/llBackup">
                             <TextView style="@style/SettingRowTitle" android:text="数据备份与还原" />
-                            <TextView style="@style/SettingRowValue" android:text="本地备份" />
+                            <TextView android:id="@+id/tvBackupSummary" style="@style/SettingRowValue" android:text="本地备份" />
                             <TextView style="@style/SettingRowArrow" />
                         </LinearLayout>
                     </LinearLayout>
@@ -348,15 +377,16 @@
                         android:id="@+id/llAbout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minHeight="52mm"
+                        android:minHeight="56mm"
                         android:paddingLeft="18mm"
                         android:paddingRight="18mm"
-                        android:paddingTop="10mm"
-                        android:paddingBottom="10mm"
+                        android:paddingTop="12mm"
+                        android:paddingBottom="12mm"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:focusable="true"
                         android:clickable="true"
+                        android:nextFocusUp="@id/llAbout"
                         android:background="@drawable/selector_settings_update">
 
                         <ImageView
@@ -414,8 +444,9 @@
                             android:textColor="#FFFFFFFF" />
                     </LinearLayout>
 
-                    <TextView style="@style/SettingSectionTitle"
-                        android:layout_marginTop="18mm"
+                    <TextView
+                        style="@style/SettingSectionTitle"
+                        android:layout_marginTop="16mm"
                         android:layout_marginBottom="8mm"
                         android:layout_marginLeft="6mm"
                         android:text="更新与辅助" />
@@ -429,7 +460,8 @@
                             <com.github.tvbox.osc.ui.view.CapsuleSwitch
                                 android:id="@+id/switchAutoUpdate"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content" />
+                                android:layout_height="wrap_content"
+                                android:importantForAccessibility="no" />
                         </LinearLayout>
 
                         <View style="@style/SettingDivider" />
@@ -442,7 +474,8 @@
                             <com.github.tvbox.osc.ui.view.CapsuleSwitch
                                 android:id="@+id/switchRemoteKeySound"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content" />
+                                android:layout_height="wrap_content"
+                                android:importantForAccessibility="no" />
                         </LinearLayout>
 
                         <View style="@style/SettingDivider" />
@@ -455,7 +488,8 @@
                             <com.github.tvbox.osc.ui.view.CapsuleSwitch
                                 android:id="@+id/switchSeniorMode"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content" />
+                                android:layout_height="wrap_content"
+                                android:importantForAccessibility="no" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -465,19 +499,36 @@
                         android:layout_marginTop="10mm"
                         android:paddingLeft="8mm"
                         android:paddingRight="8mm"
-                        android:text="长辈模式可放大文字并增强遥控器焦点。"
+                        android:text="长辈模式可放大文字并增强遥控器焦点边框，切换后立即生效。"
                         android:textSize="13mm"
                         android:lineSpacingExtra="3mm"
                         android:textColor="@color/settings_text_muted" />
 
-                    <!-- 隐藏的调试入口：通过设置页彩蛋解锁 -->
+                    <!-- 隐藏的调试入口：通过设置页彩蛋或连按四次 0 解锁 -->
                     <LinearLayout
-                        android:id="@+id/llDebug"
-                        style="@style/SettingRow"
+                        android:id="@+id/groupDebug"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16mm"
+                        android:orientation="vertical"
                         android:visibility="gone">
-                        <TextView style="@style/SettingRowTitle" android:text="调试模式" />
-                        <TextView android:id="@+id/tvDebugOpen" style="@style/SettingRowValue" />
-                        <TextView style="@style/SettingRowArrow" />
+
+                        <TextView
+                            style="@style/SettingSectionTitle"
+                            android:layout_marginBottom="8mm"
+                            android:layout_marginLeft="6mm"
+                            android:text="开发者" />
+
+                        <LinearLayout style="@style/SettingGroup">
+                            <LinearLayout
+                                android:id="@+id/llDebug"
+                                style="@style/SettingRow"
+                                android:nextFocusDown="@id/llDebug">
+                                <TextView style="@style/SettingRowTitle" android:text="调试模式" />
+                                <TextView android:id="@+id/tvDebugOpen" style="@style/SettingRowValue" />
+                                <TextView style="@style/SettingRowArrow" />
+                            </LinearLayout>
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

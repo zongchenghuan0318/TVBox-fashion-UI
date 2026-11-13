@@ -1,65 +1,217 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:background="#121212"
-    android:paddingLeft="24mm" android:paddingRight="24mm" android:paddingTop="16mm" android:paddingBottom="12mm">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_settings_page"
+    android:orientation="vertical"
+    android:paddingLeft="44mm"
+    android:paddingRight="44mm"
+    android:paddingTop="16mm"
+    android:paddingBottom="16mm">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="40mm" android:gravity="center_vertical">
-        <TextView android:id="@+id/liveSourceBack" android:layout_width="40mm" android:layout_height="40mm"
-            android:text="‹" android:textSize="24mm" android:gravity="center" android:contentDescription="返回"
-            android:textColor="@color/color_FFFFFF" android:background="@drawable/selector_live_source_control"
-            android:focusable="true" android:clickable="true" android:nextFocusRight="@id/liveSourceAdd" />
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:layout_marginLeft="16mm" android:text="直播源管理" android:textSize="20mm"
-            android:textStyle="bold" android:textColor="@color/color_FFFFFF" />
-        <TextView android:id="@+id/liveSourceAdd" android:layout_width="wrap_content" android:layout_height="40mm"
-            android:paddingLeft="20mm" android:paddingRight="20mm" android:text="添加直播源"
-            android:textSize="14mm" android:gravity="center" android:textColor="@color/color_FFFFFF"
-            android:background="@drawable/selector_live_source_control" android:focusable="true" android:clickable="true"
+    <!-- 顶部栏：与设置主页完全一致的磨砂圆形返回 + 标题 + 主操作 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="12mm">
+
+        <FrameLayout
+            android:id="@+id/liveSourceBack"
+            android:layout_width="48mm"
+            android:layout_height="48mm"
+            android:background="@drawable/selector_settings_control"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="返回"
+            android:nextFocusRight="@id/liveSourceAdd">
+
+            <ImageView
+                android:layout_width="18mm"
+                android:layout_height="18mm"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_settings_back"
+                android:importantForAccessibility="no" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="16mm"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="直播源管理"
+                android:textSize="24mm"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/color_FFFFFF" />
+
+            <TextView
+                android:id="@+id/liveSourceHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2mm"
+                android:text="上下选源 · 右键或确定进入操作 · 左键返回列表"
+                android:textSize="13mm"
+                android:textColor="@color/settings_text_secondary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/liveSourceAdd"
+            style="@style/SettingsButton.Primary"
+            android:text="+ 添加直播源"
             android:nextFocusLeft="@id/liveSourceBack" />
     </LinearLayout>
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-        android:layout_marginTop="12mm" android:orientation="horizontal">
-        <ScrollView android:id="@+id/liveSourceScroll" android:layout_width="0dp" android:layout_height="match_parent"
-            android:layout_weight="3" android:fillViewport="true" android:clipToPadding="false">
-            <LinearLayout android:id="@+id/liveSourceList" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:orientation="vertical" />
-        </ScrollView>
-        <View android:layout_width="1mm" android:layout_height="match_parent"
-            android:layout_marginLeft="24mm" android:layout_marginRight="24mm" android:background="#1FFFFFFF" />
-        <ScrollView android:id="@+id/liveSourceActions" android:layout_width="0dp" android:layout_height="match_parent"
-            android:layout_weight="2" android:fillViewport="true">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:id="@+id/liveSourceName" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:textSize="22mm" android:textStyle="bold" android:textColor="@color/color_FFFFFF"
-                    android:maxLines="2" android:ellipsize="end" />
-                <TextView android:id="@+id/liveSourceState" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="6mm" android:textSize="16mm" android:textColor="@color/settings_text_secondary" />
-                <TextView android:id="@+id/liveSourceAddress" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="8mm" android:layout_marginBottom="20mm" android:textSize="14mm"
-                    android:textColor="@color/settings_text_secondary" android:maxLines="2" android:ellipsize="end" />
-            <TextView android:id="@+id/liveSourceToggle" android:layout_width="match_parent" android:layout_height="56mm"
-                android:text="停用此源" android:gravity="center_vertical" android:paddingLeft="20mm" android:paddingRight="20mm"
-                android:textSize="18mm" android:textColor="@color/color_FFFFFF"
-                android:background="@drawable/selector_live_source_control" android:focusable="true" android:clickable="true" />
-            <TextView android:id="@+id/liveSourceEdit" android:layout_width="match_parent" android:layout_height="56mm" android:layout_marginTop="10mm"
-                android:text="编辑" android:gravity="center_vertical" android:paddingLeft="20mm" android:paddingRight="20mm"
-                android:textSize="18mm" android:textColor="@color/color_FFFFFF"
-                android:background="@drawable/selector_live_source_control" android:focusable="true" android:clickable="true" />
-            <TextView android:id="@+id/liveSourceSort" android:layout_width="match_parent" android:layout_height="56mm" android:layout_marginTop="10mm"
-                android:text="调整顺序" android:gravity="center_vertical" android:paddingLeft="20mm" android:paddingRight="20mm"
-                android:textSize="18mm" android:textColor="@color/color_FFFFFF"
-                android:background="@drawable/selector_live_source_control" android:focusable="true" android:clickable="true" />
-            <TextView android:id="@+id/liveSourceDelete" android:layout_width="match_parent" android:layout_height="56mm" android:layout_marginTop="10mm"
-                android:text="删除" android:gravity="center_vertical" android:paddingLeft="20mm" android:paddingRight="20mm"
-                android:textSize="18mm" android:textColor="@color/color_FFFFFF"
-                android:background="@drawable/selector_live_source_control" android:focusable="true" android:clickable="true" />
+    <!-- 主内容 6:4 分栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4mm"
+        android:orientation="horizontal">
+
+        <!-- 左侧源列表卡片 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="3"
+            android:background="@drawable/shape_setting_group"
+            android:orientation="vertical"
+            android:padding="12mm">
+
+            <ScrollView
+                android:id="@+id/liveSourceScroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:scrollbarSize="3mm"
+                android:scrollbarThumbVertical="@drawable/shape_scrollbar_thumb"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:id="@+id/liveSourceList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
         </LinearLayout>
+
+        <!-- 右侧详情与操作卡片 -->
+        <ScrollView
+            android:id="@+id/liveSourceActions"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="20mm"
+            android:layout_weight="2"
+            android:background="@drawable/shape_setting_group"
+            android:fillViewport="true"
+            android:padding="20mm"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/liveSourceName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="21mm"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/liveSourceState"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6mm"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="15mm" />
+
+                <TextView
+                    android:id="@+id/liveSourceAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:layout_marginBottom="18mm"
+                    android:background="@drawable/shape_settings_inset"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:paddingLeft="12mm"
+                    android:paddingRight="12mm"
+                    android:paddingTop="8mm"
+                    android:paddingBottom="8mm"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13mm" />
+
+                <TextView
+                    android:id="@+id/liveSourceToggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="54mm"
+                    android:background="@drawable/selector_settings_action"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="18mm"
+                    android:paddingRight="18mm"
+                    android:text="停用此源"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="17mm" />
+
+                <TextView
+                    android:id="@+id/liveSourceEdit"
+                    android:layout_width="match_parent"
+                    android:layout_height="54mm"
+                    android:layout_marginTop="10mm"
+                    android:background="@drawable/selector_settings_action"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="18mm"
+                    android:paddingRight="18mm"
+                    android:text="编辑"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="17mm" />
+
+                <TextView
+                    android:id="@+id/liveSourceSort"
+                    android:layout_width="match_parent"
+                    android:layout_height="54mm"
+                    android:layout_marginTop="10mm"
+                    android:background="@drawable/selector_settings_action"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="18mm"
+                    android:paddingRight="18mm"
+                    android:text="调整顺序"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="17mm" />
+
+                <TextView
+                    android:id="@+id/liveSourceDelete"
+                    android:layout_width="match_parent"
+                    android:layout_height="54mm"
+                    android:layout_marginTop="10mm"
+                    android:background="@drawable/selector_settings_action"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="18mm"
+                    android:paddingRight="18mm"
+                    android:text="删除"
+                    android:textColor="@color/settings_danger"
+                    android:textSize="17mm" />
+            </LinearLayout>
         </ScrollView>
     </LinearLayout>
-
-    <TextView android:id="@+id/liveSourceHint" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="8mm" android:text="上下选源 · 右键或确定进入操作 · 左键返回列表"
-        android:textSize="12mm" android:textColor="@color/settings_text_secondary" />
 </LinearLayout>
