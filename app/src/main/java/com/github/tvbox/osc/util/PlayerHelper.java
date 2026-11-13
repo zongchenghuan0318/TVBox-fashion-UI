@@ -12,7 +12,6 @@ import com.orhanobut.hawk.Hawk;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import tv.danmaku.ijk.media.player.IjkLibLoader;
 import xyz.doikki.videoplayer.exo.ExoMediaPlayerFactory;
 import xyz.doikki.videoplayer.player.AndroidMediaPlayerFactory;
 import xyz.doikki.videoplayer.player.PlayerFactory;
@@ -57,17 +56,7 @@ public class PlayerHelper {
                 }
             };
             try {
-                tv.danmaku.ijk.media.player.IjkMediaPlayer.loadLibrariesOnce(new IjkLibLoader() {
-                    @Override
-                    public void loadLibrary(String s) throws UnsatisfiedLinkError, SecurityException {
-                        try {
-                            L.d(" System.loadLibrary()");
-                            System.loadLibrary(s);
-                        } catch (Throwable th) {
-                            L.e(th);
-                        }
-                    }
-                });
+                tv.danmaku.ijk.media.player.IjkMediaPlayer.loadLibrariesOnce(null);
             } catch (Throwable th) {
                 L.e(th);
             }
@@ -106,16 +95,7 @@ public class PlayerHelper {
                 }
             };
             try {
-                tv.danmaku.ijk.media.player.IjkMediaPlayer.loadLibrariesOnce(new IjkLibLoader() {
-                    @Override
-                    public void loadLibrary(String s) throws UnsatisfiedLinkError, SecurityException {
-                        try {
-                            System.loadLibrary(s);
-                        } catch (Throwable th) {
-                            L.e(th);
-                        }
-                    }
-                });
+                tv.danmaku.ijk.media.player.IjkMediaPlayer.loadLibrariesOnce(null);
             } catch (Throwable th) {
                 L.e(th);
             }
@@ -142,16 +122,7 @@ public class PlayerHelper {
 
     public static void init() {
         try {
-            tv.danmaku.ijk.media.player.IjkMediaPlayer.loadLibrariesOnce(new IjkLibLoader() {
-                @Override
-                public void loadLibrary(String s) throws UnsatisfiedLinkError, SecurityException {
-                    try {
-                        System.loadLibrary(s);
-                    } catch (Throwable th) {
-                        L.e(th);
-                    }
-                }
-            });
+            tv.danmaku.ijk.media.player.IjkMediaPlayer.loadLibrariesOnce(null);
         } catch (Throwable th) {
             L.e(th);
         }

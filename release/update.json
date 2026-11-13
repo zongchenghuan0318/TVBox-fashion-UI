@@ -1,8 +1,8 @@
 {
-  "versionCode": 225,
-  "versionName": "1.7.26",
-  "changelog": "# 1.7.26\n\n- 详情页先展示已有影片基本信息，单独显示选集加载状态；加载失败或超时时提供换源搜索入口。\n- 分类页增加列表缓存与后台刷新，并提前加载后续分页，减少浏览等待。\n- 播放时预解析下一集播放地址，切集时复用已完成的解析结果。\n- 完善收藏、历史、搜索及目录选择相关交互。\n\n版本 1.7.26（versionCode 225）。电视端浏览、连续切集和不同播放源的效果仍需实机验证。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.26/Z.apk",
-  "sha256": "58d2d6c60307262bcdbb62a7b9582c1e9d8746549750c099f93ca49a076e2ffa",
-  "size": 22944778
+  "versionCode": 226,
+  "versionName": "1.7.27",
+  "changelog": "# 1.7.27\n\n- 增加 arm64-v8a 支持，保留 armeabi-v7a，提供双架构安装包。\n- IJK 播放器兼容加载三段式动态库，并兼容缺少定制 native_setDot 接口的播放库。\n- 统一 IJK 库加载入口，避免加载失败被提前吞掉。\n\n版本 1.7.27（versionCode 226）。不同 ARM64 设备上的实际播放、解码与兼容性仍需实机验证。",
+  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.27/Z.apk",
+  "sha256": "0a8c464b561ae39a39087ebe19a59484597d5774f3ea2e3e2f9a5454a64474b1",
+  "size": 33895174
 }

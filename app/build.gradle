@@ -35,8 +35,8 @@ android {
         applicationId 'com.studio.osc'
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 225
-        versionName '1.7.26'
+        versionCode 226
+        versionName '1.7.27'
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
@@ -45,7 +45,7 @@ android {
             }
         }
         ndk {
-            abiFilters 'armeabi-v7a'
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
         }
         // Chaquopy Python 引擎（对齐 v6.1.7 的 Python 爬虫载荷）
         python {
@@ -97,7 +97,7 @@ android {
             minifyEnabled false
 
             ndk {
-                abiFilters 'armeabi-v7a'
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
             }
         }
         release {
@@ -106,7 +106,7 @@ android {
             minifyEnabled false
 
             ndk {
-                abiFilters 'armeabi-v7a'
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
             }
         }
     }

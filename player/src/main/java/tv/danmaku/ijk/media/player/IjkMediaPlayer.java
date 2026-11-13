@@ -188,7 +188,14 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
                 if (libLoader == null)
                     libLoader = sLocalLibLoader;
 
-                libLoader.loadLibrary("player");
+                try {
+                    libLoader.loadLibrary("player");
+                } catch (UnsatisfiedLinkError e) {
+                    // arm64-v8a 使用开源三段式 ijkplayer 动态库
+                    libLoader.loadLibrary("ijkffmpeg");
+                    libLoader.loadLibrary("ijksdl");
+                    libLoader.loadLibrary("ijkplayer");
+                }
                 mIsLibLoaded = true;
             }
         }
@@ -200,7 +207,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
         synchronized (IjkMediaPlayer.class) {
             if (!mIsNativeInitialized) {
                 native_init();
-                IjkMediaPlayer.native_setDot(dotOpen ? dotPort : 0);
+                setDotPortSafe(dotOpen ? dotPort : 0);
                 mIsNativeInitialized = true;
             }
         }
@@ -1296,7 +1303,15 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
     public static void toggleDotPort(boolean open) {
         dotOpen = open;
         if (mIsNativeInitialized) {
-            native_setDot(dotOpen ? dotPort : 0);
+            setDotPortSafe(dotOpen ? dotPort : 0);
+        }
+    }
+
+    private static void setDotPortSafe(int port) {
+        try {
+            native_setDot(port);
+        } catch (UnsatisfiedLinkError ignored) {
+            // 非定制单库（如 arm64-v8a 三段式 ijkplayer）不含 native_setDot 符号
         }
     }
 
