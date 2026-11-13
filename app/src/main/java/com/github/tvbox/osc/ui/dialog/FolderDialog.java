@@ -221,6 +221,7 @@ public class FolderDialog extends BaseDialog {
         bundle.putString("sourceKey", video.sourceKey);
         bundle.putString("note", video.note);
         bundle.putString("movieName", video.name);
+        bundle.putString("poster", video.pic);
         activity.jumpActivity(DetailActivity.class, bundle);
     }
 

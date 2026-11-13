@@ -117,6 +117,8 @@ public class HistoryActivity extends BaseActivity implements View.OnClickListene
         Bundle bundle = new Bundle();
         bundle.putString("id", vodInfo.id);
         bundle.putString("sourceKey", vodInfo.sourceKey);
+        bundle.putString("movieName", vodInfo.name);
+        bundle.putString("poster", vodInfo.pic);
         bundle.putBoolean("autoPlayFromHistory", continuePlayback);
         jumpActivity(DetailActivity.class, bundle);
     }

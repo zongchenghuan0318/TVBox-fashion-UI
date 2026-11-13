@@ -413,6 +413,7 @@ public class SearchActivity extends BaseActivity {
             bundle.putString("sourceKey", video.sourceKey);
             bundle.putString("note", video.note);
             bundle.putString("movieName", video.name);
+            bundle.putString("poster", video.pic);
             jumpActivity(DetailActivity.class, bundle);
         }
     }

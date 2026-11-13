@@ -807,6 +807,69 @@ public class SourceViewModel extends ViewModel {
 //        }
 //    }
 
+    public interface PlayPrefetchCallback {
+        void onResult(JSONObject info);
+    }
+
+    /**
+     * 静默预解析下一集播放地址：独立于 playRequestId 与 activePlayContentTask，
+     * 不取消当前集任务、不污染 playResult，失败静默返回 null。
+     */
+    public void prefetchPlayUrl(String sourceKey, String playFlag, String progressKey,
+                                String url, PlayPrefetchCallback callback) {
+        if (callback == null) return;
+        SiteBean sourceBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+        if (sourceBean == null) {
+            resultHandler.post(() -> callback.onResult(null));
+            return;
+        }
+        int type = sourceBean.getType();
+        if (type == 3) {
+            mExecutorService.execute(() -> {
+                JSONObject parsed = null;
+                try {
+                    Spider spider = ApiConfig.getInstance().getCSP(sourceBean);
+                    if (spider != null) {
+                        String json = spider.playerContent(playFlag, url, ApiConfig.getInstance().getmVipFlagList());
+                        if (json != null && !json.trim().isEmpty()) {
+                            JSONObject result = new JSONObject(json);
+                            result.put("key", url);
+                            result.put("proKey", progressKey);
+                            if (!result.has("flag")) {
+                                result.put("flag", playFlag);
+                            }
+                            parsed = result;
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                final JSONObject finalResult = parsed;
+                resultHandler.post(() -> callback.onResult(finalResult));
+            });
+        } else if (type == 0 || type == 1) {
+            try {
+                JSONObject result = new JSONObject();
+                result.put("key", url);
+                String configuredPlayerUrl = sourceBean.getPlayerUrl();
+                String playUrl = configuredPlayerUrl == null ? "" : configuredPlayerUrl.trim();
+                if (DefaultConfig.isVideoFormat(url) && playUrl.isEmpty()) {
+                    result.put("parse", 0);
+                    result.put("url", url);
+                } else {
+                    result.put("parse", 1);
+                    result.put("url", url);
+                }
+                result.put("playUrl", playUrl);
+                result.put("flag", playFlag);
+                resultHandler.post(() -> callback.onResult(result));
+            } catch (Throwable ignored) {
+                resultHandler.post(() -> callback.onResult(null));
+            }
+        } else {
+            resultHandler.post(() -> callback.onResult(null));
+        }
+    }
+
     public void getPlayUrl(String sourceKey, String playFlag, String progressKey, String url) {
         L.d("getPlayUrl() sourceKey=" +sourceKey);
         final int requestId = ++playRequestId;

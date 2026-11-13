@@ -239,30 +239,63 @@
 
 
         <LinearLayout
-            android:id="@+id/mEmptyPlaylist"
+            android:id="@+id/llDetailSeriesLoading"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:gravity="center_horizontal"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="@dimen/vs_50"
+            android:layout_marginTop="@dimen/vs_30"
+            android:layout_marginRight="@dimen/vs_50"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            tools:visibility="gone">
+            android:visibility="gone">
 
-            <ImageView
-                android:layout_width="@dimen/vs_128"
-                android:layout_height="@dimen/vs_128"
-                android:layout_gravity="center"
-                android:src="@drawable/icon_empty" />
+            <ProgressBar
+                android:layout_width="24mm"
+                android:layout_height="24mm"
+                android:indeterminate="true" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginLeft="12mm"
+                android:text="正在加载播放线路与剧集…"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="18mm" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/mEmptyPlaylist"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="@dimen/vs_90"
+                android:layout_height="@dimen/vs_90"
                 android:layout_gravity="center"
-                android:layout_marginStart="@dimen/vs_10"
-                android:layout_marginLeft="@dimen/vs_10"
+                android:alpha="0.6"
+                android:src="@drawable/icon_empty" />
+
+            <TextView
+                android:id="@+id/tvEmptyPlaylistTip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="@dimen/vs_14"
+                android:layout_marginLeft="@dimen/vs_14"
                 android:gravity="center"
                 android:text="暂无播放数据"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_24" />
+                android:textSize="@dimen/ts_22" />
+
+            <TextView
+                android:id="@+id/btnEmptyPlaylistQuickSearch"
+                style="@style/SettingsButton.Primary"
+                android:layout_marginLeft="20mm"
+                android:text="换源搜索" />
         </LinearLayout>
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView

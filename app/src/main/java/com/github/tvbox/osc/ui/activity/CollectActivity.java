@@ -199,6 +199,8 @@ public class CollectActivity extends BaseActivity implements View.OnClickListene
                     Bundle bundle = new Bundle();
                     bundle.putString("id", vodInfo.vodId);
                     bundle.putString("sourceKey", vodInfo.sourceKey);
+                    bundle.putString("movieName", vodInfo.name);
+                    bundle.putString("poster", vodInfo.pic);
                     jumpActivity(DetailActivity.class, bundle);
                 } else {
                     Intent newIntent = new Intent(mContext, SearchActivity.class);

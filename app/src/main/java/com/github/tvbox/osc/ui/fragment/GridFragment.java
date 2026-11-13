@@ -29,9 +29,14 @@ import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 import com.studio.osc.R;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author pj567
@@ -60,6 +65,23 @@ public class GridFragment extends BaseLazyFragment {
     private Parcelable savedGridLayoutState;
     private final ArrayList<Movie.Video> cachedVideos = new ArrayList<>();
     private int focusRequestGeneration;
+    private boolean silentRefreshingPageOne;
+
+    private static final long CACHE_TTL_MS = 5 * 60_000L;
+    private static final long SILENT_REFRESH_AGE_MS = 45_000L;
+    private static final Map<String, CacheEntry> CATEGORY_PAGE_CACHE = new ConcurrentHashMap<>();
+
+    private static final class CacheEntry {
+        final ArrayList<Movie.Video> items;
+        final int maxPage;
+        final long savedAtMs;
+
+        CacheEntry(List<Movie.Video> items, int maxPage, long savedAtMs) {
+            this.items = new ArrayList<>(items);
+            this.maxPage = maxPage;
+            this.savedAtMs = savedAtMs;
+        }
+    }
 
     public static GridFragment newInstance(MovieSort.SortData sortData) {
         return new GridFragment().setArguments(sortData);
@@ -127,6 +149,7 @@ public class GridFragment extends BaseLazyFragment {
                 ((HomeActivity) mActivity).retryCategoryMetadata();
                 return;
             }
+            CATEGORY_PAGE_CACHE.remove(buildPageCacheKey());
             mPage = 1;
             maxPage = 1;
             resetGridPosition();
@@ -169,14 +192,25 @@ public class GridFragment extends BaseLazyFragment {
         mGridAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
             @Override
             public void onLoadMoreRequested() {
-                if (pageRequestInFlight || mPage > maxPage) {
-                    return;
-                }
-                mGridAdapter.setEnableLoadMore(true);
-                pageRequestInFlight = true;
-                activePageRequestId = sourceViewModel.getMovieList(mSortData, mPage);
+                triggerNextPageLoad();
             }
         }, mGridView);
+        mGridView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (dy <= 0 || mGridAdapter == null || pageRequestInFlight || mPage > maxPage || mPage <= 1) return;
+                RecyclerView.LayoutManager lm = recyclerView.getLayoutManager();
+                if (lm instanceof V7GridLayoutManager) {
+                    V7GridLayoutManager gridLm = (V7GridLayoutManager) lm;
+                    int lastVisible = gridLm.findLastVisibleItemPosition();
+                    int total = mGridAdapter.getData().size();
+                    int threshold = Math.max(6, gridLm.getSpanCount() * 2);
+                    if (total > 0 && lastVisible >= total - threshold) {
+                        triggerNextPageLoad();
+                    }
+                }
+            }
+        });
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
@@ -248,10 +282,13 @@ public class GridFragment extends BaseLazyFragment {
                 if (sourceViewModel.getLastPostedCategoryRequestId() != activePageRequestId) return;
                 categoryHandler.removeCallbacks(firstPageTimeout);
                 pageRequestInFlight = false;
+                boolean wasSilentRefresh = silentRefreshingPageOne;
+                silentRefreshingPageOne = false;
                 int count = (absXml == null || absXml.movie == null || absXml.movie.videoList == null)
                         ? -1 : absXml.movie.videoList.size();
                 L.w("gridFeed page=" + mPage + " count=" + count + " maxPage=" + maxPage);
                 if (absXml == null || absXml.movie == null || absXml.movie.videoList == null) {
+                    if (wasSilentRefresh) return;
                     if (mPage == 1) {
                         showEmpty();
                         showCategoryStatus("加载失败，请检查网络或重试", true);
@@ -259,11 +296,23 @@ public class GridFragment extends BaseLazyFragment {
                     else mGridAdapter.loadMoreFail();
                     return;
                 }
-                if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
+                if (absXml.movie.videoList.size() > 0) {
+                    if (wasSilentRefresh) {
+                        CATEGORY_PAGE_CACHE.put(buildPageCacheKey(),
+                                new CacheEntry(absXml.movie.videoList, absXml.movie.pagecount, System.currentTimeMillis()));
+                        if (mPage == 2 && mGridAdapter != null && mGridView != null
+                                && mGridView.computeVerticalScrollOffset() <= 16) {
+                            mGridAdapter.setNewData(absXml.movie.videoList);
+                        }
+                        maxPage = absXml.movie.pagecount;
+                        return;
+                    }
                     if (mPage == 1) {
                         boolean restoreFocus = mCategoryRetry.hasFocus();
                         showSuccess();
                         mGridAdapter.setNewData(absXml.movie.videoList);
+                        CATEGORY_PAGE_CACHE.put(buildPageCacheKey(),
+                                new CacheEntry(absXml.movie.videoList, absXml.movie.pagecount, System.currentTimeMillis()));
                         showCategoryStatus("", false);
                         if (restoreFocus) mGridView.post(() -> focusRememberedItem());
                     } else {
@@ -272,6 +321,7 @@ public class GridFragment extends BaseLazyFragment {
                     mPage++;
                     maxPage = absXml.movie.pagecount;
                 } else {
+                    if (wasSilentRefresh) return;
                     if (mPage == 1) {
                         showEmpty();
                         showCategoryStatus(mSortData.filters.isEmpty() ? "暂无内容，可稍后重新加载"
@@ -291,20 +341,59 @@ public class GridFragment extends BaseLazyFragment {
     @Override
     protected void onReload() {
         if (pageRequestInFlight) return;
+        CATEGORY_PAGE_CACHE.remove(buildPageCacheKey());
         mPage = 1;
         maxPage = 1;
         resetGridPosition();
         initData();
     }
 
+    private void triggerNextPageLoad() {
+        if (pageRequestInFlight || mPage > maxPage || sourceViewModel == null || mSortData == null) {
+            return;
+        }
+        mGridAdapter.setEnableLoadMore(true);
+        pageRequestInFlight = true;
+        activePageRequestId = sourceViewModel.getMovieList(mSortData, mPage);
+    }
+
+    private String buildPageCacheKey() {
+        String filterStr = mSortData != null && mSortData.filterSelect != null
+                ? mSortData.filterSelect.toString() : "";
+        return getCategoryIdentity() + "|" + filterStr;
+    }
+
     private void initData() {
         retryWhenResumed = false;
+        silentRefreshingPageOne = false;
         if (!mSortData.available) {
             pageRequestInFlight = false;
             showEmpty();
             showCategoryStatus("分类信息暂未就绪，可重新加载分类", true);
             mCategoryRetry.setText("重新加载分类");
             return;
+        }
+        if (mPage == 1) {
+            CacheEntry cached = CATEGORY_PAGE_CACHE.get(buildPageCacheKey());
+            long age = cached == null ? Long.MAX_VALUE : (System.currentTimeMillis() - cached.savedAtMs);
+            if (cached != null && !cached.items.isEmpty() && age < CACHE_TTL_MS) {
+                showSuccess();
+                showCategoryStatus("", false);
+                mGridAdapter.setNewData(new ArrayList<>(cached.items));
+                mPage = 2;
+                maxPage = Math.max(1, cached.maxPage);
+                if (mPage > maxPage) {
+                    mGridAdapter.loadMoreEnd();
+                } else {
+                    mGridAdapter.loadMoreComplete();
+                }
+                if (age > SILENT_REFRESH_AGE_MS) {
+                    silentRefreshingPageOne = true;
+                    pageRequestInFlight = true;
+                    activePageRequestId = sourceViewModel.getMovieList(mSortData, 1);
+                }
+                return;
+            }
         }
         pageRequestInFlight = true;
         showLoading();

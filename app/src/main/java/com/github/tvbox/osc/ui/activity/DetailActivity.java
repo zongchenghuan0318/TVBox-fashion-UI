@@ -83,6 +83,10 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private TvRecyclerView mSeriesRangeRV;
     private TvRecyclerView mSeriesGridView;
     private LinearLayout mEmptyLayout;
+    private View llDetailSeriesLoading;
+    private TextView tvEmptyPlaylistTip;
+    private View btnEmptyPlaylistQuickSearch;
+    private boolean hasInitialPreview;
     private SourceViewModel mSourceViewModel;
     private Movie.Video mVideo;
     private VodInfo mVodInfo;
@@ -121,7 +125,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private final Runnable detailTimeout = new Runnable() {
         @Override
         public void run() {
-            showEmpty();
+            showDetailSeriesError("详情加载超时，请重试或换源搜索");
             Toast.makeText(DetailActivity.this, "详情加载超时，请检查网络或更换搜索源", Toast.LENGTH_SHORT).show();
         }
     };
@@ -162,6 +166,15 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         tvCollect = findViewById(R.id.tvCollect);
         TextView tvQuickSearch = findViewById(R.id.tvQuickSearch);
         mEmptyLayout = findViewById(R.id.mEmptyPlaylist);
+        llDetailSeriesLoading = findViewById(R.id.llDetailSeriesLoading);
+        tvEmptyPlaylistTip = findViewById(R.id.tvEmptyPlaylistTip);
+        btnEmptyPlaylistQuickSearch = findViewById(R.id.btnEmptyPlaylistQuickSearch);
+        if (btnEmptyPlaylistQuickSearch != null) {
+            btnEmptyPlaylistQuickSearch.setOnClickListener(v -> {
+                View quick = findViewById(R.id.tvQuickSearch);
+                if (quick != null) quick.performClick();
+            });
+        }
 
         initSeriesGridView();
         initFlagGridView();
@@ -243,7 +256,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                     displayVideo(absXml.movie.videoList.get(0), detailRequestId);
                 } else {
-                    showEmpty();
+                    showDetailSeriesError("暂无播放数据");
                     SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
                     String site = siteBean == null ? sourceKey : siteBean.getName();
                     PrintUtil.saveError(site + movieName, "没找到详情数据");
@@ -377,18 +390,78 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             noteStr = bundle.getString("note");
             movieName = bundle.getString("movieName");
             autoPlayFromHistory = bundle.getBoolean("autoPlayFromHistory", false);
+            String initialPoster = bundle.getString("poster");
+            hasInitialPreview = !NullUtil.isNull(movieName) || !NullUtil.isNull(initialPoster);
+            if (!NullUtil.isNull(movieName)) {
+                searchTitle = movieName;
+            }
             Movie.Video directVideo = (Movie.Video) bundle.getSerializable("video");
             if (directVideo != null) {
                 displayVideo(directVideo, -1);
             } else {
-                loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
+                String srcKey = bundle.getString("sourceKey", "");
+                if (hasInitialPreview) {
+                    renderInitialPreview(srcKey);
+                }
+                loadDetail(bundle.getString("id", null), srcKey);
             }
+        }
+    }
+
+    private void renderInitialPreview(String srcKey) {
+        showSuccess();
+        if (!NullUtil.isNull(movieName)) {
+            tvName.setText(movieName);
+        }
+        SiteBean videoSite = ApiConfig.getInstance().getSiteBean(srcKey);
+        setTextShow(tvSite, "来源：", videoSite == null ? srcKey : videoSite.getName());
+        tvYear.setVisibility(View.GONE);
+        tvArea.setVisibility(View.GONE);
+        tvLang.setVisibility(View.GONE);
+        tvType.setVisibility(View.GONE);
+        tvActor.setVisibility(View.GONE);
+        tvDirector.setVisibility(View.GONE);
+        if (!NullUtil.isNull(noteStr)) {
+            setTextShow(tvDes, "状态：", noteStr);
+        } else {
+            tvDes.setVisibility(View.GONE);
+        }
+        tvPlay.setVisibility(View.GONE);
+        tvSort.setVisibility(View.GONE);
+        mFlagGridView.setVisibility(View.GONE);
+        if (mSeriesRangeRV != null) mSeriesRangeRV.setVisibility(View.GONE);
+        mSeriesGridView.setVisibility(View.GONE);
+        mEmptyLayout.setVisibility(View.GONE);
+        if (llDetailSeriesLoading != null) llDetailSeriesLoading.setVisibility(View.VISIBLE);
+        View quick = findViewById(R.id.tvQuickSearch);
+        if (quick != null) quick.requestFocus();
+    }
+
+    private void showDetailSeriesError(String tip) {
+        if (llDetailSeriesLoading != null) llDetailSeriesLoading.setVisibility(View.GONE);
+        if (hasInitialPreview || mVideo != null) {
+            showSuccess();
+            mFlagGridView.setVisibility(View.GONE);
+            if (mSeriesRangeRV != null) mSeriesRangeRV.setVisibility(View.GONE);
+            mSeriesGridView.setVisibility(View.GONE);
+            tvPlay.setVisibility(View.GONE);
+            tvSort.setVisibility(View.GONE);
+            mEmptyLayout.setVisibility(View.VISIBLE);
+            if (tvEmptyPlaylistTip != null && tip != null) {
+                tvEmptyPlaylistTip.setText(tip);
+            }
+            if (btnEmptyPlaylistQuickSearch != null) {
+                btnEmptyPlaylistQuickSearch.post(btnEmptyPlaylistQuickSearch::requestFocus);
+            }
+        } else {
+            showEmpty();
         }
     }
 
     private void displayVideo(Movie.Video video, int requestId) {
         if (video == null) return;
         detailHandler.removeCallbacks(detailTimeout);
+        if (llDetailSeriesLoading != null) llDetailSeriesLoading.setVisibility(View.GONE);
         showSuccess();
         mVideo = video;
         vodId = video.id;
@@ -416,7 +489,12 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             mFlagGridView.setVisibility(View.VISIBLE);
             mSeriesGridView.setVisibility(View.VISIBLE);
             tvPlay.setVisibility(View.VISIBLE);
+            tvSort.setVisibility(View.VISIBLE);
             mEmptyLayout.setVisibility(View.GONE);
+            mFlagGridView.setAlpha(0f);
+            mFlagGridView.animate().alpha(1f).setDuration(140L).start();
+            mSeriesGridView.setAlpha(0f);
+            mSeriesGridView.animate().alpha(1f).setDuration(140L).start();
 
             final String curSourceKey = sourceKey;
             final String curVodId = vodId;
@@ -436,7 +514,12 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             mFlagGridView.setVisibility(View.GONE);
             mSeriesGridView.setVisibility(View.GONE);
             tvPlay.setVisibility(View.GONE);
+            tvSort.setVisibility(View.GONE);
             mEmptyLayout.setVisibility(View.VISIBLE);
+            if (tvEmptyPlaylistTip != null) tvEmptyPlaylistTip.setText("暂无播放数据");
+            if (btnEmptyPlaylistQuickSearch != null) {
+                btnEmptyPlaylistQuickSearch.post(btnEmptyPlaylistQuickSearch::requestFocus);
+            }
             SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
             String site = siteBean == null ? sourceKey : siteBean.getName();
             PrintUtil.saveError(site + movieName, "暂无播放数据");
@@ -461,7 +544,12 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             vodId = vid;
             sourceKey = key;
             bHadQuickStart = false;
-            showLoading();
+            if (!hasInitialPreview && mVideo == null) {
+                showLoading();
+            } else {
+                showSuccess();
+                if (llDetailSeriesLoading != null) llDetailSeriesLoading.setVisibility(View.VISIBLE);
+            }
             detailHandler.removeCallbacks(detailTimeout);
             detailHandler.postDelayed(detailTimeout, 20000L);
             L.d("loadDetail()");

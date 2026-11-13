@@ -147,11 +147,15 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     // 进度的内存副本（进程内有效），保证写入后立即可读，不依赖后台写库的完成时机
     private static final Map<String, Long> PROGRESS_LATEST = new ConcurrentHashMap<>();
     private boolean playbackStartPending;
+    private String mPrefetchedNextKey;
+    private JSONObject mPrefetchedNextInfo;
+    private String mPrefetchInFlightKey;
     private final Runnable mProgressSaveRunnable = new Runnable() {
         @Override
         public void run() {
             if (!isActivityActive() || mVideoView == null) return;
             saveCurrentProgress();
+            maybePrefetchNextEpisode();
             if (mHandler != null) {
                 mHandler.postDelayed(this, 5000L);
             }
@@ -319,31 +323,35 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         sourceViewModel.playResult.observe(this, new Observer<JSONObject>() {
             @Override
             public void onChanged(JSONObject info) {
-                L.d("observe onChanged():" + new Gson().toJson(info));
-                if (info != null) {
-                    if (mPlaybackOptions != null) mPlaybackOptions.setSources(info);
-                    mPlayBean = UiHelper.getPlayBean(info);
-                    String url = null;
-                    if (!NullUtil.isNull(mPlayBean.playUrl) && DefaultConfig.isVideoFormat2(mPlayBean.playUrl)) {
-                        url = mPlayBean.playUrl;
-                    } else {
-                        if (!NullUtil.isNull(mPlayBean.url)) {
-                            url = mPlayBean.url;
-                        }
-                    }
-                    if (!NullUtil.isNull(url) && DefaultConfig.isVideoFormat2(url)) {
-                        playVideo(url, mPlayBean.headersMap);
-                    } else if (!NullUtil.isNull(url) && DefaultConfig.isVideoFormat(url)) {
-                        playVideo(url, mPlayBean.headersMap);
-                    } else {
-                        boolean bUseJxList = (mPlayBean.playUrl.isEmpty() && ApiConfig.getInstance().getmVipFlagList().contains(mPlayBean.flag)) || mPlayBean.bNeedJx;
-                        initParse(mPlayBean.flag, bUseJxList, mPlayBean.playUrl, mPlayBean.url);
-                    }
-                } else {
-                    errorWithRetry("获取播放地址错误", true);
-                }
+                handlePlayResultInfo(info);
             }
         });
+    }
+
+    private void handlePlayResultInfo(JSONObject info) {
+        L.d("observe onChanged():" + new Gson().toJson(info));
+        if (info != null) {
+            if (mPlaybackOptions != null) mPlaybackOptions.setSources(info);
+            mPlayBean = UiHelper.getPlayBean(info);
+            String url = null;
+            if (!NullUtil.isNull(mPlayBean.playUrl) && DefaultConfig.isVideoFormat2(mPlayBean.playUrl)) {
+                url = mPlayBean.playUrl;
+            } else {
+                if (!NullUtil.isNull(mPlayBean.url)) {
+                    url = mPlayBean.url;
+                }
+            }
+            if (!NullUtil.isNull(url) && DefaultConfig.isVideoFormat2(url)) {
+                playVideo(url, mPlayBean.headersMap);
+            } else if (!NullUtil.isNull(url) && DefaultConfig.isVideoFormat(url)) {
+                playVideo(url, mPlayBean.headersMap);
+            } else {
+                boolean bUseJxList = (mPlayBean.playUrl.isEmpty() && ApiConfig.getInstance().getmVipFlagList().contains(mPlayBean.flag)) || mPlayBean.bNeedJx;
+                initParse(mPlayBean.flag, bUseJxList, mPlayBean.playUrl, mPlayBean.url);
+            }
+        } else {
+            errorWithRetry("获取播放地址错误", true);
+        }
     }
 
     private void initPlayerConfig() {
@@ -433,7 +441,54 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         playVideo(null, null); //stopPlay
 
         String progressKey = mVodInfo.sourceKey + mVodInfo.id + mVodInfo.playFlag + mVodInfo.playIndex;
+        String targetPrefetchKey = mSourceKeyStr + "|" + mVodInfo.playFlag + "|" + vs.url;
+        if (autoRetryCount == 0 && targetPrefetchKey.equals(mPrefetchedNextKey) && mPrefetchedNextInfo != null) {
+            final JSONObject cachedInfo = mPrefetchedNextInfo;
+            mPrefetchedNextKey = null;
+            mPrefetchedNextInfo = null;
+            L.d("preGetPlayUrl() hit prefetched next episode");
+            mHandler.post(() -> {
+                if (isActivityActive()) handlePlayResultInfo(cachedInfo);
+            });
+            return;
+        }
         sourceViewModel.getPlayUrl(mSourceKeyStr, mVodInfo.playFlag, progressKey, vs.url);
+    }
+
+    private void maybePrefetchNextEpisode() {
+        if (mVideoView == null || mVodInfo == null || mVodInfo.seriesMap == null
+                || mVodInfo.playFlag == null || sourceViewModel == null || !isActivityActive()) {
+            return;
+        }
+        java.util.List<VodInfo.VodSeries> episodes = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        int nextIndex = mVodInfo.playIndex + 1;
+        if (episodes == null || nextIndex < 0 || nextIndex >= episodes.size()) return;
+
+        long duration = mVideoView.getDuration();
+        long pos = mVideoView.getCurrentPosition();
+        if (duration <= 0 || pos <= 0) return;
+        boolean nearEnd = (duration - pos <= 45_000L) || (duration <= 90_000L && pos >= duration * 0.6f);
+        if (!nearEnd) return;
+
+        VodInfo.VodSeries nextEpisode = episodes.get(nextIndex);
+        if (nextEpisode == null || nextEpisode.url == null || nextEpisode.url.trim().isEmpty()) return;
+        final String nextKey = mSourceKeyStr + "|" + mVodInfo.playFlag + "|" + nextEpisode.url;
+        if (nextKey.equals(mPrefetchedNextKey) || nextKey.equals(mPrefetchInFlightKey)) return;
+
+        mPrefetchInFlightKey = nextKey;
+        String nextProgressKey = mVodInfo.sourceKey + mVodInfo.id + mVodInfo.playFlag + nextIndex;
+        L.d("prefetch next episode index=" + nextIndex);
+        sourceViewModel.prefetchPlayUrl(mSourceKeyStr, mVodInfo.playFlag, nextProgressKey, nextEpisode.url, info -> {
+            if (!isActivityActive()) return;
+            if (nextKey.equals(mPrefetchInFlightKey)) {
+                mPrefetchInFlightKey = null;
+                if (info != null) {
+                    mPrefetchedNextKey = nextKey;
+                    mPrefetchedNextInfo = info;
+                    L.d("prefetch next episode ready index=" + nextIndex);
+                }
+            }
+        });
     }
 
     private void addControl() {
