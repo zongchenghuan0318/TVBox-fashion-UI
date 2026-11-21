@@ -16,8 +16,37 @@ public final class RemoteKeySound {
     private static int moveSound;
     private static int confirmSound;
     private static int backSound;
+    private static volatile Boolean cachedEnabled;
 
     private RemoteKeySound() {
+    }
+
+    public static boolean isEnabled() {
+        Boolean enabled = cachedEnabled;
+        if (enabled != null) {
+            return enabled;
+        }
+        boolean value = true;
+        try {
+            if (Hawk.isBuilt()) {
+                value = Hawk.get(HawkConfig.REMOTE_KEY_SOUND, true);
+            }
+        } catch (Throwable ignored) {
+        }
+        cachedEnabled = value;
+        return value;
+    }
+
+    public static void setEnabled(boolean enabled) {
+        cachedEnabled = enabled;
+        AppExecutors.io().execute(() -> {
+            try {
+                if (Hawk.isBuilt()) {
+                    Hawk.put(HawkConfig.REMOTE_KEY_SOUND, enabled);
+                }
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     public static void preload(Context context) {
@@ -38,7 +67,7 @@ public final class RemoteKeySound {
     }
 
     public static void attach(Window window, Context context) {
-        if (Hawk.get(HawkConfig.REMOTE_KEY_SOUND, true)) {
+        if (isEnabled()) {
             preload(context);
         }
         window.setCallback(new WindowCallbackWrapper(window.getCallback()) {
@@ -46,7 +75,7 @@ public final class RemoteKeySound {
             public boolean dispatchKeyEvent(KeyEvent event) {
                 if (soundPool != null && event.getAction() == KeyEvent.ACTION_DOWN
                         && event.getRepeatCount() == 0
-                        && Hawk.get(HawkConfig.REMOTE_KEY_SOUND, true)) {
+                        && isEnabled()) {
                     switch (event.getKeyCode()) {
                         case KeyEvent.KEYCODE_DPAD_UP:
                         case KeyEvent.KEYCODE_DPAD_DOWN:

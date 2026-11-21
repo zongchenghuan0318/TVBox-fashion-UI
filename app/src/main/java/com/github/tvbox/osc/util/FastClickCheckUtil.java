@@ -1,6 +1,7 @@
 package com.github.tvbox.osc.util;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 
 /**
@@ -9,6 +10,8 @@ import android.view.View;
  * @description:
  */
 public class FastClickCheckUtil {
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
+
     /**
      * 相同视图点击必须间隔0.5s才能有效
      *
@@ -25,12 +28,8 @@ public class FastClickCheckUtil {
      * @param mills 点击间隔时间（毫秒）
      */
     public static void check(final View view, int mills) {
+        if (view == null) return;
         view.setClickable(false);
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                view.setClickable(true);
-            }
-        }, mills);
+        MAIN_HANDLER.postDelayed(() -> view.setClickable(true), mills);
     }
 }

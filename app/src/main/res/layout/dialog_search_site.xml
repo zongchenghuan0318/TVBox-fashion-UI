@@ -70,7 +70,6 @@
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
                 android:focusable="true"
-                android:nextFocusDown="@id/list"
                 android:gravity="center"
                 android:text="精选高速"
                 android:textColor="@color/settings_success"
@@ -86,7 +85,6 @@
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
                 android:focusable="true"
-                android:nextFocusDown="@id/list"
                 android:gravity="center"
                 android:text="全选"
                 android:textColor="@color/color_FFFFFF"
@@ -101,7 +99,6 @@
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
                 android:focusable="true"
-                android:nextFocusDown="@id/list"
                 android:gravity="center"
                 android:text="全不选"
                 android:textColor="@color/color_FFFFFF"
@@ -115,7 +112,6 @@
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
                 android:focusable="true"
-                android:nextFocusDown="@id/list"
                 android:gravity="center"
                 android:text="设首位优先"
                 android:textColor="@color/color_FFFFFF"
@@ -156,15 +152,22 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="勾选实时保存 · 序号越小越优先搜索"
+                android:text="确定键勾选 · 长按可调序 · 点「应用」生效"
                 android:textColor="@color/settings_text_muted"
                 android:textSize="14mm" />
+
+            <TextView
+                android:id="@+id/btnSearchSiteCancel"
+                style="@style/SettingsButton"
+                android:layout_marginRight="10mm"
+                android:minWidth="92mm"
+                android:text="取消" />
 
             <TextView
                 android:id="@+id/btnSearchSiteDone"
                 style="@style/SettingsButton.Primary"
                 android:minWidth="110mm"
-                android:text="完成" />
+                android:text="应用" />
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </FrameLayout>

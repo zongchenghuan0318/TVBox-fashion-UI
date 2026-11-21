@@ -3,6 +3,7 @@ package com.fongmi.quickjs.utils;
 import com.fongmi.quickjs.bean.Req;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Util;
+import com.lzy.okgo.OkGo;
 import com.whl.quickjs.wrapper.JSObject;
 import com.whl.quickjs.wrapper.QuickJSContext;
 
@@ -13,6 +14,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
+import okhttp3.ConnectionPool;
+import okhttp3.Dispatcher;
 import okhttp3.FormBody;
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -25,14 +28,48 @@ import okhttp3.Response;
 public class Connect {
 
     private static final String CONTENT_TYPE = "Content-Type";
+    private static final int MIN_TIMEOUT_MS = 1000;
+    private static final int MAX_TIMEOUT_MS = 15000;
+    private static volatile OkHttpClient fallbackClient;
+
+    static OkHttpClient sharedBaseClient() {
+        try {
+            OkHttpClient okGoClient = OkGo.getInstance().getOkHttpClient();
+            if (okGoClient != null) {
+                return okGoClient;
+            }
+        } catch (Throwable ignored) {
+        }
+        OkHttpClient client = fallbackClient;
+        if (client == null) {
+            synchronized (Connect.class) {
+                client = fallbackClient;
+                if (client == null) {
+                    Dispatcher dispatcher = new Dispatcher();
+                    dispatcher.setMaxRequests(64);
+                    dispatcher.setMaxRequestsPerHost(16);
+                    client = new OkHttpClient.Builder()
+                            .connectionPool(new ConnectionPool(16, 2, TimeUnit.MINUTES))
+                            .dispatcher(dispatcher)
+                            .connectTimeout(10, TimeUnit.SECONDS)
+                            .readTimeout(10, TimeUnit.SECONDS)
+                            .writeTimeout(10, TimeUnit.SECONDS)
+                            .build();
+                    fallbackClient = client;
+                }
+            }
+        }
+        return client;
+    }
 
     public static Call to(String url, Req req) {
         return client(req).newCall(getRequest(url, req, getHeaders(req)));
     }
 
     private static OkHttpClient client(Req req) {
-        int timeout = req.getTimeout();
-        return new OkHttpClient.Builder()
+        int rawTimeout = req.getTimeout();
+        int timeout = rawTimeout <= 0 ? 10000 : Math.max(MIN_TIMEOUT_MS, Math.min(rawTimeout, MAX_TIMEOUT_MS));
+        return sharedBaseClient().newBuilder()
                 .followRedirects(req.isRedirect())
                 .followSslRedirects(req.isRedirect())
                 .connectTimeout(timeout, TimeUnit.MILLISECONDS)
@@ -60,10 +97,16 @@ public class Connect {
             if (req.getBuffer() == 1) jsObject.setProperty("content", JSUtil.toArray(ctx, bytes));
             if (req.getBuffer() == 2) jsObject.setProperty("content", Util.base64(bytes));
             if (req.getBuffer() == 3) jsObject.setProperty("content", bytes);
-            res.close();
             return jsObject;
         } catch (Exception e) {
             return error(ctx);
+        } finally {
+            if (res != null) {
+                try {
+                    res.close();
+                } catch (Throwable ignored) {
+                }
+            }
         }
     }
 

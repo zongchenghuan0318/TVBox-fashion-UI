@@ -217,7 +217,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             quickSearchDialog.setOnDialogDismissListener(() -> {
                 bHadQuickStart = false;
                 quickSearchRequestId++;
-                OkGo.getInstance().cancelTag("search");
+                OkGo.getInstance().cancelTag(SourceViewModel.TAG_QUICK_SEARCH);
             });
         });
 
@@ -880,7 +880,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     }
 
     private void switchSearchWord(String word) {
-        OkGo.getInstance().cancelTag("search");
+        OkGo.getInstance().cancelTag(SourceViewModel.TAG_QUICK_SEARCH);
         quickSearchList.clear();
         searchTitle = word;
         quickSearch();
@@ -890,7 +890,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
     private void startQuickSearch() {
         if (bHadQuickStart) return;
         bHadQuickStart = true;
-        OkGo.getInstance().cancelTag("search");
+        OkGo.getInstance().cancelTag(SourceViewModel.TAG_QUICK_SEARCH);
         wordList.clear();
         searchTitle = mVideo.name;
         quickSearchList.clear();
@@ -951,7 +951,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             if (!bean.isQuickSearch()) continue;
             siteKey.add(bean.getKey());
         }
-        OkGo.getInstance().cancelTag("search");
+        OkGo.getInstance().cancelTag(SourceViewModel.TAG_QUICK_SEARCH);
         for (String key : siteKey) {
             mExecutorService.submit(new Runnable() {
                 @Override
@@ -976,8 +976,9 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
             }
             quickSearchList.addAll(data);
             // 展示顺序按搜索源的勾选顺序排列，同一源内部保持返回顺序
-            Collections.sort(quickSearchList, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
-                    - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
+            Collections.sort(quickSearchList, (a, b) -> Integer.compare(
+                    ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey),
+                    ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey)));
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH, data));
         }
     }
@@ -991,7 +992,7 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         }
         OkGo.getInstance().cancelTag("fenci");
         if (mSourceViewModel != null) mSourceViewModel.cancelDetailRequests();
-        OkGo.getInstance().cancelTag("search");
+        OkGo.getInstance().cancelTag(SourceViewModel.TAG_QUICK_SEARCH);
         EventBus.getDefault().unregister(this);
         if (mExecutorService != null) {
             mExecutorService.shutdownNow();

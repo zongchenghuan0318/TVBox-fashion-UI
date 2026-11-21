@@ -25,12 +25,16 @@ public class Module {
     public String fetch(String name) {
         try {
             if (TextUtils.isEmpty(name)) return "";
-            if (cache.containsKey(name)) return cache.get(name);
-            if (name.startsWith("http")) cache.put(name, request(name));
-            if (name.startsWith("assets")) cache.put(name, Asset.read(name));
-            if (name.startsWith("lib/")) cache.put(name, Asset.read("js/" + name));
-            String content = cache.get(name);
-            return content == null ? "" : content;
+            String cached = cache.get(name);
+            if (!TextUtils.isEmpty(cached)) return cached;
+            String fetched = "";
+            if (name.startsWith("http")) fetched = request(name);
+            else if (name.startsWith("assets")) fetched = Asset.read(name);
+            else if (name.startsWith("lib/")) fetched = Asset.read("js/" + name);
+            if (!TextUtils.isEmpty(fetched)) {
+                cache.put(name, fetched);
+            }
+            return fetched == null ? "" : fetched;
         } catch (Exception e) {
             return "";
         }
@@ -41,14 +45,25 @@ public class Module {
     }
 
     public String request(String url) {
+        Response res = null;
         try {
-            Response res = new OkHttpClient.Builder().build().newCall(new Request.Builder().url(url).build()).execute();
+            OkHttpClient client = Connect.sharedBaseClient().newBuilder()
+                    .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                    .build();
+            res = client.newCall(new Request.Builder().url(url).build()).execute();
             byte[] data = res.body() == null ? new byte[0] : res.body().bytes();
-            res.close();
             OooO00o(file(url), data);
             return new String(data, "UTF-8");
         } catch (Exception e) {
             return "";
+        } finally {
+            if (res != null) {
+                try {
+                    res.close();
+                } catch (Throwable ignored) {
+                }
+            }
         }
     }
 

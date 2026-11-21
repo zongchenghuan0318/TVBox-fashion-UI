@@ -42,7 +42,12 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
         void onRow(Row row);
     }
 
+    public interface OnRowLongAction {
+        void onRowLong(Row row);
+    }
+
     private OnRowAction onRowAction = null;
+    private OnRowLongAction onRowLongAction = null;
 
     public SearchSiteAdapter() {
         super(R.layout.item_search_site, new ArrayList<>());
@@ -50,6 +55,10 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
 
     public void setOnRowAction(OnRowAction action) {
         this.onRowAction = action;
+    }
+
+    public void setOnRowLongAction(OnRowLongAction action) {
+        this.onRowLongAction = action;
     }
 
     @Override
@@ -84,6 +93,13 @@ public class SearchSiteAdapter extends BaseQuickAdapter<SearchSiteAdapter.Row, B
             if (onRowAction != null) {
                 onRowAction.onRow(item);
             }
+        });
+        helper.itemView.setOnLongClickListener(v -> {
+            if (onRowLongAction != null) {
+                onRowLongAction.onRowLong(item);
+                return true;
+            }
+            return false;
         });
     }
 }

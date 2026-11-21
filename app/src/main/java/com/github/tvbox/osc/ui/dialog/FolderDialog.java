@@ -1,6 +1,7 @@
 package com.github.tvbox.osc.ui.dialog;
 
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.TextView;
@@ -16,6 +17,7 @@ import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.ui.activity.DetailActivity;
 import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.ui.adapter.SearchResultAdapter;
+import com.github.tvbox.osc.ui.tv.widget.SafeTvLayoutManagers;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PosterPreloader;
@@ -23,24 +25,27 @@ import com.github.tvbox.osc.util.SeniorMode;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
-import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
-import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 import com.studio.osc.R;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 
 /**
  * 聚合目录浮层弹窗：替代整页跳进带废弃键盘的 SearchActivity，
- * 保留原搜索结果在底层，支持子目录层级返回与直达影片详情。
+ * 保留原搜索结果在底层，支持子目录层级缓存秒回与直达影片详情。
  */
 public class FolderDialog extends BaseDialog {
+
+    private static final long ITEM_CLICK_GUARD_MS = 450L;
 
     private static final class Entry {
         final String id;
         final String sourceKey;
         final String title;
+        List<Movie.Video> cachedVideos;
+        int savedPosition;
 
         Entry(String id, String sourceKey, String title) {
             this.id = id;
@@ -59,7 +64,9 @@ public class FolderDialog extends BaseDialog {
     private final View loadingView;
     private final View emptyView;
     private final TextView emptyTipView;
+    private final View retryButton;
     private int activeRequestId = -1;
+    private long lastItemClickAt;
 
     private final Observer<AbsXml> folderObserver = new Observer<AbsXml>() {
         @Override
@@ -76,19 +83,20 @@ public class FolderDialog extends BaseDialog {
                 adapter.setNewData(new ArrayList<>());
                 recyclerView.setVisibility(View.GONE);
                 emptyView.setVisibility(View.VISIBLE);
-                emptyTipView.setText("该聚合目录为空或暂时无法加载");
+                emptyTipView.setText("目录加载超时或暂无可用资源，可点击重新加载");
                 subtitleView.setText(sourceName + " · 暂无可用资源");
-                findViewById(R.id.btnFolderBack).requestFocus();
+                if (retryButton != null) {
+                    retryButton.setVisibility(View.VISIBLE);
+                    retryButton.requestFocus();
+                } else {
+                    findViewById(R.id.btnFolderBack).requestFocus();
+                }
             } else {
-                emptyView.setVisibility(View.GONE);
-                recyclerView.setVisibility(View.VISIBLE);
-                adapter.setNewData(new ArrayList<>(absXml.movie.videoList));
-                subtitleView.setText(sourceName + " · 共 " + adapter.getData().size() + " 项资源");
-                recyclerView.scrollToPosition(0);
-                recyclerView.post(() -> {
-                    recyclerView.setSelection(0);
-                    recyclerView.requestFocus();
-                });
+                List<Movie.Video> videos = new ArrayList<>(absXml.movie.videoList);
+                if (top != null) {
+                    top.cachedVideos = videos;
+                }
+                showEntryVideos(sourceName, videos, top != null ? top.savedPosition : 0);
             }
         }
     };
@@ -105,44 +113,70 @@ public class FolderDialog extends BaseDialog {
         loadingView = findViewById(R.id.llFolderLoading);
         emptyView = findViewById(R.id.llFolderEmpty);
         emptyTipView = findViewById(R.id.tvFolderEmptyTip);
+        retryButton = findViewById(R.id.btnFolderRetry);
         recyclerView = findViewById(R.id.rvFolder);
 
         findViewById(R.id.btnFolderBack).setOnClickListener(v -> onBackPressed());
         findViewById(R.id.btnFolderClose).setOnClickListener(v -> dismiss());
+        if (retryButton != null) {
+            retryButton.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                Entry top = stack.peek();
+                if (top != null) {
+                    top.cachedVideos = null;
+                }
+                loadTopEntry();
+            });
+        }
 
         recyclerView.setHasFixedSize(true);
-        if (Hawk.get(HawkConfig.SEARCH_VIEW, 1) == 0) {
-            recyclerView.setLayoutManager(new V7LinearLayoutManager(activity, 1, false));
+        recyclerView.setItemAnimator(null);
+        final boolean listMode = Hawk.get(HawkConfig.SEARCH_VIEW, 1) == 0;
+        if (listMode) {
+            recyclerView.setLayoutManager(SafeTvLayoutManagers.linear(activity, 1, false));
         } else {
-            recyclerView.setLayoutManager(new V7GridLayoutManager(activity,
-                    SeniorMode.getGridColumnCount(4)));
+            int cols = SeniorMode.isEnabled() ? 3 : 4;
+            recyclerView.setLayoutManager(SafeTvLayoutManagers.grid(activity, cols));
         }
         recyclerView.setAdapter(adapter);
-        PosterPreloader.setup(activity, recyclerView, new PosterPreloader.PosterProvider() {
-            @Override
-            public int getCount() {
-                return adapter.getData().size();
-            }
-
-            @Override
-            public String getPosterUrl(int position) {
-                if (position >= 0 && position < adapter.getData().size()) {
-                    Movie.Video item = adapter.getData().get(position);
-                    return item != null ? item.pic : null;
+        // 列表视图不显示海报，不挂预加载器避免无效网络与解码开销
+        if (!listMode) {
+            PosterPreloader.setup(activity, recyclerView, new PosterPreloader.PosterProvider() {
+                @Override
+                public int getCount() {
+                    return adapter.getData().size();
                 }
-                return null;
-            }
-        }, 8);
+
+                @Override
+                public String getPosterUrl(int position) {
+                    if (position >= 0 && position < adapter.getData().size()) {
+                        Movie.Video item = adapter.getData().get(position);
+                        return item != null ? item.pic : null;
+                    }
+                    return null;
+                }
+            }, 8);
+        }
 
         recyclerView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                if (itemView != null) itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start();
+                if (itemView != null && !listMode && !SeniorMode.isEnabled()) {
+                    itemView.animate().cancel();
+                    itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start();
+                }
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                if (itemView != null) itemView.animate().scaleX(1.04f).scaleY(1.04f).setDuration(140).start();
+                Entry top = stack.peek();
+                if (top != null && position >= 0) {
+                    top.savedPosition = position;
+                }
+                if (itemView != null && !listMode && !SeniorMode.isEnabled()) {
+                    itemView.animate().cancel();
+                    itemView.animate().scaleX(1.04f).scaleY(1.04f).setDuration(140).start();
+                }
             }
 
             @Override
@@ -158,8 +192,24 @@ public class FolderDialog extends BaseDialog {
         stack.push(new Entry(rootFolder.id, rootFolder.sourceKey, rootFolder.name));
     }
 
+    private void showEntryVideos(String sourceName, List<Movie.Video> videos, int targetPosition) {
+        loadingView.setVisibility(View.GONE);
+        emptyView.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.VISIBLE);
+        adapter.setNewData(new ArrayList<>(videos));
+        subtitleView.setText(sourceName + " · 共 " + adapter.getData().size() + " 项资源");
+        final int safePos = Math.max(0, Math.min(targetPosition, Math.max(0, videos.size() - 1)));
+        recyclerView.scrollToPosition(safePos);
+        recyclerView.post(() -> {
+            if (!isShowing()) return;
+            recyclerView.setSelection(safePos);
+            recyclerView.requestFocus();
+        });
+    }
+
     @Override
     public void show() {
+        if (activity.isFinishing() || activity.isDestroyed()) return;
         super.show();
         sourceViewModel.listResult.observe(activity, folderObserver);
         loadTopEntry();
@@ -168,12 +218,15 @@ public class FolderDialog extends BaseDialog {
     @Override
     public void dismiss() {
         sourceViewModel.listResult.removeObserver(folderObserver);
+        sourceViewModel.cancelCategoryRequests();
         super.dismiss();
     }
 
     @Override
     public void onBackPressed() {
         if (stack.size() > 1) {
+            sourceViewModel.cancelCategoryRequests();
+            activeRequestId = -1;
             stack.pop();
             loadTopEntry();
             return;
@@ -190,6 +243,13 @@ public class FolderDialog extends BaseDialog {
         String title = TextUtils.isEmpty(top.title) ? "聚合目录" : top.title;
         String sourceName = resolveSourceName(top.sourceKey);
         titleView.setText(title);
+
+        // 返回上一级目录时复用缓存列表与浏览位置，无需重新发起网络请求
+        if (top.cachedVideos != null && !top.cachedVideos.isEmpty()) {
+            showEntryVideos(sourceName, top.cachedVideos, top.savedPosition);
+            return;
+        }
+
         subtitleView.setText(sourceName + " · 正在加载目录…");
 
         if (TextUtils.isEmpty(top.id) || TextUtils.isEmpty(top.sourceKey)) {
@@ -197,6 +257,8 @@ public class FolderDialog extends BaseDialog {
             recyclerView.setVisibility(View.GONE);
             emptyView.setVisibility(View.VISIBLE);
             emptyTipView.setText("目录信息不完整");
+            if (retryButton != null) retryButton.setVisibility(View.GONE);
+            findViewById(R.id.btnFolderBack).requestFocus();
             return;
         }
 
@@ -208,12 +270,22 @@ public class FolderDialog extends BaseDialog {
     }
 
     private void openItem(int position) {
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastItemClickAt < ITEM_CLICK_GUARD_MS) return;
+        lastItemClickAt = now;
         if (position < 0 || position >= adapter.getData().size()) return;
         Movie.Video video = adapter.getData().get(position);
         if (video == null) return;
+        Entry top = stack.peek();
+        if (top != null) {
+            top.savedPosition = position;
+        }
         if (SearchActivity.isFolderItem(video) || SearchActivity.isAggregateItem(video)) {
             stack.push(new Entry(video.id, video.sourceKey, video.name));
             loadTopEntry();
+            return;
+        }
+        if (TextUtils.isEmpty(video.id)) {
             return;
         }
         Bundle bundle = new Bundle();

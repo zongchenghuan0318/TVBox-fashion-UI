@@ -150,8 +150,9 @@ public class QuickSearchDialog extends BaseDialog {
     private void sortBySourceOrder() {
         List<Movie.Video> old = mSearchAdapter.getData();
         List<Movie.Video> merged = new ArrayList<>(old);
-        Collections.sort(merged, (a, b) -> ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey)
-                - ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey));
+        Collections.sort(merged, (a, b) -> Integer.compare(
+                ApiConfig.getInstance().getSearchSiteOrderIndex(a.sourceKey),
+                ApiConfig.getInstance().getSearchSiteOrderIndex(b.sourceKey)));
         for (int i = 0; i < old.size(); i++) {
             if (old.get(i) != merged.get(i)) {
                 mSearchAdapter.setNewData(merged);

@@ -71,8 +71,10 @@ public class HawkConfig {
     public static final int HOME_LAYOUT_DEFAULT = HOME_LAYOUT_IMMERSIVE; // 默认使用极简全屏画报沉浸
     public static final String HOME_REC = "home_rec"; // 0 豆瓣热播 1 数据源推荐 2 历史
     public static final String HOME_DOUBAN_CACHE = "home_douban_cache"; // 最近一次成功的豆瓣热播列表，限流时兜底
+    public static final String HOME_DOUBAN_CACHE_UPDATED_AT = "home_douban_cache_updated_at";
     public static final String DOU_BAN_BID = "dou_ban_bid"; // 豆瓣 bid Cookie，首次生成后固定，降低被判定异常请求的概率
     public static final String SEARCH_VIEW = "search_view"; // 0 列表 1 缩略图
+    public static final String SEARCH_HOT_WORDS_CACHE = "search_hot_words_cache";
     public static final String SEARCH_SITE_DISABLED = "search_site_disabled"; // 不参与搜索的站点 key 列表（缺省=全部参与）
     public static final String SEARCH_SITE_ORDER = "search_site_order"; // 参与搜索的站点 key 顺序：勾选先后即所有搜索界面的展示顺序
     public static final String SEARCH_PIN_VER = "search_pin_ver"; // 粉猪秒播置顶迁移版本

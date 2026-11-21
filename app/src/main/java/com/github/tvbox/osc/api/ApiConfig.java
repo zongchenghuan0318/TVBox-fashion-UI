@@ -97,6 +97,7 @@ public class ApiConfig {
     public static String current_siteUrl= "";
     private static ApiConfig instance = null;
     private final LinkedHashMap<String, SiteBean> mSiteBeanMap;
+    private volatile Map<String, SiteBean> mSiteBeanSnapshot;
     private final SearchSitePreferences searchSites;
     private ParseBean mDefaultParseBean;
     private JsonObject pendingParsers;
@@ -638,6 +639,7 @@ public class ApiConfig {
         } catch (Exception e) {
             mSiteBeanMap.clear();
             mSiteBeanMap.putAll(previousSites);
+            mSiteBeanSnapshot = new HashMap<>(mSiteBeanMap);
             mParseBeanList.clear();
             mParseBeanList.addAll(previousParsers);
             mDefaultParseBean = previousDefault;
@@ -661,6 +663,7 @@ public class ApiConfig {
         } catch (Exception ignored) {
             // Optional ad rules must not invalidate usable VOD sites.
         }
+        mSiteBeanSnapshot = new HashMap<>(mSiteBeanMap);
         searchSites.invalidateSearchSiteOrderCache();
         m_bParsed = true;
     }
@@ -775,6 +778,7 @@ public class ApiConfig {
         homeSelectionGeneration.incrementAndGet();
         mSiteBeanMap.clear();
         mSiteBeanMap.putAll(candidate.mSiteBeanMap);
+        mSiteBeanSnapshot = new HashMap<>(mSiteBeanMap);
         mParseBeanList.clear();
         mDefaultParseBean = null;
         pendingParsers = candidate.pendingParsers;
@@ -1184,11 +1188,15 @@ public class ApiConfig {
         return false;
     }
 
-    public synchronized SiteBean getSiteBean(String key) {
-        if (!mSiteBeanMap.containsKey(key)) {
-            return null;
+    public SiteBean getSiteBean(String key) {
+        if (key == null) return null;
+        Map<String, SiteBean> snapshot = mSiteBeanSnapshot;
+        if (snapshot != null) {
+            return snapshot.get(key);
         }
-        return mSiteBeanMap.get(key);
+        synchronized (this) {
+            return mSiteBeanMap.get(key);
+        }
     }
 
     public List<LiveChannelGroup> getChannelGroupList() {

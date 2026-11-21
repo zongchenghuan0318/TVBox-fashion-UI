@@ -28,6 +28,7 @@ public class BaseLoader {
     private final JarLoader jarLoader = new JarLoader();
     private final PyLoader pyLoader = new PyLoader();
     private final ConcurrentHashMap<String, Spider> jsSpiders = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> jsSpiderLocks = new ConcurrentHashMap<>();
     private volatile Spider recentSpider;
     private volatile boolean recentIsJar;
 
@@ -46,6 +47,12 @@ public class BaseLoader {
 
     public Spider getSpider(String key, String api, String ext, String jarPath) {
         try {
+            if (api == null || key == null) {
+                SpiderNull empty = new SpiderNull();
+                recentSpider = empty;
+                recentIsJar = false;
+                return empty;
+            }
             if (api.startsWith("csp_")) {
                 Spider sp = jarLoader.getSpider(key, api, ext, jarPath);
                 recentSpider = sp;
@@ -76,13 +83,23 @@ public class BaseLoader {
 
     private Spider jsSpider(String key, String api, String ext) {
         Spider spider = jsSpiders.get(key);
-        if (spider == null) {
-            SpiderFm fm = new SpiderFm(key, api);
-            fm.init(App.getInstance(), ext);
-            jsSpiders.put(key, fm);
-            spider = fm;
+        if (spider != null) return spider;
+        Object lock = jsSpiderLocks.get(key);
+        if (lock == null) {
+            Object created = new Object();
+            Object existing = jsSpiderLocks.putIfAbsent(key, created);
+            lock = existing != null ? existing : created;
         }
-        return spider;
+        synchronized (lock) {
+            spider = jsSpiders.get(key);
+            if (spider == null) {
+                SpiderFm fm = new SpiderFm(key, api);
+                fm.init(App.getInstance(), ext);
+                jsSpiders.put(key, fm);
+                spider = fm;
+            }
+            return spider;
+        }
     }
 
     /**
@@ -141,6 +158,7 @@ public class BaseLoader {
             }
         }
         jsSpiders.clear();
+        jsSpiderLocks.clear();
         pyLoader.clear();
         recentSpider = null;
         recentIsJar = false;

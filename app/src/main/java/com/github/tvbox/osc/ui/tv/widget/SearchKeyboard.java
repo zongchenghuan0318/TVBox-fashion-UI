@@ -1,9 +1,15 @@
 package com.github.tvbox.osc.ui.tv.widget;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.AttributeSet;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 
 import com.chad.library.adapter.base.BaseMultiItemQuickAdapter;
@@ -26,18 +32,57 @@ import androidx.recyclerview.widget.RecyclerView;
 /**
  * @author pj567
  * @date :2020/12/23
- * @description:
+ * @description: 电视端虚拟键盘，支持焦点记忆、长按删除连续删字、直达搜索与扫码搜切换
  */
 public class SearchKeyboard extends FrameLayout {
+    public static final int KEY_POS_CLEAR = 0;
+    public static final int KEY_POS_DELETE = 1;
+    public static final int KEY_POS_REMOTE = 38;
+    public static final int KEY_POS_SEARCH = 39;
+    private static final long REPEAT_DELETE_INITIAL_MS = 320L;
+    private static final long REPEAT_DELETE_INTERVAL_MS = 110L;
+
     private RecyclerView mRecyclerView;
-    private List<String> keys = Arrays.asList("清空", "删除", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0");
-    private List<Keyboard> keyboardList = new ArrayList<>();
+    private final List<String> keys = Arrays.asList(
+            "清空", "删除",
+            "A", "B", "C", "D", "E", "F",
+            "G", "H", "I", "J", "K", "L",
+            "M", "N", "O", "P", "Q", "R",
+            "S", "T", "U", "V", "W", "X",
+            "Y", "Z", "1", "2", "3", "4",
+            "5", "6", "7", "8", "9", "0",
+            "扫码搜", "立即搜索"
+    );
+    private final List<Keyboard> keyboardList = new ArrayList<>();
     private OnSearchKeyListener searchKeyListener;
-    private OnFocusChangeListener focusChangeListener = new OnFocusChangeListener() {
+    private Runnable onInteractListener;
+    private int lastFocusedPosition = 2; // 默认记住字母 A，避免回到键盘时落到「清空」误删
+    private final Handler repeatHandler = new Handler(Looper.getMainLooper());
+    private boolean repeatDeleteActive;
+    private final Runnable repeatDeleteRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!repeatDeleteActive) return;
+            if (searchKeyListener != null) {
+                searchKeyListener.onSearchKey(KEY_POS_DELETE, keys.get(KEY_POS_DELETE));
+            }
+            repeatHandler.postDelayed(this, REPEAT_DELETE_INTERVAL_MS);
+        }
+    };
+
+    private final OnFocusChangeListener focusChangeListener = new OnFocusChangeListener() {
         @Override
         public void onFocusChange(View itemView, boolean hasFocus) {
             if (null != itemView && itemView != mRecyclerView) {
                 itemView.setSelected(hasFocus);
+                if (hasFocus) {
+                    int pos = mRecyclerView.getChildAdapterPosition(itemView);
+                    if (pos >= 0 && pos < keys.size()) {
+                        lastFocusedPosition = pos;
+                    }
+                } else {
+                    stopRepeatDelete();
+                }
             }
         }
     };
@@ -57,47 +102,144 @@ public class SearchKeyboard extends FrameLayout {
 
     private void initView() {
         View view = LayoutInflater.from(getContext()).inflate(R.layout.layout_keyborad, this);
-        mRecyclerView = (RecyclerView) view.findViewById(R.id.mRecyclerView);
+        mRecyclerView = view.findViewById(R.id.mRecyclerView);
         GridLayoutManager manager = new GridLayoutManager(getContext(), 6);
         mRecyclerView.setLayoutManager(manager);
+        mRecyclerView.setItemAnimator(null);
         mRecyclerView.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
             @Override
             public void onChildViewAttachedToWindow(@NonNull View child) {
                 if (child.isFocusable() && null == child.getOnFocusChangeListener()) {
                     child.setOnFocusChangeListener(focusChangeListener);
                 }
+                bindDeleteRepeatHandlers(child);
             }
 
             @Override
             public void onChildViewDetachedFromWindow(@NonNull View view) {
-
+                stopRepeatDelete();
             }
         });
         int size = keys.size();
         for (int i = 0; i < size; i++) {
             keyboardList.add(new Keyboard(1, keys.get(i)));
         }
-        final KeyboardAdapter adapter = new KeyboardAdapter(keyboardList);
+        int preferredKeyHeight = getResources().getDimensionPixelSize(R.dimen.vs_42);
+        final KeyboardAdapter adapter = new KeyboardAdapter(keyboardList, preferredKeyHeight);
         mRecyclerView.setAdapter(adapter);
         adapter.setSpanSizeLookup(new BaseQuickAdapter.SpanSizeLookup() {
             @Override
             public int getSpanSize(GridLayoutManager gridLayoutManager, int position) {
-                if (position == 0)
+                if (position == KEY_POS_CLEAR || position == KEY_POS_DELETE
+                        || position == KEY_POS_REMOTE || position == KEY_POS_SEARCH) {
                     return 3;
-                else if (position == 1)
-                    return 3;
+                }
                 return 1;
             }
         });
+        int rows = 1 + manager.getSpanSizeLookup().getSpanGroupIndex(keys.size() - 1, manager.getSpanCount());
+        int minimumKeyHeight = getResources().getDimensionPixelSize(R.dimen.vs_35);
+        int rowMargins = 2 * getResources().getDimensionPixelSize(R.dimen.vs_2);
+        addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            int availableHeight = bottom - top;
+            int fittingKeyHeight = availableHeight / rows - rowMargins;
+            adapter.setKeyHeight(Math.max(minimumKeyHeight, Math.min(preferredKeyHeight, fittingKeyHeight)));
+        });
 
-        adapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                Keyboard keyboard = (Keyboard) adapter.getItem(position);
-                if (searchKeyListener != null) {
-                    searchKeyListener.onSearchKey(position, keyboard.getKey());
+        adapter.setOnItemClickListener((adp, v, position) -> {
+            if (onInteractListener != null) {
+                onInteractListener.run();
+            }
+            Keyboard keyboard = (Keyboard) adp.getItem(position);
+            if (searchKeyListener != null && keyboard != null) {
+                searchKeyListener.onSearchKey(position, keyboard.getKey());
+            }
+        });
+    }
+
+    private void bindDeleteRepeatHandlers(final View child) {
+        child.setOnTouchListener((v, event) -> {
+            int pos = mRecyclerView.getChildAdapterPosition(v);
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                if (onInteractListener != null) {
+                    onInteractListener.run();
+                }
+                if (pos == KEY_POS_DELETE) {
+                    startRepeatDelete();
+                }
+            } else if (event.getAction() == MotionEvent.ACTION_UP
+                    || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                if (pos == KEY_POS_DELETE) {
+                    stopRepeatDelete();
                 }
             }
+            return false;
+        });
+        child.setOnKeyListener((v, keyCode, event) -> {
+            int pos = mRecyclerView.getChildAdapterPosition(v);
+            if (pos == KEY_POS_DELETE
+                    && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() > 0) {
+                    if (searchKeyListener != null) {
+                        searchKeyListener.onSearchKey(KEY_POS_DELETE, keys.get(KEY_POS_DELETE));
+                    }
+                    return true;
+                } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                    stopRepeatDelete();
+                }
+            }
+            return false;
+        });
+    }
+
+    private void startRepeatDelete() {
+        stopRepeatDelete();
+        repeatDeleteActive = true;
+        repeatHandler.postDelayed(repeatDeleteRunnable, REPEAT_DELETE_INITIAL_MS);
+    }
+
+    private void stopRepeatDelete() {
+        repeatDeleteActive = false;
+        repeatHandler.removeCallbacks(repeatDeleteRunnable);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        stopRepeatDelete();
+        super.onDetachedFromWindow();
+    }
+
+    /** 将焦点定位到键盘首个字母键（A），避免默认落到「清空」键误触 */
+    public void requestLetterFocus() {
+        requestKeyPositionFocus(2);
+    }
+
+    /** 恢复到上次离开键盘前停驻的按键（若上次是清空键则回落到字母 A，避免误清） */
+    public void requestRestoredFocus() {
+        int target = (lastFocusedPosition >= 1 && lastFocusedPosition < keys.size())
+                ? lastFocusedPosition : 2;
+        requestKeyPositionFocus(target);
+    }
+
+    private void requestKeyPositionFocus(final int targetPos) {
+        if (mRecyclerView == null) return;
+        RecyclerView.LayoutManager manager = mRecyclerView.getLayoutManager();
+        if (manager == null) return;
+        View target = manager.findViewByPosition(targetPos);
+        if (isShown() && target != null && target.requestFocus()) return;
+        mRecyclerView.post(() -> {
+            if (!isShown()) return;
+            View visibleTarget = manager.findViewByPosition(targetPos);
+            if (visibleTarget != null && visibleTarget.requestFocus()) return;
+            mRecyclerView.scrollToPosition(targetPos);
+            mRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    mRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    View laidOutTarget = manager.findViewByPosition(targetPos);
+                    if (isShown() && laidOutTarget != null) laidOutTarget.requestFocus();
+                }
+            });
         });
     }
 
@@ -125,24 +267,39 @@ public class SearchKeyboard extends FrameLayout {
     }
 
     private static class KeyboardAdapter extends BaseMultiItemQuickAdapter<Keyboard, BaseViewHolder> {
+        private int keyHeight;
 
-        private KeyboardAdapter(List<Keyboard> data) {
+        private KeyboardAdapter(List<Keyboard> data, int keyHeight) {
             super(data);
+            this.keyHeight = keyHeight;
             addItemType(1, R.layout.item_keyboard);
+        }
+
+        private void setKeyHeight(int keyHeight) {
+            if (this.keyHeight == keyHeight) return;
+            this.keyHeight = keyHeight;
+            notifyItemRangeChanged(0, getItemCount());
         }
 
         @Override
         protected void convert(BaseViewHolder helper, Keyboard item) {
-            switch (helper.getItemViewType()) {
-                case 1:
-                    helper.setText(R.id.keyName, item.key);
-                    break;
+            if (helper.getItemViewType() == 1) {
+                helper.setText(R.id.keyName, item.key);
+                ViewGroup.LayoutParams params = helper.itemView.getLayoutParams();
+                if (params.height != keyHeight) {
+                    params.height = keyHeight;
+                    helper.itemView.setLayoutParams(params);
+                }
             }
         }
     }
 
     public void setOnSearchKeyListener(OnSearchKeyListener listener) {
         searchKeyListener = listener;
+    }
+
+    public void setOnInteractListener(Runnable listener) {
+        onInteractListener = listener;
     }
 
     public interface OnSearchKeyListener {

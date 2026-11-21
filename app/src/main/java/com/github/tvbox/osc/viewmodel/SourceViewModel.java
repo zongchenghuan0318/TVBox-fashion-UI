@@ -19,11 +19,16 @@ import com.github.tvbox.osc.ui.activity.UiHelper;
 import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.TypeAdapter;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lzy.okgo.OkGo;
@@ -31,12 +36,18 @@ import com.lzy.okgo.callback.AbsCallback;
 import com.lzy.okgo.model.Response;
 import com.orhanobut.hawk.Hawk;
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.io.HierarchicalStreamDriver;
 import com.thoughtworks.xstream.io.xml.DomDriver;
+import com.thoughtworks.xstream.io.xml.KXml2Driver;
 
 import org.greenrobot.eventbus.EventBus;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,10 +59,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import androidx.lifecycle.MutableLiveData;
@@ -63,28 +79,171 @@ public class SourceViewModel extends ViewModel {
     public boolean isInFolderSpiderCall() {
         return Boolean.TRUE.equals(folderSpiderCall.get());
     }
-    private static final Gson GSON = new Gson();
+    public static final String TAG_QUICK_SEARCH = "quick_search";
+    private final Object searchRequestTag = new Object();
+
+    private static final TypeAdapter<Number> LENIENT_INT_ADAPTER = new TypeAdapter<Number>() {
+        @Override
+        public void write(JsonWriter out, Number value) throws IOException {
+            out.value(value);
+        }
+
+        @Override
+        public Number read(JsonReader in) throws IOException {
+            JsonToken token = in.peek();
+            if (token == JsonToken.NULL) {
+                in.nextNull();
+                return 0;
+            }
+            if (token == JsonToken.NUMBER) {
+                try {
+                    return in.nextInt();
+                } catch (NumberFormatException e) {
+                    return (int) in.nextDouble();
+                }
+            }
+            if (token == JsonToken.STRING) {
+                String raw = in.nextString();
+                if (raw == null) return 0;
+                String s = raw.trim();
+                if (s.isEmpty()) return 0;
+                try {
+                    return Integer.parseInt(s);
+                } catch (NumberFormatException e) {
+                    try {
+                        return (int) Double.parseDouble(s);
+                    } catch (NumberFormatException ignored) {
+                        return 0;
+                    }
+                }
+            }
+            if (token == JsonToken.BOOLEAN) {
+                return in.nextBoolean() ? 1 : 0;
+            }
+            in.skipValue();
+            return 0;
+        }
+    };
+
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(int.class, LENIENT_INT_ADAPTER)
+            .registerTypeAdapter(Integer.class, LENIENT_INT_ADAPTER)
+            .create();
     private static final Type ABS_JSON_TYPE = new TypeToken<AbsJson>() {}.getType();
     private static final Type ABS_SORT_JSON_TYPE = new TypeToken<AbsSortJson>() {}.getType();
+    private static final int MAX_SEARCH_RESPONSE_BYTES = 4 * 1024 * 1024;
+    private static final long SPIDER_SEARCH_TIMEOUT_SECONDS = 8L;
+    private static final long FOLDER_SPIDER_TIMEOUT_SECONDS = 12L;
+    private static final java.util.regex.Pattern XML_EMPTY_OR_BAD_YEAR =
+            java.util.regex.Pattern.compile("<year>(?!\\s*\\d+\\s*</year>)[^<]*</year>");
+    private static final java.util.regex.Pattern XML_EMPTY_OR_BAD_TID =
+            java.util.regex.Pattern.compile("<tid>(?!\\s*-?\\d+\\s*</tid>)[^<]*</tid>");
+
+    public static final class SearchTaskHandle {
+        private final AtomicBoolean done;
+        private volatile Future<?> workerFuture;
+        private volatile ScheduledFuture<?> timeoutFuture;
+
+        SearchTaskHandle(AtomicBoolean done) {
+            this.done = done;
+        }
+
+        void setWorkerFuture(Future<?> workerFuture) {
+            this.workerFuture = workerFuture;
+        }
+
+        void setTimeoutFuture(ScheduledFuture<?> timeoutFuture) {
+            this.timeoutFuture = timeoutFuture;
+            if (done != null && done.get() && timeoutFuture != null) {
+                timeoutFuture.cancel(false);
+            }
+        }
+
+        public boolean isDone() {
+            return done != null && done.get();
+        }
+
+        public void cancel() {
+            if (done != null) {
+                done.set(true);
+            }
+            ScheduledFuture<?> tf = timeoutFuture;
+            if (tf != null) {
+                tf.cancel(false);
+            }
+            Future<?> wf = workerFuture;
+            if (wf != null) {
+                wf.cancel(true);
+            }
+        }
+    }
+
+    private static HierarchicalStreamDriver createXmlDriver() {
+        try {
+            Class.forName("org.kxml2.io.KXmlParser");
+            return new KXml2Driver();
+        } catch (Throwable ignored) {
+            return new DomDriver();
+        }
+    }
 
     private static XStream createSortXmlXStream() {
-        XStream xstream = new XStream(new DomDriver());
-        xstream.autodetectAnnotations(true);
-        xstream.processAnnotations(AbsSortXml.class);
+        XStream xstream = new XStream(createXmlDriver());
+        xstream.processAnnotations(new Class<?>[]{
+                AbsSortXml.class,
+                MovieSort.class,
+                MovieSort.SortData.class,
+                Movie.class,
+                Movie.Video.class,
+                Movie.Video.UrlsBean.class,
+                Movie.Video.UrlsBean.FlagUrlsInfo.class
+        });
         xstream.ignoreUnknownElements();
         return xstream;
     }
 
     private static XStream createAbsXmlXStream() {
-        XStream xstream = new XStream(new DomDriver());
-        xstream.autodetectAnnotations(true);
-        xstream.processAnnotations(AbsXml.class);
+        XStream xstream = new XStream(createXmlDriver());
+        xstream.processAnnotations(new Class<?>[]{
+                AbsXml.class,
+                Movie.class,
+                Movie.Video.class,
+                Movie.Video.UrlsBean.class,
+                Movie.Video.UrlsBean.FlagUrlsInfo.class
+        });
         xstream.ignoreUnknownElements();
         return xstream;
     }
 
-    private static final XStream SORT_XML_XSTREAM = createSortXmlXStream();
-    private static final XStream ABS_XML_XSTREAM = createAbsXmlXStream();
+    // XStream 实例按线程隔离，彻底消除并发解析时的内部状态竞态
+    private static final ThreadLocal<XStream> SORT_XML_XSTREAM = ThreadLocal.withInitial(SourceViewModel::createSortXmlXStream);
+    private static final ThreadLocal<XStream> ABS_XML_XSTREAM = ThreadLocal.withInitial(SourceViewModel::createAbsXmlXStream);
+
+    private static String readResponseBodyLimited(okhttp3.Response response, int maxBytes) throws IOException {
+        if (response == null || response.body() == null) {
+            throw new IllegalStateException("网络请求错误");
+        }
+        long contentLength = response.body().contentLength();
+        if (contentLength > maxBytes) {
+            response.close();
+            throw new IOException("响应体过大: " + contentLength);
+        }
+        try (InputStream in = response.body().byteStream()) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream(
+                    contentLength > 0 ? (int) Math.min(contentLength, 65536) : 8192);
+            byte[] buf = new byte[8192];
+            int total = 0;
+            int read;
+            while ((read = in.read(buf)) != -1) {
+                total += read;
+                if (total > maxBytes) {
+                    throw new IOException("响应体超过限制: " + maxBytes);
+                }
+                out.write(buf, 0, read);
+            }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        }
+    }
 
     public MutableLiveData<AbsSortXml> sortResult;
     public MutableLiveData<AbsXml> listResult;
@@ -93,16 +252,31 @@ public class SourceViewModel extends ViewModel {
     public MutableLiveData<AbsXml> detailResult;
     public MutableLiveData<JSONObject> playResult;
     public ExecutorService mExecutorService;
-    private final ExecutorService mSearchParseExecutor = Executors.newFixedThreadPool(6);
-    private final ExecutorService mSpiderWorkerExecutor = Executors.newFixedThreadPool(16, new ThreadFactory() {
-        private final AtomicInteger threadIndex = new AtomicInteger(1);
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, "spider-pool-" + threadIndex.getAndIncrement());
-            t.setDaemon(true);
-            return t;
-        }
+    private final ExecutorService mSearchParseExecutor = createDaemonPool(4, "search-parse-");
+    private final ExecutorService mSpiderWorkerExecutor = createDaemonPool(10, "spider-pool-");
+    private final ScheduledExecutorService mSearchTimeoutScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "search-timeout");
+        t.setDaemon(true);
+        return t;
     });
+
+    private static ExecutorService createDaemonPool(int maxThreads, String prefix) {
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(
+                maxThreads, maxThreads, 30L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(),
+                new ThreadFactory() {
+                    private final AtomicInteger threadIndex = new AtomicInteger(1);
+
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r, prefix + threadIndex.getAndIncrement());
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+        pool.allowCoreThreadTimeOut(true);
+        return pool;
+    }
     private volatile FutureTask<String> activePlayContentTask;
     private volatile int playRequestId;
     private volatile int detailRequestId;
@@ -136,6 +310,7 @@ public class SourceViewModel extends ViewModel {
         cancelCategoryRequests();
         cancelDetailRequests();
         cancelSortRequests();
+        cancelSearchRequests();
         resultHandler.removeCallbacksAndMessages(null);
         FutureTask<String> playTask = activePlayContentTask;
         if (playTask != null) {
@@ -144,6 +319,7 @@ public class SourceViewModel extends ViewModel {
         playRequestId++;
         mSearchParseExecutor.shutdownNow();
         mSpiderWorkerExecutor.shutdownNow();
+        mSearchTimeoutScheduler.shutdownNow();
         if (mExecutorService != null) {
             mExecutorService.shutdownNow();
             mExecutorService = null;
@@ -369,6 +545,18 @@ public class SourceViewModel extends ViewModel {
         return requestId;
     }
 
+    private static String sanitizeHttpUrl(String rawUrl) {
+        if (rawUrl == null) return "";
+        String normalized = ApiConfig.normalizeUrl(rawUrl);
+        if (normalized == null) return "";
+        String trimmed = normalized.trim();
+        String lower = trimmed.toLowerCase(java.util.Locale.ROOT);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            return "";
+        }
+        return trimmed;
+    }
+
     public int getFolderList(String sourceKey, String id) {
         final int requestId = ++categoryRequestId;
         OkGo.getInstance().cancelTag(categoryRequestTag);
@@ -378,50 +566,100 @@ public class SourceViewModel extends ViewModel {
             return requestId;
         }
         if (sourceBean.getType() == 3) {
-            mExecutorService.execute(() -> {
-                try {
-                    Spider spider = ApiConfig.getInstance().getCSP(sourceBean);
-                    boolean panSearchFolder = "S_zpsGuard".equals(spider.getClass().getSimpleName());
-                    AbsXml parsed = loadSpiderFolder(spider, sourceKey, id, requestId, panSearchFolder);
-                    if (!panSearchFolder && requestId == categoryRequestId
-                            && !Thread.currentThread().isInterrupted()
-                            && (parsed == null || parsed.movie == null || parsed.movie.videoList == null
-                            || parsed.movie.videoList.isEmpty())) {
-                        parsed = loadSpiderFolder(spider, sourceKey, id, requestId, true);
+            if (mSpiderWorkerExecutor.isShutdown() || mSearchTimeoutScheduler.isShutdown()) {
+                postCategoryResult(null, requestId);
+                return requestId;
+            }
+            final AtomicBoolean finished = new AtomicBoolean(false);
+            final Future<?>[] workerRef = new Future<?>[1];
+            final ScheduledFuture<?>[] timeoutRef = new ScheduledFuture<?>[1];
+            try {
+                workerRef[0] = mSpiderWorkerExecutor.submit(() -> {
+                    if (finished.get() || requestId != categoryRequestId || Thread.currentThread().isInterrupted()) {
+                        return;
                     }
-                    postCategoryResult(parsed, requestId);
-                } catch (Throwable th) {
-                    android.util.Log.w("SearchRoute", "folder error request=" + requestId
-                            + " errorType=" + th.getClass().getName());
-                    L.e("getFolderList " + th.getMessage());
-                    postCategoryResult(null, requestId);
-                }
-            });
-        } else if (sourceBean.getType() == 0 || sourceBean.getType() == 1) {
-            OkGo.<String>get(sourceBean.getApi())
-                    .tag(categoryRequestTag)
-                    .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
-                    .params("ids", id)
-                    .execute(new AbsCallback<String>() {
-                        @Override
-                        public String convertResponse(okhttp3.Response response) throws Throwable {
-                            if (response.body() == null) throw new IllegalStateException("网络请求错误");
-                            return response.body().string();
+                    // 线程真正开始执行时再启动 12 秒超时，避免入队等待被误杀且不占满 3 线程 mExecutorService
+                    try {
+                        timeoutRef[0] = mSearchTimeoutScheduler.schedule(() -> {
+                            if (finished.compareAndSet(false, true)) {
+                                if (workerRef[0] != null) workerRef[0].cancel(true);
+                                android.util.Log.w("SearchRoute", "folder timeout request=" + requestId
+                                        + " source=" + sourceKey);
+                                postCategoryResult(null, requestId);
+                            }
+                        }, FOLDER_SPIDER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    } catch (RejectedExecutionException ignored) {
+                    }
+                    try {
+                        Spider spider = ApiConfig.getInstance().getCSP(sourceBean);
+                        if (spider == null) {
+                            if (finished.compareAndSet(false, true)) {
+                                if (timeoutRef[0] != null) timeoutRef[0].cancel(false);
+                                postCategoryResult(null, requestId);
+                            }
+                            return;
                         }
-
-                        @Override
-                        public void onSuccess(Response<String> response) {
-                            AbsXml data = sourceBean.getType() == 0
-                                    ? parseXml(null, response.body(), sourceKey, 0)
-                                    : parseJson(null, response.body(), sourceKey, 0);
-                            postCategoryResult(data, requestId);
+                        boolean panSearchFolder = "S_zpsGuard".equals(spider.getClass().getSimpleName());
+                        AbsXml parsed = loadSpiderFolder(spider, sourceKey, id, requestId, panSearchFolder);
+                        if (!panSearchFolder && requestId == categoryRequestId
+                                && !Thread.currentThread().isInterrupted()
+                                && (parsed == null || parsed.movie == null || parsed.movie.videoList == null
+                                || parsed.movie.videoList.isEmpty())) {
+                            parsed = loadSpiderFolder(spider, sourceKey, id, requestId, true);
                         }
-
-                        @Override
-                        public void onError(Response<String> response) {
+                        if (finished.compareAndSet(false, true)) {
+                            if (timeoutRef[0] != null) timeoutRef[0].cancel(false);
+                            postCategoryResult(parsed, requestId);
+                        }
+                    } catch (Throwable th) {
+                        if (finished.compareAndSet(false, true)) {
+                            if (timeoutRef[0] != null) timeoutRef[0].cancel(false);
+                            android.util.Log.w("SearchRoute", "folder error request=" + requestId
+                                    + " errorType=" + th.getClass().getName());
+                            L.e("getFolderList " + th.getMessage());
                             postCategoryResult(null, requestId);
                         }
-                    });
+                    }
+                });
+            } catch (RejectedExecutionException e) {
+                postCategoryResult(null, requestId);
+            }
+        } else if (sourceBean.getType() == 0 || sourceBean.getType() == 1) {
+            String apiUrl = sanitizeHttpUrl(sourceBean.getApi());
+            if (apiUrl.isEmpty()) {
+                postCategoryResult(null, requestId);
+                return requestId;
+            }
+            try {
+                OkGo.<AbsXml>get(apiUrl)
+                        .tag(categoryRequestTag)
+                        .retryCount(0)
+                        .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
+                        .params("ids", id)
+                        .execute(new AbsCallback<AbsXml>() {
+                            @Override
+                            public AbsXml convertResponse(okhttp3.Response response) throws Throwable {
+                                // 在后台网络线程完成 XML/JSON 解析，避免大目录阻塞主线程
+                                String body = readResponseBodyLimited(response, MAX_SEARCH_RESPONSE_BYTES);
+                                return sourceBean.getType() == 0
+                                        ? parseXml(null, body, sourceKey, 0)
+                                        : parseJson(null, body, sourceKey, 0);
+                            }
+
+                            @Override
+                            public void onSuccess(Response<AbsXml> response) {
+                                postCategoryResult(response.body(), requestId);
+                            }
+
+                            @Override
+                            public void onError(Response<AbsXml> response) {
+                                postCategoryResult(null, requestId);
+                            }
+                        });
+            } catch (Throwable th) {
+                L.w("getFolderList invalid url=" + apiUrl + " err=" + th.getMessage());
+                postCategoryResult(null, requestId);
+            }
         } else {
             postCategoryResult(null, requestId);
         }
@@ -657,6 +895,10 @@ public class SourceViewModel extends ViewModel {
         OkGo.getInstance().cancelTag(detailRequestTag);
     }
 
+    public void cancelSearchRequests() {
+        OkGo.getInstance().cancelTag(searchRequestTag);
+    }
+
     public int getLastPostedDetailRequestId() {
         return lastPostedDetailRequestId;
     }
@@ -667,6 +909,78 @@ public class SourceViewModel extends ViewModel {
 
     public void getSearch(String sourceKey, String wd, int requestId) {
         doSearch(searchResult, sourceKey, wd, requestId);
+    }
+
+    /**
+     * 单层异步搜索派发：HTTP 源走 OkGo 异步回调，爬虫源直接投递到 mSpiderWorkerExecutor；
+     * 8 秒单源超时在工作线程真正开始执行该源时才启动计时，避免队列后面的健康源在排队期间被提前误杀。
+     */
+    public SearchTaskHandle getSearchAsync(String sourceKey, String wd, int requestId) {
+        SiteBean siteBean = ApiConfig.getInstance().getSiteBean(sourceKey);
+        if (siteBean == null) {
+            postSearchResult(searchResult, null, requestId, sourceKey);
+            return null;
+        }
+        int type = siteBean.getType();
+        if (type == 0 || type == 1) {
+            doHttpSearch(searchResult, siteBean, wd, requestId);
+            return null;
+        }
+        if (type != 3) {
+            postSearchResult(searchResult, null, requestId, sourceKey);
+            return null;
+        }
+        if (mSpiderWorkerExecutor.isShutdown() || mSearchTimeoutScheduler.isShutdown()) {
+            postSearchResult(searchResult, null, requestId, sourceKey);
+            return null;
+        }
+        final AtomicBoolean finished = new AtomicBoolean(false);
+        final SearchTaskHandle handle = new SearchTaskHandle(finished);
+        try {
+            Future<?> workerFuture = mSpiderWorkerExecutor.submit(() -> {
+                if (finished.get() || Thread.currentThread().isInterrupted()) return;
+                // 任务真正拿到线程开始执行后再开启 8 秒倒计时，避免排队时间计入单源超时
+                try {
+                    ScheduledFuture<?> timeoutFuture = mSearchTimeoutScheduler.schedule(() -> {
+                        if (finished.compareAndSet(false, true)) {
+                            Future<?> wf = handle.workerFuture;
+                            if (wf != null) wf.cancel(true);
+                            L.w(sourceKey + " spider search timed out");
+                            postSearchResult(searchResult, null, requestId, sourceKey);
+                        }
+                    }, SPIDER_SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    handle.setTimeoutFuture(timeoutFuture);
+                } catch (RejectedExecutionException ignored) {
+                }
+                if (finished.get() || Thread.currentThread().isInterrupted()) return;
+                try {
+                    Spider spider = ApiConfig.getInstance().getCSP(siteBean);
+                    if (spider == null) {
+                        throw new IllegalStateException("搜索源未初始化");
+                    }
+                    String content = spider.searchContent(wd, false);
+                    if (finished.compareAndSet(false, true)) {
+                        ScheduledFuture<?> tf = handle.timeoutFuture;
+                        if (tf != null) tf.cancel(false);
+                        parseJson(searchResult, content, siteBean.getKey(), 0, requestId);
+                    }
+                } catch (Throwable e) {
+                    if (finished.compareAndSet(false, true)) {
+                        ScheduledFuture<?> tf = handle.timeoutFuture;
+                        if (tf != null) tf.cancel(false);
+                        L.e(sourceKey + " getSearchAsync " + e.getMessage());
+                        postSearchResult(searchResult, null, requestId, sourceKey);
+                    }
+                }
+            });
+            handle.setWorkerFuture(workerFuture);
+            return handle;
+        } catch (RejectedExecutionException e) {
+            if (finished.compareAndSet(false, true)) {
+                postSearchResult(searchResult, null, requestId, sourceKey);
+            }
+            return null;
+        }
     }
 
     public void getQuickSearch(String sourceKey, String wd) {
@@ -689,6 +1003,10 @@ public class SourceViewModel extends ViewModel {
         }
         int type = siteBean.getType();
         if (type == 3) {
+            if (mSpiderWorkerExecutor.isShutdown()) {
+                postSearchResult(searchType, null, requestId, sourceKey);
+                return;
+            }
             Future<String> searchFuture = null;
             try {
                 searchFuture = mSpiderWorkerExecutor.submit(() -> {
@@ -699,7 +1017,6 @@ public class SourceViewModel extends ViewModel {
                     return spider.searchContent(wd, false);
                 });
                 String content = searchFuture.get(8, TimeUnit.SECONDS);
-                L.d(siteBean.getName()+" doSearch sp  content="+content);
                 parseJson(searchType, content, siteBean.getKey(), 0, requestId);
             } catch (TimeoutException e) {
                 if (searchFuture != null) {
@@ -713,27 +1030,37 @@ public class SourceViewModel extends ViewModel {
                 }
                 Thread.currentThread().interrupt();
                 postSearchResult(searchType, null, requestId, sourceKey);
-            } catch (ExecutionException | RuntimeException e) {
-                L.e(sourceKey + " doSearch " + e.getMessage());
-                postSearchResult(searchType, null, requestId, sourceKey);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 L.e(sourceKey + " doSearch " + e.getMessage());
                 postSearchResult(searchType, null, requestId, sourceKey);
             }
         } else if (type == 0 || type == 1) {
-            final long beginTime = System.currentTimeMillis();
-            OkGo.<String>get(siteBean.getApi())
+            doHttpSearch(searchType, siteBean, wd, requestId);
+        } else {
+            postSearchResult(searchType, null, requestId, sourceKey);
+        }
+    }
+
+    private void doHttpSearch(MutableLiveData<AbsXml> searchType, SiteBean siteBean, String wd, int requestId) {
+        final int type = siteBean.getType();
+        final String apiUrl = sanitizeHttpUrl(siteBean.getApi());
+        if (apiUrl.isEmpty()) {
+            postSearchResult(searchType, null, requestId, siteBean.getKey());
+            return;
+        }
+        final long beginTime = System.currentTimeMillis();
+        final Object tag = (searchType == quickSearchResult) ? TAG_QUICK_SEARCH : searchRequestTag;
+        try {
+            OkGo.<String>get(apiUrl)
                     .params("wd", wd)
-                    .params(type == 1 ? "ac" : null, type == 1 ? "detail" : null)
-                    .tag("search")
+                    // XML 采集源带 ac=videolist、JSON 采集源带 ac=detail，保证搜索卡片拿到海报封面图
+                    .params("ac", type == 0 ? "videolist" : "detail")
+                    .retryCount(0)
+                    .tag(tag)
                     .execute(new AbsCallback<String>() {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
-                            if (response.body() != null) {
-                                return response.body().string();
-                            } else {
-                                throw new IllegalStateException("网络请求错误");
-                            }
+                            return readResponseBodyLimited(response, MAX_SEARCH_RESPONSE_BYTES);
                         }
 
                         @Override
@@ -757,8 +1084,9 @@ public class SourceViewModel extends ViewModel {
                         }
 
                     });
-        } else {
-            postSearchResult(searchType, null, requestId, sourceKey);
+        } catch (Throwable th) {
+            L.w("doHttpSearch invalid url=" + apiUrl + " err=" + th.getMessage());
+            postSearchResult(searchType, null, requestId, siteBean.getKey());
         }
     }
 
@@ -1017,27 +1345,42 @@ public class SourceViewModel extends ViewModel {
 
     private AbsSortXml sortXml(MutableLiveData<AbsSortXml> result, String xml, String soureKey) {
         try {
-            L.d(soureKey + " sortXml() xml=" + xml);
-            AbsSortXml absXml = (AbsSortXml) SORT_XML_XSTREAM.fromXML(xml);
-            for (MovieSort.SortData sort : absXml.classes.sortList) {
-                if (sort.filters == null) {
-                    sort.filters = new ArrayList<>();
+            if (xml == null || xml.isEmpty()) return null;
+            AbsSortXml absXml = (AbsSortXml) SORT_XML_XSTREAM.get().fromXML(xml);
+            if (absXml != null && absXml.classes != null && absXml.classes.sortList != null) {
+                for (MovieSort.SortData sort : absXml.classes.sortList) {
+                    if (sort.filters == null) {
+                        sort.filters = new ArrayList<>();
+                    }
                 }
             }
             return absXml;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }
 
-    private void parseSeriesUrl(AbsXml absXml, String sourceKey) {
-        if (absXml.movie != null && absXml.movie.videoList != null) {
+    private void parseSeriesUrl(AbsXml absXml, String sourceKey, boolean compactForSearch) {
+        if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
             for (Movie.Video video : absXml.movie.videoList) {
+                if (video == null) continue;
+                boolean playable = false;
                 if (video.urlsBean != null && video.urlsBean.flagInfoList != null) {
                     for (Movie.Video.UrlsBean.FlagUrlsInfo urlInfo : video.urlsBean.flagInfoList) {
-                        L.d("urlInfo.urls="+urlInfo.urls);
-                        urlInfo.nameUrlBeans = UiHelper.getUrlsList(urlInfo.urls);
+                        if (urlInfo == null) continue;
+                        if (!TextUtils.isEmpty(urlInfo.urls)) {
+                            playable = true;
+                            if (!compactForSearch) {
+                                urlInfo.nameUrlBeans = UiHelper.getUrlsList(urlInfo.urls);
+                            }
+                        }
                     }
+                }
+                video.hasPlayableUrls = playable;
+                if (compactForSearch) {
+                    // 搜索列表保留轻量的演员/导演用于关键词匹配，释放巨型播放串与长剧情简介以降低 GC 与 OOM 风险
+                    video.urlsBean = null;
+                    video.des = null;
                 }
                 video.sourceKey = sourceKey;
             }
@@ -1050,15 +1393,26 @@ public class SourceViewModel extends ViewModel {
 
     private AbsXml parseXml(MutableLiveData<AbsXml> result, String xml, String sourceKey, long duration, int requestId) {
         try {
-            L.d(sourceKey + " parseXml length=" + (xml == null ? -1 : xml.length()));
-            if (xml.contains("<year></year>")) {
-                xml = xml.replace("<year></year>", "<year>2020</year>");
+            if (xml == null || xml.isEmpty()) {
+                postSearchResult(result, null, requestId, sourceKey);
+                if (result != null && result != searchResult && result != quickSearchResult) {
+                    if (result == detailResult) postDetailResult(null, requestId);
+                    else result.postValue(null);
+                }
+                return null;
+            }
+            L.d(sourceKey + " parseXml length=" + xml.length());
+            if (xml.contains("<year>")) {
+                xml = XML_EMPTY_OR_BAD_YEAR.matcher(xml).replaceAll("<year>0</year>");
+            }
+            if (xml.contains("<tid>")) {
+                xml = XML_EMPTY_OR_BAD_TID.matcher(xml).replaceAll("<tid>0</tid>");
             }
             if (xml.contains("<state></state>")) {
                 xml = xml.replace("<state></state>", "<state>0</state>");
             }
-            AbsXml absXml = (AbsXml) ABS_XML_XSTREAM.fromXML(xml);
-            parseSeriesUrl(absXml, sourceKey);
+            AbsXml absXml = (AbsXml) ABS_XML_XSTREAM.get().fromXML(xml);
+            parseSeriesUrl(absXml, sourceKey, searchResult == result);
             if (searchResult == result) {
                 addDuration(duration, absXml);
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId, sourceKey));
@@ -1072,7 +1426,7 @@ public class SourceViewModel extends ViewModel {
                 }
             }
             return absXml;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (searchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId, sourceKey));
             } else if (quickSearchResult == result) {
@@ -1108,12 +1462,20 @@ public class SourceViewModel extends ViewModel {
 
     private AbsXml parseJson(MutableLiveData<AbsXml> result, String json, String sourceKey, long duration, int requestId) {
         try {
+            if (json == null || json.isEmpty()) {
+                postSearchResult(result, null, requestId, sourceKey);
+                if (result != null && result != searchResult && result != quickSearchResult) {
+                    if (result == detailResult) postDetailResult(null, requestId);
+                    else result.postValue(null);
+                }
+                return null;
+            }
             AbsXml absXml = null;
             AbsJson absJson = GSON.fromJson(json, ABS_JSON_TYPE);
-            L.d(sourceKey + " parseJson length=" + (json == null ? -1 : json.length()));
+            L.d(sourceKey + " parseJson length=" + json.length());
             if (absJson != null) {
                 absXml = absJson.toAbsXml();
-                parseSeriesUrl(absXml, sourceKey);
+                parseSeriesUrl(absXml, sourceKey, searchResult == result);
                 if (searchResult == result) {
                     addDuration(duration, absXml);
                     EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, absXml, requestId, sourceKey));
@@ -1128,9 +1490,13 @@ public class SourceViewModel extends ViewModel {
                 }
             } else {
                 postSearchResult(result, null, requestId, sourceKey);
+                if (result != null && result != searchResult && result != quickSearchResult) {
+                    if (result == detailResult) postDetailResult(null, requestId);
+                    else result.postValue(null);
+                }
             }
             return absXml;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (searchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null, requestId, sourceKey));
             } else if (quickSearchResult == result) {
@@ -1144,10 +1510,9 @@ public class SourceViewModel extends ViewModel {
     }
 
     private void addDuration(long duration, AbsXml absXml) {
-        if (absXml == null || absXml.movie == null) return;
+        if (absXml == null || absXml.movie == null || absXml.movie.videoList == null) return;
         for (Movie.Video item : absXml.movie.videoList) {
-            if (duration > 0) {
-                item.name = "(" + duration + ")" + item.name;
+            if (item != null && duration > 0) {
                 item.dulation = duration;
             }
         }

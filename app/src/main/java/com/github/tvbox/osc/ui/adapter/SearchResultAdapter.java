@@ -7,6 +7,7 @@ import com.chad.library.adapter.base.BaseViewHolder;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.SiteBean;
+import com.github.tvbox.osc.ui.activity.SearchActivity;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PosterImageLoader;
 import com.lcstudio.commonsurport.util.NullUtil;
@@ -27,23 +28,46 @@ public class SearchResultAdapter extends BaseQuickAdapter<Movie.Video, BaseViewH
         this.listView = listView;
     }
 
+    public boolean isListView() {
+        return listView;
+    }
+
     @Override
     protected void convert(BaseViewHolder helper, Movie.Video video) {
+        if (helper.itemView != null) {
+            helper.itemView.animate().cancel();
+            if (!helper.itemView.hasFocus()) {
+                helper.itemView.setScaleX(1.0f);
+                helper.itemView.setScaleY(1.0f);
+            }
+        }
+        if (video == null) return;
         SiteBean site = ApiConfig.getInstance().getSiteBean(video.sourceKey);
         String sourceName = site == null || NullUtil.isNull(site.getName()) ? "未知片源" : site.getName();
-        // list
+        boolean isDirectory = SearchActivity.isFolderItem(video) || SearchActivity.isAggregateItem(video);
+        String siteLabel = isDirectory ? (sourceName + " · 目录") : sourceName;
+        // list：片名置前，片源与备注置后，避免长源名把片名挤到截断区
         if (listView) {
-            helper.setText(R.id.tvName, String.format("%s  %s %s %s",
-                    sourceName,
-                    video.name,
-                    NullUtil.isNull(video.type) ? "" : video.type,
-                    NullUtil.isNull(video.note) ? "" : video.note));
+            StringBuilder line = new StringBuilder();
+            line.append(video.name == null ? "" : video.name);
+            line.append("  ·  ").append(siteLabel);
+            if (!NullUtil.isNull(video.type)) {
+                line.append("  ").append(video.type);
+            }
+            if (!NullUtil.isNull(video.note)) {
+                line.append("  ").append(video.note);
+            } else if (isDirectory) {
+                line.append("  聚合目录");
+            }
+            helper.setText(R.id.tvName, line.toString());
         } else {// with preview
-            helper.setText(R.id.tvName, video.name);
-            helper.setText(R.id.tvSite, sourceName);
-            helper.setVisible(R.id.tvNote, video.note != null && !video.note.isEmpty());
-            if (video.note != null && !video.note.isEmpty()) {
-                helper.setText(R.id.tvNote, video.note);
+            helper.setText(R.id.tvName, video.name == null ? "" : video.name);
+            helper.setText(R.id.tvSite, siteLabel);
+            String noteText = (video.note != null && !video.note.isEmpty())
+                    ? video.note : (isDirectory ? "聚合目录" : "");
+            helper.setVisible(R.id.tvNote, !noteText.isEmpty());
+            if (!noteText.isEmpty()) {
+                helper.setText(R.id.tvNote, noteText);
             }
             ImageView ivThumb = helper.getView(R.id.ivThumb);
             PosterImageLoader.bind(ivThumb, video.pic);

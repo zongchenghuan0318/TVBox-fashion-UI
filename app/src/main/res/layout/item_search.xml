@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="@dimen/vs_1"
     android:background="@drawable/selector_vod_focus"
@@ -8,8 +8,8 @@
     android:padding="@dimen/vs_5">
 
     <FrameLayout
-        android:layout_width="@dimen/vs_214"
-        android:layout_height="@dimen/vs_280">
+        android:layout_width="match_parent"
+        android:layout_height="272mm">
 
         <ImageView
             android:id="@+id/ivThumb"
@@ -30,6 +30,7 @@
                 android:id="@+id/tvSite"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxWidth="150mm"
                 android:layout_marginEnd="@dimen/vs_5"
                 android:layout_marginRight="@dimen/vs_5"
                 android:background="@drawable/shape_thumb_year"
@@ -39,7 +40,7 @@
                 android:paddingRight="@dimen/vs_5"
                 android:singleLine="true"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="16mm" />
         </LinearLayout>
 
         <LinearLayout
@@ -53,6 +54,7 @@
                 android:id="@+id/tvNote"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxWidth="170mm"
                 android:layout_gravity="bottom"
                 android:layout_marginLeft="@dimen/vs_5"
                 android:layout_marginRight="@dimen/vs_5"
@@ -64,19 +66,20 @@
                 android:paddingRight="@dimen/vs_5"
                 android:singleLine="true"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="16mm" />
 
             <TextView
                 android:id="@+id/tvName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/shape_thumb_bottom_name2"
+                android:duplicateParentState="true"
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="marquee_forever"
                 android:padding="@dimen/vs_5"
                 android:singleLine="true"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="18mm" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>

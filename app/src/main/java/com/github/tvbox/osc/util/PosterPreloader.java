@@ -39,6 +39,17 @@ public final class PosterPreloader {
             @NonNull PosterProvider posterProvider,
             int maxPreload) {
 
+        if (!PosterImageLoader.isValidContextForGlide(context)) {
+            return null;
+        }
+
+        final com.bumptech.glide.RequestManager requestManager;
+        try {
+            requestManager = Glide.with(context);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+
         ListPreloader.PreloadSizeProvider<String> sizeProvider =
                 new FixedPreloadSizeProvider<>(PosterImageLoader.POSTER_WIDTH, PosterImageLoader.POSTER_HEIGHT);
 
@@ -46,6 +57,9 @@ public final class PosterPreloader {
             @NonNull
             @Override
             public List<String> getPreloadItems(int position) {
+                if (!PosterImageLoader.isValidContextForGlide(context)) {
+                    return Collections.emptyList();
+                }
                 if (position >= 0 && position < posterProvider.getCount()) {
                     String url = posterProvider.getPosterUrl(position);
                     if (!TextUtils.isEmpty(url)) {
@@ -58,14 +72,21 @@ public final class PosterPreloader {
             @Nullable
             @Override
             public RequestBuilder<?> getPreloadRequestBuilder(@NonNull String item) {
-                return Glide.with(context)
-                        .load(GlideImg.model(item))
-                        .apply(PosterImageLoader.getPosterOptions());
+                if (!PosterImageLoader.isValidContextForGlide(context)) {
+                    return null;
+                }
+                try {
+                    return requestManager
+                            .load(GlideImg.model(item))
+                            .apply(PosterImageLoader.getPosterOptions());
+                } catch (IllegalArgumentException ignored) {
+                    return null;
+                }
             }
         };
 
         RecyclerViewPreloader<String> preloader = new RecyclerViewPreloader<>(
-                Glide.with(context), modelProvider, sizeProvider, maxPreload > 0 ? maxPreload : 6
+                requestManager, modelProvider, sizeProvider, maxPreload > 0 ? maxPreload : 6
         );
 
         recyclerView.addOnScrollListener(preloader);

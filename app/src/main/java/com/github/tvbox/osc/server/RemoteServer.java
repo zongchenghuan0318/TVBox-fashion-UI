@@ -1,8 +1,8 @@
 package com.github.tvbox.osc.server;
 
 import com.lcstudio.commonsurport.L;
-import android.annotation.SuppressLint;
 import android.content.Context;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 
@@ -285,8 +285,9 @@ public class RemoteServer extends NanoHTTPD {
     }
 
     public String getServerAddress() {
+        if (!isStarted) return "";
         String ipAddress = getLocalIPAddress(mContext);
-        return "http://" + ipAddress + ":" + RemoteServer.serverPort + "/";
+        return ipAddress.isEmpty() ? "" : "http://" + ipAddress + ":" + RemoteServer.serverPort + "/";
     }
 
     public String getLoadAddress() {
@@ -301,33 +302,44 @@ public class RemoteServer extends NanoHTTPD {
         return newFixedLengthResponse(status, "application/json", text);
     }
 
-    @SuppressLint("DefaultLocale")
     public static String getLocalIPAddress(Context context) {
-        WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
-        int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
-        if (ipAddress == 0) {
-            try {
-                Enumeration<NetworkInterface> enumerationNi = NetworkInterface.getNetworkInterfaces();
-                while (enumerationNi.hasMoreElements()) {
-                    NetworkInterface networkInterface = enumerationNi.nextElement();
-                    String interfaceName = networkInterface.getDisplayName();
-                    if (interfaceName.equals("eth0") || interfaceName.equals("wlan0")) {
-                        Enumeration<InetAddress> enumIpAddr = networkInterface.getInetAddresses();
-                        while (enumIpAddr.hasMoreElements()) {
-                            InetAddress inetAddress = enumIpAddr.nextElement();
-                            if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
-                                return inetAddress.getHostAddress();
-                            }
-                        }
-                    }
-                }
-            } catch (SocketException e) {
-                L.e(e);
+        try {
+            WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            WifiInfo wifiInfo = wifiManager == null ? null : wifiManager.getConnectionInfo();
+            int ipAddress = wifiInfo == null ? 0 : wifiInfo.getIpAddress();
+            if (ipAddress != 0) {
+                InetAddress address = InetAddress.getByAddress(new byte[]{(byte) ipAddress,
+                        (byte) (ipAddress >> 8), (byte) (ipAddress >> 16), (byte) (ipAddress >> 24)});
+                if (isUsableLanAddress(address)) return address.getHostAddress();
             }
-        } else {
-            return String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
+        } catch (IOException | SecurityException e) {
+            L.e(e);
         }
-        return "0.0.0.0";
+
+        String fallback = "";
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces != null && interfaces.hasMoreElements()) {
+                NetworkInterface network = interfaces.nextElement();
+                if (!network.isUp() || network.isLoopback() || network.isPointToPoint()) continue;
+                Enumeration<InetAddress> addresses = network.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress address = addresses.nextElement();
+                    if (!isUsableLanAddress(address)) continue;
+                    if (address.isSiteLocalAddress()) return address.getHostAddress();
+                    if (fallback.isEmpty()) fallback = address.getHostAddress();
+                }
+            }
+        } catch (SocketException | SecurityException e) {
+            L.e(e);
+        }
+        return fallback;
+    }
+
+    private static boolean isUsableLanAddress(InetAddress address) {
+        return address instanceof Inet4Address && !address.isAnyLocalAddress()
+                && !address.isLoopbackAddress() && !address.isLinkLocalAddress()
+                && !address.isMulticastAddress();
     }
 
     String fileTime(long time, String fmt) {

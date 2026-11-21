@@ -1,6 +1,9 @@
 package com.github.tvbox.osc.util;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.os.Build;
 import android.text.TextUtils;
 import android.widget.ImageView;
 
@@ -40,28 +43,53 @@ public final class PosterImageLoader {
         return POSTER_OPTIONS;
     }
 
+    public static boolean isValidContextForGlide(Context context) {
+        if (context == null) return false;
+        Context cur = context;
+        while (cur instanceof ContextWrapper) {
+            if (cur instanceof Activity) {
+                Activity activity = (Activity) cur;
+                if (activity.isFinishing()) return false;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && activity.isDestroyed()) {
+                    return false;
+                }
+                return true;
+            }
+            Context next = ((ContextWrapper) cur).getBaseContext();
+            if (next == cur) break;
+            cur = next;
+        }
+        return true;
+    }
+
     public static void bind(ImageView imageView, String url) {
         if (imageView == null) return;
         Context context = imageView.getContext();
-        if (context == null) return;
+        if (!isValidContextForGlide(context)) return;
 
-        if (TextUtils.isEmpty(url)) {
-            Glide.with(context).clear(imageView);
-            imageView.setImageResource(R.drawable.img_loading_placeholder);
-            return;
+        try {
+            if (TextUtils.isEmpty(url)) {
+                Glide.with(context).clear(imageView);
+                imageView.setImageResource(R.drawable.img_loading_placeholder);
+                return;
+            }
+
+            Glide.with(context)
+                    .load(GlideImg.model(url))
+                    .apply(POSTER_OPTIONS)
+                    .into(imageView);
+        } catch (IllegalArgumentException ignored) {
         }
-
-        Glide.with(context)
-                .load(GlideImg.model(url))
-                .apply(POSTER_OPTIONS)
-                .into(imageView);
     }
 
     public static void clearAndSetResource(ImageView imageView, int resourceId) {
         if (imageView == null) return;
         Context context = imageView.getContext();
-        if (context != null) {
-            Glide.with(context).clear(imageView);
+        if (isValidContextForGlide(context)) {
+            try {
+                Glide.with(context).clear(imageView);
+            } catch (IllegalArgumentException ignored) {
+            }
         }
         imageView.setImageResource(resourceId);
     }
@@ -69,8 +97,11 @@ public final class PosterImageLoader {
     public static void clear(ImageView imageView) {
         if (imageView == null) return;
         Context context = imageView.getContext();
-        if (context != null) {
-            Glide.with(context).clear(imageView);
+        if (isValidContextForGlide(context)) {
+            try {
+                Glide.with(context).clear(imageView);
+            } catch (IllegalArgumentException ignored) {
+            }
         }
     }
 }

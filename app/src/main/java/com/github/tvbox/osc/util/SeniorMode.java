@@ -17,12 +17,37 @@ import com.studio.osc.R;
 public final class SeniorMode {
     private static final float TEXT_SCALE = 1.2f;  // 降低文字缩放比例从1.3到1.2
     private static final float FOCUS_SCALE = 1.04f;
+    private static volatile Boolean cachedEnabled;
 
     private SeniorMode() {
     }
 
     public static boolean isEnabled() {
-        return Hawk.get(HawkConfig.SENIOR_MODE, false);
+        Boolean enabled = cachedEnabled;
+        if (enabled != null) {
+            return enabled;
+        }
+        boolean value = false;
+        try {
+            if (Hawk.isBuilt()) {
+                value = Hawk.get(HawkConfig.SENIOR_MODE, false);
+            }
+        } catch (Throwable ignored) {
+        }
+        cachedEnabled = value;
+        return value;
+    }
+
+    public static void setEnabled(boolean enabled) {
+        cachedEnabled = enabled;
+        AppExecutors.io().execute(() -> {
+            try {
+                if (Hawk.isBuilt()) {
+                    Hawk.put(HawkConfig.SENIOR_MODE, enabled);
+                }
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     public static int getGridColumnCount(int regularCount) {

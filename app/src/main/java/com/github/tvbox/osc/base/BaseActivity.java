@@ -41,6 +41,10 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     protected Context mContext;
     private LoadService mLoadService;
     private static float screenRatio = -100.0f;
+    private int lastAdaptedOrientation = Configuration.ORIENTATION_UNDEFINED;
+    private float lastAdaptedDensity = -1f;
+    private float lastAdaptedScaledDensity = -1f;
+    private float lastAdaptedXdpi = -1f;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -104,7 +108,9 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     }
 
     private void hideInjectedPluginOverlays(ViewGroup content) {
-        for (int i = 0; i < content.getChildCount(); i++) {
+        int count = content.getChildCount();
+        if (count <= 1) return;
+        for (int i = 1; i < count; i++) {
             View child = content.getChildAt(i);
             if (isInjectedPluginOverlay(content, child)) {
                 suppressOverlayView(child);
@@ -180,26 +186,44 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     public Resources getResources() {
         Resources resources = super.getResources();
         if (Looper.myLooper() == Looper.getMainLooper()) {
-            if (getWindowManager() != null) {
-                // Application 的尺寸可能仍属于启动前的竖屏；用当前 Activity 的窗口重新同步。
-                DisplayMetrics metrics = new DisplayMetrics();
-                getWindowManager().getDefaultDisplay().getMetrics(metrics);
-                int width = metrics.widthPixels;
-                int height = metrics.heightPixels;
-                int orientation = resources.getConfiguration().orientation;
-                if ((orientation == Configuration.ORIENTATION_LANDSCAPE && width < height)
-                        || (orientation == Configuration.ORIENTATION_PORTRAIT && width > height)) {
-                    int previousWidth = width;
-                    width = height;
-                    height = previousWidth;
+            DisplayMetrics current = resources.getDisplayMetrics();
+            int orientation = resources.getConfiguration().orientation;
+            boolean orientationChanged = orientation != lastAdaptedOrientation;
+            boolean metricsDrifted = current.xdpi != lastAdaptedXdpi
+                    || current.density != lastAdaptedDensity
+                    || current.scaledDensity != lastAdaptedScaledDensity;
+            if (orientationChanged || metricsDrifted) {
+                if (orientationChanged && getWindowManager() != null) {
+                    // Application 的尺寸可能仍属于启动前的竖屏；只在首次或方向变化时同步窗口尺寸。
+                    DisplayMetrics metrics = new DisplayMetrics();
+                    getWindowManager().getDefaultDisplay().getMetrics(metrics);
+                    int width = metrics.widthPixels;
+                    int height = metrics.heightPixels;
+                    if ((orientation == Configuration.ORIENTATION_LANDSCAPE && width < height)
+                            || (orientation == Configuration.ORIENTATION_PORTRAIT && width > height)) {
+                        int previousWidth = width;
+                        width = height;
+                        height = previousWidth;
+                    }
+                    if (width > 0 && height > 0) {
+                        AutoSizeConfig.getInstance().setScreenWidth(width).setScreenHeight(height);
+                    }
                 }
-                if (width > 0 && height > 0) {
-                    AutoSizeConfig.getInstance().setScreenWidth(width).setScreenHeight(height);
-                }
+                AutoSizeCompat.autoConvertDensityOfCustomAdapt(resources, this);
+                DisplayMetrics updated = resources.getDisplayMetrics();
+                lastAdaptedOrientation = orientation;
+                lastAdaptedDensity = updated.density;
+                lastAdaptedScaledDensity = updated.scaledDensity;
+                lastAdaptedXdpi = updated.xdpi;
             }
-            AutoSizeCompat.autoConvertDensityOfCustomAdapt(resources, this);
         }
         return resources;
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        lastAdaptedOrientation = Configuration.ORIENTATION_UNDEFINED;
     }
 
     public boolean hasPermission(String permission) {

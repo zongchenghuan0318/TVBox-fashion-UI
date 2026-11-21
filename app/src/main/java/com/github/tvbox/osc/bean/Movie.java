@@ -66,6 +66,7 @@ public class Movie implements Serializable {
 
         public String sourceKey;
         public boolean isMore = false;
+        public boolean hasPlayableUrls = false;
         public long dulation = 5 * 1000;
 
         @XStreamAlias("dl")

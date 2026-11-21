@@ -7,16 +7,72 @@ import com.lcstudio.commonsurport.util.NullUtil;
 import com.orhanobut.hawk.Hawk;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 final class SearchSitePreferences {
+    private static final ExecutorService PERSIST_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "search-site-prefs");
+        t.setDaemon(true);
+        return t;
+    });
+
     private final Map<String, SiteBean> mSiteBeanMap;
     private volatile Map<String, Integer> mSearchSiteOrderIndexCache = new ConcurrentHashMap<>();
+    private volatile List<String> mDisabledCache;
+    private volatile Set<String> mDisabledSetCache;
+    private volatile List<String> mOrderCache;
 
     SearchSitePreferences(Map<String, SiteBean> siteBeanMap) {
         mSiteBeanMap = siteBeanMap;
+    }
+
+    private Set<String> ensureDisabledSetCache() {
+        Set<String> set = mDisabledSetCache;
+        if (set != null) return set;
+        synchronized (this) {
+            set = mDisabledSetCache;
+            if (set != null) return set;
+            ArrayList<String> loaded = null;
+            try {
+                if (Hawk.isBuilt()) {
+                    loaded = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
+                }
+            } catch (Throwable ignored) {
+            }
+            List<String> list = loaded == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(loaded));
+            set = Collections.unmodifiableSet(new HashSet<>(list));
+            mDisabledCache = list;
+            mDisabledSetCache = set;
+            return set;
+        }
+    }
+
+    private List<String> ensureOrderCache() {
+        List<String> list = mOrderCache;
+        if (list != null) return list;
+        synchronized (this) {
+            list = mOrderCache;
+            if (list != null) return list;
+            ArrayList<String> loaded = null;
+            try {
+                if (Hawk.isBuilt()) {
+                    loaded = Hawk.get(HawkConfig.SEARCH_SITE_ORDER, new ArrayList<String>());
+                }
+            } catch (Throwable ignored) {
+            }
+            list = loaded == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(loaded));
+            mOrderCache = list;
+            return list;
+        }
     }
 
     /**
@@ -25,18 +81,31 @@ final class SearchSitePreferences {
      * 这样配置源更新后新增的站点会自动参与，不会漏掉。
      */
     ArrayList<String> getSearchSiteDisabled() {
-        ArrayList<String> disabled = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
-        return disabled == null ? new ArrayList<String>() : disabled;
+        ensureDisabledSetCache();
+        List<String> list = mDisabledCache;
+        return list == null ? new ArrayList<>() : new ArrayList<>(list);
     }
 
     void setSearchSiteDisabled(List<String> keys) {
-        Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
+        final ArrayList<String> snapshot = keys == null ? new ArrayList<>() : new ArrayList<>(keys);
+        synchronized (this) {
+            mDisabledCache = Collections.unmodifiableList(new ArrayList<>(snapshot));
+            mDisabledSetCache = Collections.unmodifiableSet(new HashSet<>(snapshot));
+        }
+        PERSIST_EXECUTOR.execute(() -> {
+            try {
+                if (Hawk.isBuilt()) {
+                    Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, snapshot);
+                }
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     /** 该站点是否被允许参与搜索（未设置或未被取消勾选 → 允许） */
     boolean isSearchSiteEnabled(String key) {
         if (NullUtil.isNull(key)) return true;
-        return !getSearchSiteDisabled().contains(key);
+        return !ensureDisabledSetCache().contains(key);
     }
 
     /**
@@ -44,13 +113,23 @@ final class SearchSitePreferences {
      * 未登记过顺序的源（配置新增或默认启用）排在最后。
      */
     ArrayList<String> getSearchSiteOrder() {
-        ArrayList<String> order = Hawk.get(HawkConfig.SEARCH_SITE_ORDER, new ArrayList<String>());
-        return order == null ? new ArrayList<String>() : order;
+        return new ArrayList<>(ensureOrderCache());
     }
 
     void setSearchSiteOrder(List<String> keys) {
-        Hawk.put(HawkConfig.SEARCH_SITE_ORDER, keys == null ? new ArrayList<String>() : new ArrayList<>(keys));
+        final ArrayList<String> snapshot = keys == null ? new ArrayList<>() : new ArrayList<>(keys);
+        synchronized (this) {
+            mOrderCache = Collections.unmodifiableList(new ArrayList<>(snapshot));
+        }
         invalidateSearchSiteOrderCache();
+        PERSIST_EXECUTOR.execute(() -> {
+            try {
+                if (Hawk.isBuilt()) {
+                    Hawk.put(HawkConfig.SEARCH_SITE_ORDER, snapshot);
+                }
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     /**
@@ -86,22 +165,21 @@ final class SearchSitePreferences {
 
     /** 参与搜索的站点，按用户勾选顺序排列；没排过序的源接在最后并保持站点表原顺序 */
     List<SiteBean> getOrderedSearchSiteList() {
-        List<SiteBean> pending = new ArrayList<>();
+        Set<String> disabled = ensureDisabledSetCache();
+        LinkedHashMap<String, SiteBean> pending = new LinkedHashMap<>();
         for (SiteBean bean : mSiteBeanMap.values()) {
-            if (bean.isSearchable() && isSearchSiteEnabled(bean.getKey())) {
-                pending.add(bean);
+            if (bean.isSearchable() && (NullUtil.isNull(bean.getKey()) || !disabled.contains(bean.getKey()))) {
+                pending.put(bean.getKey(), bean);
             }
         }
-        List<SiteBean> ordered = new ArrayList<>();
+        List<SiteBean> ordered = new ArrayList<>(pending.size());
         for (String key : getSearchSiteOrderOrDefault()) {
-            for (int i = 0; i < pending.size(); i++) {
-                if (key.equals(pending.get(i).getKey())) {
-                    ordered.add(pending.remove(i));
-                    break;
-                }
+            SiteBean hit = pending.remove(key);
+            if (hit != null) {
+                ordered.add(hit);
             }
         }
-        ordered.addAll(pending);
+        ordered.addAll(pending.values());
         return ordered;
     }
 
@@ -141,6 +219,12 @@ final class SearchSitePreferences {
         if (Hawk.get(HawkConfig.SEARCH_SITE_VER, 0) < 1) {
             Hawk.delete(HawkConfig.SEARCH_SITE_DISABLED);
             Hawk.delete(HawkConfig.SEARCH_SITE_ORDER);
+            synchronized (this) {
+                mDisabledCache = Collections.emptyList();
+                mDisabledSetCache = Collections.emptySet();
+                mOrderCache = Collections.emptyList();
+            }
+            invalidateSearchSiteOrderCache();
             Hawk.put(HawkConfig.SEARCH_SITE_VER, 1);
         }
         // 置顶搜索源（全体用户）：把“粉猪秒播”放到搜索顺序第一位并确保启用；
@@ -156,9 +240,9 @@ final class SearchSitePreferences {
         order.remove(key);
         order.add(0, key);
         setSearchSiteOrder(order);
-        ArrayList<String> disabled = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
-        if (disabled != null && disabled.remove(key)) {
-            Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, disabled);
+        ArrayList<String> disabled = getSearchSiteDisabled();
+        if (disabled.remove(key)) {
+            setSearchSiteDisabled(disabled);
         }
     }
 }

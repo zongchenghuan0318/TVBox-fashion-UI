@@ -95,7 +95,9 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/rvFolder"
@@ -103,7 +105,6 @@
                 android:layout_height="match_parent"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:nextFocusUp="@+id/btnFolderBack"
                 app:tv_horizontalSpacingWithMargins="8mm"
                 app:tv_selectedItemIsCentered="false"
                 app:tv_verticalSpacingWithMargins="8mm" />
@@ -154,6 +155,16 @@
                     android:text="该聚合目录暂无可播放资源"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="18mm" />
+
+                <TextView
+                    android:id="@+id/btnFolderRetry"
+                    style="@style/SettingsButton.Primary"
+                    android:layout_marginTop="16mm"
+                    android:minWidth="120mm"
+                    android:minHeight="42mm"
+                    android:nextFocusUp="@+id/btnFolderBack"
+                    android:text="重新加载"
+                    android:textSize="16mm" />
             </LinearLayout>
         </FrameLayout>
 

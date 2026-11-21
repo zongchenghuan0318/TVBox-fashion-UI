@@ -39,11 +39,17 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
     private final String api;
 
     private QuickJSContext ctx;
+    private Global global;
     private JSObject jsObject;
     private boolean cat;
+    private volatile boolean destroyed;
 
     public SpiderFm(String key, String api) {
-        this.executor = Executors.newSingleThreadExecutor();
+        this.executor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "quickjs-" + (key == null ? "spider" : key));
+            t.setDaemon(true);
+            return t;
+        });
         this.key = key;
         this.api = api;
     }
@@ -68,16 +74,21 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
     }
 
     private Object call(final String func, final Object... args) {
+        if (destroyed || executor.isShutdown()) return null;
         Future<CompletableFuture<Object>> task = null;
         try {
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
             task = submit(new Callable<CompletableFuture<Object>>() {
                 @Override
                 public CompletableFuture<Object> call() {
+                    if (destroyed || jsObject == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
                     return Async.run(jsObject, func, args);
                 }
             });
             CompletableFuture<Object> result = task.get(15, TimeUnit.SECONDS);
+            if (result == null) return null;
             long remaining = deadline - System.nanoTime();
             if (remaining <= 0) return null;
             return result.get(remaining, TimeUnit.NANOSECONDS);
@@ -207,19 +218,34 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
 
     @Override
     public void destroy() {
-        try {
-            call("destroy");
-        } catch (Throwable ignored) {
+        if (destroyed) return;
+        destroyed = true;
+        if (global != null) {
+            global.destroy();
         }
         try {
-            await(submit(new Callable<Object>() {
-                @Override
-                public Object call() {
-                    if (jsObject != null) jsObject.release();
-                    if (ctx != null) ctx.destroy();
-                    return null;
-                }
-            }));
+            if (!executor.isShutdown()) {
+                await(submit(new Callable<Object>() {
+                    @Override
+                    public Object call() {
+                        try {
+                            if (jsObject != null) {
+                                Async.run(jsObject, "destroy");
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        if (jsObject != null) {
+                            jsObject.release();
+                            jsObject = null;
+                        }
+                        if (ctx != null) {
+                            ctx.destroy();
+                            ctx = null;
+                        }
+                        return null;
+                    }
+                }));
+            }
         } catch (Throwable ignored) {
         } finally {
             executor.shutdownNow();
@@ -245,7 +271,8 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
         ctx = context;
         context.setConsole(new Console());
         ctx.evaluate(Asset.read("js/lib/http.js"));
-        Global.create(ctx, executor).setProperty();
+        global = Global.create(ctx, executor);
+        global.setProperty();
         ctx.getGlobalObject().setProperty("local", Local.class);
         ctx.setModuleLoader(new QuickJSContext.BytecodeModuleLoader() {
             @Override
@@ -265,10 +292,15 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
         String spider = "__JS_SPIDER__";
         String global = "globalThis." + spider;
         String content = Module.get().fetch(api);
+        if (content == null || content.trim().isEmpty()) {
+            jsObject = null;
+            return;
+        }
         cat = content.contains("__jsEvalReturn");
         ctx.evaluateModule(content.replace(spider, global), api);
         ctx.evaluateModule(String.format(Asset.read("js/lib/spider.js"), api));
-        jsObject = (JSObject) ctx.getProperty(ctx.getGlobalObject(), spider);
+        Object obj = ctx.getProperty(ctx.getGlobalObject(), spider);
+        jsObject = obj instanceof JSObject ? (JSObject) obj : null;
     }
 
     public JSObject cfg(String extend) {

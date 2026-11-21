@@ -280,11 +280,11 @@ public class ModelSettingFragment extends BaseLazyFragment {
         });
 
         View remoteSoundRow = findViewById(R.id.llRemoteKeySound);
-        switchRemoteKeySound.setChecked(Hawk.get(HawkConfig.REMOTE_KEY_SOUND, true));
+        switchRemoteKeySound.setChecked(RemoteKeySound.isEnabled());
         remoteSoundRow.setContentDescription("遥控器按键音，" + (switchRemoteKeySound.isChecked() ? "已开启" : "已关闭"));
         remoteSoundRow.setOnClickListener(v -> {
             boolean enabled = !switchRemoteKeySound.isChecked();
-            Hawk.put(HawkConfig.REMOTE_KEY_SOUND, enabled);
+            RemoteKeySound.setEnabled(enabled);
             switchRemoteKeySound.setChecked(enabled);
             v.setContentDescription("遥控器按键音，" + (enabled ? "已开启" : "已关闭"));
             v.announceForAccessibility(enabled ? "遥控器按键音已开启" : "遥控器按键音已关闭");
@@ -299,7 +299,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         seniorRow.setOnClickListener(v -> {
             FastClickCheckUtil.check(v);
             boolean enabled = !SeniorMode.isEnabled();
-            Hawk.put(HawkConfig.SENIOR_MODE, enabled);
+            SeniorMode.setEnabled(enabled);
             switchSeniorMode.setChecked(enabled);
             v.setContentDescription("长辈模式，" + (enabled ? "已开启" : "已关闭"));
             View rootView = getActivity() != null

@@ -20,6 +20,7 @@ public class JarLoader {
     private DexClassLoader classLoader = null;
     private final ConcurrentHashMap<String, DexClassLoader> extraLoaders = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, Spider> spidersMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> spiderLocks = new ConcurrentHashMap<>();
     private Method proxyFun = null;
 
     /**
@@ -27,6 +28,7 @@ public class JarLoader {
      */
     public boolean load(String cacheFile) {
         spidersMap.clear();
+        spiderLocks.clear();
         proxyFun = null;
         boolean success = false;
         try {
@@ -104,21 +106,33 @@ public class JarLoader {
     }
 
     public Spider getSpider(String key, String cls, String ext, String jarPath) {
-        String clsKey = cls.replace("csp_", "");
-        if (spidersMap.containsKey(key)) return spidersMap.get(key);
-        //站点自带 jar 的类优先从该 jar 取；没有站点 jar 时用全局 spider jar
-        DexClassLoader loader = jarPath == null || jarPath.isEmpty() ? null : extraLoaders.get(jarPath);
-        if (loader == null) loader = classLoader;
-        if (loader == null) return new SpiderNull();
-        try {
-            Spider sp = loadSpider(loader, clsKey);
-            sp.init(App.getInstance(), ext);
-            spidersMap.put(key, sp);
-            return sp;
-        } catch (Throwable th) {
-            L.e("getSpider "+th.getMessage());
+        if (key == null || cls == null) return new SpiderNull();
+        Spider cached = spidersMap.get(key);
+        if (cached != null) return cached;
+        Object lock = spiderLocks.get(key);
+        if (lock == null) {
+            Object created = new Object();
+            Object existing = spiderLocks.putIfAbsent(key, created);
+            lock = existing != null ? existing : created;
         }
-        return new SpiderNull();
+        synchronized (lock) {
+            cached = spidersMap.get(key);
+            if (cached != null) return cached;
+            String clsKey = cls.replace("csp_", "");
+            //站点自带 jar 的类优先从该 jar 取；没有站点 jar 时用全局 spider jar
+            DexClassLoader loader = jarPath == null || jarPath.isEmpty() ? null : extraLoaders.get(jarPath);
+            if (loader == null) loader = classLoader;
+            if (loader == null) return new SpiderNull();
+            try {
+                Spider sp = loadSpider(loader, clsKey);
+                sp.init(App.getInstance(), ext);
+                spidersMap.put(key, sp);
+                return sp;
+            } catch (Throwable th) {
+                L.e("getSpider " + th.getMessage());
+            }
+            return new SpiderNull();
+        }
     }
 
     /**

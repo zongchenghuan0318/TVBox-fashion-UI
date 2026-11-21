@@ -43,7 +43,7 @@ public class TipDialog extends BaseDialog {
         });
     }
 
-    public static void confirm(Context context, String title, String message, String confirmText, Runnable onConfirm) {
+    public static TipDialog confirm(Context context, String title, String message, String confirmText, Runnable onConfirm) {
         final TipDialog[] holder = new TipDialog[1];
         TipDialog dialog = new TipDialog(context, message, confirmText, "取消", new OnListener() {
             @Override
@@ -73,6 +73,7 @@ public class TipDialog extends BaseDialog {
             if (cancelBtn != null) cancelBtn.requestFocus();
         });
         dialog.show();
+        return dialog;
     }
 
     public interface OnListener {

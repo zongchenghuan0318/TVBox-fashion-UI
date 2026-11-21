@@ -62,7 +62,9 @@
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.SearchActivity"
-            android:screenOrientation="landscape" />
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateHidden|adjustNothing" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.SettingActivity"
             android:screenOrientation="landscape" />

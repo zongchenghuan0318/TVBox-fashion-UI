@@ -32,6 +32,7 @@ public class Global {
     private final ExecutorService executor;
     private final Parser parser;
     private final Timer timer;
+    private volatile boolean destroyed;
 
     private Global(QuickJSContext ctx, ExecutorService executor) {
         this.ctx = ctx;
@@ -42,6 +43,15 @@ public class Global {
 
     public static Global create(QuickJSContext ctx, ExecutorService executor) {
         return new Global(ctx, executor);
+    }
+
+    public void destroy() {
+        destroyed = true;
+        try {
+            timer.cancel();
+            timer.purge();
+        } catch (Throwable ignored) {
+        }
     }
 
     public void setProperty() {
@@ -66,7 +76,7 @@ public class Global {
 
     private void submit(Runnable runnable) {
         try {
-            if (executor.isShutdown()) return;
+            if (destroyed || executor.isShutdown()) return;
             executor.submit(runnable);
         } catch (Throwable ignored) {
         }
@@ -104,7 +114,7 @@ public class Global {
     @Keep
     @JSMethod
     public Object setTimeout(JSFunction func, Integer delay) {
-        if (func == null) return null;
+        if (func == null || destroyed) return null;
         try {
             func.hold();
             schedule(func, delay == null ? 0 : delay);
@@ -114,6 +124,13 @@ public class Global {
     }
 
     public void schedule(JSFunction func, int delay) {
+        if (destroyed) {
+            try {
+                func.release();
+            } catch (Throwable ignored) {
+            }
+            return;
+        }
         try {
             timer.schedule(new Timeout(func), Math.max(0, delay));
         } catch (Throwable ignored) {
@@ -226,11 +243,30 @@ public class Global {
     }
 
     private void completeSuccess(final JSFunction complete, final Req req, final Response res) {
+        if (destroyed || executor.isShutdown()) {
+            if (res != null) {
+                try {
+                    res.close();
+                } catch (Throwable ignored) {
+                }
+            }
+            return;
+        }
         submit(new Runnable() {
             @Override
             public void run() {
+                if (destroyed) {
+                    if (res != null) {
+                        try {
+                            res.close();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                    return;
+                }
                 try {
                     complete.call(Connect.success(Global.this.ctx, req, res));
+                } catch (Throwable ignored) {
                 } finally {
                     try {
                         complete.release();
@@ -242,11 +278,14 @@ public class Global {
     }
 
     private void completeError(final JSFunction complete) {
+        if (destroyed || executor.isShutdown()) return;
         submit(new Runnable() {
             @Override
             public void run() {
+                if (destroyed) return;
                 try {
                     complete.call(Connect.error(Global.this.ctx));
+                } catch (Throwable ignored) {
                 } finally {
                     try {
                         complete.release();
@@ -267,15 +306,22 @@ public class Global {
 
         @Override
         public void run() {
-            try {
-                func.call();
-            } catch (Throwable ignored) {
-            } finally {
-                try {
-                    func.release();
-                } catch (Throwable ignored) {
+            // QuickJS 非线程安全：所有 JS 调用和句柄释放必须切回创建 QuickJSContext 的单线程 executor
+            submit(new Runnable() {
+                @Override
+                public void run() {
+                    if (destroyed) return;
+                    try {
+                        func.call();
+                    } catch (Throwable ignored) {
+                    } finally {
+                        try {
+                            func.release();
+                        } catch (Throwable ignored) {
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 }

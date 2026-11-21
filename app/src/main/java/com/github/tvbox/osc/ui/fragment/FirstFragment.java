@@ -42,6 +42,7 @@ import com.github.tvbox.osc.ui.adapter.HomeHotVodAdapter;
 import com.github.tvbox.osc.util.PosterPreloader;
 import com.github.tvbox.osc.ui.tv.widget.HomeCardRecyclerView;
 import com.github.tvbox.osc.ui.tv.widget.LoadMoreView;
+import com.github.tvbox.osc.util.BilibiliHotRank;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.GlideImg;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -1119,11 +1120,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         return System.currentTimeMillis() < sDoubanBlockedUntil;
     }
 
-    private static final String HOT_RANK_URL = "https://api.bilibili.com/pgc/web/rank/list?day=3&season_type=";
-    //热榜分类优先级：电视剧 → 电影 → 番剧 → 国创，取第一个有数据的
-    private static final String[] HOT_RANK_TYPES = {"5", "2", "1", "4"};
-    private static final int HOT_RANK_MAX = 40;
-
     /**
      * 主流热榜层（B站 PGC 影视/剧集榜）：片名干净、海报由图床直出，作为首页推荐的首选层。
      * 拿不到才回落到「数据源推荐 → 聚合源 → 空态」这条链
@@ -1135,14 +1131,13 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
         submitFeed(new Runnable() {
             @Override
             public void run() {
-                for (String type : HOT_RANK_TYPES) {
+                for (String type : BilibiliHotRank.SEASON_TYPES) {
                     if (!mViewActive || requestId != mFeedRequestId) {
                         return;
                     }
                     List<Movie.Video> list = null;
                     try {
-                        String json = ApiConfig.getWithHeaders(HOT_RANK_URL + type, null, 10 * 1000);
-                        list = parseHotRank(json);
+                        list = BilibiliHotRank.load(type, 10 * 1000);
                     } catch (Throwable th) {
                         L.e(th);
                     }
@@ -1163,40 +1158,6 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
                 });
             }
         });
-    }
-
-    /**
-     * 解析 B站 PGC 榜单：result.list[] 里的 title 是片名、cover 是海报，
-     * cover 有 http 的必须换成 https，否则被 cleartext 策略拦掉不显示
-     */
-    private List<Movie.Video> parseHotRank(String json) {
-        List<Movie.Video> videos = new ArrayList<>();
-        if (NullUtil.isNull(json)) return videos;
-        try {
-            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
-            if (obj == null || !obj.has("result") || obj.get("result").isJsonNull()) return videos;
-            JsonObject result = obj.getAsJsonObject("result");
-            if (result == null || !result.has("list") || result.get("list").isJsonNull()) return videos;
-            JsonArray arr = result.getAsJsonArray("list");
-            for (int i = 0; i < arr.size() && videos.size() < HOT_RANK_MAX; i++) {
-                JsonElement el = arr.get(i);
-                if (el == null || !el.isJsonObject()) continue;
-                JsonObject o = el.getAsJsonObject();
-                String title = o.has("title") && !o.get("title").isJsonNull() ? o.get("title").getAsString() : null;
-                if (NullUtil.isNull(title)) continue;
-                Movie.Video vod = new Movie.Video();
-                vod.name = title;
-                vod.note = "热榜 TOP" + (i + 1);
-                if (o.has("cover") && !o.get("cover").isJsonNull()) {
-                    String cover = o.get("cover").getAsString();
-                    vod.pic = cover.startsWith("http://") ? "https://" + cover.substring(7) : cover;
-                }
-                videos.add(vod);
-            }
-        } catch (Throwable th) {
-            L.e(th);
-        }
-        return videos;
     }
 
     private boolean containsMovie(List<Movie.Video> videos, Movie.Video candidate) {
@@ -1336,7 +1297,9 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
 
     private void saveDoubanCache(List<Movie.Video> videos) {
         try {
-            Hawk.put(HawkConfig.HOME_DOUBAN_CACHE, new Gson().toJson(videos));
+            if (Hawk.put(HawkConfig.HOME_DOUBAN_CACHE, new Gson().toJson(videos))) {
+                Hawk.put(HawkConfig.HOME_DOUBAN_CACHE_UPDATED_AT, System.currentTimeMillis());
+            }
         } catch (Throwable th) {
             L.e(th);
         }

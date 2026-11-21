@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/vs_50"
+    android:layout_height="@dimen/vs_42"
     android:layout_gravity="center"
-    android:layout_margin="@dimen/vs_4"
+    android:layout_margin="@dimen/vs_2"
     android:background="@drawable/selector_user_focus"
     android:focusable="true">
 
@@ -13,7 +13,8 @@
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:gravity="center"
+        android:singleLine="true"
         android:textAlignment="gravity"
         android:textColor="@android:color/white"
-        android:textSize="@dimen/ts_22" />
+        android:textSize="18mm" />
 </FrameLayout>

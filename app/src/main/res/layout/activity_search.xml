@@ -1,22 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/llSearchRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_settings_page"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:orientation="horizontal">
 
     <LinearLayout
         android:id="@+id/llSearchLeftPanel"
-        android:layout_width="@dimen/vs_420"
+        android:layout_width="404mm"
         android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical"
-        android:padding="@dimen/vs_20">
+        android:padding="16mm">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/vs_10"
+            android:layout_marginBottom="8mm"
             android:gravity="center_vertical"
             android:orientation="vertical">
 
@@ -48,51 +53,75 @@
                     <EditText
                         android:id="@+id/etSearch"
                         android:layout_width="match_parent"
-                        android:layout_height="@dimen/vs_50"
+                        android:layout_height="46mm"
                         android:background="@drawable/input_search"
-                        android:hint="请输入要搜索的内容"
+                        android:hint="请输入片名或首字母"
                         android:inputType="text"
                         android:maxLines="1"
-                        android:imeOptions="actionSearch"
-                        android:paddingLeft="@dimen/vs_45"
-                        android:paddingRight="@dimen/vs_10"
+                        android:imeOptions="actionSearch|flagNoExtractUi"
+                        android:paddingLeft="38mm"
+                        android:paddingRight="34mm"
                         android:textColor="@android:color/white"
                         android:textColorHint="#99FFFFFF"
-                        android:textSize="@dimen/ts_20" />
+                        android:textSize="18mm" />
 
                     <ImageView
                         android:id="@+id/search_img"
-                        android:layout_width="@dimen/vs_35"
-                        android:layout_height="@dimen/vs_35"
+                        android:layout_width="26mm"
+                        android:layout_height="26mm"
                         android:layout_alignParentLeft="true"
-                        android:layout_marginLeft="@dimen/vs_6"
+                        android:layout_marginLeft="8mm"
                         android:layout_centerVertical="true"
-                        android:alpha="0.75"
-                        android:clickable="true"
+                        android:alpha="0.7"
+                        android:clickable="false"
+                        android:focusable="false"
+                        android:importantForAccessibility="no"
                         android:src="@drawable/selector_btn_search" />
+
+                    <TextView
+                        android:id="@+id/ivClearInput"
+                        android:layout_width="30mm"
+                        android:layout_height="30mm"
+                        android:layout_alignParentRight="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginRight="4mm"
+                        android:clickable="true"
+                        android:focusable="false"
+                        android:gravity="center"
+                        android:text="×"
+                        android:textColor="#CCFFFFFF"
+                        android:textSize="20mm"
+                        android:visibility="gone" />
                 </RelativeLayout>
 
                 <TextView
                     android:id="@+id/tvSearch"
-                    android:layout_width="@dimen/vs_50"
-                    android:layout_height="@dimen/vs_42"
+                    android:layout_width="wrap_content"
+                    android:minWidth="@dimen/vs_60"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/vs_42"
                     android:layout_marginLeft="@dimen/vs_8"
                     android:background="@drawable/selector_user_focus"
                     android:clickable="true"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
                     android:gravity="center"
+                    android:paddingLeft="@dimen/vs_12"
+                    android:paddingRight="@dimen/vs_12"
+                    android:paddingTop="6mm"
+                    android:paddingBottom="6mm"
+                    android:singleLine="true"
                     android:text="搜索"
-                    android:textColor="@android:color/white" />
+                    android:textColor="@android:color/white"
+                    android:textSize="18mm" />
             </LinearLayout>
 
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/serch_history_rv"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_1"
-                android:focusableInTouchMode="true"
-                android:focusable="true"
+                android:layout_marginTop="4mm"
+                android:fadingEdgeLength="24mm"
+                android:requiresFadingEdge="horizontal"
                 app:tv_horizontalSpacingWithMargins="@dimen/vs_2"
                 app:tv_verticalSpacingWithMargins="@dimen/vs_2"
                 app:tv_layoutManager="V7LinearLayoutManager"
@@ -101,22 +130,27 @@
             <LinearLayout
                 android:id="@+id/llClearHistory"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_50"
-                android:layout_marginTop="@dimen/vs_2"
-                android:visibility="visible"
+                android:layout_height="wrap_content"
+                android:minHeight="38mm"
+                android:layout_marginTop="4mm"
+                android:visibility="gone"
                 android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/tvClear"
                     android:layout_width="0dp"
-                    android:layout_height="@dimen/vs_50"
+                    android:layout_height="wrap_content"
+                    android:minHeight="38mm"
                     android:layout_weight="1"
                     android:background="@drawable/selector_user_focus"
                     android:focusable="true"
                     android:gravity="center"
+                    android:paddingTop="5mm"
+                    android:paddingBottom="5mm"
+                    android:singleLine="true"
                     android:text="清空历史"
                     android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_20" />
+                    android:textSize="17mm" />
                 <Space
                     android:layout_width="@dimen/vs_10"
                     android:visibility="gone"
@@ -128,51 +162,74 @@
                 android:id="@+id/tvHistoryHint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_4"
+                android:layout_marginTop="3mm"
                 android:gravity="center"
-                android:text="长按历史词可删除单条"
+                android:singleLine="true"
+                android:text="长按历史词可删除单条 · 左右滑动查看更多"
                 android:textColor="@color/color_rail_text_muted"
-                android:textSize="@dimen/ts_18" />
+                android:textSize="14mm"
+                android:visibility="gone" />
         </LinearLayout>
 
         <com.github.tvbox.osc.ui.tv.widget.SearchKeyboard
             android:id="@+id/keyBoardRoot"
             android:visibility="visible"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:nextFocusRight="@+id/sortRV" />
 
         <LinearLayout
             android:id="@+id/remoteRoot"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/btnBackToKeyboard"
+                android:layout_width="match_parent"
+                android:layout_height="44mm"
+                android:layout_marginTop="4mm"
+                android:background="@drawable/selector_user_focus"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="返回虚拟键盘"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_20" />
 
             <TextView
                 android:id="@+id/tvAddress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/vs_20"
+                android:layout_marginTop="8mm"
                 android:gravity="center_horizontal"
-                android:lineSpacingMultiplier="1.4"
+                android:lineSpacingMultiplier="1.15"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="17mm" />
 
             <ImageView
                 android:id="@+id/ivQRCode"
-                android:layout_width="@dimen/vs_300"
-                android:layout_height="@dimen/vs_300"
+                android:layout_width="240mm"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/vs_20" />
+                android:layout_marginTop="8mm"
+                android:scaleType="fitCenter" />
         </LinearLayout>
     </LinearLayout>
 
     <!-- 热词/联想列：只在真有内容时才出现，避免空占一条竖栏 -->
     <LinearLayout
         android:id="@+id/llWord"
-        android:layout_width="@dimen/vs_150"
+        android:layout_width="156mm"
         android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical"
         android:paddingTop="@dimen/vs_10"
         android:paddingBottom="@dimen/vs_20"
@@ -264,7 +321,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 顶部独立轻量搜索状态栏：不遮挡下方第一行海报 -->
+        <!-- 顶部独立轻量搜索状态栏：搜索中显示进度，搜完后保留结果统计与「搜索源筛选」常驻入口 -->
         <LinearLayout
             android:id="@+id/llSearchStatusBar"
             android:layout_width="match_parent"
@@ -276,6 +333,14 @@
             android:paddingRight="20mm"
             android:paddingBottom="4mm"
             android:visibility="gone">
+
+            <ProgressBar
+                android:id="@+id/pbSearchLoading"
+                android:layout_width="20mm"
+                android:layout_height="20mm"
+                android:layout_marginRight="8mm"
+                android:indeterminate="true"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/tvSearchProgress"
@@ -296,14 +361,18 @@
             <TextView
                 android:id="@+id/btnManageSearchSourcesTop"
                 android:layout_width="wrap_content"
-                android:layout_height="34mm"
+                android:layout_height="wrap_content"
+                android:minHeight="36mm"
                 android:layout_marginLeft="10mm"
                 android:background="@drawable/selector_settings_action"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingLeft="14mm"
+                android:paddingTop="6mm"
                 android:paddingRight="14mm"
+                android:paddingBottom="6mm"
+                android:singleLine="true"
                 android:text="搜索源筛选"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="14mm" />
@@ -314,10 +383,12 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:paddingLeft="@dimen/vs_20"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingLeft="16mm"
             android:paddingTop="12mm"
-            android:paddingRight="@dimen/vs_20"
-            android:paddingBottom="@dimen/vs_20">
+            android:paddingRight="16mm"
+            android:paddingBottom="16mm">
 
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/sortRV"
@@ -330,6 +401,62 @@
                 app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
                 app:tv_selectedItemIsCentered="false"
                 app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
+
+            <!-- 初始空白态操作引导：进入搜索页尚未输入前显示 -->
+            <LinearLayout
+                android:id="@+id/llSearchGuide"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="visible">
+
+                <ImageView
+                    android:layout_width="64mm"
+                    android:layout_height="64mm"
+                    android:alpha="0.4"
+                    android:src="@drawable/icon_search" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14mm"
+                    android:text="输入片名、演员或拼音首字母开始搜索"
+                    android:textColor="@color/color_CCFFFFFF"
+                    android:textSize="@dimen/ts_22" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8mm"
+                    android:text="可直接点选热词/历史，或按键盘底部「扫码搜」用手机输入"
+                    android:textColor="@color/color_rail_text_muted"
+                    android:textSize="17mm" />
+            </LinearLayout>
+
+            <!-- 首包到达前的居中加载反馈 -->
+            <LinearLayout
+                android:id="@+id/llSearchLoading"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:layout_width="46mm"
+                    android:layout_height="46mm"
+                    android:indeterminate="true" />
+
+                <TextView
+                    android:id="@+id/tvSearchLoadingTip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14mm"
+                    android:text="正在聚合搜索…"
+                    android:textColor="@color/color_CCFFFFFF"
+                    android:textSize="@dimen/ts_20" />
+            </LinearLayout>
 
             <!-- 空结果提示：叠加在结果列表上方居中显示 -->
             <LinearLayout
@@ -363,20 +490,50 @@
                     android:textColor="@color/color_rail_text_muted"
                     android:textSize="@dimen/ts_20" />
 
-                <TextView
-                    android:id="@+id/btnEmptyManageSources"
+                <LinearLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/vs_44"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/vs_16"
-                    android:background="@drawable/selector_settings_action"
-                    android:clickable="true"
-                    android:focusable="true"
                     android:gravity="center"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20"
-                    android:text="搜索源管理"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_18" />
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btnEmptyRetry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/vs_44"
+                        android:layout_marginRight="12mm"
+                        android:background="@drawable/selector_settings_action"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingLeft="@dimen/vs_20"
+                        android:paddingTop="8mm"
+                        android:paddingRight="@dimen/vs_20"
+                        android:paddingBottom="8mm"
+                        android:singleLine="true"
+                        android:text="重新搜索"
+                        android:textColor="@android:color/white"
+                        android:textSize="@dimen/ts_18" />
+
+                    <TextView
+                        android:id="@+id/btnEmptyManageSources"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/vs_44"
+                        android:background="@drawable/selector_settings_action"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingLeft="@dimen/vs_20"
+                        android:paddingTop="8mm"
+                        android:paddingRight="@dimen/vs_20"
+                        android:paddingBottom="8mm"
+                        android:singleLine="true"
+                        android:text="搜索源管理"
+                        android:textColor="@android:color/white"
+                        android:textSize="@dimen/ts_18" />
+                </LinearLayout>
             </LinearLayout>
         </RelativeLayout>
     </LinearLayout>
