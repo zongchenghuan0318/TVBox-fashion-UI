@@ -153,6 +153,11 @@ public class SearchActivity extends BaseActivity {
     private final List<Movie.Video> pendingResults = new ArrayList<>();
     private final Map<String, Integer> sourceOrder = new HashMap<>();
     private static final Set<String> SESSION_SLOW_SOURCES = Collections.synchronizedSet(new HashSet<>());
+
+    /** 切换点播配置源时清空旧配置的慢源惩罚记录（无需依赖搜索页仍存活接收 EventBus） */
+    public static void clearSessionSlowSources() {
+        SESSION_SLOW_SOURCES.clear();
+    }
     /** 进程级历史内存缓存：避免再次进入搜索页等待异步磁盘读取引起布局下移抖动 */
     private static volatile List<String> sHistoryCache;
     private boolean resultMergeRunning;
@@ -482,9 +487,6 @@ public class SearchActivity extends BaseActivity {
         mSearchResultRV.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 hideSoftKeyboard();
-                if (searchResultAdapter != null && !searchResultAdapter.getData().isEmpty()) {
-                    userScrolledResults = true;
-                }
             }
             return false;
         });
@@ -713,7 +715,7 @@ public class SearchActivity extends BaseActivity {
 
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                if (dy > 0) {
+                if (dy > 0 && recyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
                     userScrolledResults = true;
                 }
             }
@@ -1807,7 +1809,16 @@ public class SearchActivity extends BaseActivity {
         searchSourceCount = siteBeans.size();
         activeSearchSites = new ArrayList<>(siteBeans);
         sourceOrder.clear();
-        for (int i = 0; i < siteBeans.size(); i++) sourceOrder.put(siteBeans.get(i).getKey(), i);
+        StringBuilder topLog = new StringBuilder();
+        for (int i = 0; i < siteBeans.size(); i++) {
+            SiteBean bean = siteBeans.get(i);
+            sourceOrder.put(bean.getKey(), i);
+            if (i < 8) {
+                if (topLog.length() > 0) topLog.append(", ");
+                topLog.append(i).append(':').append(bean.getName());
+            }
+        }
+        L.w("doSearch topSites=[" + topLog + "] total=" + siteBeans.size());
         initialCompletedKeys.clear();
         succeededSourceKeys.clear();
         pendingRetryKeys.clear();
@@ -1875,6 +1886,16 @@ public class SearchActivity extends BaseActivity {
         sourceRetryTasks.clear();
     }
 
+    private static boolean isProtectedPrioritySite(SiteBean siteBean, int rankIndex) {
+        if (rankIndex < 6) return true;
+        if (siteBean == null || NullUtil.isNull(siteBean.getName())) return false;
+        String name = siteBean.getName();
+        for (String keyword : com.github.tvbox.osc.util.DefaultConfig.SEARCH_SITE_PRIORITY) {
+            if (name.contains(keyword)) return true;
+        }
+        return false;
+    }
+
     private void submitSearchSources(List<SiteBean> siteBeans) {
         final int requestId = searchRequestId;
         final String query = searchWord;
@@ -1883,10 +1904,12 @@ public class SearchActivity extends BaseActivity {
         List<SiteBean> fastSpiders = new ArrayList<>();
         List<SiteBean> slowSpiders = new ArrayList<>();
 
-        for (SiteBean siteBean : siteBeans) {
+        for (int i = 0; i < siteBeans.size(); i++) {
+            SiteBean siteBean = siteBeans.get(i);
             if (siteBean.getType() == 0 || siteBean.getType() == 1) {
                 directHttp.add(siteBean);
-            } else if (SESSION_SLOW_SOURCES.contains(siteBean.getKey())) {
+            } else if (!isProtectedPrioritySite(siteBean, i)
+                    && SESSION_SLOW_SOURCES.contains(siteBean.getKey())) {
                 slowSpiders.add(siteBean);
             } else {
                 fastSpiders.add(siteBean);
@@ -2210,7 +2233,9 @@ public class SearchActivity extends BaseActivity {
     }
 
     private boolean isBrowsingResults() {
-        return userScrolledResults || (mSearchResultRV != null && mSearchResultRV.hasFocus());
+        // 仅在用户真正触碰/滚动/遥控器翻看结果列表后才锁定顺序；
+        // 首批结果自动 requestFocus() 到第 0 项不应锁死排序，否则先返回的低优源会把后到的高优源压在后面。
+        return userScrolledResults;
     }
 
     private void scheduleMergeResults() {
@@ -2308,7 +2333,9 @@ public class SearchActivity extends BaseActivity {
                 }
             }
         }
-        if (snapshotMatches) {
+        boolean headChanged = !preserveExistingOrder && !old.isEmpty() && !merged.isEmpty()
+                && old.get(0) != merged.get(0);
+        if (snapshotMatches && !headChanged) {
             currentData.clear();
             currentData.addAll(merged);
             changes.dispatchUpdatesTo(searchResultAdapter);
@@ -2323,6 +2350,20 @@ public class SearchActivity extends BaseActivity {
             if (mSearchResultRV != null) mSearchResultRV.setVisibility(View.VISIBLE);
             if (mSearchResultRV != null && !isBrowsingResults()) {
                 mSearchResultRV.scrollToPosition(0);
+                if (mSearchResultRV.hasFocus()) {
+                    mSearchResultRV.setSelection(0);
+                }
+                if (headChanged) {
+                    mSearchResultRV.post(() -> {
+                        if (generation != resultGeneration || destroying || isFinishing() || isDestroyed()) return;
+                        if (!isBrowsingResults() && mSearchResultRV != null) {
+                            mSearchResultRV.scrollToPosition(0);
+                            if (mSearchResultRV.hasFocus()) {
+                                mSearchResultRV.setSelection(0);
+                            }
+                        }
+                    });
+                }
             }
             if (old.isEmpty()) {
                 final View keyboardFocus = keyboardSearchFocus;
@@ -2344,7 +2385,13 @@ public class SearchActivity extends BaseActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             View currentFocus = getCurrentFocus();
-            if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            int keyCode = event.getKeyCode();
+            if (currentFocus != null && isChildOf(currentFocus, mSearchResultRV)
+                    && (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                    || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                userScrolledResults = true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (!folderMode && currentFocus != null && isChildOf(currentFocus, keyboard)) {
                     View next = currentFocus.focusSearch(View.FOCUS_RIGHT);
                     if (next == null || !isChildOf(next, keyboard)) {

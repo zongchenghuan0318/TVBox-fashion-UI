@@ -77,8 +77,8 @@ public class HawkConfig {
     public static final String SEARCH_HOT_WORDS_CACHE = "search_hot_words_cache";
     public static final String SEARCH_SITE_DISABLED = "search_site_disabled"; // 不参与搜索的站点 key 列表（缺省=全部参与）
     public static final String SEARCH_SITE_ORDER = "search_site_order"; // 参与搜索的站点 key 顺序：勾选先后即所有搜索界面的展示顺序
-    public static final String SEARCH_PIN_VER = "search_pin_ver"; // 粉猪秒播置顶迁移版本
-    public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 文采秒播最高」
+    public static final String SEARCH_PIN_VER = "search_pin_ver"; // 搜索源默认优先级迁移版本（v2: 粉猪 > 文采 > 非凡 > 量子）
+    public static final String SEARCH_SITE_VER = "search_site_ver"; // 搜索源默认值版本，升级时把搜索源恢复到「默认全选 + 默认优先级」
     public static final String LIVE_CHANNEL = "last_live_channel_name";
     public static final String LIVE_SOURCE_URL = "live_source_urls";
     public static final String LIVE_SOURCE_MANAGER = "live_source_manager_v1";

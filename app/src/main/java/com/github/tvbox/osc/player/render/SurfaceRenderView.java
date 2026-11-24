@@ -17,6 +17,8 @@ public class SurfaceRenderView extends SurfaceView implements IRenderView, Surfa
     private MeasureHelper mMeasureHelper;
 
     private AbstractPlayer mMediaPlayer;
+    private boolean mSurfaceReady;
+    private boolean mDisplayAttached;
 
     public SurfaceRenderView(Context context) {
         super(context);
@@ -40,6 +42,12 @@ public class SurfaceRenderView extends SurfaceView implements IRenderView, Surfa
     @Override
     public void attachToPlayer(@NonNull AbstractPlayer player) {
         this.mMediaPlayer = player;
+        this.mDisplayAttached = false;
+        SurfaceHolder holder = getHolder();
+        if (mSurfaceReady && holder != null && holder.getSurface() != null && holder.getSurface().isValid()) {
+            mMediaPlayer.setDisplay(holder);
+            mDisplayAttached = true;
+        }
     }
 
     @Override
@@ -74,7 +82,13 @@ public class SurfaceRenderView extends SurfaceView implements IRenderView, Surfa
 
     @Override
     public void release() {
-
+        getHolder().removeCallback(this);
+        if (mMediaPlayer != null && mDisplayAttached) {
+            mMediaPlayer.setDisplay(null);
+        }
+        mDisplayAttached = false;
+        mSurfaceReady = false;
+        mMediaPlayer = null;
     }
 
     @Override
@@ -85,18 +99,28 @@ public class SurfaceRenderView extends SurfaceView implements IRenderView, Surfa
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-
+        mSurfaceReady = true;
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setDisplay(holder);
+            mDisplayAttached = true;
+        }
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        if (mMediaPlayer != null) {
+        mSurfaceReady = true;
+        if (mMediaPlayer != null && !mDisplayAttached) {
             mMediaPlayer.setDisplay(holder);
+            mDisplayAttached = true;
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-
+        mSurfaceReady = false;
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setDisplay(null);
+        }
+        mDisplayAttached = false;
     }
 }

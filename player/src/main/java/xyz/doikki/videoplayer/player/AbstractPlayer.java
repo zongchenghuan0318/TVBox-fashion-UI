@@ -42,6 +42,9 @@ public abstract class AbstractPlayer {
 
     public boolean supportsMediaTracks() { return false; }
 
+    /** 是否支持在 prepareAsync 阶段提前调用 pause()/start() 控制起播状态 */
+    public boolean supportsPauseWhilePreparing() { return false; }
+
     public List<MediaTrack> getMediaTracks(int type) { return Collections.emptyList(); }
 
     public boolean selectMediaTrack(MediaTrack track) { return false; }

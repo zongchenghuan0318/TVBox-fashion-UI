@@ -107,6 +107,7 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
 
     protected boolean mIsLooping; //循环播放
     private int mPlayerBackgroundColor; //背景色，默认黑色
+    private boolean mPausePendingWhenPrepared; // 加载中退到后台时延迟暂停，避免准备完成后在后台出声
 
     public VideoView(@NonNull Context context) {
         this(context, null);
@@ -162,6 +163,14 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
      */
     @Override
     public void start() {
+        if (mPausePendingWhenPrepared && mMediaPlayer != null && mCurrentPlayState == STATE_PREPARING) {
+            mPausePendingWhenPrepared = false;
+            if (mMediaPlayer.supportsPauseWhilePreparing()) {
+                mMediaPlayer.start();
+            }
+            return;
+        }
+        mPausePendingWhenPrepared = false;
         if (isInIdleState() || isInStartAbortState()) {
             startPlay();
         } else if (isInPlaybackState()) {
@@ -266,6 +275,7 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
      * 开始准备播放（直接播放）
      */
     protected void startPrepare(boolean reset) {
+        mPausePendingWhenPrepared = false;
         beginTime = System.currentTimeMillis();
         if (reset) {
             mMediaPlayer.reset();
@@ -313,8 +323,18 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
     @Override
     public void pause() {
         if (isInPlaybackState() && mMediaPlayer.isPlaying()) {
+            mPausePendingWhenPrepared = false;
             mMediaPlayer.pause();
             setPlayState(STATE_PAUSED);
+            if (mAudioFocusHelper != null && !isMute()) {
+                mAudioFocusHelper.abandonFocus();
+            }
+            mPlayerContainer.setKeepScreenOn(false);
+        } else if (mMediaPlayer != null && mCurrentPlayState == STATE_PREPARING) {
+            mPausePendingWhenPrepared = true;
+            if (mMediaPlayer.supportsPauseWhilePreparing()) {
+                mMediaPlayer.pause();
+            }
             if (mAudioFocusHelper != null && !isMute()) {
                 mAudioFocusHelper.abandonFocus();
             }
@@ -326,6 +346,14 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
      * 继续播放
      */
     public void resume() {
+        if (mPausePendingWhenPrepared && mMediaPlayer != null && mCurrentPlayState == STATE_PREPARING) {
+            mPausePendingWhenPrepared = false;
+            if (mMediaPlayer.supportsPauseWhilePreparing()) {
+                mMediaPlayer.start();
+            }
+            return;
+        }
+        mPausePendingWhenPrepared = false;
         if (isInPlaybackState() && !mMediaPlayer.isPlaying()) {
             mMediaPlayer.start();
             setPlayState(STATE_PLAYING);
@@ -340,6 +368,7 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
      * 释放播放器
      */
     public void release() {
+        mPausePendingWhenPrepared = false;
         if (!isInIdleState()) {
             //释放播放器
             if (mMediaPlayer != null) {
@@ -504,11 +533,20 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
         PrintUtil.saveSuccess(mInfo, System.currentTimeMillis()-beginTime);
         PrintUtil.printSuccessMap();
         setPlayState(STATE_PREPARED);
-        if (!isMute() && mAudioFocusHelper != null) {
-            mAudioFocusHelper.requestFocus();
-        }
         if (mCurrentPosition > 0) {
             seekTo(mCurrentPosition);
+        }
+        if (mPausePendingWhenPrepared) {
+            mPausePendingWhenPrepared = false;
+            if (mMediaPlayer != null) {
+                mMediaPlayer.pause();
+            }
+            setPlayState(STATE_PAUSED);
+            mPlayerContainer.setKeepScreenOn(false);
+            return;
+        }
+        if (!isMute() && mAudioFocusHelper != null) {
+            mAudioFocusHelper.requestFocus();
         }
     }
 
@@ -525,8 +563,10 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
                 setPlayState(STATE_BUFFERED);
                 break;
             case AbstractPlayer.MEDIA_INFO_RENDERING_START: // 视频/音频开始渲染
-                setPlayState(STATE_PLAYING);
-                mPlayerContainer.setKeepScreenOn(true);
+                if (mCurrentPlayState != STATE_PAUSED && !mPausePendingWhenPrepared) {
+                    setPlayState(STATE_PLAYING);
+                    mPlayerContainer.setKeepScreenOn(true);
+                }
                 break;
             case AbstractPlayer.MEDIA_INFO_VIDEO_ROTATION_CHANGED:
                 if (mRenderView != null) mRenderView.setVideoRotation(extra);
@@ -539,6 +579,7 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
      */
     @Override
     public void onError() {
+        mPausePendingWhenPrepared = false;
         mPlayerContainer.setKeepScreenOn(false);
         setPlayState(STATE_ERROR);
     }
@@ -556,6 +597,7 @@ public class VideoView<P extends AbstractPlayer> extends FrameLayout implements 
      */
     @Override
     public void onCompletion() {
+        mPausePendingWhenPrepared = false;
         mPlayerContainer.setKeepScreenOn(false);
         mCurrentPosition = 0;
         if (mProgressManager != null) {

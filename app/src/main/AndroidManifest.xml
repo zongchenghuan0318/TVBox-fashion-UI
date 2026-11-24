@@ -44,14 +44,17 @@
 
         <activity
             android:name="com.github.tvbox.osc.ui.activity.LivePlayActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="电视直播"
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="直播源管理"
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.DetailActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.PlayActivity"
@@ -59,6 +62,7 @@
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.PushActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.SearchActivity"
@@ -67,12 +71,15 @@
             android:windowSoftInputMode="stateHidden|adjustNothing" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.SettingActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.HistoryActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="landscape" />
         <activity
             android:name="com.github.tvbox.osc.ui.activity.CollectActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="landscape" />
 
         <receiver

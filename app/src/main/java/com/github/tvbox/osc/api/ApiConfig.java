@@ -34,9 +34,13 @@ import java.net.IDN;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -180,6 +184,7 @@ public class ApiConfig {
                             parseSiteFile(current_siteUrl, DefaultConfig.safeJsonString(cache, "json", ""));
                             if (m_bParsed) {
                                 apiUrl = preferred;
+                                searchSites.setConfigScope(apiUrl);
                                 L.d("loadSitesFile 使用启动缓存");
                                 // Refresh the next launch's cache without replacing active sources.
                                 pendingStartupRefresh = () -> {
@@ -202,7 +207,10 @@ public class ApiConfig {
                         apiUrl = verified.address;
                         current_siteUrl = result.url;
                         parseSiteFile(result.url, result.json);
-                        if (m_bParsed) saveStartupConfig(spDataUtil, verified.address, result, startupCache);
+                        if (m_bParsed) {
+                            searchSites.setConfigScope(apiUrl);
+                            saveStartupConfig(spDataUtil, verified.address, result, startupCache);
+                        }
                         if (!verified.address.equals(Hawk.get(HawkConfig.API_URL, ""))) {
                             Hawk.put(HawkConfig.API_URL, verified.address);
                             spDataUtil.saveStringValue(PRE_KEY_CONFIG, result.json);
@@ -221,6 +229,7 @@ public class ApiConfig {
                         L.w("loadSitesFile 所有配置源均不可用，使用本地缓存");
                         current_siteUrl = "user config";
                         parseSiteFile(apiUrl, configContent);
+                        searchSites.setConfigScope(apiUrl);
                         activity.runOnUiThread(() ->
                                 Toast.makeText(activity, "配置源暂时无法连接，已使用本地缓存", Toast.LENGTH_LONG).show());
                     } else {
@@ -257,6 +266,12 @@ public class ApiConfig {
                     preparedVideos = null;
                     this.apiUrl = apiUrl;
                     current_siteUrl = apiUrl;
+                    if (this == instance) {
+                        searchSites.reloadAndMigrate(this.apiUrl);
+                        com.github.tvbox.osc.ui.activity.SearchActivity.clearSessionSlowSources();
+                    } else {
+                        searchSites.setConfigScope(this.apiUrl);
+                    }
                     if (m_bParsed && apiUrl.equals(Hawk.get(HawkConfig.API_URL, ""))) {
                         SPDataUtil data = new SPDataUtil(App.getInstance());
                         saveStartupConfig(data, apiUrl, new VerifyResult(true, "", jsonStr, apiUrl),
@@ -761,6 +776,13 @@ public class ApiConfig {
     private String preparedAddress;
     private String preparedJson;
     private List<com.github.tvbox.osc.bean.Movie.Video> preparedVideos;
+    private volatile boolean homeProbeVerified = false;
+    private volatile String probedHomeContentKey = null;
+    private volatile String probedHomeContentJson = null;
+    private final Set<String> failedHomeProbeKeys =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private volatile Object activeHomeRequestTag = null;
+    private volatile ExecutorService activeHomeExecutor = null;
 
     public static ApiConfig prepareConfiguration(String address, String json) {
         ApiConfig candidate = new ApiConfig();
@@ -771,6 +793,37 @@ public class ApiConfig {
         candidate.preparedAddress = address;
         candidate.preparedJson = json;
         return candidate;
+    }
+
+    public boolean hasVerifiedHomeBean() {
+        return homeProbeVerified;
+    }
+
+    public void markHomeProbeVerified() {
+        homeProbeVerified = true;
+    }
+
+    public String getProbedHomeContent(String siteKey) {
+        if (siteKey == null) return null;
+        return siteKey.equals(probedHomeContentKey) ? probedHomeContentJson : null;
+    }
+
+    public void cancelHomeInit() {
+        homeSelectionGeneration.incrementAndGet();
+        Object tag = activeHomeRequestTag;
+        if (tag != null) {
+            try {
+                OkGo.getInstance().cancelTag(tag);
+            } catch (Throwable ignored) {
+            }
+        }
+        ExecutorService exec = activeHomeExecutor;
+        if (exec != null) {
+            try {
+                exec.shutdownNow();
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     public synchronized void commitPrepared(ApiConfig candidate,
@@ -791,15 +844,47 @@ public class ApiConfig {
         current_siteUrl = apiUrl;
         preparedAddress = apiUrl;
         preparedJson = candidate.preparedJson;
-        preparedHomeKey = candidate.getHomeBean().getKey();
-        preparedVideos = new ArrayList<>(videos);
+        SiteBean preparedHome = candidate.getHomeBean();
+        preparedHomeKey = preparedHome != null ? preparedHome.getKey() : null;
+        preparedVideos = videos == null ? new ArrayList<>() : new ArrayList<>(videos);
+        homeProbeVerified = candidate.homeProbeVerified;
+        probedHomeContentKey = candidate.probedHomeContentKey;
+        probedHomeContentJson = candidate.probedHomeContentJson;
+        if (this == instance) {
+            try {
+                if (Hawk.isBuilt()) {
+                    if (!NullUtil.isNull(preparedHomeKey)) {
+                        Hawk.put(HawkConfig.HOME_API, preparedHomeKey);
+                    }
+                    String userHomeKey = Hawk.get(HawkConfig.USER_HOME_API, "");
+                    if (!NullUtil.isNull(userHomeKey) && !userHomeKey.equals(preparedHomeKey)
+                            && (!mSiteBeanMap.containsKey(userHomeKey) || candidate.homeProbeVerified)) {
+                        Hawk.put(HawkConfig.USER_HOME_API, "");
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            try {
+                JsonObject config = new Gson().fromJson(preparedJson, JsonObject.class);
+                List<String> hosts = DefaultConfig.safeJsonStringList(config, "ads");
+                AdBlocker.clear();
+                for (String host : hosts) AdBlocker.addAdHost(host);
+            } catch (Exception ignored) {
+            }
+        }
         liveSources.deferConfiguredLives(apiUrl, new Gson().fromJson(preparedJson, JsonObject.class));
-        searchSites.invalidateSearchSiteOrderCache();
+        if (this == instance) {
+            searchSites.reloadAndMigrate(apiUrl);
+            com.github.tvbox.osc.ui.activity.SearchActivity.clearSessionSlowSources();
+        } else {
+            searchSites.setConfigScope(apiUrl);
+        }
         m_bParsed = true;
     }
 
     public synchronized boolean isPreparedConfiguration(String address, String json) {
-        return preparedAddress != null && preparedAddress.equals(address) && preparedJson.equals(json);
+        return preparedAddress != null && preparedJson != null
+                && preparedAddress.equals(address) && preparedJson.equals(json);
     }
 
     public synchronized List<com.github.tvbox.osc.bean.Movie.Video> takePreparedVideos() {
@@ -873,13 +958,13 @@ public class ApiConfig {
 
     /**
      * 默认搜索源顺序（用户没自定义时使用）：名字命中 DefaultConfig.SEARCH_SITE_PRIORITY
-     * 关键词的源排在最前（文采┃秒播 > 非凡┃影视），其余保持站点表顺序。
+     * 关键词的源排在最前（粉猪 > 文采 > 非凡 > 量子），其余保持站点表顺序。
      */
     public synchronized ArrayList<String> getDefaultSearchSiteOrder() {
         return searchSites.getDefaultSearchSiteOrder();
     }
 
-    /** 用户自定义过顺序就尊重用户，否则返回默认顺序（文采秒播 > 非凡影视 > 其余） */
+    /** 用户自定义过顺序就尊重用户，否则返回默认顺序（粉猪 > 文采 > 非凡 > 量子 > 其余） */
     public synchronized ArrayList<String> getSearchSiteOrderOrDefault() {
         return searchSites.getSearchSiteOrderOrDefault();
     }
@@ -909,20 +994,27 @@ public class ApiConfig {
 
     public synchronized SiteBean getHomeBean() {
         if (preparedHomeKey != null && mSiteBeanMap.containsKey(preparedHomeKey)) return mSiteBeanMap.get(preparedHomeKey);
-        String userKey = Hawk.get(HawkConfig.USER_HOME_API, "");
-        SiteBean userHomeBean = getSiteBean(userKey);//Map有空key，会有冲突
-        if (userHomeBean != null) {
-            //用户设置的最优先
-            L.d("  return userHomeBean; ");
-            return userHomeBean;
+        boolean hawkReady = false;
+        try {
+            hawkReady = Hawk.isBuilt();
+        } catch (Throwable ignored) {
         }
+        if (hawkReady) {
+            String userKey = Hawk.get(HawkConfig.USER_HOME_API, "");
+            SiteBean userHomeBean = getSiteBean(userKey);//Map有空key，会有冲突
+            if (userHomeBean != null) {
+                //用户设置的最优先
+                L.d("  return userHomeBean; ");
+                return userHomeBean;
+            }
 
-        String homeKey = Hawk.get(HawkConfig.HOME_API, "");
-        SiteBean homeBean = getSiteBean(homeKey);
-        if (homeBean != null) {
-            //自动设置的其次
-            L.d("   return homeBean;");
-            return homeBean;
+            String homeKey = Hawk.get(HawkConfig.HOME_API, "");
+            SiteBean homeBean = getSiteBean(homeKey);
+            if (homeBean != null) {
+                //自动设置的其次
+                L.d("   return homeBean;");
+                return homeBean;
+            }
         }
         List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
         if (!NullUtil.isNull(beans)) {
@@ -935,75 +1027,166 @@ public class ApiConfig {
     }
 
     public void setHomeBean(SiteBean bean) {
+        if (bean == null) return;
         L.d("setHomeBean= "+bean.getKey() + "\t"+bean.getName());
         L.w("setHomeBean key=" + bean.getKey() + " name=" + bean.getName() + " type=" + bean.getType() + " api=" + bean.getApi());
         preparedHomeKey = bean.getKey();
-        if (this == instance) Hawk.put(HawkConfig.HOME_API, bean.getKey());
+        if (this == instance) {
+            try {
+                if (Hawk.isBuilt()) Hawk.put(HawkConfig.HOME_API, bean.getKey());
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     public void setUserHomeBean(SiteBean bean) {
         preparedHomeKey = null;
-        Hawk.put(HawkConfig.USER_HOME_API, bean.getKey());
+        String key = bean == null ? "" : bean.getKey();
+        Hawk.put(HawkConfig.USER_HOME_API, key);
+        if (NullUtil.isNull(key)) {
+            // 用户切回「自动选择」时同时清掉旧自动缓存，避免继续沿用可能已失效的历史首页源
+            Hawk.put(HawkConfig.HOME_API, "");
+        }
+    }
+
+    public synchronized List<SiteBean> getHomeRecCandidates() {
+        List<SiteBean> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        SiteBean primary = getHomeBean();
+        if (primary != null && !NullUtil.isNull(primary.getKey())
+                && mSiteBeanMap.containsKey(primary.getKey())
+                && primary.isSearchable()
+                && !failedHomeProbeKeys.contains(primary.getKey())) {
+            result.add(primary);
+            seen.add(primary.getKey());
+        }
+        List<SiteBean> remaining = new ArrayList<>();
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (bean == null || !bean.isSearchable() || NullUtil.isNull(bean.getKey())) continue;
+            if (seen.contains(bean.getKey()) || failedHomeProbeKeys.contains(bean.getKey())) continue;
+            int type = bean.getType();
+            if (type == 0 || type == 1 || type == 3) {
+                remaining.add(bean);
+            }
+        }
+        sortHomeCandidates(remaining, "");
+        int httpAdded = 0;
+        int spiderAdded = 0;
+        for (SiteBean bean : remaining) {
+            if (bean.getType() == 3) {
+                if (spiderAdded >= 4) continue;
+                spiderAdded++;
+            } else {
+                if (httpAdded >= 3) continue;
+                httpAdded++;
+            }
+            result.add(bean);
+            seen.add(bean.getKey());
+        }
+        if (result.isEmpty() && primary != null && !NullUtil.isNull(primary.getKey())
+                && mSiteBeanMap.containsKey(primary.getKey())) {
+            result.add(primary);
+        }
+        return result;
     }
 
     public synchronized void initHomeBean(InitHomeCallback callback) {
+        initHomeBean(this != instance, callback);
+    }
+
+    public synchronized void initHomeBean(boolean forceProbe, InitHomeCallback callback) {
         final int generation = homeSelectionGeneration.incrementAndGet();
         final SpiderLoader homeSpiderLoader = spiderLoader;
         final Object homeRequestTag = new Object();
-        String userHomeKey = Hawk.get(HawkConfig.USER_HOME_API, "");
+        activeHomeRequestTag = homeRequestTag;
+        homeProbeVerified = false;
+        probedHomeContentKey = null;
+        probedHomeContentJson = null;
+        failedHomeProbeKeys.clear();
+        String userHomeKey = "";
+        String homeKey = "";
+        try {
+            if (Hawk.isBuilt()) {
+                userHomeKey = Hawk.get(HawkConfig.USER_HOME_API, "");
+                homeKey = Hawk.get(HawkConfig.HOME_API, "");
+            }
+        } catch (Throwable ignored) {
+        }
         SiteBean userHomeBean = getSiteBean(userHomeKey);
-        if (!NullUtil.isNull(userHomeKey) && null != userHomeBean) {
-            //用户设置过home，直接返回
-            L.d("initHomeBean userHomeBean callback.success() ");
-            callback.success();
-            return;
-        }
-        //已自动选定过、且是正常影视站点时沿用，避免每次启动重新抢答导致左栏分类变化
-        String homeKey = Hawk.get(HawkConfig.HOME_API, "");
         SiteBean cachedHomeBean = getSiteBean(homeKey);
-        //老缓存可能是盘搜类站点（分类页点进去全是网盘资源），此时不沿用，按新顺序（采集源已排最前）重新探测
-        boolean cachedOk = null != cachedHomeBean && cachedHomeBean.isSearchable()
-                && !(hasCollectBean() && !isCollectBean(cachedHomeBean));
-        if (cachedOk) {
-            L.w("initHomeBean 沿用已选首页源 " + homeKey);
-            callback.success();
-            return;
-        }
-        //自动设置home
-        bInit = false;
-        List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
-        Collections.sort(beans, (left, right) -> Boolean.compare(left.getType() == 3, right.getType() == 3));
-        int httpProbeCount = 0;
-        for (SiteBean bean : beans) {
-            if (bean.isSearchable() && bean.getType() != 3) httpProbeCount++;
-        }
-        final CountDownLatch httpProbes = new CountDownLatch(httpProbeCount);
-        final ExecutorService homeExecutor = !NullUtil.isNull(beans) ? Executors.newFixedThreadPool(3) : null;
-        SiteBean fallback = cachedHomeBean;
-        boolean hasSpiderCandidates = false;
-        for (SiteBean bean : beans) {
-            if (bean.isSearchable() && bean.getType() == 3) {
-                hasSpiderCandidates = true;
-                if (fallback == null) fallback = bean;
+        if (!forceProbe) {
+            if (!NullUtil.isNull(userHomeKey) && null != userHomeBean) {
+                //用户设置过home，直接返回
+                L.d("initHomeBean userHomeBean callback.success() ");
+                callback.success();
+                return;
+            }
+            //已自动选定过、且是正常影视站点时沿用，避免每次启动重新抢答导致左栏分类变化
+            //老缓存可能是盘搜类站点（分类页点进去全是网盘资源），此时不沿用，按新顺序（采集源已排最前）重新探测
+            boolean cachedOk = null != cachedHomeBean && cachedHomeBean.isSearchable()
+                    && !(hasCollectBean() && !isCollectBean(cachedHomeBean));
+            if (cachedOk) {
+                L.w("initHomeBean 沿用已选首页源 " + homeKey);
+                callback.success();
+                return;
             }
         }
+        //自动设置home（切源准备时强制实测，避免沿用旧配置里已失效或被污染的缓存首页源）
+        bInit = false;
+        if (forceProbe && !NullUtil.isNull(mSpider)) {
+            // 与 HTTP 探测并行预热新配置的全局爬虫 JAR，若内置采集源全部不可达可立刻切到爬虫源
+            preloadGlobalJar();
+        }
+        List<SiteBean> beans = new ArrayList<>();
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (bean == null || !bean.isSearchable()) continue;
+            int type = bean.getType();
+            if (type == 0 || type == 1 || type == 3) {
+                beans.add(bean);
+            }
+        }
+        sortHomeCandidates(beans, userHomeKey);
+        int httpProbeCount = 0;
+        SiteBean fallback = forceProbe ? null : cachedHomeBean;
+        boolean hasSpiderCandidates = false;
+        for (SiteBean bean : beans) {
+            if (bean.getType() == 3) {
+                hasSpiderCandidates = true;
+                if (fallback == null) fallback = bean;
+            } else {
+                httpProbeCount++;
+            }
+        }
+        if (fallback == null && !beans.isEmpty()) {
+            fallback = beans.get(0);
+        }
+        final CountDownLatch httpProbes = new CountDownLatch(httpProbeCount);
+        final ExecutorService homeExecutor = !beans.isEmpty() ? Executors.newFixedThreadPool(4) : null;
+        activeHomeExecutor = homeExecutor;
         final SiteBean lastBean = fallback;
-        final long probeTimeoutMs = hasSpiderCandidates ? 12000L : 6000L;
+        final long probeTimeoutMs = hasSpiderCandidates ? (forceProbe ? 15000L : 12000L) : 6500L;
         final AtomicBoolean homeInitCompleted = new AtomicBoolean(false);
         final Runnable completeHomeInit = new Runnable() {
             @Override
             public void run() {
+                if (generation != homeSelectionGeneration.get()) return;
+                if (!homeInitCompleted.compareAndSet(false, true)) return;
                 try {
-                    if (generation != homeSelectionGeneration.get()) return;
-                    if (!homeInitCompleted.compareAndSet(false, true)) return;
-                    selectHomeBeanOnce(lastBean, generation);
+                    selectHomeBeanOnce(lastBean, generation, false, null);
+                } catch (Throwable th) {
+                    L.w("initHomeBean select fallback 异常 " + th.getMessage());
+                }
+                try {
                     OkGo.getInstance().cancelTag(homeRequestTag);
-                    if (homeExecutor != null) {
-                        try {
-                            homeExecutor.shutdownNow();
-                        } catch (Throwable ignored) {
-                        }
+                } catch (Throwable ignored) {
+                }
+                if (homeExecutor != null) {
+                    try {
+                        homeExecutor.shutdownNow();
+                    } catch (Throwable ignored) {
                     }
+                }
+                try {
                     callback.success();
                 } catch (Throwable th) {
                     // 首页源探测超时兜底：任何异常都不能冒泡成未捕获崩溃。
@@ -1011,7 +1194,23 @@ public class ApiConfig {
                 }
             }
         };
-        // HTTP 优先探测 6 秒，必要时再给爬虫源 6 秒；超时沿用旧源或尝试首个爬虫源。
+        if (beans.isEmpty()) {
+            completeHomeInit.run();
+            return;
+        }
+        okhttp3.OkHttpClient fastProbeClient = null;
+        if (httpProbeCount > 0) {
+            try {
+                fastProbeClient = OkGo.getInstance().getOkHttpClient().newBuilder()
+                        .connectTimeout(4, TimeUnit.SECONDS)
+                        .readTimeout(5, TimeUnit.SECONDS)
+                        .callTimeout(6, TimeUnit.SECONDS)
+                        .build();
+            } catch (Throwable ignored) {
+            }
+        }
+        final okhttp3.OkHttpClient probeClient = fastProbeClient;
+        // HTTP 优先快速探测（单次无重试，最多 5 秒），若均不可达再探测新配置内的爬虫源。
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -1019,92 +1218,182 @@ public class ApiConfig {
                     Thread.sleep(probeTimeoutMs);
                 } catch (Throwable ignored) {
                 }
+                if (generation != homeSelectionGeneration.get() || homeInitCompleted.get()) return;
                 L.w("initHomeBean 探测超时，结束启动等待");
                 completeHomeInit.run();
             }
-        }).start();
-        if (!NullUtil.isNull(beans)) {
-            for (int i = 0; i < beans.size(); i++) {
-                L.d("initHomeBean i=" + i);
-                SiteBean bean = beans.get(i);
-                // searchable=0 的都是工具/配置类站点（我的云盘、本地文件、说明等），不适合当首页源
-                if (!bean.isSearchable()) {
-                    L.d("initHomeBean skip " + bean.getKey() + " searchable=0");
-                    continue;
-                }
-                homeExecutor.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            if (bInit || generation != homeSelectionGeneration.get()) return;//初始过，不再继续
-                            int type = bean.getType();
-                            if (type == 3) {
-                                try {
-                                    httpProbes.await(6, TimeUnit.SECONDS);
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                    return;
-                                }
-                                if (bInit || generation != homeSelectionGeneration.get()) return;
-                                Spider sp = homeSpiderLoader.getCSP(bean);
-                                String sortJson = sp == null ? null : sp.homeContent(true);
-                                // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
-                                if (classCount(sortJson) >= 2) {
-                                    if (!selectHomeBeanOnce(bean, generation)) return;
-                                    completeHomeInit.run();
-                                }
-                            } else {
-                                OkGo.<String>get(bean.getApi())
-                                        .tag(homeRequestTag)
-                                        .execute(new AbsCallback<String>() {
-                                            @Override
-                                            public String convertResponse(okhttp3.Response response) throws Throwable {
-                                                if (response.body() != null) {
-                                                    return response.body().string();
-                                                } else {
-                                                    L.d(" initHomeBean() 网络请求失败");
-                                                    throw new IllegalStateException("网络请求失败");
-                                                }
-                                            }
-
-                                            @Override
-                                            public void onSuccess(Response<String> response) {
-                                                try {
-                                                    String res = response.body();
-                                                    L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
-                                                    if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
-                                                        if (!selectHomeBeanOnce(bean, generation)) return;
-                                                        completeHomeInit.run();
-                                                    }
-                                                } finally {
-                                                    httpProbes.countDown();
-                                                }
-                                            }
-
-                                            @Override
-                                            public void onError(Response<String> response) {
-                                                httpProbes.countDown();
-                                                super.onError(response);
-                                            }
-                                        });
-                            }
-                        } catch (Throwable th) {
-                            // 单个站点探测失败不应终止整轮首页源选择，更不应冒泡成崩溃。
-                            L.w("initHomeBean 探测站点异常 " + th.getMessage());
-                        }
-                    }
-                });
+        }, "home-probe-timeout").start();
+        int spiderSubmitted = 0;
+        for (int i = 0; i < beans.size(); i++) {
+            final SiteBean bean = beans.get(i);
+            final int type = bean.getType();
+            if (type == 3) {
+                if (spiderSubmitted >= 12) continue;
+                spiderSubmitted++;
             }
+            homeExecutor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (bInit || generation != homeSelectionGeneration.get()) return;//初始过，不再继续
+                        if (type == 3) {
+                            try {
+                                httpProbes.await(5, TimeUnit.SECONDS);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                            if (bInit || generation != homeSelectionGeneration.get()) return;
+                            Spider sp = homeSpiderLoader.getCSP(bean);
+                            String sortJson = sp == null ? null : sp.homeContent(true);
+                            // 至少要有 2 个分类才算影视站点；只有 1 个分类的通常是云盘/配置类站点
+                            if (classCount(sortJson) >= 2) {
+                                if (!selectHomeBeanOnce(bean, generation, true, sortJson)) return;
+                                completeHomeInit.run();
+                            } else if (!NullUtil.isNull(bean.getKey())) {
+                                failedHomeProbeKeys.add(bean.getKey());
+                            }
+                        } else {
+                            String probeUrl = sanitizeProbeHttpUrl(bean.getApi());
+                            if (probeUrl.isEmpty()) {
+                                if (!NullUtil.isNull(bean.getKey())) failedHomeProbeKeys.add(bean.getKey());
+                                httpProbes.countDown();
+                                return;
+                            }
+                            try {
+                                com.lzy.okgo.request.GetRequest<String> req = OkGo.<String>get(probeUrl)
+                                        .retryCount(0)
+                                        .tag(homeRequestTag);
+                                if (probeClient != null) {
+                                    req.client(probeClient);
+                                }
+                                req.execute(new AbsCallback<String>() {
+                                    @Override
+                                    public String convertResponse(okhttp3.Response response) throws Throwable {
+                                        if (response.body() != null) {
+                                            return response.body().string();
+                                        } else {
+                                            L.d(" initHomeBean() 网络请求失败");
+                                            throw new IllegalStateException("网络请求失败");
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onSuccess(Response<String> response) {
+                                        try {
+                                            String res = response.body();
+                                            L.d("initHomeBean " + UiHelper.getBeanStr(bean) + "  xml=" + res);
+                                            if (classCount(res) >= 2 || (!NullUtil.isNull(res) && UiHelper.xmlHasClasses(res))) {
+                                                if (!selectHomeBeanOnce(bean, generation, true, null)) return;
+                                                completeHomeInit.run();
+                                            } else if (!NullUtil.isNull(bean.getKey())) {
+                                                failedHomeProbeKeys.add(bean.getKey());
+                                            }
+                                        } finally {
+                                            httpProbes.countDown();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onError(Response<String> response) {
+                                        if (!NullUtil.isNull(bean.getKey())) {
+                                            failedHomeProbeKeys.add(bean.getKey());
+                                        }
+                                        httpProbes.countDown();
+                                        super.onError(response);
+                                    }
+                                });
+                            } catch (Throwable reqErr) {
+                                if (!NullUtil.isNull(bean.getKey())) {
+                                    failedHomeProbeKeys.add(bean.getKey());
+                                }
+                                httpProbes.countDown();
+                                L.w("initHomeBean HTTP 探测启动失败 " + reqErr.getMessage());
+                            }
+                        }
+                    } catch (Throwable th) {
+                        if (type == 3 && !bInit && !Thread.currentThread().isInterrupted()
+                                && !NullUtil.isNull(bean.getKey())) {
+                            failedHomeProbeKeys.add(bean.getKey());
+                        }
+                        // 单个站点探测失败不应终止整轮首页源选择，更不应冒泡成崩溃。
+                        L.w("initHomeBean 探测站点异常 " + th.getMessage());
+                    }
+                }
+            });
         }
+    }
+
+    private static String sanitizeProbeHttpUrl(String rawUrl) {
+        if (NullUtil.isNull(rawUrl)) return "";
+        String normalized = normalizeUrl(rawUrl);
+        if (NullUtil.isNull(normalized)) return "";
+        String trimmed = normalized.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            return "";
+        }
+        return trimmed;
+    }
+
+    static void sortHomeCandidates(List<SiteBean> beans, String preferredKey) {
+        Collections.sort(beans, (left, right) ->
+                Integer.compare(homeCandidatePriority(left, preferredKey),
+                        homeCandidatePriority(right, preferredKey)));
+    }
+
+    static int homeCandidatePriority(SiteBean bean, String preferredKey) {
+        if (bean == null) return 99;
+        int type = bean.getType();
+        if (type == 0 || type == 1) {
+            return 0;
+        }
+        if (type != 3) {
+            return 50;
+        }
+        String key = bean.getKey() == null ? "" : bean.getKey();
+        if (!NullUtil.isNull(preferredKey) && preferredKey.equals(key)) {
+            return 1;
+        }
+        String name = bean.getName() == null ? "" : bean.getName();
+        String api = bean.getApi() == null ? "" : bean.getApi();
+        String combined = (key + " " + name + " " + api).toLowerCase(Locale.ROOT);
+        if (name.contains("秒播") || name.contains("不卡") || name.contains("多线")
+                || name.contains("文采") || name.contains("文才") || name.contains("粉猪")
+                || name.contains("厂长") || name.contains("瓜子") || name.contains("韩剧")
+                || name.contains("独播") || name.contains("荐片") || name.contains("立播")
+                || name.contains("糯米") || name.contains("南瓜") || name.contains("低端")) {
+            return 2;
+        }
+        if (name.contains("网盘") || name.contains("云盘") || name.contains("盘搜")
+                || name.contains("四盘") || name.contains("盘库") || name.contains("原盘")
+                || name.contains("夸父") || name.contains("嘟嘟") || name.contains("搜搜")
+                || name.contains("玩偶") || name.contains("花卷") || name.contains("蜗牛")
+                || name.contains("4K") || combined.contains("pan") || combined.contains("wogg")) {
+            return 4;
+        }
+        return 3;
     }
 
     /**
      * 统计站点返回的分类数量：JSON 取 "class"/"classes" 数组长度，解析失败返回 0
      */
     private synchronized boolean selectHomeBeanOnce(SiteBean bean, int generation) {
+        return selectHomeBeanOnce(bean, generation, false, null);
+    }
+
+    private synchronized boolean selectHomeBeanOnce(SiteBean bean, int generation,
+                                                    boolean verified, String probedContentJson) {
         if (bInit || generation != homeSelectionGeneration.get()) return false;
         bInit = true;
-        if (bean != null) setHomeBean(bean);
+        homeProbeVerified = verified;
+        if (bean != null) {
+            setHomeBean(bean);
+            if (verified && !NullUtil.isNull(probedContentJson)) {
+                probedHomeContentKey = bean.getKey();
+                probedHomeContentJson = probedContentJson;
+            }
+        }
         return true;
     }
 
@@ -1162,15 +1451,17 @@ public class ApiConfig {
         L.w("addExtraSites sites=" + mSiteBeanMap.size() + " first=" + order);
         // 内置采集源上线后，清掉一次旧的自动首页源缓存：老缓存多半是盘搜站点，
         // 分类页点进去全是网盘资源，需要按新顺序（采集源优先）重新探测一次
-        if (Hawk.get(HawkConfig.EXTRA_SITE_VER, 0) < 1) {
-            Hawk.put(HawkConfig.HOME_API, "");
-            Hawk.put(HawkConfig.EXTRA_SITE_VER, 1);
+        if (this == instance) {
+            try {
+                if (Hawk.isBuilt() && Hawk.get(HawkConfig.EXTRA_SITE_VER, 0) < 1) {
+                    Hawk.put(HawkConfig.HOME_API, "");
+                    Hawk.put(HawkConfig.EXTRA_SITE_VER, 1);
+                }
+            } catch (Throwable ignored) {
+            }
+            searchSites.migrate();
         }
-        searchSites.migrate(PINNED_SEARCH_SITE_KEY);
     }
-
-    /** 默认置顶的搜索源 key（配置里的「💥粉猪┃秒播💥」） */
-    public static final String PINNED_SEARCH_SITE_KEY = "AppV7_粉猪追剧";
 
     static boolean sameApi(String api1, String api2) {
         if (NullUtil.isNull(api1) || NullUtil.isNull(api2)) return false;

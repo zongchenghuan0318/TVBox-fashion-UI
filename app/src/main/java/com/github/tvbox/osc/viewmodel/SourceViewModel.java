@@ -404,59 +404,70 @@ public class SourceViewModel extends ViewModel {
             };
             mExecutorService.execute(waitResponse);
         } else if (type == 0 || type == 1) {
-            L.d("getSort api=" + sourceBean.getApi());
-            OkGo.<String>get(sourceBean.getApi())
-                    .tag(sortRequestTag)
-                    .execute(new AbsCallback<String>() {
-                        @Override
-                        public String convertResponse(okhttp3.Response response) throws Throwable {
-                            if (response.body() != null) {
-                                return response.body().string();
-                            } else {
-                                L.d(" getSort() 网络请求失败");
-                                throw new IllegalStateException("网络请求失败");
-                            }
-                        }
-
-                        @Override
-                        public void onSuccess(Response<String> response) {
-                            L.d("getSort() response="+response.body());
-                            AbsSortXml sortXml = null;
-                            if (type == 0) {
-                                sortXml = sortXml(sortResult, response.body(), sourceKey);
-                            } else if (type == 1) {
-                                sortXml = sortJson(sortResult, response.body(), sourceKey);
-                            }
-                            if (sortXml == null) {
-                                L.d("getSort sortXml == null");
-                                postSortResult(null, requestId, sourceKey);
-                                return;
-                            }
-                            postSortResult(sortXml, requestId, sourceKey);
-                            if (Hawk.get(HawkConfig.HOME_REC, 0) == 1 && sortXml.movie != null
-                                    && !NullUtil.isNull(sortXml.movie.videoList)) {
-                                ArrayList<String> ids = new ArrayList<>();
-                                for (Movie.Video vod : sortXml.movie.videoList) {
-                                    ids.add(vod.id);
+            String apiUrl = sanitizeHttpUrl(sourceBean.getApi());
+            if (apiUrl.isEmpty()) {
+                postSortResult(null, requestId, sourceKey);
+                return;
+            }
+            L.d("getSort api=" + apiUrl);
+            try {
+                OkGo.<String>get(apiUrl)
+                        .retryCount(0)
+                        .tag(sortRequestTag)
+                        .execute(new AbsCallback<String>() {
+                            @Override
+                            public String convertResponse(okhttp3.Response response) throws Throwable {
+                                if (response.body() != null) {
+                                    return response.body().string();
+                                } else {
+                                    L.d(" getSort() 网络请求失败");
+                                    throw new IllegalStateException("网络请求失败");
                                 }
-                                L.d("getSort getHomeRecList start");
-                                AbsSortXml finalSortXml = sortXml;
-                                getHomeRecList(sourceBean, ids, videos -> {
-                                    finalSortXml.videoList = videos;
-                                    postSortResult(finalSortXml, requestId, sourceKey);
-                                });
-                            } else {
-                                postSortResult(sortXml, requestId, sourceKey);
                             }
-                        }
 
-                        @Override
-                        public void onError(Response<String> response) {
-                            super.onError(response);
-                            L.d("getSort() 网络请求错误");
-                            postSortResult(null, requestId, sourceKey);
-                        }
-                    });
+                            @Override
+                            public void onSuccess(Response<String> response) {
+                                L.d("getSort() response=" + response.body());
+                                AbsSortXml sortXml = null;
+                                if (type == 0) {
+                                    sortXml = sortXml(sortResult, response.body(), sourceKey);
+                                } else if (type == 1) {
+                                    sortXml = sortJson(sortResult, response.body(), sourceKey);
+                                }
+                                if (sortXml == null) {
+                                    L.d("getSort sortXml == null");
+                                    postSortResult(null, requestId, sourceKey);
+                                    return;
+                                }
+                                postSortResult(sortXml, requestId, sourceKey);
+                                if (Hawk.get(HawkConfig.HOME_REC, 0) == 1 && sortXml.movie != null
+                                        && !NullUtil.isNull(sortXml.movie.videoList)) {
+                                    ArrayList<String> ids = new ArrayList<>();
+                                    for (Movie.Video vod : sortXml.movie.videoList) {
+                                        ids.add(vod.id);
+                                    }
+                                    L.d("getSort getHomeRecList start");
+                                    AbsSortXml finalSortXml = sortXml;
+                                    getHomeRecList(sourceBean, ids, videos -> {
+                                        finalSortXml.videoList = videos;
+                                        postSortResult(finalSortXml, requestId, sourceKey);
+                                    });
+                                } else {
+                                    postSortResult(sortXml, requestId, sourceKey);
+                                }
+                            }
+
+                            @Override
+                            public void onError(Response<String> response) {
+                                super.onError(response);
+                                L.d("getSort() 网络请求错误");
+                                postSortResult(null, requestId, sourceKey);
+                            }
+                        });
+            } catch (Throwable th) {
+                L.w("getSort invalid url=" + apiUrl + " err=" + th.getMessage());
+                postSortResult(null, requestId, sourceKey);
+            }
         } else {
             postSortResult(null, requestId, sourceKey);
         }
@@ -722,58 +733,93 @@ public class SourceViewModel extends ViewModel {
     }
 
     public void getHomeRecList(ApiConfig config, SiteBean sourceBean, ArrayList<String> ids, HomeRecCallback callback) {
+        if (callback == null) return;
+        if (sourceBean == null) {
+            callback.done(null);
+            return;
+        }
+        final ApiConfig targetConfig = config != null ? config : ApiConfig.getInstance();
         if (sourceBean.getType() == 3) {
+            final String probedJson = targetConfig.getProbedHomeContent(sourceBean.getKey());
+            final boolean alreadyCheckedHomeContent = !NullUtil.isNull(probedJson);
+            if (alreadyCheckedHomeContent) {
+                AbsXml cached = parseJson(null, probedJson, sourceBean.getKey(), 0);
+                if (cached != null && cached.movie != null && cached.movie.videoList != null
+                        && !cached.movie.videoList.isEmpty()) {
+                    callback.done(cached.movie.videoList);
+                    return;
+                }
+            }
+            if (mExecutorService == null || mExecutorService.isShutdown() || mSpiderWorkerExecutor.isShutdown()) {
+                callback.done(null);
+                return;
+            }
+            final long timeoutSeconds = targetConfig == ApiConfig.getInstance() ? 15L : 8L;
             Runnable waitResponse = () -> {
-                Future<String> future = mSpiderWorkerExecutor.submit(new Callable<String>() {
-                    @Override
-                    public String call() throws Exception {
-                        Spider sp = config.getCSP(sourceBean);
-                        return sp != null ? sp.homeVideoContent() : null;
-                    }
-                });
-                String sortJson = null;
+                Future<AbsXml> future = null;
+                AbsXml parsed = null;
                 try {
-                    sortJson = future.get(15, TimeUnit.SECONDS);
-                } catch (TimeoutException e) {
-                    L.e(e.getMessage());
-                    future.cancel(true);
-                } catch (InterruptedException | ExecutionException e) {
-                    L.e(e.getMessage());
-                } finally {
-                    if (sortJson != null) {
-                        AbsXml absXml = parseJson(null, sortJson, sourceBean.getKey(), 0);
-                        if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
-                            callback.done(absXml.movie.videoList);
-                        } else {
-                            callback.done(null);
+                    future = mSpiderWorkerExecutor.submit(new Callable<AbsXml>() {
+                        @Override
+                        public AbsXml call() throws Exception {
+                            Spider sp = targetConfig.getCSP(sourceBean);
+                            if (sp == null) return null;
+                            String videoJson = sp.homeVideoContent();
+                            AbsXml videoXml = parseJson(null, videoJson, sourceBean.getKey(), 0);
+                            if (videoXml != null && videoXml.movie != null
+                                    && videoXml.movie.videoList != null && !videoXml.movie.videoList.isEmpty()) {
+                                return videoXml;
+                            }
+                            if (alreadyCheckedHomeContent) {
+                                return null;
+                            }
+                            // 许多 TVBox 爬虫只在 homeContent(true) 中返回推荐列表，homeVideoContent() 为空
+                            String homeJson = sp.homeContent(true);
+                            return parseJson(null, homeJson, sourceBean.getKey(), 0);
                         }
+                    });
+                    parsed = future.get(timeoutSeconds, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    L.w("getHomeRecList spider timed out key=" + sourceBean.getKey());
+                    if (future != null) future.cancel(true);
+                } catch (InterruptedException e) {
+                    if (future != null) future.cancel(true);
+                    Thread.currentThread().interrupt();
+                } catch (Throwable e) {
+                    L.w("getHomeRecList spider error key=" + sourceBean.getKey() + " err=" + e.getMessage());
+                } finally {
+                    if (parsed != null && parsed.movie != null && parsed.movie.videoList != null) {
+                        callback.done(parsed.movie.videoList);
                     } else {
                         callback.done(null);
                     }
                 }
             };
-            mExecutorService.execute(waitResponse);
+            try {
+                mExecutorService.execute(waitResponse);
+            } catch (RejectedExecutionException e) {
+                callback.done(null);
+            }
         } else if (sourceBean.getType() == 0 || sourceBean.getType() == 1) {
-            AbsCallback<String> absCallback = new AbsCallback<String>() {
+            final String apiUrl = sanitizeHttpUrl(sourceBean.getApi());
+            if (apiUrl.isEmpty()) {
+                callback.done(null);
+                return;
+            }
+            final int siteType = sourceBean.getType();
+            final String siteKey = sourceBean.getKey();
+            AbsCallback<AbsXml> absCallback = new AbsCallback<AbsXml>() {
                 @Override
-                public String convertResponse(okhttp3.Response response) throws Throwable {
-                    if (response.body() != null) {
-                        return response.body().string();
-                    } else {
-                        throw new IllegalStateException("网络请求错误");
-                    }
+                public AbsXml convertResponse(okhttp3.Response response) throws Throwable {
+                    String body = readResponseBodyLimited(response, MAX_SEARCH_RESPONSE_BYTES);
+                    return siteType == 0
+                            ? parseXml(null, body, siteKey, 0)
+                            : parseJson(null, body, siteKey, 0);
                 }
 
                 @Override
-                public void onSuccess(Response<String> response) {
-                    AbsXml absXml;
-                    if (sourceBean.getType() == 0) {
-                        String xml = response.body();
-                        absXml = parseXml(null, xml, sourceBean.getKey(), 0);
-                    } else {
-                        String json = response.body();
-                        absXml = parseJson(null, json, sourceBean.getKey(), 0);
-                    }
+                public void onSuccess(Response<AbsXml> response) {
+                    AbsXml absXml = response.body();
                     if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
                         callback.done(absXml.movie.videoList);
                     } else {
@@ -782,23 +828,30 @@ public class SourceViewModel extends ViewModel {
                 }
 
                 @Override
-                public void onError(Response<String> response) {
+                public void onError(Response<AbsXml> response) {
                     super.onError(response);
                     callback.done(null);
                 }
             };
-            //推荐场景可能没有 ids（按最新列表取），此时不带 ids 参数
-            if (ids == null || ids.isEmpty()) {
-                OkGo.<String>get(sourceBean.getApi())
-                        .tag(config == ApiConfig.getInstance() ? "home_rec" : config)
-                        .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
-                        .execute(absCallback);
-            } else {
-                OkGo.<String>get(sourceBean.getApi())
-                        .tag(config == ApiConfig.getInstance() ? "home_rec" : config)
-                        .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
-                        .params("ids", TextUtils.join(",", ids))
-                        .execute(absCallback);
+            try {
+                okhttp3.OkHttpClient recClient = OkGo.getInstance().getOkHttpClient().newBuilder()
+                        .connectTimeout(4, TimeUnit.SECONDS)
+                        .readTimeout(6, TimeUnit.SECONDS)
+                        .callTimeout(8, TimeUnit.SECONDS)
+                        .build();
+                com.lzy.okgo.request.GetRequest<AbsXml> request = OkGo.<AbsXml>get(apiUrl)
+                        .client(recClient)
+                        .retryCount(0)
+                        .tag(targetConfig == ApiConfig.getInstance() ? "home_rec" : targetConfig)
+                        .params("ac", siteType == 0 ? "videolist" : "detail");
+                //推荐场景可能没有 ids（按最新列表取），此时不带 ids 参数
+                if (ids != null && !ids.isEmpty()) {
+                    request.params("ids", TextUtils.join(",", ids));
+                }
+                request.execute(absCallback);
+            } catch (Throwable th) {
+                L.w("getHomeRecList invalid url=" + apiUrl + " err=" + th.getMessage());
+                callback.done(null);
             }
         } else {
             callback.done(null);

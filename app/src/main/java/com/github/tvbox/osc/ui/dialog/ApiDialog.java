@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.tvbox.osc.api.ApiConfig;
+import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.ApiHistoryDialogAdapter;
@@ -29,6 +30,7 @@ import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.FileUtil;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.SPDataUtil;
+import com.lzy.okgo.OkGo;
 import com.orhanobut.hawk.Hawk;
 import com.studio.osc.R;
 
@@ -40,7 +42,10 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import androidx.annotation.NonNull;
 import me.jessyan.autosize.utils.AutoSizeUtils;
@@ -72,6 +77,7 @@ public class ApiDialog extends BaseDialog {
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     /** 正在校验配置：期间禁止任何方式退出对话框 */
     private boolean mVerifying = false;
+    private volatile ApiConfig mActiveCandidate = null;
     private SPDataUtil mSpDataUtil;
     private Activity mAct;
     private OnListener mListener = null;
@@ -98,6 +104,10 @@ public class ApiDialog extends BaseDialog {
     @Override
     protected void onStop() {
         super.onStop();
+        if (mAct != null && (mAct.isFinishing() || mAct.isDestroyed())) {
+            cancelPreparedCandidate(mActiveCandidate);
+            mActiveCandidate = null;
+        }
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this);
         }
@@ -221,9 +231,13 @@ public class ApiDialog extends BaseDialog {
             return;
         }
         showStatus("正在准备首页内容，请稍候…", STATUS_INFO);
-        final java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
+        final AtomicBoolean finished = new AtomicBoolean();
+        final AtomicReference<ApiConfig> candidateRef = new AtomicReference<>();
+        final long recDeadline = android.os.SystemClock.elapsedRealtime() + 26000L;
         Runnable timeout = () -> {
             if (!finished.compareAndSet(false, true)) return;
+            cancelPreparedCandidate(candidateRef.get());
+            mActiveCandidate = null;
             setVerifying(false);
             showStatus("首页准备超时，保留原配置，请稍后重试", STATUS_FAIL);
         };
@@ -231,35 +245,104 @@ public class ApiDialog extends BaseDialog {
         new Thread(() -> {
             try {
                 ApiConfig candidate = ApiConfig.prepareConfiguration(newApi, result.json);
-                candidate.initHomeBean(() -> mHandler.post(() -> {
-                    if (finished.get() || mAct.isFinishing() || mAct.isDestroyed()) return;
+                candidateRef.set(candidate);
+                mActiveCandidate = candidate;
+                if (finished.get()) {
+                    cancelPreparedCandidate(candidate);
+                    return;
+                }
+                candidate.initHomeBean(true, () -> mHandler.post(() -> {
+                    if (finished.get() || mAct.isFinishing() || mAct.isDestroyed()) {
+                        cancelPreparedCandidate(candidate);
+                        return;
+                    }
                     com.github.tvbox.osc.viewmodel.SourceViewModel model =
                             new androidx.lifecycle.ViewModelProvider((androidx.lifecycle.ViewModelStoreOwner) mAct)
                                     .get(com.github.tvbox.osc.viewmodel.SourceViewModel.class);
-                    model.getHomeRecList(candidate, candidate.getHomeBean(), null, videos -> mHandler.post(() -> {
-                        if (!finished.compareAndSet(false, true)) return;
-                        mHandler.removeCallbacks(timeout);
-                        setVerifying(false);
-                        if (mAct.isFinishing() || mAct.isDestroyed()) return;
-                        if (videos == null || videos.isEmpty()) {
-                            showStatus("新源暂时无法提供首页内容，保留原配置，请重试或选择其他源", STATUS_FAIL);
-                            return;
-                        }
-                        ApiConfig.getInstance().commitPrepared(candidate, videos);
-                        saveConfig(newApi, result.json);
-                        Toast.makeText(mAct, "切换成功，首页内容已准备好", Toast.LENGTH_SHORT).show();
-                        if (isShowing()) dismiss();
-                    }));
+                    List<SiteBean> candidates = candidate.getHomeRecCandidates();
+                    tryPrepareHomeRec(candidate, model, candidates, 0, recDeadline,
+                            finished, timeout, newApi, result.json);
                 }));
-            } catch (Exception error) {
+            } catch (Throwable error) {
                 mHandler.post(() -> {
                     if (!finished.compareAndSet(false, true)) return;
                     mHandler.removeCallbacks(timeout);
+                    cancelPreparedCandidate(candidateRef.get());
+                    mActiveCandidate = null;
                     setVerifying(false);
-                    showStatus("准备失败，保留原配置：" + error.getMessage(), STATUS_FAIL);
+                    String msg = error.getMessage();
+                    showStatus("准备失败，保留原配置：" + (NullUtil.isNull(msg) ? error.getClass().getSimpleName() : msg), STATUS_FAIL);
                 });
             }
         }, "prepare-config-switch").start();
+    }
+
+    private void tryPrepareHomeRec(ApiConfig candidate,
+                                   com.github.tvbox.osc.viewmodel.SourceViewModel model,
+                                   List<SiteBean> candidates,
+                                   int index,
+                                   long recDeadline,
+                                   AtomicBoolean finished,
+                                   Runnable timeout,
+                                   String newApi,
+                                   String configJson) {
+        if (finished.get() || mAct.isFinishing() || mAct.isDestroyed()) {
+            cancelPreparedCandidate(candidate);
+            return;
+        }
+        boolean budgetExhausted = index > 0 && android.os.SystemClock.elapsedRealtime() >= recDeadline;
+        if (candidates == null || index >= candidates.size() || budgetExhausted) {
+            if (!finished.compareAndSet(false, true)) return;
+            mHandler.removeCallbacks(timeout);
+            cancelPreparedCandidate(candidate);
+            mActiveCandidate = null;
+            setVerifying(false);
+            if (mAct.isFinishing() || mAct.isDestroyed()) return;
+            // 若新配置已经探测到可用分类站点（如纯盘搜/仅提供分类的源），仍允许完成切换，
+            // 首页的豆瓣/热榜兜底链路会保证展示内容，不因无站点推荐列表而误拒健康配置。
+            if (candidate.hasVerifiedHomeBean()) {
+                ApiConfig.getInstance().commitPrepared(candidate, Collections.emptyList());
+                saveConfig(newApi, configJson);
+                Toast.makeText(mAct, "切换成功，首页配置已准备好", Toast.LENGTH_SHORT).show();
+                if (isShowing()) dismiss();
+                return;
+            }
+            showStatus("新源暂时无法提供首页内容，保留原配置，请重试或选择其他源", STATUS_FAIL);
+            return;
+        }
+        SiteBean site = candidates.get(index);
+        model.getHomeRecList(candidate, site, null, videos -> mHandler.post(() -> {
+            if (finished.get() || mAct.isFinishing() || mAct.isDestroyed()) {
+                cancelPreparedCandidate(candidate);
+                return;
+            }
+            if (videos != null && !videos.isEmpty()) {
+                if (!finished.compareAndSet(false, true)) return;
+                mHandler.removeCallbacks(timeout);
+                mActiveCandidate = null;
+                setVerifying(false);
+                if (!candidate.hasVerifiedHomeBean() || index > 0) {
+                    candidate.setHomeBean(site);
+                    candidate.markHomeProbeVerified();
+                }
+                ApiConfig.getInstance().commitPrepared(candidate, videos);
+                saveConfig(newApi, configJson);
+                Toast.makeText(mAct, "切换成功，首页内容已准备好", Toast.LENGTH_SHORT).show();
+                if (isShowing()) dismiss();
+                return;
+            }
+            tryPrepareHomeRec(candidate, model, candidates, index + 1, recDeadline,
+                    finished, timeout, newApi, configJson);
+        }));
+    }
+
+    private void cancelPreparedCandidate(ApiConfig candidate) {
+        if (candidate == null) return;
+        candidate.cancelHomeInit();
+        try {
+            OkGo.getInstance().cancelTag(candidate);
+        } catch (Throwable ignored) {
+        }
     }
 
     private void saveConfig(String api, String content) {

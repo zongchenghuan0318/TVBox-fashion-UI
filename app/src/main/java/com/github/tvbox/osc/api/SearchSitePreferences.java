@@ -6,12 +6,16 @@ import com.github.tvbox.osc.util.HawkConfig;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.orhanobut.hawk.Hawk;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +31,9 @@ final class SearchSitePreferences {
 
     private final Map<String, SiteBean> mSiteBeanMap;
     private volatile Map<String, Integer> mSearchSiteOrderIndexCache = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> mScopedDisabledMemory = new HashMap<>();
+    private final Map<String, List<String>> mScopedOrderMemory = new HashMap<>();
+    private volatile String mConfigScope = "";
     private volatile List<String> mDisabledCache;
     private volatile Set<String> mDisabledSetCache;
     private volatile List<String> mOrderCache;
@@ -35,20 +42,72 @@ final class SearchSitePreferences {
         mSiteBeanMap = siteBeanMap;
     }
 
+    static String normalizeConfigScope(String rawApiUrl) {
+        if (NullUtil.isNull(rawApiUrl)) return "";
+        String normalized = ApiConfig.normalizeUrl(rawApiUrl);
+        if (NullUtil.isNull(normalized)) return "";
+        String trimmed = normalized.trim();
+        while (trimmed.endsWith("/") && trimmed.length() > 1 && !trimmed.endsWith("://")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    private static String scopedKey(String baseKey, String scope) {
+        if (NullUtil.isNull(scope)) return baseKey;
+        return baseKey + "_" + md5Hex(scope);
+    }
+
+    private static String md5Hex(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                int v = b & 0xff;
+                if (v < 16) sb.append('0');
+                sb.append(Integer.toHexString(v));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return Integer.toHexString(input.hashCode());
+        }
+    }
+
+    /**
+     * 按点播配置地址切换搜索源偏好作用域：每套点播源独立记住自己的勾选与排序；
+     * 未自定义过的点播源默认按 粉猪 > 文采/文才 > 非凡 > 量子 > 其余 排序。
+     */
+    synchronized void setConfigScope(String rawApiUrl) {
+        String nextScope = normalizeConfigScope(rawApiUrl);
+        if (!nextScope.equals(mConfigScope)) {
+            mConfigScope = nextScope;
+            mDisabledCache = null;
+            mDisabledSetCache = null;
+            mOrderCache = null;
+        }
+        invalidateSearchSiteOrderCache();
+    }
+
     private Set<String> ensureDisabledSetCache() {
         Set<String> set = mDisabledSetCache;
         if (set != null) return set;
         synchronized (this) {
             set = mDisabledSetCache;
             if (set != null) return set;
-            ArrayList<String> loaded = null;
-            try {
-                if (Hawk.isBuilt()) {
-                    loaded = Hawk.get(HawkConfig.SEARCH_SITE_DISABLED, new ArrayList<String>());
+            String scope = mConfigScope;
+            List<String> loaded = mScopedDisabledMemory.get(scope);
+            if (loaded == null) {
+                try {
+                    if (Hawk.isBuilt()) {
+                        loaded = Hawk.get(scopedKey(HawkConfig.SEARCH_SITE_DISABLED, scope),
+                                new ArrayList<String>());
+                    }
+                } catch (Throwable ignored) {
                 }
-            } catch (Throwable ignored) {
             }
-            List<String> list = loaded == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(loaded));
+            List<String> list = loaded == null ? Collections.emptyList()
+                    : Collections.unmodifiableList(new ArrayList<>(loaded));
             set = Collections.unmodifiableSet(new HashSet<>(list));
             mDisabledCache = list;
             mDisabledSetCache = set;
@@ -62,14 +121,19 @@ final class SearchSitePreferences {
         synchronized (this) {
             list = mOrderCache;
             if (list != null) return list;
-            ArrayList<String> loaded = null;
-            try {
-                if (Hawk.isBuilt()) {
-                    loaded = Hawk.get(HawkConfig.SEARCH_SITE_ORDER, new ArrayList<String>());
+            String scope = mConfigScope;
+            List<String> loaded = mScopedOrderMemory.get(scope);
+            if (loaded == null) {
+                try {
+                    if (Hawk.isBuilt()) {
+                        loaded = Hawk.get(scopedKey(HawkConfig.SEARCH_SITE_ORDER, scope),
+                                new ArrayList<String>());
+                    }
+                } catch (Throwable ignored) {
                 }
-            } catch (Throwable ignored) {
             }
-            list = loaded == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(loaded));
+            list = loaded == null ? Collections.emptyList()
+                    : Collections.unmodifiableList(new ArrayList<>(loaded));
             mOrderCache = list;
             return list;
         }
@@ -88,14 +152,19 @@ final class SearchSitePreferences {
 
     void setSearchSiteDisabled(List<String> keys) {
         final ArrayList<String> snapshot = keys == null ? new ArrayList<>() : new ArrayList<>(keys);
+        final String storageKey;
         synchronized (this) {
-            mDisabledCache = Collections.unmodifiableList(new ArrayList<>(snapshot));
+            List<String> immutable = Collections.unmodifiableList(new ArrayList<>(snapshot));
+            mScopedDisabledMemory.put(mConfigScope, immutable);
+            mDisabledCache = immutable;
             mDisabledSetCache = Collections.unmodifiableSet(new HashSet<>(snapshot));
+            storageKey = scopedKey(HawkConfig.SEARCH_SITE_DISABLED, mConfigScope);
         }
+        invalidateSearchSiteOrderCache();
         PERSIST_EXECUTOR.execute(() -> {
             try {
                 if (Hawk.isBuilt()) {
-                    Hawk.put(HawkConfig.SEARCH_SITE_DISABLED, snapshot);
+                    Hawk.put(storageKey, snapshot);
                 }
             } catch (Throwable ignored) {
             }
@@ -110,7 +179,7 @@ final class SearchSitePreferences {
 
     /**
      * 用户在「搜索源管理」里勾选搜索源的先后顺序，勾选顺序即所有搜索界面的搜索与展示顺序。
-     * 未登记过顺序的源（配置新增或默认启用）排在最后。
+     * 未登记过顺序的源（配置新增或默认启用）仍按默认关键词优先级接在最后。
      */
     ArrayList<String> getSearchSiteOrder() {
         return new ArrayList<>(ensureOrderCache());
@@ -118,14 +187,18 @@ final class SearchSitePreferences {
 
     void setSearchSiteOrder(List<String> keys) {
         final ArrayList<String> snapshot = keys == null ? new ArrayList<>() : new ArrayList<>(keys);
+        final String storageKey;
         synchronized (this) {
-            mOrderCache = Collections.unmodifiableList(new ArrayList<>(snapshot));
+            List<String> immutable = Collections.unmodifiableList(new ArrayList<>(snapshot));
+            mScopedOrderMemory.put(mConfigScope, immutable);
+            mOrderCache = immutable;
+            storageKey = scopedKey(HawkConfig.SEARCH_SITE_ORDER, mConfigScope);
         }
         invalidateSearchSiteOrderCache();
         PERSIST_EXECUTOR.execute(() -> {
             try {
                 if (Hawk.isBuilt()) {
-                    Hawk.put(HawkConfig.SEARCH_SITE_ORDER, snapshot);
+                    Hawk.put(storageKey, snapshot);
                 }
             } catch (Throwable ignored) {
             }
@@ -134,41 +207,62 @@ final class SearchSitePreferences {
 
     /**
      * 默认搜索源顺序（用户没自定义时使用）：名字命中 DefaultConfig.SEARCH_SITE_PRIORITY
-     * 关键词的源排在最前（文采┃秒播 > 非凡┃影视），其余保持站点表顺序。
+     * 关键词的源排在最前（粉猪 > 文采/文才 > 非凡 > 量子），其余保持站点表顺序。
      */
     ArrayList<String> getDefaultSearchSiteOrder() {
-        ArrayList<String> rest = new ArrayList<>();
+        List<SiteBean> searchable = new ArrayList<>();
         for (SiteBean bean : mSiteBeanMap.values()) {
-            if (bean.isSearchable() && !NullUtil.isNull(bean.getKey())) {
-                rest.add(bean.getKey());
+            if (bean != null && bean.isSearchable() && !NullUtil.isNull(bean.getKey())) {
+                searchable.add(bean);
             }
         }
-        ArrayList<String> ordered = new ArrayList<>();
-        for (String keyword : DefaultConfig.SEARCH_SITE_PRIORITY) {
-            for (int i = 0; i < rest.size(); i++) {
-                SiteBean bean = mSiteBeanMap.get(rest.get(i));
-                if (bean != null && !NullUtil.isNull(bean.getName()) && bean.getName().contains(keyword)) {
-                    ordered.add(rest.remove(i));
-                    i--;
-                }
-            }
+        ArrayList<String> ordered = new ArrayList<>(searchable.size());
+        for (SiteBean bean : orderByDefaultPriority(searchable)) {
+            ordered.add(bean.getKey());
         }
-        ordered.addAll(rest);
         return ordered;
     }
 
-    /** 用户自定义过顺序就尊重用户，否则返回默认顺序（文采秒播 > 非凡影视 > 其余） */
+    /**
+     * 当前配置生效的搜索源顺序：
+     * - 未自定义（或旧顺序对当前站点表完全不命中）时，按 粉猪 > 文采/文才 > 非凡 > 量子 > 其余；
+     * - 已自定义时尊重当前配置的自定义顺序，配置新增或改名的未登记站点仍按默认关键词优先级接在后面。
+     */
     ArrayList<String> getSearchSiteOrderOrDefault() {
-        ArrayList<String> order = getSearchSiteOrder();
-        return order.isEmpty() ? getDefaultSearchSiteOrder() : order;
+        ArrayList<String> saved = getSearchSiteOrder();
+        if (saved.isEmpty()) {
+            return getDefaultSearchSiteOrder();
+        }
+        LinkedHashMap<String, SiteBean> remaining = new LinkedHashMap<>();
+        for (SiteBean bean : mSiteBeanMap.values()) {
+            if (bean != null && bean.isSearchable() && !NullUtil.isNull(bean.getKey())) {
+                remaining.put(bean.getKey(), bean);
+            }
+        }
+        ArrayList<String> resolved = new ArrayList<>(remaining.size());
+        for (String key : saved) {
+            if (remaining.remove(key) != null) {
+                resolved.add(key);
+            }
+        }
+        if (resolved.isEmpty()) {
+            return getDefaultSearchSiteOrder();
+        }
+        if (!remaining.isEmpty()) {
+            for (SiteBean bean : orderByDefaultPriority(remaining.values())) {
+                resolved.add(bean.getKey());
+            }
+        }
+        return resolved;
     }
 
-    /** 参与搜索的站点，按用户勾选顺序排列；没排过序的源接在最后并保持站点表原顺序 */
+    /** 参与搜索的站点，按当前配置的排序优先级排列（已过滤禁用源） */
     List<SiteBean> getOrderedSearchSiteList() {
         Set<String> disabled = ensureDisabledSetCache();
         LinkedHashMap<String, SiteBean> pending = new LinkedHashMap<>();
         for (SiteBean bean : mSiteBeanMap.values()) {
-            if (bean.isSearchable() && (NullUtil.isNull(bean.getKey()) || !disabled.contains(bean.getKey()))) {
+            if (bean != null && bean.isSearchable()
+                    && (NullUtil.isNull(bean.getKey()) || !disabled.contains(bean.getKey()))) {
                 pending.put(bean.getKey(), bean);
             }
         }
@@ -179,7 +273,25 @@ final class SearchSitePreferences {
                 ordered.add(hit);
             }
         }
-        ordered.addAll(pending.values());
+        if (!pending.isEmpty()) {
+            ordered.addAll(orderByDefaultPriority(pending.values()));
+        }
+        return ordered;
+    }
+
+    private List<SiteBean> orderByDefaultPriority(Collection<SiteBean> sites) {
+        List<SiteBean> rest = new ArrayList<>(sites);
+        List<SiteBean> ordered = new ArrayList<>(rest.size());
+        for (String keyword : DefaultConfig.SEARCH_SITE_PRIORITY) {
+            for (int i = 0; i < rest.size(); i++) {
+                SiteBean bean = rest.get(i);
+                if (bean != null && !NullUtil.isNull(bean.getName()) && bean.getName().contains(keyword)) {
+                    ordered.add(rest.remove(i));
+                    i--;
+                }
+            }
+        }
+        ordered.addAll(rest);
         return ordered;
     }
 
@@ -187,25 +299,44 @@ final class SearchSitePreferences {
         mSearchSiteOrderIndexCache = new ConcurrentHashMap<>();
     }
 
-    /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按站点表顺序接在最后（O(1) 缓存查询，消除排序时的遍历开销） */
+    /** 切换配置或迁移后切换作用域、丢弃内存缓存并重新执行版本迁移 */
+    void reloadAndMigrate() {
+        reloadAndMigrate(mConfigScope);
+    }
+
+    void reloadAndMigrate(String rawApiUrl) {
+        synchronized (this) {
+            mConfigScope = normalizeConfigScope(rawApiUrl);
+            mOrderCache = null;
+            mDisabledCache = null;
+            mDisabledSetCache = null;
+        }
+        invalidateSearchSiteOrderCache();
+        migrate();
+    }
+
+    /** 站点在搜索结果里的排序键：勾选顺序在前，未登记的按默认优先级接在最后（O(1) 缓存查询，消除排序时的遍历开销） */
     int getSearchSiteOrderIndex(String key) {
         if (NullUtil.isNull(key)) return Integer.MAX_VALUE;
         Map<String, Integer> cache = mSearchSiteOrderIndexCache;
         Integer cached = cache.get(key);
         if (cached != null) return cached;
 
-        List<String> order = getSearchSiteOrderOrDefault();
-        int index = order.indexOf(key);
-        if (index >= 0) {
-            cache.put(key, index);
-            return index;
+        List<SiteBean> ordered = getOrderedSearchSiteList();
+        for (int i = 0; i < ordered.size(); i++) {
+            String orderedKey = ordered.get(i).getKey();
+            if (!NullUtil.isNull(orderedKey)) {
+                cache.put(orderedKey, i);
+            }
         }
-        int pos = 0;
+        Integer hit = cache.get(key);
+        if (hit != null) return hit;
+
+        int pos = ordered.size();
         for (SiteBean bean : mSiteBeanMap.values()) {
-            if (key.equals(bean.getKey())) {
-                int res = order.size() + pos;
-                cache.put(key, res);
-                return res;
+            if (bean != null && key.equals(bean.getKey())) {
+                cache.put(key, pos);
+                return pos;
             }
             pos++;
         }
@@ -213,36 +344,34 @@ final class SearchSitePreferences {
         return Integer.MAX_VALUE;
     }
 
-    void migrate(String pinnedKey) {
-        // 搜索源默认值改版：清掉一次旧的勾选/排序记录，让搜索源回到「默认全选」，
-        // 并按新默认优先级排序（文采┃秒播 > 非凡┃影视 > 其余）
+    void migrate() {
+        if (!Hawk.isBuilt()) return;
+        // 搜索源默认值改版：新装用户保持空顺序，动态按 DefaultConfig.SEARCH_SITE_PRIORITY
+        // （名字含 粉猪 > 文采/文才 > 非凡 > 量子 > 其余）排序
         if (Hawk.get(HawkConfig.SEARCH_SITE_VER, 0) < 1) {
             Hawk.delete(HawkConfig.SEARCH_SITE_DISABLED);
             Hawk.delete(HawkConfig.SEARCH_SITE_ORDER);
             synchronized (this) {
-                mDisabledCache = Collections.emptyList();
-                mDisabledSetCache = Collections.emptySet();
-                mOrderCache = Collections.emptyList();
+                mScopedDisabledMemory.clear();
+                mScopedOrderMemory.clear();
+                mDisabledCache = null;
+                mDisabledSetCache = null;
+                mOrderCache = null;
             }
             invalidateSearchSiteOrderCache();
             Hawk.put(HawkConfig.SEARCH_SITE_VER, 1);
+            Hawk.put(HawkConfig.SEARCH_PIN_VER, 3);
+            return;
         }
-        // 置顶搜索源（全体用户）：把“粉猪秒播”放到搜索顺序第一位并确保启用；
-        // 只移动这一项，保留用户已有的其它顺序与勾选
-        if (Hawk.get(HawkConfig.SEARCH_PIN_VER, 0) < 1) {
-            pinSearchSiteFirst(pinnedKey);
-            Hawk.put(HawkConfig.SEARCH_PIN_VER, 1);
-        }
-    }
-
-    private void pinSearchSiteFirst(String key) {
-        ArrayList<String> order = new ArrayList<>(getSearchSiteOrderOrDefault());
-        order.remove(key);
-        order.add(0, key);
-        setSearchSiteOrder(order);
-        ArrayList<String> disabled = getSearchSiteDisabled();
-        if (disabled.remove(key)) {
-            setSearchSiteDisabled(disabled);
+        // v3 迁移：清掉旧全局顺序，改为按点播配置地址独立保存搜索源偏好，
+        // 未自定义的配置自动按 粉猪 > 文采/文才 > 非凡 > 量子 > 其余 排序
+        if (Hawk.get(HawkConfig.SEARCH_PIN_VER, 0) < 3) {
+            Hawk.delete(HawkConfig.SEARCH_SITE_ORDER);
+            synchronized (this) {
+                mOrderCache = null;
+            }
+            invalidateSearchSiteOrderCache();
+            Hawk.put(HawkConfig.SEARCH_PIN_VER, 3);
         }
     }
 }

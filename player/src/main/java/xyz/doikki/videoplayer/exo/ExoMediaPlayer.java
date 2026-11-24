@@ -82,6 +82,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     /** 当前播放的请求头，预取时复用 */
     private Map<String, String> mHeaders;
     private HlsPrefetcher mPrefetcher;
+    private SurfaceHolder mSurfaceHolder;
     private volatile long mPlayheadMs;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
@@ -184,6 +185,11 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     @Override
     public boolean supportsMediaTracks() {
         return mInternalPlayer != null && mTrackSelector instanceof DefaultTrackSelector;
+    }
+
+    @Override
+    public boolean supportsPauseWhilePreparing() {
+        return true;
     }
 
     @Override
@@ -402,10 +408,11 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
             }
             selector.setParameters(parameters);
         }
+        mSurfaceHolder = null;
         if (mInternalPlayer != null) {
             mInternalPlayer.stop();
             mInternalPlayer.clearMediaItems();
-            mInternalPlayer.setVideoSurface(null);
+            mInternalPlayer.clearVideoSurface();
             mIsPreparing = false;
         }
     }
@@ -439,6 +446,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
     public void release() {
         stopPrefetch();
         clearSubtitleTextListener();
+        mSurfaceHolder = null;
         if (mInternalPlayer != null) {
             mInternalPlayer.removeListener(this);
             mInternalPlayer.release();
@@ -470,6 +478,7 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void setSurface(Surface surface) {
+        mSurfaceHolder = null;
         if (mInternalPlayer != null) {
             mInternalPlayer.setVideoSurface(surface);
         }
@@ -477,10 +486,16 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
 
     @Override
     public void setDisplay(SurfaceHolder holder) {
-        if (holder == null)
-            setSurface(null);
-        else
-            setSurface(holder.getSurface());
+        if (mInternalPlayer == null) {
+            return;
+        }
+        if (holder == null) {
+            mSurfaceHolder = null;
+            mInternalPlayer.clearVideoSurface();
+        } else if (mSurfaceHolder != holder) {
+            mSurfaceHolder = holder;
+            mInternalPlayer.setVideoSurfaceHolder(holder);
+        }
     }
 
     @Override

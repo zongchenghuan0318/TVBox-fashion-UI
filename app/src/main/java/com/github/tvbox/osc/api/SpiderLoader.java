@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipFile;
 
@@ -134,7 +135,7 @@ final class SpiderLoader {
      */
     private void loadGlobalJar(String spider) {
         String[] urls = spider.split(";md5;");
-        final String jarUrl = urls.length > 0 ? urls[0].trim() : "";
+        final String jarUrl = ApiConfig.normalizeUrl(urls.length > 0 ? urls[0].trim() : "");
         final String md5 = urls.length > 1 ? urls[1].trim() : "";
         final Context ctx = App.getInstance();
         long startedAt = android.os.SystemClock.elapsedRealtime();
@@ -213,14 +214,23 @@ final class SpiderLoader {
         InputStream in = null;
         FileOutputStream out = null;
         try {
+            String normalizedUrl = ApiConfig.normalizeUrl(url);
+            if (NullUtil.isNull(normalizedUrl)) {
+                return false;
+            }
             tmp = File.createTempFile("spider_", ".tmp", dest.getParentFile());
             okhttp3.Request request = new okhttp3.Request.Builder()
-                    .url(url)
+                    .url(normalizedUrl)
                     .header("User-Agent", UA_OKHTTP)
                     .build();
-            response = OkGo.getInstance().getOkHttpClient().newCall(request).execute();
+            okhttp3.OkHttpClient client = OkGo.getInstance().getOkHttpClient().newBuilder()
+                    .connectTimeout(6, TimeUnit.SECONDS)
+                    .readTimeout(12, TimeUnit.SECONDS)
+                    .callTimeout(18, TimeUnit.SECONDS)
+                    .build();
+            response = client.newCall(request).execute();
             if (!response.isSuccessful() || response.body() == null) {
-                L.w("loadJar 下载失败 code=" + response.code() + " url=" + url);
+                L.w("loadJar 下载失败 code=" + response.code() + " url=" + normalizedUrl);
                 return false;
             }
             in = response.body().byteStream();
@@ -272,7 +282,7 @@ final class SpiderLoader {
      */
     String preloadSiteJar(String jarWithMd5) {
         if (NullUtil.isNull(jarWithMd5)) return "";
-        String url = jarWithMd5.split(";md5;")[0].trim();
+        String url = ApiConfig.normalizeUrl(jarWithMd5.split(";md5;")[0].trim());
         if (NullUtil.isNull(url)) return "";
         String cached = mSiteJarPaths.get(url);
         if (cached != null) return cached;
