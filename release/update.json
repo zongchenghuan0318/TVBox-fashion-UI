@@ -1,8 +1,8 @@
 {
-  "versionCode": 228,
-  "versionName": "1.7.29",
-  "changelog": "# 1.7.29\n\n- 修复 Android 7.1.2 等旧版系统在启动时因 `ThreadLocal.withInitial()` 闪退的问题，并兼容 Android 5.x 和 6.x 的站点排序及 JS 爬虫结果处理。\n- 设置和搜索页新增网盘配置入口，支持通过提供相应动作的点播源扫码登录、填写配置和浏览网盘目录。\n- 改善网盘直链、本地代理流和播放请求头的处理。支持读取爬虫返回的多画质地址，默认使用首个有效地址。\n- 将 HTTP 分类结果解析移到后台，减少快速切换分类时的过时请求和界面卡顿。",
-  "apkUrl": "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.29/Z.apk",
-  "sha256": "2c590fca70bc9ae982ea55e1b43d6e7b6623bd4a2302ea706fa467f89346e414",
-  "size": 33953315
+    "versionCode":  229,
+    "versionName":  "1.7.30",
+    "changelog":  "# 1.7.30\n\n- 优化点播配置源切换：切源准备阶段改为实测新配置站点并并行预热爬虫 JAR，取消不可达源的反复重试并支持候选源回退，修复切源时因沿用旧失效首页源触发首页准备超时的问题；支持中文域名爬虫包地址归一化。\n- 优化搜索页显示优先级：每套点播源独立记住自己的搜索源排序与勾选状态，新切配置与未登记站点均默认按「粉猪 \u003e 文采/文才 \u003e 非凡 \u003e 量子」排序；切源时自动清理慢源惩罚，保护高优源优先派发并修复首批结果到达时误锁排序的问题。\n- 优化播放与页面稳定性：修复加载中退后台后仍自动起播的问题，完善 Surface 绑定与释放逻辑，并为设置、详情、直播等页面补充 `configChanges` 减少旋屏重建。",
+    "apkUrl":  "https://github.com/zongchenghuan0318/TVBox-fashion-UI/releases/download/v1.7.30/Z.apk",
+    "sha256":  "a311349e3c1f8d0b24b5f88a96a262dfe9deec07aaf319e5c7a7b6f3d178f99c",
+    "size":  33960022
 }
