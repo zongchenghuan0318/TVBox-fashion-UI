@@ -317,6 +317,16 @@
                         <View style="@style/SettingDivider" />
 
                         <LinearLayout
+                            android:id="@+id/llCloudConfig"
+                            style="@style/SettingRow">
+                            <TextView style="@style/SettingRowTitle" android:text="网盘扫码与配置" />
+                            <TextView android:id="@+id/tvCloudConfig" style="@style/SettingRowValue" />
+                            <TextView style="@style/SettingRowArrow" />
+                        </LinearLayout>
+
+                        <View style="@style/SettingDivider" />
+
+                        <LinearLayout
                             android:id="@+id/llLiveSource"
                             style="@style/SettingRow">
                             <TextView style="@style/SettingRowTitle" android:text="直播源管理" />

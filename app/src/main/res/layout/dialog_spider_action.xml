@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="780mm"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/shape_dialog_bg_main"
+        android:orientation="vertical"
+        android:paddingLeft="28mm"
+        android:paddingTop="22mm"
+        android:paddingRight="28mm"
+        android:paddingBottom="22mm">
+
+        <!-- 顶部标题 + 倒计时 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvActionTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:singleLine="true"
+                android:text="网盘扫码登录"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="22mm" />
+
+            <TextView
+                android:id="@+id/tvActionCountdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="12mm"
+                android:background="@drawable/shape_settings_inset"
+                android:paddingLeft="12mm"
+                android:paddingTop="4mm"
+                android:paddingRight="12mm"
+                android:paddingBottom="4mm"
+                android:textColor="@color/settings_warning"
+                android:textSize="14mm"
+                android:visibility="gone"
+                tools:text="剩余 120 秒"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:layout_marginTop="14mm"
+            android:layout_marginBottom="18mm"
+            android:background="#1AFFFFFF" />
+
+        <!-- 主体区：左侧二维码/图片 + 右侧提示/表单/选项列表 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/llActionQrPane"
+                android:layout_width="276mm"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="24mm"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <FrameLayout
+                    android:layout_width="244mm"
+                    android:layout_height="244mm"
+                    android:background="@drawable/shape_qr_container"
+                    android:padding="12mm">
+
+                    <ImageView
+                        android:id="@+id/ivActionQr"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:importantForAccessibility="no"
+                        android:scaleType="fitCenter" />
+
+                    <ProgressBar
+                        android:id="@+id/pbActionQr"
+                        android:layout_width="36mm"
+                        android:layout_height="36mm"
+                        android:layout_gravity="center"
+                        android:indeterminate="true"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/tvActionQrCaption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12mm"
+                    android:background="@drawable/shape_settings_inset"
+                    android:gravity="center"
+                    android:lineSpacingExtra="2mm"
+                    android:maxLines="2"
+                    android:paddingLeft="10mm"
+                    android:paddingTop="6mm"
+                    android:paddingRight="10mm"
+                    android:paddingBottom="6mm"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13mm"
+                    android:visibility="gone"
+                    tools:text="请使用手机对应网盘 App 扫码"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llActionContentPane"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvActionMsg"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="4mm"
+                    android:maxLines="6"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="16mm"
+                    android:visibility="gone"
+                    tools:text="请使用夸克 App 扫描左侧二维码登录，或在下方直接输入 Cookie / Token"
+                    tools:visibility="visible" />
+
+                <ScrollView
+                    android:id="@+id/svActionForm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12mm"
+                    android:scrollbars="vertical"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:id="@+id/llActionInputs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </ScrollView>
+
+                <com.owen.tvrecyclerview.widget.TvRecyclerView
+                    android:id="@+id/rvActionOptions"
+                    android:layout_width="match_parent"
+                    android:layout_height="260mm"
+                    android:layout_marginTop="12mm"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:visibility="gone"
+                    app:tv_verticalSpacingWithMargins="8mm" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 底部按钮栏 -->
+        <LinearLayout
+            android:id="@+id/llActionButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20mm"
+            android:gravity="end|center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnActionReset"
+                style="@style/SettingsButton"
+                android:layout_marginRight="12mm"
+                android:minWidth="104mm"
+                android:minHeight="44mm"
+                android:text="重置"
+                android:textSize="16mm"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/btnActionCancel"
+                style="@style/SettingsButton"
+                android:layout_marginRight="12mm"
+                android:minWidth="108mm"
+                android:minHeight="44mm"
+                android:text="取消"
+                android:textSize="16mm" />
+
+            <TextView
+                android:id="@+id/btnActionConfirm"
+                style="@style/SettingsButton.Primary"
+                android:minWidth="128mm"
+                android:minHeight="44mm"
+                android:text="确定"
+                android:textSize="16mm" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

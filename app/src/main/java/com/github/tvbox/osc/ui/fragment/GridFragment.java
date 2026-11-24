@@ -249,6 +249,10 @@ public class GridFragment extends BaseLazyFragment {
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
                 Movie.Video video = mGridAdapter.getData().get(position);
+                if (com.github.tvbox.osc.util.SpiderActionHelper.isActionItem(video)) {
+                    com.github.tvbox.osc.util.SpiderActionHelper.handleVideoAction(mActivity, video, null);
+                    return;
+                }
                 if (isFolder(video)) {
                     Bundle bundle = new Bundle();
                     bundle.putString("folderId", video.id);

@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -75,19 +74,19 @@ public class SpiderFm extends com.github.catvod.crawler.Spider {
 
     private Object call(final String func, final Object... args) {
         if (destroyed || executor.isShutdown()) return null;
-        Future<CompletableFuture<Object>> task = null;
+        Future<Async.Result> task = null;
         try {
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
-            task = submit(new Callable<CompletableFuture<Object>>() {
+            task = submit(new Callable<Async.Result>() {
                 @Override
-                public CompletableFuture<Object> call() {
+                public Async.Result call() {
                     if (destroyed || jsObject == null) {
-                        return CompletableFuture.completedFuture(null);
+                        return Async.Result.completed(null);
                     }
                     return Async.run(jsObject, func, args);
                 }
             });
-            CompletableFuture<Object> result = task.get(15, TimeUnit.SECONDS);
+            Async.Result result = task.get(15, TimeUnit.SECONDS);
             if (result == null) return null;
             long remaining = deadline - System.nanoTime();
             if (remaining <= 0) return null;

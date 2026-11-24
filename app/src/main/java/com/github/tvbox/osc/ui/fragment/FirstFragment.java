@@ -413,6 +413,10 @@ public class FirstFragment extends BaseLazyFragment implements View.OnClickListe
             }
             if (!NullUtil.isNull(vod.id) && !NullUtil.isNull(vod.sourceKey)
                     && ApiConfig.getInstance().getSiteBean(vod.sourceKey) != null) {
+                if (com.github.tvbox.osc.util.SpiderActionHelper.isActionItem(vod)) {
+                    com.github.tvbox.osc.util.SpiderActionHelper.handleVideoAction(mActivity, vod, null);
+                    return;
+                }
                 if (isFolder(vod)) {
                     Intent folder = new Intent(mContext, SearchActivity.class);
                     folder.putExtra("folderId", vod.id);

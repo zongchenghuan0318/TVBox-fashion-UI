@@ -11,6 +11,7 @@ import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.PlayBean;
 import com.github.tvbox.osc.bean.SiteBean;
 import com.github.tvbox.osc.server.ControlManager;
+import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -26,6 +27,7 @@ import com.uisupport.UiConstans;
 import com.uisupport.update.HotWords;
 import com.uisupport.update.HttpUtil;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -33,6 +35,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import xyz.doikki.videoplayer.util.PrintUtil;
@@ -240,22 +243,53 @@ public class UiHelper {
         playBean.bNeedParse = info.optString("parse", "1").equals("1");
         playBean.bNeedJx = info.optString("jx", "0").equals("1");
         playBean.playSubtitleStr = info.optString("subt", "");
-        playBean.playUrl = info.optString("playUrl", "");
+        playBean.playUrl = DefaultConfig.checkReplaceProxy(info.optString("playUrl", ""));
         playBean.flag = info.optString("flag");
-        playBean.url = info.optString("url");
+        playBean.msg = info.optString("msg", "");
+        Object rawUrl = info.opt("url");
+        if (rawUrl instanceof JSONArray) {
+            JSONArray urlArray = (JSONArray) rawUrl;
+            LinkedHashMap<String, String> qualities = new LinkedHashMap<>();
+            if (urlArray.length() == 1) {
+                String single = urlArray.isNull(0) ? "" : urlArray.optString(0, "").trim();
+                if (!NullUtil.isNull(single)) {
+                    playBean.url = DefaultConfig.checkReplaceProxy(single);
+                }
+            } else {
+                for (int i = 0; i + 1 < urlArray.length(); i += 2) {
+                    String label = urlArray.optString(i, "").trim();
+                    String target = urlArray.isNull(i + 1) ? "" : urlArray.optString(i + 1, "").trim();
+                    if (NullUtil.isNull(target)) continue;
+                    target = DefaultConfig.checkReplaceProxy(target);
+                    if (label.isEmpty()) label = "画质" + ((i / 2) + 1);
+                    qualities.put(label, target);
+                    if (NullUtil.isNull(playBean.url)) {
+                        playBean.url = target;
+                    }
+                }
+            }
+            if (!qualities.isEmpty()) {
+                playBean.qualityUrls = qualities;
+            }
+        } else {
+            playBean.url = DefaultConfig.checkReplaceProxy(info.optString("url", ""));
+        }
         if (info.has("header")) {
             try {
-                String headerStr= info.optString("header");
-                L.d("headerStr="+headerStr);
-                if(!NullUtil.isNull(headerStr)) {
-                    JSONObject hds = new JSONObject(headerStr);
-                    if (null != hds) {
-                        playBean.headersMap = new HashMap<>();
-                        Iterator<String> keys = hds.keys();
-                        while (keys.hasNext()) {
-                            String key = keys.next();
-                            playBean.headersMap.put(key, hds.optString(key));
-                        }
+                JSONObject hds = info.optJSONObject("header");
+                if (hds == null) {
+                    String headerStr = info.optString("header");
+                    L.d("headerStr=" + headerStr);
+                    if (!NullUtil.isNull(headerStr)) {
+                        hds = new JSONObject(headerStr);
+                    }
+                }
+                if (null != hds) {
+                    playBean.headersMap = new HashMap<>();
+                    Iterator<String> keys = hds.keys();
+                    while (keys.hasNext()) {
+                        String key = keys.next();
+                        playBean.headersMap.put(key, hds.optString(key));
                     }
                 }
             } catch (Exception e) {

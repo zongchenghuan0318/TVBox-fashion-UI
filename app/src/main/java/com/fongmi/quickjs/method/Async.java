@@ -4,11 +4,54 @@ import com.whl.quickjs.wrapper.JSCallFunction;
 import com.whl.quickjs.wrapper.JSFunction;
 import com.whl.quickjs.wrapper.JSObject;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Async {
 
-    private CompletableFuture<Object> future;
+    // 替代 CompletableFuture（API 24+），保持 minSdkVersion 21 兼容
+    public static final class Result {
+        private final CountDownLatch latch = new CountDownLatch(1);
+        private final AtomicBoolean done = new AtomicBoolean(false);
+        private Object value;
+        private Throwable error;
+
+        public static Result completed(Object value) {
+            Result result = new Result();
+            result.complete(value);
+            return result;
+        }
+
+        void complete(Object value) {
+            if (done.compareAndSet(false, true)) {
+                this.value = value;
+                latch.countDown();
+            }
+        }
+
+        void completeExceptionally(Throwable error) {
+            if (done.compareAndSet(false, true)) {
+                this.error = error;
+                latch.countDown();
+            }
+        }
+
+        public Object get(long timeout, TimeUnit unit)
+                throws InterruptedException, ExecutionException, TimeoutException {
+            if (!latch.await(timeout, unit)) {
+                throw new TimeoutException();
+            }
+            if (error != null) {
+                throw new ExecutionException(error);
+            }
+            return value;
+        }
+    }
+
+    private final Result future;
 
     private final JSCallFunction success = new JSCallFunction() {
         @Override
@@ -28,21 +71,21 @@ public class Async {
     };
 
     private Async() {
-        this.future = new CompletableFuture<>();
+        this.future = new Result();
     }
 
-    public static CompletableFuture<Object> run(JSObject object, String name, Object... args) {
+    public static Result run(JSObject object, String name, Object... args) {
         return new Async().call(object, name, args);
     }
 
-    private CompletableFuture<Object> call(JSObject object, String name, Object... args) {
+    private Result call(JSObject object, String name, Object... args) {
         JSFunction func = object.getJSFunction(name);
         if (func == null) return empty();
         call(func, args);
         return future;
     }
 
-    private CompletableFuture<Object> empty() {
+    private Result empty() {
         future.complete(null);
         return future;
     }

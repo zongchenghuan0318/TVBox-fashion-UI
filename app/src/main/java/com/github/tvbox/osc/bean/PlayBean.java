@@ -1,6 +1,7 @@
 package com.github.tvbox.osc.bean;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 public class PlayBean {
     public String progressKeyStr;
@@ -10,5 +11,7 @@ public class PlayBean {
     public String playUrl;
     public String flag;
     public String url;
+    public String msg;
     public HashMap<String, String> headersMap = null;
+    public LinkedHashMap<String, String> qualityUrls = null;
 }

@@ -216,8 +216,19 @@ public class SourceViewModel extends ViewModel {
     }
 
     // XStream 实例按线程隔离，彻底消除并发解析时的内部状态竞态
-    private static final ThreadLocal<XStream> SORT_XML_XSTREAM = ThreadLocal.withInitial(SourceViewModel::createSortXmlXStream);
-    private static final ThreadLocal<XStream> ABS_XML_XSTREAM = ThreadLocal.withInitial(SourceViewModel::createAbsXmlXStream);
+    // 不能使用 ThreadLocal.withInitial（需要 API 26+），保持 minSdkVersion 21 兼容
+    private static final ThreadLocal<XStream> SORT_XML_XSTREAM = new ThreadLocal<XStream>() {
+        @Override
+        protected XStream initialValue() {
+            return createSortXmlXStream();
+        }
+    };
+    private static final ThreadLocal<XStream> ABS_XML_XSTREAM = new ThreadLocal<XStream>() {
+        @Override
+        protected XStream initialValue() {
+            return createAbsXmlXStream();
+        }
+    };
 
     private static String readResponseBodyLimited(okhttp3.Response response, int maxBytes) throws IOException {
         if (response == null || response.body() == null) {
@@ -278,6 +289,7 @@ public class SourceViewModel extends ViewModel {
         return pool;
     }
     private volatile FutureTask<String> activePlayContentTask;
+    public static final long PLAY_DIALOG_TIMEOUT_MS = 120_000L;
     private volatile int playRequestId;
     private volatile int detailRequestId;
     private volatile int lastPostedDetailRequestId = -1;
@@ -480,8 +492,10 @@ public class SourceViewModel extends ViewModel {
         int type = homeSourceBean.getType();
         if (type == 3) {
             mExecutorService.execute(() -> {
+                if (requestId != categoryRequestId) return;
                 try {
                     Spider sp = ApiConfig.getInstance().getCSP(homeSourceBean);
+                    if (requestId != categoryRequestId) return;
                     AbsXml data = parseJson(null,
                             sp.categoryContent(categoryId, page + "", true, selectedFilters),
                             homeSourceBean.getKey(), 0);
@@ -506,35 +520,37 @@ public class SourceViewModel extends ViewModel {
 //                }
 //            });
 
-            OkGo.<String>get(homeSourceBean.getApi())
+            OkGo.<AbsXml>get(homeSourceBean.getApi())
                     .tag(categoryRequestTag)
                     .params("ac", type == 0 ? "videolist" : "detail")
                     .params("t", categoryId)
                     .params("pg", page)
-                    .execute(new AbsCallback<String>() {
+                    .execute(new AbsCallback<AbsXml>() {
 
                         @Override
-                        public String convertResponse(okhttp3.Response response) throws Throwable {
-                            if (response.body() != null) {
-                                return response.body().string();
-                            } else {
+                        public AbsXml convertResponse(okhttp3.Response response) throws Throwable {
+                            okhttp3.ResponseBody responseBody = response.body();
+                            if (responseBody == null) {
                                 throw new IllegalStateException("网络请求错误");
                             }
-                        }
-
-                        @Override
-                        public void onSuccess(Response<String> response) {
-                            if (type == 0) {
-                                String xml = response.body();
-                                postCategoryResult(parseXml(null, xml, homeSourceBean.getKey(), 0), requestId);
-                            } else {
-                                String json = response.body();
-                                postCategoryResult(parseJson(null, json, homeSourceBean.getKey(), 0), requestId);
+                            if (requestId != categoryRequestId) {
+                                responseBody.close();
+                                return null;
                             }
+                            String body = responseBody.string();
+                            if (requestId != categoryRequestId) return null;
+                            return type == 0
+                                    ? parseXml(null, body, homeSourceBean.getKey(), 0)
+                                    : parseJson(null, body, homeSourceBean.getKey(), 0);
                         }
 
                         @Override
-                        public void onError(Response<String> response) {
+                        public void onSuccess(Response<AbsXml> response) {
+                            postCategoryResult(response.body(), requestId);
+                        }
+
+                        @Override
+                        public void onError(Response<AbsXml> response) {
                             super.onError(response);
                             postCategoryResult(null, requestId);
                         }
@@ -1226,11 +1242,15 @@ public class SourceViewModel extends ViewModel {
             spiderThread.start();
             mExecutorService.execute(() -> {
                 try {
-                    String json = task.get(15, TimeUnit.SECONDS);
+                    String json = awaitPlayContentTask(task);
                     if (requestId != playRequestId) {
                         return;
                     }
                     L.d(sourceKey+" getPlayUrl json="+json);
+                    if (json == null || json.trim().isEmpty()) {
+                        postPlayResult(null, requestId);
+                        return;
+                    }
                     JSONObject result = new JSONObject(json);//包含了url
                     result.put("key", url);
                     result.put("proKey", progressKey);
@@ -1281,6 +1301,33 @@ public class SourceViewModel extends ViewModel {
             }
         } else {
             postPlayResult(null, requestId);
+        }
+    }
+
+    private String awaitPlayContentTask(FutureTask<String> task) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(PLAY_DIALOG_TIMEOUT_MS);
+        long pollInterval = TimeUnit.SECONDS.toNanos(18);
+        while (true) {
+            try {
+                long remaining = deadline - System.nanoTime();
+                return task.get(Math.min(pollInterval, remaining), TimeUnit.NANOSECONDS);
+            } catch (TimeoutException e) {
+                if (deadline - System.nanoTime() <= 0 || !isTopActivityCoveredByDialog()) {
+                    throw e;
+                }
+            }
+        }
+    }
+
+    private boolean isTopActivityCoveredByDialog() {
+        try {
+            if (!com.github.tvbox.osc.util.AppManager.getInstance().isActivity()) {
+                return false;
+            }
+            android.app.Activity top = com.github.tvbox.osc.util.AppManager.getInstance().currentActivity();
+            return top != null && !top.isFinishing() && !top.isDestroyed() && !top.hasWindowFocus();
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 

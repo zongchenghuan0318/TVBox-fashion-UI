@@ -1,5 +1,6 @@
 package com.github.tvbox.osc.bean;
 
+import com.google.gson.JsonElement;
 import com.lcstudio.commonsurport.util.NullUtil;
 import com.lcstudio.commonsurport.util.StringUtil;
 import com.lcstudio.commonsurport.L;
@@ -112,6 +113,7 @@ public class AbsJson implements Serializable {
         public String vod_status; //: 1
         public String vod_sub; //: "Mr.Salted Fish Miss Ross 2,咸鱼先生，Rose小姐 第二季,咸鱼先生，Rose小姐之彗星来了"
         public String vod_tag; //: ""
+        public JsonElement action;
         public String vod_time; //: "2021-04-12 19:13:27"
         public String vod_time_add; //: 1618053726
         public String vod_time_hits; //: 0
@@ -165,6 +167,13 @@ public class AbsJson implements Serializable {
             video.urlsBean = urlBean;
             video.des = vod_content;// <![CDATA[权来]
             video.tag = normalizeTag(vod_tag);
+            if (action != null) {
+                if (action.isJsonObject()) {
+                    video.action = action.toString();
+                } else if (action.isJsonPrimitive() && action.getAsJsonPrimitive().isString()) {
+                    video.action = action.getAsString();
+                }
+            }
             if (!NullUtil.isNull(vod_tag)) {
                 L.w("vod_tag name=" + vod_name + " id=" + vod_id + " raw=" + vod_tag
                         + " normalized=" + video.tag);

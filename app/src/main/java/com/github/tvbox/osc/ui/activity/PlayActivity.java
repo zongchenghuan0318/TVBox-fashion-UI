@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.net.http.SslError;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -147,6 +148,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     // 进度的内存副本（进程内有效），保证写入后立即可读，不依赖后台写库的完成时机
     private static final Map<String, Long> PROGRESS_LATEST = new ConcurrentHashMap<>();
     private boolean playbackStartPending;
+    private long playbackStartDeadline;
     private String mPrefetchedNextKey;
     private JSONObject mPrefetchedNextInfo;
     private String mPrefetchInFlightKey;
@@ -164,10 +166,15 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
     private final Runnable playbackStartTimeout = new Runnable() {
         @Override
         public void run() {
-            if (playbackStartPending) {
-                playbackStartPending = false;
-                errorWithRetry("播放超时，请检查线路或网络", false, true);
+            if (!playbackStartPending || !isActivityActive()) return;
+            long remaining = playbackStartDeadline - SystemClock.uptimeMillis();
+            if (!hasWindowFocus() && remaining > 0 && mHandler != null) {
+                // 网盘爬虫弹窗扫码期间暂停播放超时，避免扫码未完成就被打断
+                mHandler.postDelayed(this, Math.min(3000L, remaining));
+                return;
             }
+            playbackStartPending = false;
+            errorWithRetry("播放超时，请检查线路或网络", false, true);
         }
     };
 
@@ -336,14 +343,26 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
             String url = null;
             if (!NullUtil.isNull(mPlayBean.playUrl) && DefaultConfig.isVideoFormat2(mPlayBean.playUrl)) {
                 url = mPlayBean.playUrl;
-            } else {
-                if (!NullUtil.isNull(mPlayBean.url)) {
-                    url = mPlayBean.url;
-                }
+            } else if (!NullUtil.isNull(mPlayBean.url)) {
+                url = mPlayBean.url;
             }
-            if (!NullUtil.isNull(url) && DefaultConfig.isVideoFormat2(url)) {
+            if (!NullUtil.isNull(mPlayBean.playUrl) && !NullUtil.isNull(mPlayBean.url)
+                    && !mPlayBean.bNeedParse && !mPlayBean.bNeedJx
+                    && Uri.parse(mPlayBean.url).isRelative()) {
+                url = mPlayBean.playUrl + mPlayBean.url;
+            }
+            if (NullUtil.isNull(url)) {
+                String msg = !NullUtil.isNull(mPlayBean.msg) ? mPlayBean.msg : "获取播放地址错误";
+                errorWithRetry(msg, false);
+                return;
+            }
+            boolean directPlayableScheme = url.startsWith("http://") || url.startsWith("https://")
+                    || url.startsWith("rtmp://") || url.startsWith("rtsp://")
+                    || url.startsWith("file://") || url.startsWith("content://");
+            if (!mPlayBean.bNeedParse && !mPlayBean.bNeedJx && directPlayableScheme) {
+                // 网盘直链、本地代理流等明确声明 parse=0 的地址直接起播并保留请求头，不再误送 WebView 嗅探
                 playVideo(url, mPlayBean.headersMap);
-            } else if (!NullUtil.isNull(url) && DefaultConfig.isVideoFormat(url)) {
+            } else if (DefaultConfig.isVideoFormat2(url) || DefaultConfig.isVideoFormat(url)) {
                 playVideo(url, mPlayBean.headersMap);
             } else {
                 boolean bUseJxList = (mPlayBean.playUrl.isEmpty() && ApiConfig.getInstance().getmVipFlagList().contains(mPlayBean.flag)) || mPlayBean.bNeedJx;
@@ -431,6 +450,7 @@ public class PlayActivity extends BaseActivity  implements View.OnClickListener 
         }
         mHandler.removeCallbacks(playbackStartTimeout);
         playbackStartPending = true;
+        playbackStartDeadline = SystemClock.uptimeMillis() + SourceViewModel.PLAY_DIALOG_TIMEOUT_MS;
         mHandler.postDelayed(playbackStartTimeout, 20000L);
         VodInfo.VodSeries vs = episodes.get(mVodInfo.playIndex);
         EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, mVodInfo.playIndex));

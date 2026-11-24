@@ -110,11 +110,14 @@ public class BaseLoader {
      */
     public Object[] proxy(Map<String, String> params) {
         try {
+            String site = null;
+            String doParam = null;
             if (params != null) {
-                String site = params.get("site");
+                site = params.get("site");
                 if (site == null) {
                     site = params.get("key");
                 }
+                doParam = params.get("do");
                 if (site != null) {
                     Spider sp = jsSpiders.get(site);
                     if (sp != null) {
@@ -126,14 +129,33 @@ public class BaseLoader {
                     }
                     sp = jarLoader.getSpiderByKey(site);
                     if (sp != null) {
-                        return jarLoader.proxyInvoke(params);
+                        return jarLoader.proxyInvoke(site, params);
                     }
                 }
             }
+            if ("js".equalsIgnoreCase(doParam)) {
+                Spider spider = recentSpider;
+                if (spider instanceof SpiderFm) {
+                    Object[] res = spider.proxyLocal(params);
+                    if (res != null) return res;
+                }
+                for (Spider js : jsSpiders.values()) {
+                    if (js != null && js != spider) {
+                        Object[] res = js.proxyLocal(params);
+                        if (res != null) return res;
+                    }
+                }
+                return null;
+            }
+            if ("py".equalsIgnoreCase(doParam)) {
+                return pyLoader.proxyLocal(params);
+            }
             Spider spider = recentSpider;
-            if (spider == null) return null;
-            if (recentIsJar) return jarLoader.proxyInvoke(params);
-            return spider.proxyLocal(params);
+            if (spider != null && !recentIsJar) {
+                Object[] res = spider.proxyLocal(params);
+                if (res != null) return res;
+            }
+            return jarLoader.proxyInvoke(site, params);
         } catch (Throwable th) {
             L.e(th);
         }

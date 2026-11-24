@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/selector_settings_action"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="48mm"
+    android:orientation="horizontal"
+    android:paddingLeft="18mm"
+    android:paddingTop="10mm"
+    android:paddingRight="16mm"
+    android:paddingBottom="10mm">
+
+    <TextView
+        android:id="@+id/tvActionOptionName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:singleLine="true"
+        android:textColor="@color/color_FFFFFF"
+        android:textSize="17mm"
+        tools:text="夸克网盘扫码" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10mm"
+        android:text="›"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="20mm" />
+</LinearLayout>

@@ -104,35 +104,8 @@ public class RemoteServer extends NanoHTTPD {
                         return process.doResponse(session, fileName, session.getParms(), null);
                     }
                 }
-                if (fileName.equals("/proxy")) {
-                    Map<String, String> params = session.getParms();
-                    if (params.containsKey("do")) {
-                        Object[] rs = ApiConfig.getInstance().proxyLocal(params);
-                        try {
-                            if (rs == null || rs.length < 3) {
-                                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "404");
-                            }
-                            int code = (int) rs[0];
-                            String mime = (String) rs[1];
-                            InputStream stream = rs[2] != null ? (InputStream) rs[2] : null;
-                            Response response = NanoHTTPD.newChunkedResponse(
-                                    NanoHTTPD.Response.Status.lookup(code),
-                                    mime,
-                                    stream
-                            );
-                            if (rs.length > 3 && rs[3] instanceof Map) {
-                                Map<?, ?> headers = (Map<?, ?>) rs[3];
-                                for (Map.Entry<?, ?> entry : headers.entrySet()) {
-                                    if (entry.getKey() != null && entry.getValue() != null) {
-                                        response.addHeader(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-                                    }
-                                }
-                            }
-                            return response;
-                        } catch (Throwable th) {
-                            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "500");
-                        }
-                    }
+                if (fileName.equals("/proxy") || fileName.startsWith("/proxy/")) {
+                    return handleProxyRequest(session, fileName, session.getParms(), null);
                 } else if (fileName.startsWith("/file/")) {
                     try {
                         String f = fileName.substring(6);
@@ -189,6 +162,9 @@ public class RemoteServer extends NanoHTTPD {
                     if (process.isRequest(session, fileName)) {
                         return process.doResponse(session, fileName, session.getParms(), files);
                     }
+                }
+                if (fileName.equals("/proxy") || fileName.startsWith("/proxy/")) {
+                    return handleProxyRequest(session, fileName, session.getParms(), files);
                 }
                 try {
                     Map<String, String> params = session.getParms();
@@ -270,6 +246,82 @@ public class RemoteServer extends NanoHTTPD {
         }
         //default page: index.html
         return getRequestList.get(0).doResponse(session, "", null, null);
+    }
+
+    private Response handleProxyRequest(IHTTPSession session, String fileName,
+                                        Map<String, String> rawParams, Map<String, String> files) {
+        try {
+            Map<String, String> params = new HashMap<>();
+            Map<String, String> reqHeaders = session.getHeaders();
+            if (reqHeaders != null) {
+                for (Map.Entry<String, String> entry : reqHeaders.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        params.put(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+            if (rawParams != null) {
+                for (Map.Entry<String, String> entry : rawParams.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        params.put(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+            if (files != null && files.containsKey("postData") && files.get("postData") != null) {
+                params.put("postData", files.get("postData"));
+            }
+            if (fileName.startsWith("/proxy/") && !params.containsKey("url")) {
+                params.put("url", fileName.substring(7));
+            }
+            if (!params.containsKey("method") && session.getMethod() != null) {
+                params.put("method", session.getMethod().name());
+            }
+            if (!params.containsKey("header") && reqHeaders != null && !reqHeaders.isEmpty()) {
+                JsonObject headerJson = new JsonObject();
+                for (Map.Entry<String, String> entry : reqHeaders.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        headerJson.addProperty(entry.getKey(), entry.getValue());
+                    }
+                }
+                params.put("header", headerJson.toString());
+            }
+            if (!params.containsKey("do") && !params.containsKey("url") && !params.containsKey("site")) {
+                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "404");
+            }
+            Object[] rs = ApiConfig.getInstance().proxyLocal(params);
+            if (rs == null || rs.length < 3) {
+                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "404");
+            }
+            int code = rs[0] instanceof Number ? ((Number) rs[0]).intValue() : 200;
+            String mime = rs[1] != null ? String.valueOf(rs[1]) : NanoHTTPD.MIME_PLAINTEXT;
+            InputStream stream = null;
+            if (rs[2] instanceof InputStream) {
+                stream = (InputStream) rs[2];
+            } else if (rs[2] instanceof byte[]) {
+                stream = new ByteArrayInputStream((byte[]) rs[2]);
+            } else if (rs[2] != null) {
+                stream = new ByteArrayInputStream(String.valueOf(rs[2]).getBytes("UTF-8"));
+            }
+            NanoHTTPD.Response.Status status = NanoHTTPD.Response.Status.lookup(code);
+            if (status == null) {
+                status = code >= 400 ? NanoHTTPD.Response.Status.INTERNAL_ERROR : NanoHTTPD.Response.Status.OK;
+            }
+            Response response = stream != null
+                    ? NanoHTTPD.newChunkedResponse(status, mime, stream)
+                    : NanoHTTPD.newFixedLengthResponse(status, mime, "");
+            if (rs.length > 3 && rs[3] instanceof Map) {
+                Map<?, ?> headers = (Map<?, ?>) rs[3];
+                for (Map.Entry<?, ?> entry : headers.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        response.addHeader(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+                    }
+                }
+            }
+            return response;
+        } catch (Throwable th) {
+            L.e("handleProxyRequest " + th.getMessage());
+            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "500");
+        }
     }
 
     public void setDataReceiver(DataReceiver receiver) {

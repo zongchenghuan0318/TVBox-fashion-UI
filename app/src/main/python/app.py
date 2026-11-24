@@ -84,6 +84,17 @@ def localProxy(ru, param):
     return result
 
 
+def action(ru, act):
+    if hasattr(ru, "action"):
+        result = ru.action(act)
+        if result is None:
+            return ""
+        if isinstance(result, str):
+            return result
+        return json.dumps(result, ensure_ascii=False)
+    return ""
+
+
 def run():
     return
 

@@ -22,6 +22,7 @@ import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.PosterPreloader;
 import com.github.tvbox.osc.util.SeniorMode;
+import com.github.tvbox.osc.util.SpiderActionHelper;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
@@ -279,6 +280,10 @@ public class FolderDialog extends BaseDialog {
         Entry top = stack.peek();
         if (top != null) {
             top.savedPosition = position;
+        }
+        if (SpiderActionHelper.isActionItem(video)) {
+            SpiderActionHelper.handleVideoAction(activity, video, null);
+            return;
         }
         if (SearchActivity.isFolderItem(video) || SearchActivity.isAggregateItem(video)) {
             stack.push(new Entry(video.id, video.sourceKey, video.name));

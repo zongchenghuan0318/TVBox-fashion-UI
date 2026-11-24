@@ -33,9 +33,11 @@ import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchHistoryAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchResultAdapter;
+import com.github.tvbox.osc.ui.dialog.CloudDriveDialog;
 import com.github.tvbox.osc.ui.dialog.FolderDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
 import com.github.tvbox.osc.ui.dialog.TipDialog;
+import com.github.tvbox.osc.util.SpiderActionHelper;
 import com.github.tvbox.osc.ui.tv.QRCodeGen;
 import com.github.tvbox.osc.ui.tv.widget.SafeTvLayoutManagers;
 import com.github.tvbox.osc.ui.tv.widget.SearchKeyboard;
@@ -123,6 +125,7 @@ public class SearchActivity extends BaseActivity {
     private View llSearchStatusBar;
     private View pbSearchLoading;
     private TextView tvSearchProgress;
+    private View btnCloudLoginTop;
     private View btnManageSearchSourcesTop;
     private TextView tvClear;
     private SearchKeyboard keyboard;
@@ -206,6 +209,7 @@ public class SearchActivity extends BaseActivity {
     private long lastBackHintAt;
     private View keyboardSearchFocus;
     private SearchSiteDialog activeSearchSiteDialog;
+    private CloudDriveDialog activeCloudDriveDialog;
     private FolderDialog activeFolderDialog;
     private TipDialog activeTipDialog;
     private static final long SUGGESTION_DEBOUNCE_MS = 250L;
@@ -377,6 +381,7 @@ public class SearchActivity extends BaseActivity {
         llSearchStatusBar = findViewById(R.id.llSearchStatusBar);
         pbSearchLoading = findViewById(R.id.pbSearchLoading);
         tvSearchProgress = findViewById(R.id.tvSearchProgress);
+        btnCloudLoginTop = findViewById(R.id.btnCloudLoginTop);
         btnManageSearchSourcesTop = findViewById(R.id.btnManageSearchSourcesTop);
         tvClear = findViewById(R.id.tvClear);
         mSearchResultRV = findViewById(R.id.sortRV);
@@ -439,6 +444,24 @@ public class SearchActivity extends BaseActivity {
         };
         if (btnEmptyManageSources != null) {
             btnEmptyManageSources.setOnClickListener(openManageSources);
+        }
+        if (btnCloudLoginTop != null) {
+            btnCloudLoginTop.setVisibility(SpiderActionHelper.hasCloudConfigSites() ? View.VISIBLE : View.GONE);
+            btnCloudLoginTop.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                if (destroying || isFinishing() || isDestroyed()) return;
+                if (activeCloudDriveDialog != null && activeCloudDriveDialog.isShowing()) return;
+                CloudDriveDialog dialog = new CloudDriveDialog(SearchActivity.this);
+                dialog.setOnDismissListener(d -> {
+                    if (activeCloudDriveDialog != dialog) return;
+                    activeCloudDriveDialog = null;
+                    if (!destroying && !isFinishing() && !isDestroyed()) {
+                        resumeSearchPresentation();
+                    }
+                });
+                activeCloudDriveDialog = dialog;
+                dialog.show();
+            });
         }
         if (btnManageSearchSourcesTop != null) {
             btnManageSearchSourcesTop.setOnClickListener(openManageSources);
@@ -741,6 +764,10 @@ public class SearchActivity extends BaseActivity {
         if (searchResultAdapter == null || position < 0 || position >= searchResultAdapter.getData().size()) return;
         Movie.Video video = searchResultAdapter.getData().get(position);
         if (video == null) return;
+        if (SpiderActionHelper.isActionItem(video)) {
+            SpiderActionHelper.handleVideoAction(SearchActivity.this, video, null);
+            return;
+        }
         boolean opensFolder = isFolder(video) || isAggregateSearchCard(video);
         android.util.Log.i(TRACE_TAG, "click activity=" + System.identityHashCode(this)
                 + " position=" + position + " route=" + (opensFolder ? "folder" : "detail")
@@ -2171,6 +2198,7 @@ public class SearchActivity extends BaseActivity {
         return activityResumed && hasWindowFocus() && !destroying && !isFinishing() && !isDestroyed()
                 && (activeFolderDialog == null || !activeFolderDialog.isShowing())
                 && (activeSearchSiteDialog == null || !activeSearchSiteDialog.isShowing())
+                && (activeCloudDriveDialog == null || !activeCloudDriveDialog.isShowing())
                 && (activeTipDialog == null || !activeTipDialog.isShowing());
     }
 
@@ -2471,6 +2499,15 @@ public class SearchActivity extends BaseActivity {
             } catch (Throwable ignored) {
             }
             activeSearchSiteDialog = null;
+        }
+        if (activeCloudDriveDialog != null) {
+            try {
+                if (activeCloudDriveDialog.isShowing()) {
+                    activeCloudDriveDialog.dismiss();
+                }
+            } catch (Throwable ignored) {
+            }
+            activeCloudDriveDialog = null;
         }
         if (activeFolderDialog != null) {
             try {

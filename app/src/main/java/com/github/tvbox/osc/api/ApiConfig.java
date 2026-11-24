@@ -32,6 +32,7 @@ import org.json.JSONObject;
 
 import java.net.IDN;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -971,7 +972,7 @@ public class ApiConfig {
         //自动设置home
         bInit = false;
         List<SiteBean> beans = new ArrayList<>(mSiteBeanMap.values());
-        beans.sort((left, right) -> Boolean.compare(left.getType() == 3, right.getType() == 3));
+        Collections.sort(beans, (left, right) -> Boolean.compare(left.getType() == 3, right.getType() == 3));
         int httpProbeCount = 0;
         for (SiteBean bean : beans) {
             if (bean.isSearchable() && bean.getType() != 3) httpProbeCount++;

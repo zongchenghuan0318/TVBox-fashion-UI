@@ -65,6 +65,17 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     @Override
+    public String action(String action) {
+        try {
+            PyObject res = app.callAttr("action", obj, action);
+            return res == null ? "" : res.toString();
+        } catch (Throwable e) {
+            L.e(e);
+            return "";
+        }
+    }
+
+    @Override
     public Object[] proxyLocal(Map<String, String> params) {
         try {
             List<PyObject> list = app.callAttr("localProxy", obj, gson.toJson(params)).asList();

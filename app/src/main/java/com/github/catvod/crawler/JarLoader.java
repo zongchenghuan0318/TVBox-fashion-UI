@@ -19,6 +19,8 @@ import dalvik.system.DexClassLoader;
 public class JarLoader {
     private DexClassLoader classLoader = null;
     private final ConcurrentHashMap<String, DexClassLoader> extraLoaders = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Method> extraProxyFuns = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> spiderJarPaths = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, Spider> spidersMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Object> spiderLocks = new ConcurrentHashMap<>();
     private Method proxyFun = null;
@@ -29,6 +31,7 @@ public class JarLoader {
     public boolean load(String cacheFile) {
         spidersMap.clear();
         spiderLocks.clear();
+        spiderJarPaths.clear();
         proxyFun = null;
         boolean success = false;
         try {
@@ -88,7 +91,20 @@ public class JarLoader {
         if (cacheFile == null || cacheFile.isEmpty()) return false;
         if (extraLoaders.containsKey(cacheFile)) return true;
         try {
-            extraLoaders.put(cacheFile, newDexClassLoader(cacheFile));
+            DexClassLoader extraLoader = newDexClassLoader(cacheFile);
+            extraLoaders.put(cacheFile, extraLoader);
+            try {
+                Class<?> proxyCls = extraLoader.loadClass("com.github.catvod.spider.Proxy");
+                Method extraProxy = proxyCls.getMethod("proxy", Map.class);
+                extraProxyFuns.put(cacheFile, extraProxy);
+            } catch (Throwable ignored) {
+            }
+            try {
+                Class<?> initCls = extraLoader.loadClass("com.github.catvod.spider.Init");
+                Method initMethod = initCls.getMethod("init", Context.class);
+                initMethod.invoke(null, App.getInstance());
+            } catch (Throwable ignored) {
+            }
             L.w("JarLoader.loadExtra ok " + cacheFile);
             return true;
         } catch (Throwable th) {
@@ -126,6 +142,9 @@ public class JarLoader {
             try {
                 Spider sp = loadSpider(loader, clsKey);
                 sp.init(App.getInstance(), ext);
+                if (jarPath != null && !jarPath.isEmpty()) {
+                    spiderJarPaths.put(key, jarPath);
+                }
                 spidersMap.put(key, sp);
                 return sp;
             } catch (Throwable th) {
@@ -193,13 +212,32 @@ public class JarLoader {
     }
 
     public Object[] proxyInvoke(Map params) {
-        try {
-            if (proxyFun != null) {
-                return (Object[]) proxyFun.invoke(null, params);
-            }
-        } catch (Throwable th) {
-            L.e("proxyInvoke "+th.getMessage());
+        return proxyInvoke(null, params);
+    }
+
+    public Object[] proxyInvoke(String siteKey, Map params) {
+        if (siteKey != null && !siteKey.isEmpty()) {
+            String jarPath = spiderJarPaths.get(siteKey);
+            Method siteProxy = jarPath == null ? null : extraProxyFuns.get(jarPath);
+            Object[] result = invokeProxy(siteProxy, params);
+            return result != null ? result : invokeProxy(proxyFun, params);
+        }
+        Object[] result = invokeProxy(proxyFun, params);
+        if (result != null) return result;
+        for (Method extraProxy : extraProxyFuns.values()) {
+            result = invokeProxy(extraProxy, params);
+            if (result != null) return result;
         }
         return null;
+    }
+
+    private Object[] invokeProxy(Method proxy, Map params) {
+        if (proxy == null) return null;
+        try {
+            return (Object[]) proxy.invoke(null, params);
+        } catch (Throwable th) {
+            L.e("proxyInvoke " + th.getMessage());
+            return null;
+        }
     }
 }

@@ -27,6 +27,7 @@ import com.github.tvbox.osc.ui.activity.LiveSourceManagerActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.ApiDialog;
 import com.github.tvbox.osc.ui.dialog.BackupDialog;
+import com.github.tvbox.osc.ui.dialog.CloudDriveDialog;
 import com.github.tvbox.osc.ui.dialog.HomeCardMotionDialog;
 import com.github.tvbox.osc.ui.dialog.HomeLayoutDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSiteDialog;
@@ -40,6 +41,7 @@ import com.github.tvbox.osc.util.OkGoHelper;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.github.tvbox.osc.util.RemoteKeySound;
 import com.github.tvbox.osc.util.SeniorMode;
+import com.github.tvbox.osc.util.SpiderActionHelper;
 import com.github.tvbox.osc.util.UpdateManager;
 import com.lcstudio.commonsurport.L;
 import com.lcstudio.commonsurport.util.NullUtil;
@@ -80,6 +82,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvRender;
     private TextView tvScale;
     private TextView tvApi;
+    private TextView tvCloudConfig;
     private TextView tvLiveSource;
     private TextView tvDoh;
     private TextView tvHomeApi;
@@ -155,6 +158,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvRender = findViewById(R.id.tvRenderType);
         tvScale = findViewById(R.id.tvScaleType);
         tvApi = findViewById(R.id.tvApi);
+        tvCloudConfig = findViewById(R.id.tvCloudConfig);
         tvLiveSource = findViewById(R.id.tvLiveSource);
         tvDoh = findViewById(R.id.tvDoh);
         tvHomeApi = findViewById(R.id.tvHomeApi);
@@ -251,6 +255,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvSubtitleLanguage.setText(getLanguageSummary(Hawk.get(HawkConfig.SUBTITLE_LANGUAGE, "")));
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "已打开" : "已关闭");
         tvApi.setText(Hawk.get(HawkConfig.API_URL, ApiConfig.DEFAULT_URL));
+        if (tvCloudConfig != null) {
+            tvCloudConfig.setText(SpiderActionHelper.getCloudConfigSummary());
+        }
         tvLiveSource.setText("打开管理");
         tvDoh.setText(getDohName(Hawk.get(HawkConfig.DOH_URL, 0)));
         tvHomeRec.setText(getHomeRecName(Hawk.get(HawkConfig.HOME_REC, 0)));
@@ -591,6 +598,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
             EventBus.getDefault().register(mApiDialog);
             mApiDialog.setOnListener(api -> {
                 tvApi.setText(api);
+                if (tvCloudConfig != null) {
+                    tvCloudConfig.setText(SpiderActionHelper.getCloudConfigSummary());
+                }
                 tvHomeApi.setText(ApiConfig.getInstance().getHomeBean().getName());
                 tvSearchSite.setText(getSearchSiteSummary());
                 refreshMediaCodecRow();
@@ -608,6 +618,23 @@ public class ModelSettingFragment extends BaseLazyFragment {
             });
             mApiDialog.show();
         });
+
+        View cloudRow = findViewById(R.id.llCloudConfig);
+        if (cloudRow != null) {
+            cloudRow.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                CloudDriveDialog dialog = new CloudDriveDialog(mActivity);
+                dialog.setOnDismissListener(d -> {
+                    if (mActivity instanceof BaseActivity) {
+                        ((BaseActivity) mActivity).hideSysBar();
+                    }
+                    if (isAdded() && tvCloudConfig != null) {
+                        tvCloudConfig.setText(SpiderActionHelper.getCloudConfigSummary());
+                    }
+                });
+                dialog.show();
+            });
+        }
 
         findViewById(R.id.llLiveSource).setOnClickListener(v ->
                 startActivity(new Intent(mActivity, LiveSourceManagerActivity.class)));
