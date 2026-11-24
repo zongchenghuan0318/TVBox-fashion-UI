@@ -235,6 +235,7 @@ public final class SpiderActionHelper {
                     return;
                 }
                 if (finalResult.isEmpty()) {
+                    ApiConfig.getInstance().resetSpiders();
                     if (onCompleted != null) onCompleted.run();
                     return;
                 }
@@ -242,6 +243,7 @@ public final class SpiderActionHelper {
                     showActionJson(activity, sourceKey, finalResult, fallbackTitle, onCompleted);
                     return;
                 }
+                ApiConfig.getInstance().resetSpiders();
                 Toast.makeText(activity, finalResult, Toast.LENGTH_LONG).show();
                 if (onCompleted != null) onCompleted.run();
             });

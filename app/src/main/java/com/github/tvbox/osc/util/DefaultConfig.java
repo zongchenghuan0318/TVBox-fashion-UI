@@ -124,6 +124,22 @@ public class DefaultConfig {
         return defaultVal;
     }
 
+    /**
+     * 解析站点或解析器的 ext 字段：同时兼容字符串、JSON 对象（如 {"Cloud-drive":"tvfan/Cloud-drive.txt"}、
+     * {"config":"AppV7Fz"}）与 JSON 数组，避免非基本类型被 safeJsonString 静默丢成空串。
+     */
+    public static String safeJsonExt(JsonObject obj, String key) {
+        try {
+            if (obj == null || !obj.has(key)) return "";
+            JsonElement el = obj.get(key);
+            if (el == null || el.isJsonNull()) return "";
+            if (el.isJsonPrimitive()) return el.getAsString().trim();
+            if (el.isJsonObject() || el.isJsonArray()) return el.toString();
+        } catch (Throwable ignored) {
+        }
+        return "";
+    }
+
     public static int safeJsonInt(JsonObject obj, String key, int defaultVal) {
         try {
             if (obj.has(key))

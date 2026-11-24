@@ -591,7 +591,7 @@ public class ApiConfig {
                         bean.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
                         bean.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
                         bean.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
-                        bean.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
+                        bean.setExt(DefaultConfig.safeJsonExt(obj, "ext"));
                         //部分源的类不在全局 spider 里，配置用站点级 jar 单独提供（如 csp_AppRJ 在 feimao1004.jar）
                         bean.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
                         bean.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
@@ -697,7 +697,7 @@ public class ApiConfig {
                     ParseBean pb = new ParseBean();
                     pb.setName(DefaultConfig.safeJsonString(obj, "name", ""));
                     pb.setUrl(DefaultConfig.safeJsonString(obj, "url", ""));
-                    String ext = obj.has("ext") && obj.get("ext").isJsonObject() ? obj.get("ext").getAsJsonObject().toString() : "";
+                    String ext = DefaultConfig.safeJsonExt(obj, "ext");
                     pb.setExt(ext);
                     pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
                     if (!TextUtils.isEmpty(pb.getUrl())) {
@@ -749,6 +749,14 @@ public class ApiConfig {
 
     public Spider getCSP(SiteBean sourceBean) {
         return spiderLoader.getCSP(sourceBean);
+    }
+
+    /**
+     * 重置已缓存的爬虫实例（保留已加载的 JAR 类加载器），供网盘扫码登录或修改配置后
+     * 让所有盘搜与云盘站点立即重新执行 init(context, ext) 读取最新的 Cookie/Token。
+     */
+    public void resetSpiders() {
+        spiderLoader.resetSpiders();
     }
 
     /**

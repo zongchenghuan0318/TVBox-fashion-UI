@@ -170,6 +170,11 @@ public class BaseLoader {
         return jarLoader.jsonExtMix(flag, key, name, jxs, url);
     }
 
+    public void resetSpiders() {
+        jarLoader.clearSpiders();
+        clear();
+    }
+
     public void clear() {
         for (Spider spider : jsSpiders.values()) {
             if (spider != null) {

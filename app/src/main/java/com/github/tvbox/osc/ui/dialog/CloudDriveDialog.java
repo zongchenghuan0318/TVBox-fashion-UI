@@ -146,6 +146,7 @@ public class CloudDriveDialog extends BaseDialog {
     private List<MovieSort.SortData> currentCategories = new ArrayList<>();
     private int selectedTabIndex = -1;
     private int requestGeneration = 0;
+    private boolean cloudConfigTouched = false;
 
     public CloudDriveDialog(@NonNull Activity activity) {
         super(activity, R.style.CustomDialogStyleDim);
@@ -308,6 +309,10 @@ public class CloudDriveDialog extends BaseDialog {
     @Override
     public void dismiss() {
         requestGeneration++;
+        if (cloudConfigTouched) {
+            cloudConfigTouched = false;
+            ApiConfig.getInstance().resetSpiders();
+        }
         super.dismiss();
     }
 
@@ -514,6 +519,7 @@ public class CloudDriveDialog extends BaseDialog {
 
         // 1. 新版 action 协议：直接执行动作或弹出二维码/输入/菜单弹窗
         if (SpiderActionHelper.isActionItem(video)) {
+            cloudConfigTouched = true;
             SpiderActionHelper.handleVideoAction(activity, video, this::refreshAfterAction);
             return;
         }
@@ -526,6 +532,7 @@ public class CloudDriveDialog extends BaseDialog {
 
         // 3. 普通卡片：对配置类站点先走一次 detailContent，兼容老版 JAR 在详情里直接弹扫码框或返回子目录
         if (currentSite != null && SpiderActionHelper.getCloudSitePriority(currentSite) >= 2) {
+            cloudConfigTouched = true;
             openConfigOrDetailItem(video);
             return;
         }
@@ -657,6 +664,7 @@ public class CloudDriveDialog extends BaseDialog {
     }
 
     private void refreshAfterAction() {
+        ApiConfig.getInstance().resetSpiders();
         if (!isShowing() || activity.isFinishing() || activity.isDestroyed()) return;
         if (folderStack.isEmpty()) {
             reloadCurrentView();
@@ -666,7 +674,10 @@ public class CloudDriveDialog extends BaseDialog {
     private void renderCards(List<Movie.Video> videos, String subtitlePrefix, int targetPos) {
         showGridState();
         cardAdapter.setNewData(new ArrayList<>(videos));
-        tvSubtitle.setText(subtitlePrefix + " · 共 " + videos.size() + " 项");
+        boolean showScopeTip = folderStack.isEmpty() && currentSite != null
+                && SpiderActionHelper.getCloudSitePriority(currentSite) >= 3;
+        tvSubtitle.setText(subtitlePrefix + " · 共 " + videos.size() + " 项"
+                + (showScopeTip ? "（登录仅对当前配置源生效）" : ""));
         final int safePos = Math.max(0, Math.min(targetPos, Math.max(0, videos.size() - 1)));
         rvItems.scrollToPosition(safePos);
         rvItems.post(() -> {

@@ -1365,8 +1365,8 @@ public class HomeActivity extends BaseActivity implements View.OnClickListener {
         BaseLazyFragment baseLazyFragment = this.fragments.get(i);
         if (baseLazyFragment instanceof GridFragment || baseLazyFragment instanceof FirstFragment) {
             View view = this.mSortFocusView;
-            if (view != null && !view.isFocused()) {
-                this.mSortFocusView.requestFocus();
+            if (view != null && !view.isInTouchMode() && !view.isFocused() && view.requestFocus()) {
+                return;
             } else if (this.mSortFocused != 0) {
                 this.mMovieSortRV.setSelection(0);
             } else {

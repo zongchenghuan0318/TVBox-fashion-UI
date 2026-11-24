@@ -104,6 +104,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private CapsuleSwitch switchRemoteKeySound;
     private CapsuleSwitch switchSeniorMode;
     private ApiDialog mApiDialog = null;
+    private CloudDriveDialog mCloudDriveDialog = null;
     private int easterEggClicks;
     private long lastEasterEggClick;
 
@@ -623,8 +624,19 @@ public class ModelSettingFragment extends BaseLazyFragment {
         if (cloudRow != null) {
             cloudRow.setOnClickListener(v -> {
                 FastClickCheckUtil.check(v);
+                if (mCloudDriveDialog != null) {
+                    try {
+                        if (mCloudDriveDialog.isShowing()) mCloudDriveDialog.dismiss();
+                    } catch (Throwable ignored) {
+                    }
+                    mCloudDriveDialog = null;
+                }
                 CloudDriveDialog dialog = new CloudDriveDialog(mActivity);
+                mCloudDriveDialog = dialog;
                 dialog.setOnDismissListener(d -> {
+                    if (mCloudDriveDialog == dialog) {
+                        mCloudDriveDialog = null;
+                    }
                     if (mActivity instanceof BaseActivity) {
                         ((BaseActivity) mActivity).hideSysBar();
                     }
@@ -775,6 +787,20 @@ public class ModelSettingFragment extends BaseLazyFragment {
     @Override
     public void onDestroyView() {
         UpdateManager.cancelFor(getActivity());
+        if (mCloudDriveDialog != null) {
+            try {
+                if (mCloudDriveDialog.isShowing()) mCloudDriveDialog.dismiss();
+            } catch (Throwable ignored) {
+            }
+            mCloudDriveDialog = null;
+        }
+        if (mApiDialog != null) {
+            try {
+                if (mApiDialog.isShowing()) mApiDialog.dismiss();
+            } catch (Throwable ignored) {
+            }
+            mApiDialog = null;
+        }
         super.onDestroyView();
     }
 

@@ -94,6 +94,7 @@ public class SpiderActionDialog extends BaseDialog {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int remainingSeconds;
     private boolean keepOpen;
+    private boolean hasInteractiveAuth;
     private String actionId;
     private String singleInputKey;
 
@@ -178,6 +179,7 @@ public class SpiderActionDialog extends BaseDialog {
         }
         boolean hasQrOrImage = !TextUtils.isEmpty(qrText) || !TextUtils.isEmpty(imageUrl);
         if (hasQrOrImage) {
+            hasInteractiveAuth = true;
             llQrPane.setVisibility(View.VISIBLE);
             bindQrOrImage(qrText, imageUrl);
             if (TextUtils.isEmpty(msg) && !TextUtils.isEmpty(qrText)) {
@@ -194,6 +196,7 @@ public class SpiderActionDialog extends BaseDialog {
                 || (!isMultiInput && !isEdit && optionsArr != null && optionsArr.length() > 0);
 
         if (isMultiInput && optionsArr != null && optionsArr.length() > 0) {
+            hasInteractiveAuth = true;
             svForm.setVisibility(View.VISIBLE);
             for (int i = 0; i < optionsArr.length(); i++) {
                 JSONObject item = optionsArr.optJSONObject(i);
@@ -205,6 +208,7 @@ public class SpiderActionDialog extends BaseDialog {
                 addInputField(fieldId, fieldName, fieldTip, fieldValue, i > 0);
             }
         } else if (isEdit) {
+            hasInteractiveAuth = true;
             svForm.setVisibility(View.VISIBLE);
             singleInputKey = actionObj.optString("id", "value").trim();
             if (singleInputKey.isEmpty()) singleInputKey = "value";
@@ -509,6 +513,10 @@ public class SpiderActionDialog extends BaseDialog {
     @Override
     public void dismiss() {
         handler.removeCallbacksAndMessages(null);
+        if (hasInteractiveAuth) {
+            hasInteractiveAuth = false;
+            com.github.tvbox.osc.api.ApiConfig.getInstance().resetSpiders();
+        }
         super.dismiss();
     }
 

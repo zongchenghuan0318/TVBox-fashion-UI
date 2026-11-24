@@ -2452,8 +2452,9 @@ public class SearchActivity extends BaseActivity {
     private boolean focusLeftPanel() {
         if (folderMode) return false;
         if (keyboard != null && keyboard.isShown()) {
-            keyboard.requestLetterFocus();
-            return true;
+            if (keyboard.requestLetterFocus()) return true;
+            if (tvSearch != null && tvSearch.isShown() && tvSearch.requestFocus()) return true;
+            return false;
         }
         if (remoteRoot != null && remoteRoot.isShown() && btnBackToKeyboard != null) {
             return btnBackToKeyboard.requestFocus();
@@ -2494,6 +2495,13 @@ public class SearchActivity extends BaseActivity {
         super.finish();
     }
 
+    private boolean isFocusInRightArea(View focus) {
+        return focus != null && (isChildOf(focus, mSearchResultRV)
+                || isChildOf(focus, mHotWordRV)
+                || isChildOf(focus, llSearchEmpty)
+                || isChildOf(focus, llSearchStatusBar));
+    }
+
     @Override
     public void onBackPressed() {
         if (folderMode) {
@@ -2501,13 +2509,11 @@ public class SearchActivity extends BaseActivity {
             return;
         }
         View currentFocus = getCurrentFocus();
-        // 电视端层级返回：焦点在右侧结果/热词/空态/状态栏时先回左侧面板（不误关正在显示的扫码面板）
-        if (currentFocus != null && (isChildOf(currentFocus, mSearchResultRV)
-                || isChildOf(currentFocus, mHotWordRV)
-                || isChildOf(currentFocus, llSearchEmpty)
-                || isChildOf(currentFocus, llSearchStatusBar))) {
+        // 触屏模式下不做「先回左侧焦点区」拦截，避免非 focusableInTouchMode 的键盘无法夺焦导致按返回死循环；
+        // 电视遥控器模式（非触屏）保留层级返回，且只有焦点确实离开右侧区域后才消费本次返回键。
+        if (currentFocus != null && !currentFocus.isInTouchMode() && isFocusInRightArea(currentFocus)) {
             resetResultItemScale();
-            if (focusLeftPanel()) {
+            if (focusLeftPanel() && !isFocusInRightArea(getCurrentFocus())) {
                 long now = SystemClock.elapsedRealtime();
                 if (now - lastBackHintAt > BACK_HINT_INTERVAL_MS) {
                     lastBackHintAt = now;

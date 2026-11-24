@@ -245,4 +245,38 @@ public class ConfigSwitchTest {
                 "https://tv.xn--yhqu5zs87a.top/jar/fty1016.jar",
                 ApiConfig.normalizeUrl("https://tv.菜妮丝.top/jar/fty1016.jar"));
     }
+
+    @Test public void safeJsonExtPreservesObjectsArraysAndStrings() {
+        com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(
+                "{"
+                        + "\"objExt\":{\"Cloud-drive\":\"tvfan/Cloud-drive.txt\"},"
+                        + "\"arrExt\":[\"a\",\"b\"],"
+                        + "\"strExt\":\"  https://example.com/ext.json  \","
+                        + "\"nullExt\":null"
+                        + "}").getAsJsonObject();
+
+        assertEquals("{\"Cloud-drive\":\"tvfan/Cloud-drive.txt\"}",
+                com.github.tvbox.osc.util.DefaultConfig.safeJsonExt(root, "objExt"));
+        assertEquals("[\"a\",\"b\"]",
+                com.github.tvbox.osc.util.DefaultConfig.safeJsonExt(root, "arrExt"));
+        assertEquals("https://example.com/ext.json",
+                com.github.tvbox.osc.util.DefaultConfig.safeJsonExt(root, "strExt"));
+        assertEquals("", com.github.tvbox.osc.util.DefaultConfig.safeJsonExt(root, "nullExt"));
+        assertEquals("", com.github.tvbox.osc.util.DefaultConfig.safeJsonExt(root, "missing"));
+    }
+
+    @Test public void jarLoaderClearSpidersEvictsCachedInstancesForRelogin() throws Exception {
+        com.github.catvod.crawler.JarLoader loader = new com.github.catvod.crawler.JarLoader();
+        Field mapField = com.github.catvod.crawler.JarLoader.class.getDeclaredField("spidersMap");
+        mapField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, com.github.catvod.crawler.Spider> spiders =
+                (Map<String, com.github.catvod.crawler.Spider>) mapField.get(loader);
+        com.github.catvod.crawler.SpiderNull dummy = new com.github.catvod.crawler.SpiderNull();
+        spiders.put("BpanSo", dummy);
+        assertSame(dummy, loader.getSpiderByKey("BpanSo"));
+
+        loader.clearSpiders();
+        assertNull(loader.getSpiderByKey("BpanSo"));
+    }
 }

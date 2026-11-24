@@ -121,6 +121,10 @@ final class SpiderLoader {
         mSiteJarPaths.clear();
     }
 
+    void resetSpiders() {
+        mBaseLoader.resetSpiders();
+    }
+
     /**
      * 加载配置里的 spider jar（csp 爬虫包）
      * <p>

@@ -209,26 +209,28 @@ public class SearchKeyboard extends FrameLayout {
         super.onDetachedFromWindow();
     }
 
-    /** 将焦点定位到键盘首个字母键（A），避免默认落到「清空」键误触 */
-    public void requestLetterFocus() {
-        requestKeyPositionFocus(2);
+    /** 将焦点定位到键盘首个字母键（A），避免默认落到「清空」键误触；返回是否已同步获得焦点 */
+    public boolean requestLetterFocus() {
+        return requestKeyPositionFocus(2);
     }
 
     /** 恢复到上次离开键盘前停驻的按键（若上次是清空键则回落到字母 A，避免误清） */
-    public void requestRestoredFocus() {
+    public boolean requestRestoredFocus() {
         int target = (lastFocusedPosition >= 1 && lastFocusedPosition < keys.size())
                 ? lastFocusedPosition : 2;
-        requestKeyPositionFocus(target);
+        return requestKeyPositionFocus(target);
     }
 
-    private void requestKeyPositionFocus(final int targetPos) {
-        if (mRecyclerView == null) return;
+    private boolean requestKeyPositionFocus(final int targetPos) {
+        if (mRecyclerView == null || !isShown()) return false;
         RecyclerView.LayoutManager manager = mRecyclerView.getLayoutManager();
-        if (manager == null) return;
+        if (manager == null) return false;
         View target = manager.findViewByPosition(targetPos);
-        if (isShown() && target != null && target.requestFocus()) return;
+        if (target != null && target.requestFocus()) return true;
+        // 触屏模式下普通按键不支持 focusableInTouchMode，不伪造成功也不再异步抢焦
+        if (isInTouchMode()) return false;
         mRecyclerView.post(() -> {
-            if (!isShown()) return;
+            if (!isShown() || isInTouchMode()) return;
             View visibleTarget = manager.findViewByPosition(targetPos);
             if (visibleTarget != null && visibleTarget.requestFocus()) return;
             mRecyclerView.scrollToPosition(targetPos);
@@ -237,10 +239,13 @@ public class SearchKeyboard extends FrameLayout {
                 public void onGlobalLayout() {
                     mRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                     View laidOutTarget = manager.findViewByPosition(targetPos);
-                    if (isShown() && laidOutTarget != null) laidOutTarget.requestFocus();
+                    if (isShown() && !isInTouchMode() && laidOutTarget != null) {
+                        laidOutTarget.requestFocus();
+                    }
                 }
             });
         });
+        return false;
     }
 
     static class Keyboard implements MultiItemEntity {

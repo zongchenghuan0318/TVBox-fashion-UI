@@ -117,6 +117,23 @@ public class JarLoader {
         return key == null ? null : spidersMap.get(key);
     }
 
+    /**
+     * 仅清理已缓存的爬虫实例（保留已加载的 DexClassLoader / extraLoaders / proxy 映射），
+     * 用于网盘登录或配置变更后让盘搜/云盘站点下次调用时重新执行 init(context, ext) 读取最新登录态。
+     */
+    public void clearSpiders() {
+        for (Spider spider : spidersMap.values()) {
+            if (spider != null) {
+                try {
+                    spider.destroy();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        spidersMap.clear();
+        spiderLocks.clear();
+    }
+
     public Spider getSpider(String key, String cls, String ext) {
         return getSpider(key, cls, ext, "");
     }

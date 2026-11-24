@@ -345,12 +345,19 @@ public class DetailActivity extends BaseActivity implements View.OnClickListener
         if (tvCollect == null || mVodInfo == null) return;
         final String curSource = mVodInfo.sourceKey;
         final String curId = mVodInfo.id;
+        if (android.text.TextUtils.isEmpty(curSource) || android.text.TextUtils.isEmpty(curId)) {
+            tvCollect.setText("加入收藏");
+            tvCollect.setContentDescription("按确定加入收藏");
+            tvCollect.setEnabled(false);
+            return;
+        }
         com.github.tvbox.osc.util.AppExecutors.io().execute(() -> {
             VodCollect record = RoomDataManger.getVodCollect(curSource, curId);
             boolean collected = record != null;
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed() || tvCollect == null || mVodInfo == null
-                        || !curId.equals(mVodInfo.id) || !curSource.equals(mVodInfo.sourceKey)) {
+                        || !android.text.TextUtils.equals(curId, mVodInfo.id)
+                        || !android.text.TextUtils.equals(curSource, mVodInfo.sourceKey)) {
                     return;
                 }
                 tvCollect.setText(collected ? "已收藏" : "加入收藏");
