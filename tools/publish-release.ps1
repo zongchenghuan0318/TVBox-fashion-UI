@@ -4,6 +4,7 @@ param(
     [switch]$PrepareOnly
 )
 $ErrorActionPreference = 'Stop'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $taskProject = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $taskRepo = 'zongchenghuan0318/TVBox-fashion-UI'
 $taskApi = "https://api.github.com/repos/$taskRepo"
@@ -44,14 +45,23 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git HEAD.' }
     if (!$PrepareOnly) {
         if (git status --porcelain) { throw 'Commit all release changes before publishing. Use -PrepareOnly to preview a local build.' }
-        if (!$env:GITHUB_TOKEN) { throw 'Set GITHUB_TOKEN locally with Contents read/write permission for this repository.' }
-        if (!$env:GITEE_TOKEN) { throw 'Set GITEE_TOKEN locally with projects permission for the Gitee mirror repository.' }
+        $taskGithubToken = $env:GITHUB_TOKEN
+        if (-not $taskGithubToken -or $taskGithubToken -match '[^\x21-\x7e]') {
+            $credential = "protocol=https`nhost=github.com`n`n" | git -c credential.interactive=never credential fill 2>$null
+            $password = $credential | Where-Object { $_ -like 'password=*' } | Select-Object -First 1
+            if (-not $password) { throw 'Set GITHUB_TOKEN locally or sign in via Git Credential Manager.' }
+            $taskGithubToken = $password.Substring(9)
+        }
+        $taskGiteeToken = $env:GITEE_TOKEN
+        if (-not $taskGiteeToken -or $taskGiteeToken -match '[^\x21-\x7e]') {
+            throw 'Set GITEE_TOKEN locally with projects permission for the Gitee mirror repository.'
+        }
         $taskRemote = git ls-remote origin refs/heads/main
         if ($LASTEXITCODE -ne 0 -or !$taskRemote -or ($taskRemote -split '\s+')[0] -ne $taskCommit) {
             throw 'HEAD must match the pushed origin/main commit.'
         }
-        $taskHeaders = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'ZMovie-Release' }
-        $taskGiteeHeaders = @{ Authorization = "token $env:GITEE_TOKEN"; 'User-Agent' = 'ZMovie-Release' }
+        $taskHeaders = @{ Authorization = "Bearer $taskGithubToken"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'ZMovie-Release' }
+        $taskGiteeHeaders = @{ Authorization = "Bearer $taskGiteeToken"; 'User-Agent' = 'ZMovie-Release' }
     }
 
     $taskLocal = Get-Content -LiteralPath 'local.properties' | Where-Object { $_ -match '^sdk\.dir=' } | Select-Object -First 1
@@ -59,7 +69,7 @@ try {
     $taskAapt = Join-Path $taskSdk 'build-tools/30.0.3/aapt.exe'
     $taskSigner = Join-Path $taskSdk 'build-tools/30.0.3/apksigner.bat'
     $taskJdkLine = Get-Content -LiteralPath 'gradle.properties' | Where-Object { $_ -match '^org\.gradle\.java\.home=' } | Select-Object -First 1
-    $taskJdk = ($taskJdkLine -split '=', 2)[1].Trim()
+    $taskJdk = if ($taskJdkLine) { ($taskJdkLine -split '=', 2)[1].Trim() } else { $env:JAVA_HOME }
     $taskPreviousJava = $env:JAVA_HOME
     try {
         $env:JAVA_HOME = $taskJdk
